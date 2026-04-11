@@ -88,9 +88,9 @@ export async function syncDataFromServer(): Promise<void> {
 
     // Phase 2: Patient data (larger, but critical)
     const [encounters, mar, vitals] = await Promise.all([
-      supabase.from('patient_encounters').select('*').order('created_at', { ascending: false }).limit(500),
-      supabase.from('dispense_admin_log').select('*').order('created_at', { ascending: false }).limit(500),
-      supabase.from('encounter_vitals').select('*').order('recorded_at', { ascending: false }).limit(1000),
+      supabase.from('patient_encounters').select('*').gte('created_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()).order('created_at', { ascending: false }),
+      supabase.from('dispense_admin_log').select('*').gte('created_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()).order('created_at', { ascending: false }),
+      supabase.from('encounter_vitals').select('*').gte('recorded_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()).order('recorded_at', { ascending: false }),
     ])
 
     if (encounters.data) await cacheData('encounters', encounters.data)
@@ -101,7 +101,7 @@ export async function syncDataFromServer(): Promise<void> {
     // Phase 3: Operations data
     const [inventory, supplyRuns] = await Promise.all([
       supabase.from('unit_inventory').select('*').order('item_name').limit(2000),
-      supabase.from('supply_runs').select('*').order('run_date', { ascending: false }).limit(200),
+      supabase.from('supply_runs').select('*').gte('run_date', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString().slice(0,10)).order('run_date', { ascending: false }),
     ])
 
     if (inventory.data) await cacheData('inventory', inventory.data)
@@ -110,8 +110,8 @@ export async function syncDataFromServer(): Promise<void> {
 
     // Phase 4: Progress notes + procedures (for encounter detail views)
     const [progressNotes, procedures] = await Promise.all([
-      supabase.from('progress_notes').select('*').order('note_datetime', { ascending: false }).limit(500),
-      supabase.from('encounter_procedures').select('*').order('performed_at', { ascending: false }).limit(500),
+      supabase.from('progress_notes').select('*').gte('note_datetime', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()).order('note_datetime', { ascending: false }),
+      supabase.from('encounter_procedures').select('*').gte('performed_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()).order('performed_at', { ascending: false }),
     ])
 
     // Cache these into encounters store as sub-collections
