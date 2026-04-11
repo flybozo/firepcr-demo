@@ -157,9 +157,7 @@ export default function ConnectionStatus() {
   // ── Render: thin bar at top ──
   const barHeight = '24px'
 
-  if (phase === 'idle' || phase === 'ready') return null
-  // Don't show syncing bar for background reconnection syncs — only show during initial startup or offline
-  if (phase === 'syncing-data' && online && pendingCount === 0) return null
+  if (phase === 'idle') return null
 
   // Colors & content by phase
   let bgColor = ''
@@ -221,7 +219,28 @@ export default function ConnectionStatus() {
       )
       break
 
-
+    default:
+      // 'ready' state — persistent green bar
+      bgColor = 'bg-green-950/60 border-green-900'
+      content = (
+        <div className="flex items-center justify-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+          <span>Online</span>
+          {pendingCount > 0 && (
+            <>
+              <span className="opacity-40">·</span>
+              <span className="text-amber-400">{pendingCount} pending</span>
+            </>
+          )}
+          {lastSynced && (
+            <>
+              <span className="opacity-40">·</span>
+              <span className="opacity-50">Synced {timeAgo(lastSynced)}</span>
+            </>
+          )}
+        </div>
+      )
+      break
   }
 
   return (

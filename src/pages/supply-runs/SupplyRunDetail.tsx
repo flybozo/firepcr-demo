@@ -106,8 +106,14 @@ export default function SupplyRunDetailPage() {
       id
     )
     if (offline || !runData) {
-      if (runData) setIsOfflineData(true)
-      setRun(runData as unknown as SupplyRun)
+      if (runData) {
+        setIsOfflineData(true)
+        setRun(runData as unknown as SupplyRun)
+        // Load items from embedded supply_run_items in cached run
+        if ((runData as any).supply_run_items) {
+          setItems((runData as any).supply_run_items)
+        }
+      }
       setLoading(false)
       return
     }
