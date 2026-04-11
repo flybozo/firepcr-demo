@@ -85,22 +85,17 @@ function CSOverviewPageInner() {
   async function loadData() {
     setLoading(true)
     try {
-      // Load all incident units joined to unit names
-      const iuResult = await loadList(
-        () => supabase.from('incident_units').select('id, unit:units(name)') as any,
-        'incident_units'
+      // Load units for name lookup
+      const unitsResult = await loadList(
+        () => supabase.from('units').select('id, name') as any,
+        'units'
       )
-      const incidentUnits = iuResult.data
-
-      const unitMap: Record<string, string> = {}  // unitName → incident_unit_id
-      const unitIdToName: Record<string, string> = {} // incident_unit_id → unitName
-      if (incidentUnits) {
-        for (const u of incidentUnits) {
-          const name = (u as any).unit?.name
-          if (name) {
-            unitMap[name] = u.id
-            unitIdToName[u.id] = name
-          }
+      const unitIdToName: Record<string, string> = {}
+      const unitMap: Record<string, string> = {}
+      if (unitsResult.data) {
+        for (const u of unitsResult.data) {
+          unitIdToName[u.id] = u.name
+          unitMap[u.name] = u.id
         }
       }
 
@@ -108,7 +103,7 @@ function CSOverviewPageInner() {
       const { data: inventory } = await loadList(
         () => supabase
           .from('unit_inventory')
-          .select('id, item_name, quantity, cs_lot_number, cs_expiration_date, incident_unit_id')
+          .select('id, item_name, quantity, cs_lot_number, cs_expiration_date, unit_id')
           .eq('category', 'CS')
           .gt('quantity', 0),
         'inventory',
@@ -130,7 +125,7 @@ function CSOverviewPageInner() {
       const unitDataMap: Record<string, UnitInventoryItem[]> = {}
       if (inventory) {
         for (const item of inventory) {
-          const unitName = unitIdToName[item.incident_unit_id] || 'Unknown'
+          const unitName = unitIdToName[item.unit_id] || 'Unknown'
           if (unitName === 'Warehouse') continue // skip — warehouse uses separate table
           if (!unitDataMap[unitName]) unitDataMap[unitName] = []
           unitDataMap[unitName].push(item)
@@ -141,7 +136,7 @@ function CSOverviewPageInner() {
         unitName: name,
         incidentUnitId: unitMap[name] || null,
         items: name === 'Warehouse'
-          ? (warehouseInventory || []).map(i => ({ ...i, incident_unit_id: unitMap['Warehouse'] || null }))
+          ? (warehouseInventory || []).map(i => ({ ...i, unit_id: unitMap["Warehouse"] || null }))
           : (unitDataMap[name] || []),
       }))
 
@@ -175,7 +170,7 @@ function CSOverviewPageInner() {
         // Group by incident_unit_id as best we can without unit name lookup
         const grouped: Record<string, UnitInventoryItem[]> = {}
         for (const item of csItems) {
-          const key = (item as any).incident_unit_id || 'unknown'
+          const key = (item as any).unit_id || 'unknown'
           if (!grouped[key]) grouped[key] = []
           grouped[key].push(item)
         }

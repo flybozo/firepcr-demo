@@ -17,7 +17,9 @@ type InventoryItem = {
   par_qty: number
   lot_number: string | null
   expiration_date: string | null
-  incident_unit: { unit: { name: string } } | null
+  unit_id: string | null
+  unit: { id: string; name: string; unit_type?: { name: string } | null } | null
+  incident_unit?: { unit: { name: string; unit_type?: { name: string } | null } } | null
 }
 
 const CAT_COLORS: Record<string, string> = {
@@ -54,31 +56,26 @@ function InventoryPageInner() {
       const { data, offline } = await loadList(
         () => supabase
           .from('unit_inventory')
-          .select(`id, item_name, category, quantity, par_qty, lot_number, expiration_date,
-            incident_unit:incident_units(unit:units(name, unit_type:unit_types(name)))`)
+          .select(`id, item_name, category, quantity, par_qty, lot_number, expiration_date, unit_id,
+            unit:units(id, name, unit_type:unit_types(name))`)
           .order('item_name')
           .limit(2000),
         'inventory'
       )
       // If offline data is missing unit joins, reconstruct from incident_units cache
       let enrichedData = data as any[]
-      // Enrich ALL items (online or offline) that are missing unit names
-      // Build a lookup map from incident_units cache for items missing joins
-      const needsEnrichment = enrichedData.some((item: any) => !item.incident_unit?.unit?.name && item.incident_unit_id)
+      // Enrich items missing unit name — lookup from cached units by unit_id
+      const needsEnrichment = enrichedData.some((item: any) => !item.unit?.name && item.unit_id)
       if (needsEnrichment) {
         try {
           const { getCachedData } = await import('@/lib/offlineStore')
-          const cachedIUs = await getCachedData('incident_units')
-          // Build fast lookup: incident_unit_id -> { name, unit_type }
-          const iuMap: Record<string, { name: string; unit_type: any }> = {}
-          cachedIUs.forEach((iu: any) => {
-            if (iu.id && iu.unit?.name) iuMap[iu.id] = { name: iu.unit.name, unit_type: iu.unit.unit_type || null }
-          })
+          const cachedUnits = await getCachedData('units')
+          const unitMap: Record<string, any> = {}
+          cachedUnits.forEach((u: any) => { if (u.id) unitMap[u.id] = u })
           enrichedData = enrichedData.map((item: any) => {
-            if (item.incident_unit?.unit?.name) return item
-            const iuId = item.incident_unit_id
-            if (iuId && iuMap[iuId]) {
-              return { ...item, incident_unit: { unit: iuMap[iuId] } }
+            if (item.unit?.name) return item
+            if (item.unit_id && unitMap[item.unit_id]) {
+              return { ...item, unit: unitMap[item.unit_id] }
             }
             return item
           })
@@ -97,12 +94,12 @@ function InventoryPageInner() {
   // Unit type lookup for color sorting
 const unitTypeMap: Record<string, string> = {}
 items.forEach(i => {
-  const name = (i.incident_unit as any)?.unit?.name
-  const type = (i.incident_unit as any)?.unit?.unit_type?.name || ''
+  const name = (i as any)?.unit?.name
+  const type = (i as any)?.unit?.unit_type?.name || ''
   if (name) unitTypeMap[name] = type
 })
 const units = ['All', ...Array.from(new Set(
-  items.map(i => (i.incident_unit as any)?.unit?.name).filter(Boolean)
+  items.map(i => (i as any)?.unit?.name).filter(Boolean)
 )).sort((a, b) => {
   const aOrder = UNIT_TYPE_ORDER[unitTypeMap[a]] ?? 99
   const bOrder = UNIT_TYPE_ORDER[unitTypeMap[b]] ?? 99
@@ -110,7 +107,7 @@ const units = ['All', ...Array.from(new Set(
 })]
 
   const filtered = items.filter(item => {
-    const unitName = (item.incident_unit as any)?.unit?.name
+    const unitName = (item as any)?.unit?.name
     const effectiveFilter = isField && assignment.unit?.name ? assignment.unit.name : unitFilter
     if (effectiveFilter !== 'All' && unitName !== effectiveFilter) return false
     if (catFilter !== 'All' && item.category !== catFilter) return false
@@ -205,7 +202,7 @@ const units = ['All', ...Array.from(new Set(
             <div className="divide-y divide-gray-800/60">
               {paginated.map(item => {
                 const low = item.quantity <= item.par_qty
-                const unitName = (item.incident_unit as any)?.unit?.name
+                const unitName = (item as any)?.unit?.name
                 return (
                   <Link key={item.id} to={`/inventory/${item.id}`}
                     className={`flex items-center px-3 py-1.5 hover:bg-gray-800 transition-colors cursor-pointer ${low ? 'bg-red-950/10' : ''}`}>
