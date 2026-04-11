@@ -73,18 +73,20 @@ export async function syncDataFromServer(): Promise<void> {
     console.log('[Sync] Starting aggressive data preload...')
 
     // Phase 1: Core reference data (small, fast)
-    const [incidents, units, employees, formulary] = await Promise.all([
+    const [incidents, units, employees, formulary, incidentUnits] = await Promise.all([
       supabase.from('incidents').select('*, incident_units(id, released_at)'),  // ALL incidents with unit counts
       supabase.from('units').select('*, unit_type:unit_types(name)'),  // ALL units
       supabase.from('employees').select('*'),  // ALL employees with ALL fields
       supabase.from('formulary').select('*'),  // ALL formulary items
+      supabase.from('incident_units').select('id, incident_id, released_at, unit:units(id, name)'),  // For CS/unit mapping
     ])
 
-    console.log('[Sync] Phase 1:', { incidents: incidents.data?.length, units: units.data?.length, employees: employees.data?.length, formulary: formulary.data?.length })
+    console.log('[Sync] Phase 1:', { incidents: incidents.data?.length, units: units.data?.length, employees: employees.data?.length, formulary: formulary.data?.length, incidentUnits: incidentUnits.data?.length })
     if (incidents.data) await cacheData('incidents', incidents.data)
     if (units.data) await cacheData('units', units.data)
     if (employees.data) await cacheData('employees', employees.data)
     if (formulary.data) await cacheData('formulary', formulary.data)
+    if (incidentUnits.data) await cacheData('incident_units', incidentUnits.data)
     console.log('[Sync] Phase 1 done — reference data cached')
 
     // Phase 2: Patient data (larger, but critical)

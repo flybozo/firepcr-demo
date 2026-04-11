@@ -134,9 +134,17 @@ export default function ConnectionStatus() {
       setPendingCount(count)
       if (!nowOnline) {
         setPhase('offline')
-      } else if (phase === 'offline') {
+      } else {
+        // Back online — always sync + flush pending writes
+        console.log('[ConnectionStatus] Back online, syncing...', { pendingWrites: count })
         setPhase('syncing-data')
-        await syncDataFromServer()
+        try {
+          const { flushPendingWrites } = await import('@/lib/syncManager')
+          await flushPendingWrites()
+          await syncDataFromServer()
+        } catch (err) {
+          console.error('[ConnectionStatus] Sync on reconnect failed:', err)
+        }
         await refresh()
         setPhase('ready')
       }
