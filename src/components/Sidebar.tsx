@@ -1,0 +1,421 @@
+import { Link, useLocation } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useUserAssignment } from '@/lib/useUserAssignment'
+import { useRole } from '@/lib/useRole'
+import { createClient } from '@/lib/supabase/client'
+import {
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+} from '@dnd-kit/core'
+import type { DragEndEvent } from '@dnd-kit/core'
+import {
+  SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+
+type SubItem = { label: string; href: string }
+type NavItem = { icon: string; label: string; href: string; sub: SubItem[]; adminOnly?: boolean }
+
+const NAV: NavItem[] = [
+  {
+    icon: '🔥',
+    label: 'Incidents',
+    href: '/incidents',
+    sub: [
+      { label: 'Active Incidents', href: '/incidents?status=Active' },
+      { label: 'Closed Incidents', href: '/incidents?status=Closed' },
+      { label: 'New Incident', href: '/incidents/new' },
+      { label: 'All 214 Logs', href: '/ics214' },
+      { label: 'New ICS 214', href: '/ics214/new' },
+    ],
+    adminOnly: false,
+  },
+  {
+    icon: '📋',
+    label: 'Patient Encounters',
+    href: '/encounters',
+    sub: [
+      { label: 'New Encounter', href: '/encounters/new' },
+      { label: 'Unsigned Orders', href: '/unsigned-orders' },
+    ],
+  },
+  {
+    icon: '🚑',
+    label: 'Units',
+    href: '/units',
+    sub: [
+      { label: 'Add New Unit', href: '/units/new' },
+    ],
+    adminOnly: false,
+  },
+  {
+    icon: '💊',
+    label: 'MAR',
+    href: '/mar',
+    sub: [],
+  },
+  {
+    icon: '📦',
+    label: 'Inventory',
+    href: '/inventory',
+    sub: [
+      { label: 'Add Inventory', href: '/inventory/add' },
+      { label: 'Formulary Templates', href: '/formulary' },
+      { label: 'Reorder Report', href: '/inventory/reorder' },
+      { label: 'Burn Rate', href: '/inventory/burnrate' },
+      { label: 'Billing Report', href: '/billing' },
+    ],
+  },
+  {
+    icon: '🔐',
+    label: 'CS System',
+    href: '/cs',
+    sub: [
+      { label: 'CS Overview', href: '/cs' },
+      { label: 'Receive CS', href: '/cs/receive' },
+      { label: 'Transfer CS', href: '/cs/transfer' },
+      { label: 'Daily Count', href: '/cs/count' },
+      { label: 'Audit Log', href: '/cs/audit' },
+      { label: 'Daily Checklist', href: '/cs/checklist' },
+    ],
+  },
+  {
+    icon: '🚚',
+    label: 'Supply Runs',
+    href: '/supply-runs',
+    sub: [{ label: 'New Supply Run', href: '/supply-runs/new' }],
+  },
+  {
+    icon: '👥',
+    label: 'Employee Roster',
+    href: '/roster',
+    sub: [
+      { label: 'New Employee', href: '/roster/new' },
+      { label: 'HR Credentials', href: '/roster/hr' },
+    ],
+    adminOnly: false,
+  },
+  {
+    icon: '📊',
+    label: 'Analytics',
+    href: '/analytics',
+    sub: [],
+    adminOnly: false,
+  },
+  {
+    icon: '📅',
+    label: 'Schedule',
+    href: '/schedule',
+    sub: [
+      { label: 'Coverage Calendar', href: '/schedule/calendar' },
+      { label: '⚡ Generate Schedule', href: '/schedule/generate' },
+    ],
+    adminOnly: false,
+  },
+  {
+    icon: '💰',
+    label: 'Payroll',
+    href: '/payroll',
+    sub: [{ label: 'My Payroll', href: '/payroll/my' }],
+  },
+  {
+    icon: '📇',
+    label: 'Contacts',
+    href: '/contacts',
+    sub: [],
+    adminOnly: false,
+  },
+  {
+    icon: '🔥',
+    label: 'Fire Dashboard',
+    href: '/admin/fire-dashboard',
+    sub: [],
+    adminOnly: true,
+  },
+  {
+    icon: '⚙️',
+    label: 'Admin',
+    href: '/admin',
+    sub: [
+      { label: 'Announcements', href: '/admin/announcements' },
+      { label: 'Chat Requests', href: '/admin/chat-requests' },
+      { label: 'Company Profile', href: '/admin/company' },
+    ],
+    adminOnly: true,
+  },
+]
+
+const STORAGE_KEY = 'ram-sidebar-order'
+
+function loadOrder(labels: string[]): string[] {
+  if (typeof window === 'undefined') return labels
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]') as string[]
+    // Merge: saved order first, append any new labels not yet in saved
+    const merged = saved.filter(l => labels.includes(l))
+    labels.forEach(l => { if (!merged.includes(l)) merged.push(l) })
+    return merged
+  } catch {
+    return labels
+  }
+}
+
+// ── Sortable nav item ────────────────────────────────────────────────────────
+function SortableNavItem({
+  item, isAdmin, isField, pathname, expanded, toggle, onNavigate, assignment, roleLoading, getHref,
+}: {
+  item: NavItem
+  isAdmin: boolean
+  isField: boolean
+  pathname: string
+  expanded: string | null
+  toggle: (label: string) => void
+  onNavigate?: () => void
+  assignment: ReturnType<typeof useUserAssignment>
+  roleLoading: boolean
+  getHref: (item: NavItem) => string
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: item.label })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  const isActive = pathname.startsWith(item.href)
+  const isExpanded = expanded === item.label
+  const href = getHref(item)
+
+  const PRESCRIBER_ROLES = ['MD', 'MD/DO', 'PA', 'NP', 'DO']
+  const visibleSub = item.sub.filter(s => {
+    if (isField) {
+      const adminSubs = [
+        '/incidents/new', '/units/new', '/roster/new', '/roster/hr',
+        '/admin', '/formulary', '/cs/audit', '/cs/receive',
+        '/inventory/burnrate', '/billing', '/schedule/generate',
+      ]
+      if (adminSubs.some(a => s.href.startsWith(a))) return false
+      if (s.href === '/unsigned-orders' && !PRESCRIBER_ROLES.includes(assignment.employee?.role || '')) return false
+    }
+    return true
+  })
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <div className="flex items-center group">
+        {/* Drag handle — subtle grip, only visible on hover */}
+        <div
+          {...attributes}
+          {...listeners}
+          className="pl-1.5 pr-0.5 py-3 cursor-grab active:cursor-grabbing text-gray-700 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity touch-none select-none"
+          title="Drag to reorder"
+        >
+          ⠿
+        </div>
+
+        {isField && (item.href === '/incidents' || item.href === '/units') ? (
+          <Link
+            to={href}
+            onClick={onNavigate}
+            style={isActive ? { color: '#fff', backgroundColor: 'var(--color-primary, #374151)' } : { color: 'var(--color-text-muted, #9ca3af)' }}
+            className={`flex-1 flex items-center gap-3 pr-4 py-3 text-sm font-medium transition-colors hover:opacity-80`}
+          >
+            <span className="text-base">{item.icon}</span>
+            <span>{item.label}</span>
+          </Link>
+        ) : (
+          <button
+            onClick={() => toggle(item.label)}
+            style={isActive ? { color: '#fff', backgroundColor: 'var(--color-primary, #374151)' } : { color: 'var(--color-text-muted, #9ca3af)' }}
+            className={`flex-1 flex items-center justify-between pr-4 py-3 text-sm font-medium transition-colors hover:opacity-80`}
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-base">{item.icon}</span>
+              <span>{item.label}</span>
+            </div>
+            {visibleSub.length > 0 && (
+              <span className={`text-xs text-gray-600 transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
+            )}
+          </button>
+        )}
+      </div>
+
+      {isExpanded && (
+        <div style={{ backgroundColor: 'color-mix(in srgb, var(--color-sidebar-bg, #0a0a0a) 85%, var(--color-primary, #dc2626) 5%)' }}>
+          <Link
+            to={href}
+            onClick={onNavigate}
+            style={pathname === item.href ? { color: 'var(--color-primary, #f87171)' } : { color: 'var(--color-text-muted, #9ca3af)' }}
+            className="flex items-center gap-2 px-10 py-2 text-xs transition-colors hover:opacity-80"
+          >
+            {isField && (item.href === '/incidents' || item.href === '/units') ? 'My ' : 'View All'}
+            {isField && item.href === '/incidents' ? 'Incident' : isField && item.href === '/units' ? 'Unit' : ''}
+          </Link>
+          {visibleSub.map(sub => (
+            <Link
+              key={sub.href}
+              to={sub.href}
+              onClick={onNavigate}
+              style={pathname === sub.href ? { color: 'var(--color-primary, #f87171)' } : { color: 'var(--color-text-muted, #9ca3af)' }}
+              className="flex items-center gap-2 px-10 py-2 text-xs transition-colors hover:opacity-80"
+            >
+              + {sub.label}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+type OrgBranding = { name: string; dba: string | null; logo_url: string | null }
+
+// ── Main sidebar ─────────────────────────────────────────────────────────────
+export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
+  const location = useLocation()
+  const pathname = location.pathname
+  const { isAdmin, isField, loading: roleLoading } = useRole()
+  const assignment = useUserAssignment()
+  const [org, setOrg] = useState<OrgBranding | null>(null)
+
+  useEffect(() => {
+    const supabase = createClient()
+    supabase
+      .from('organizations')
+      .select('name, dba, logo_url')
+      .limit(1)
+      .single()
+      .then(({ data }) => {
+        if (data) setOrg(data as unknown as OrgBranding)
+      })
+  }, [])
+
+  const visibleNav = NAV.filter(item => !(item.adminOnly && isField))
+  const defaultLabels = visibleNav.map(n => n.label)
+
+  const [order, setOrder] = useState<string[]>(defaultLabels)
+
+  // Load saved order from localStorage after mount
+  useEffect(() => {
+    setOrder(loadOrder(defaultLabels))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isField]) // re-run when role resolves (field vs admin affects visible items)
+
+  const [expanded, setExpanded] = useState<string | null>(
+    visibleNav.find(n => pathname.startsWith(n.href))?.label || visibleNav[0]?.label
+  )
+  const toggle = (label: string) => setExpanded(prev => prev === label ? null : label)
+
+  const getHref = (item: NavItem): string => {
+    if (roleLoading || isAdmin) return item.href
+    switch (item.href) {
+      case '/incidents':
+        return assignment.incidentUnit?.incident_id
+          ? `/incidents/${assignment.incidentUnit.incident_id}`
+          : '/incidents'
+      case '/units':
+        return assignment.unit?.id ? `/units/${assignment.unit.id}` : '/units'
+      default:
+        return item.href
+    }
+  }
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
+  )
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = order.indexOf(active.id as string)
+    const newIndex = order.indexOf(over.id as string)
+    const newOrder = arrayMove(order, oldIndex, newIndex)
+    setOrder(newOrder)
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(newOrder)) } catch {}
+  }
+
+  // Build ordered item list
+  const orderedNav = order
+    .map(label => visibleNav.find(n => n.label === label))
+    .filter(Boolean) as NavItem[]
+
+  return (
+    <nav
+      className="flex flex-col h-full border-r"
+      style={{ backgroundColor: 'var(--color-sidebar-bg, #111827)', borderColor: 'var(--color-border, #1f2937)' }}
+    >
+      <Link to="/" style={{ borderColor: 'var(--color-border, #1f2937)' }} className="px-4 py-4 border-b flex items-center gap-3 hover:bg-gray-800/50 transition-colors">
+        {org?.logo_url ? (
+          <img
+            src={org.logo_url}
+            alt={org.dba ?? org.name}
+            className="w-10 h-10 rounded-full object-contain bg-white p-0.5 shrink-0"
+          />
+        ) : (
+          <img
+            src="https://kfkpvazkikpuwatthtow.supabase.co/storage/v1/object/public/headshots/ram-logo.png"
+            alt="Remote Area Medicine"
+            className="w-10 h-10 rounded-full object-contain bg-white p-0.5 shrink-0"
+          />
+        )}
+        <div className="min-w-0">
+          <h1 className="text-sm font-bold text-white leading-tight">{org?.dba ?? org?.name ?? 'Remote Area Medicine'}</h1>
+          <p className="text-xs text-gray-500">Field Ops</p>
+        </div>
+      </Link>
+
+      <div className="flex-1 overflow-y-auto py-2">
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={order} strategy={verticalListSortingStrategy}>
+            {orderedNav.map(item => (
+              <SortableNavItem
+                key={item.label}
+                item={item}
+                isAdmin={isAdmin}
+                isField={isField}
+                pathname={pathname}
+                expanded={expanded}
+                toggle={toggle}
+                onNavigate={onNavigate}
+                assignment={assignment}
+                roleLoading={roleLoading}
+                getHref={getHref}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
+      </div>
+
+      <div className="border-t p-4 space-y-2" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
+        {!roleLoading && assignment.employee && (
+          <div className="text-xs text-gray-600 truncate mb-2">
+            {assignment.employee.name} · {assignment.unit?.name || 'No unit'}
+          </div>
+        )}
+        <Link to="/documents"
+          style={{ color: "var(--color-text-muted, #9ca3af)" }} className="flex items-center gap-3 text-sm hover:opacity-80 transition-colors">
+          <span>📋</span> Policies & Procedures
+        </Link>
+        <Link to="/profile"
+          style={{ color: "var(--color-text-muted, #9ca3af)" }} className="flex items-center gap-3 text-sm hover:opacity-80 transition-colors">
+          <span>👤</span> My Profile
+        </Link>
+        <button
+          onClick={async () => {
+            const { createClient } = await import('@/lib/supabase/client')
+            const sb = createClient()
+            await sb.auth.signOut()
+            window.location.href = '/login'
+          }}
+          style={{ color: "var(--color-text-muted, #6b7280)" }} className="flex items-center gap-3 text-sm hover:opacity-70 transition-colors w-full"
+        >
+          <span>🚪</span> Sign Out
+        </button>
+      </div>
+      <div className="px-4 pb-3 pt-1">
+        <p className="text-[10px] text-center" style={{ color: 'var(--color-text-muted, #6b7280)' }}>FirePCR v1.0.0</p>
+      </div>
+    </nav>
+  )
+}

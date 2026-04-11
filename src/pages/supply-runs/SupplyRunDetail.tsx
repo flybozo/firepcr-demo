@@ -1,0 +1,698 @@
+
+
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { getCachedById, cacheData } from '@/lib/offlineStore'
+import { Link } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
+import { useUserAssignment } from '@/lib/useUserAssignment'
+
+type SupplyRun = {
+  id: string
+  run_date: string
+  time: string | null
+  resource_number: string | null
+  dispensed_by: string | null
+  crew_member: string | null
+  notes: string | null
+  item_count: number
+  incident_unit_id: string | null
+  raw_barcodes: string[] | null
+  incident_unit: {
+    unit: { name: string; id: string } | null
+    incident: { name: string } | null
+  } | null
+}
+
+type SupplyRunItem = {
+  id: string
+  supply_run_id: string
+  item_name: string
+  category: string
+  quantity: number
+  unit_cost: number
+  barcode?: string | null
+}
+
+type FormularyTemplate = {
+  id: string
+  item_name: string
+  category: string
+  barcode?: string | null
+  upc?: string | null
+}
+
+type UnitInventoryRow = {
+  id: string
+  item_name: string
+  quantity: number
+  barcode?: string | null
+  upc?: string | null
+}
+
+const inputCls = 'w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500'
+const labelCls = 'block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1'
+
+const CAT_COLORS: Record<string, string> = {
+  CS: 'bg-orange-900 text-orange-300',
+  Rx: 'bg-blue-900 text-blue-300',
+  OTC: 'bg-gray-700 text-gray-300',
+  Supply: 'bg-gray-700 text-gray-300',
+}
+
+export default function SupplyRunDetailPage() {
+  const supabase = createClient()
+  const assignment = useUserAssignment()
+  const isAdmin = ['MD', 'MD/DO', 'Admin'].includes(assignment.employee?.role || '')
+  const params = useParams()
+  const id = params.id as string
+
+  const [run, setRun] = useState<SupplyRun | null>(null)
+  const [items, setItems] = useState<SupplyRunItem[]>([])
+  const [formulary, setFormulary] = useState<FormularyTemplate[]>([])
+  const [loading, setLoading] = useState(true)
+  const [isOfflineData, setIsOfflineData] = useState(false)
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [addingItem, setAddingItem] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [editingQtyId, setEditingQtyId] = useState<string | null>(null)
+  const [editingQtyValue, setEditingQtyValue] = useState<string>('')
+
+  // Barcode scanning
+  const [scanMode, setScanMode] = useState(false)
+  const [barcodeInput, setBarcodeInput] = useState('')
+  const [scanMessage, setScanMessage] = useState<{ text: string; type: 'success' | 'warn' | 'error' } | null>(null)
+  const [scanning, setScanning] = useState(false)
+  const barcodeRef = useRef<HTMLInputElement>(null)
+
+  const [newItem, setNewItem] = useState({
+    item_name: '',
+    category: '',
+    quantity: '',
+    unit_cost: '',
+  })
+
+  const loadData = useCallback(async () => {
+    let runData: any = null
+    let itemData: any[] | null = null
+    let formularyData: any[] | null = null
+    try {
+    const [{ data: _run, error: runErr }, { data: _items }, { data: _formulary }] = await Promise.all([
+      supabase
+        .from('supply_runs')
+        .select(`
+          id, run_date, time, resource_number, dispensed_by, crew_member, notes, incident_unit_id, raw_barcodes,
+          incident_unit:incident_units(unit:units(id, name), incident:incidents(name))
+        `)
+        .eq('id', id)
+        .single(),
+      supabase
+        .from('supply_run_items')
+        .select('*')
+        .eq('supply_run_id', id)
+        .order('item_name'),
+      supabase
+        .from('formulary_templates')
+        .select('id, item_name, category, unit_of_measure, barcode, upc, unit_type_id, unit_type:unit_types(name)')
+        .in('category', ['OTC', 'Supply'])
+        .order('item_name'),
+    ])
+    if (runErr) throw runErr
+    runData = _run; itemData = _items; formularyData = _formulary
+    if (runData) await cacheData('supply_runs', [runData])
+    } catch {
+      runData = await getCachedById('supply_runs', id)
+      if (runData) setIsOfflineData(true)
+      setRun(runData as unknown as SupplyRun)
+      setLoading(false)
+      return
+    }
+    setRun(runData as unknown as SupplyRun)
+    setItems(itemData || [])
+    // Filter formulary to match this unit's type (ambulance/med unit/rems)
+    const runUnit = (runData as any)?.incident_unit?.unit?.name || ''
+    const unitType = runUnit.startsWith('RAMBO') ? 'Ambulance' : 
+                     (runUnit.startsWith('REMS') ? 'REMS' : 'Med Unit')
+    const filteredFormulary = (formularyData || []).filter((f: any) => 
+      !f.unit_type?.name || f.unit_type.name === unitType
+    )
+    setFormulary(filteredFormulary)
+    setLoading(false)
+  }, [id, supabase])
+
+  useEffect(() => { loadData() }, [loadData])
+
+  // Keep barcode input focused when scan mode is active
+  useEffect(() => {
+    if (scanMode) {
+      const t = setTimeout(() => barcodeRef.current?.focus(), 50)
+      return () => clearTimeout(t)
+    }
+  }, [scanMode])
+
+  const setNew = (field: string, value: string) => {
+    setNewItem(prev => ({ ...prev, [field]: value }))
+  }
+
+  // ── Barcode scan handler ──────────────────────────────────────────────────
+
+  const handleBarcodeScan = async (rawCode: string) => {
+    if (!rawCode.trim() || scanning) return
+    const code = rawCode.trim()
+    setScanning(true)
+    setBarcodeInput('')
+
+    const incidentUnitId = run?.incident_unit_id
+    let added = false
+
+    try {
+      // 1. Search unit_inventory for this incident_unit
+      if (incidentUnitId) {
+        const { data: invRows } = await supabase
+          .from('unit_inventory')
+          .select('id, item_name, quantity, barcode, upc')
+          .eq('incident_unit_id', incidentUnitId)
+
+        const match = (invRows as UnitInventoryRow[] | null)?.find(
+          row => row.barcode === code || row.upc === code
+        )
+
+        if (match) {
+          // Add supply_run_item
+          const { error: itemErr } = await supabase.from('supply_run_items').insert({
+            supply_run_id: id,
+            item_name: match.item_name,
+            category: 'Supply',
+            quantity: 1,
+            unit_cost: 0,
+            barcode: code,
+          })
+          if (itemErr) throw new Error(itemErr.message)
+
+          // Subtract from unit_inventory
+          const newQty = Math.max(0, (match.quantity || 0) - 1)
+          await supabase.from('unit_inventory').update({ quantity: newQty }).eq('id', match.id)
+
+          // Update supply_run totals
+          const newCount = items.length + 1
+          await supabase.from('supply_runs').update({ item_count: newCount }).eq('id', id)
+
+          setScanMessage({ text: `✓ Added: ${match.item_name}`, type: 'success' })
+          added = true
+          await loadData()
+        }
+      }
+
+      if (!added) {
+        // 2. Search formulary_templates
+        const formularyMatch = formulary.find(
+          f => f.barcode === code || f.upc === code
+        )
+
+        if (formularyMatch) {
+          const { error: itemErr } = await supabase.from('supply_run_items').insert({
+            supply_run_id: id,
+            item_name: formularyMatch.item_name,
+            category: formularyMatch.category || 'Supply',
+            quantity: 1,
+            unit_cost: 0,
+            barcode: code,
+          })
+          if (itemErr) throw new Error(itemErr.message)
+
+          const newCount = items.length + 1
+          await supabase.from('supply_runs').update({ item_count: newCount }).eq('id', id)
+
+          setScanMessage({ text: `✓ Added from formulary: ${formularyMatch.item_name}`, type: 'success' })
+          added = true
+          await loadData()
+        }
+      }
+
+      if (!added) {
+        // 3. Unknown barcode — append to raw_barcodes
+        const existing = run?.raw_barcodes || []
+        const updated = [...existing, code]
+        await supabase.from('supply_runs').update({ raw_barcodes: updated }).eq('id', id)
+        setScanMessage({ text: `Unknown barcode: ${code}`, type: 'warn' })
+        // Update local run state
+        setRun(prev => prev ? { ...prev, raw_barcodes: updated } : prev)
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Scan error'
+      setScanMessage({ text: `Error: ${msg}`, type: 'error' })
+    }
+
+    setScanning(false)
+    // Clear message after 3s
+    setTimeout(() => setScanMessage(null), 3000)
+    // Re-focus
+    setTimeout(() => barcodeRef.current?.focus(), 50)
+  }
+
+  // ── Manual add item ───────────────────────────────────────────────────────
+
+  const handleAddItem = async () => {
+    if (!newItem.item_name || !newItem.quantity) {
+      alert('Please enter item name and quantity.')
+      return
+    }
+    setAddingItem(true)
+    try {
+      const qty = parseFloat(newItem.quantity) || 0
+      const unitCost = parseFloat(newItem.unit_cost) || 0
+      const totalCost = qty * unitCost
+
+      const { error: itemErr } = await supabase.from('supply_run_items').insert({
+        supply_run_id: id,
+        item_name: newItem.item_name,
+        category: newItem.category || 'OTC',
+        quantity: qty,
+        unit_cost: unitCost || null,
+      })
+      if (itemErr) throw new Error(itemErr.message)
+
+      // Zero-quantity guard + subtract from unit inventory
+      // Look up by unit_id (any incident_unit for this unit) since inventory is per-unit not per-deployment
+      const unitId = run?.incident_unit?.unit?.id
+      if (unitId) {
+        // Find all incident_unit IDs for this unit to search across deployments
+        const { data: iuRows } = await supabase
+          .from('incident_units')
+          .select('id')
+          .eq('unit_id', unitId)
+        const iuIds = (iuRows || []).map((r: any) => r.id)
+        const { data: existing } = await supabase
+          .from('unit_inventory')
+          .select('id, quantity')
+          .in('incident_unit_id', iuIds)
+          .eq('item_name', newItem.item_name)
+          .order('quantity', { ascending: false })
+          .limit(1)
+
+        if (existing && existing.length > 0) {
+          const currentQty = existing[0].quantity || 0
+          if (currentQty < qty) {
+            alert(`⚠️ Insufficient stock: only ${currentQty} available. Cannot dispense ${qty}.`)
+            setAddingItem(false)
+            return
+          }
+          const newQty = currentQty - qty
+          await supabase.from('unit_inventory').update({ quantity: newQty }).eq('id', existing[0].id)
+        }
+      }
+
+      const newItemCount = items.length + 1
+      await supabase.from('supply_runs').update({ item_count: newItemCount }).eq('id', id)
+
+      setNewItem({ item_name: '', category: '', quantity: '', unit_cost: '' })
+      setShowAddForm(false)
+      await loadData()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      alert(`Error: ${msg}`)
+    }
+    setAddingItem(false)
+  }
+
+  // ── Delete item ───────────────────────────────────────────────────────────
+
+  const handleDeleteItem = async (itemId: string) => {
+    if (!confirm('Delete this item? Quantity will be restored to unit inventory.')) return
+    setDeletingId(itemId)
+    try {
+      const deletedItem = items.find(i => i.id === itemId)
+      await supabase.from('supply_run_items').delete().eq('id', itemId)
+
+      // Add quantity BACK using unit_id pattern (mirrors the deduction logic)
+      if (deletedItem) {
+        const unitId = run?.incident_unit?.unit?.id
+        if (unitId) {
+          const { data: iuRows } = await supabase.from('incident_units').select('id').eq('unit_id', unitId)
+          const iuIds = (iuRows || []).map((r: any) => r.id)
+          const { data: invRows } = await supabase
+            .from('unit_inventory')
+            .select('id, quantity')
+            .in('incident_unit_id', iuIds)
+            .eq('item_name', deletedItem.item_name)
+            .order('quantity', { ascending: false })
+            .limit(1)
+          if (invRows?.length) {
+            await supabase.from('unit_inventory')
+              .update({ quantity: (invRows[0].quantity || 0) + deletedItem.quantity })
+              .eq('id', invRows[0].id)
+          }
+        }
+      }
+
+      const newItemCount = Math.max(0, (run?.item_count || 1) - 1)
+      await supabase.from('supply_runs').update({ item_count: newItemCount }).eq('id', id)
+      await loadData()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      alert(`Error: ${msg}`)
+    }
+    setDeletingId(null)
+  }
+
+  // ── Inline quantity update on supply run item ─────────────────────────────
+
+  const handleUpdateItemQty = async (item: SupplyRunItem, newQtyStr: string) => {
+    const newQty = parseFloat(newQtyStr)
+    if (isNaN(newQty) || newQty < 0) { setEditingQtyId(null); return }
+    if (newQty === item.quantity) { setEditingQtyId(null); return }
+
+    const delta = newQty - item.quantity // positive = used more, negative = used less
+
+    try {
+      await supabase.from('supply_run_items').update({ quantity: newQty }).eq('id', item.id)
+
+      // Adjust inventory by delta
+      const unitId = run?.incident_unit?.unit?.id
+      if (unitId) {
+        const { data: iuRows } = await supabase.from('incident_units').select('id').eq('unit_id', unitId)
+        const iuIds = (iuRows || []).map((r: any) => r.id)
+        const { data: invRows } = await supabase
+          .from('unit_inventory')
+          .select('id, quantity')
+          .in('incident_unit_id', iuIds)
+          .eq('item_name', item.item_name)
+          .order('quantity', { ascending: false })
+          .limit(1)
+        if (invRows?.length) {
+          const newInvQty = Math.max(0, (invRows[0].quantity || 0) - delta)
+          await supabase.from('unit_inventory')
+            .update({ quantity: newInvQty })
+            .eq('id', invRows[0].id)
+        }
+      }
+
+      await loadData()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      alert(`Error updating quantity: ${msg}`)
+    }
+    setEditingQtyId(null)
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+
+  if (loading) return (
+    <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
+      <p className="text-gray-400">Loading...</p>
+    </div>
+  )
+
+  if (!run) return (
+    <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
+      <div className="text-center">
+        <p className="text-gray-400 mb-4">Supply run not found.</p>
+        <Link to="/supply-runs" className="text-red-400 underline">← Back</Link>
+      </div>
+    </div>
+  )
+
+  const incidentUnitData = run.incident_unit as unknown as { unit?: { name?: string }; incident?: { name?: string } } | null
+  const unitName = incidentUnitData?.unit?.name
+  const incidentName = incidentUnitData?.incident?.name
+  const scannedCount = items.filter(i => i.barcode).length
+
+  return (
+    <div className="min-h-screen bg-gray-950 text-white pb-16 mt-8 md:mt-0">
+      <div className="max-w-3xl mx-auto p-6 md:p-8 space-y-4">
+
+        <Link to="/supply-runs" className="text-gray-500 hover:text-gray-300 text-sm">← Supply Runs</Link>
+
+        {isOfflineData && (
+          <div className="bg-amber-900/30 border border-amber-700 rounded-lg px-3 py-2 text-amber-300 text-xs">
+            📦 Showing cached data — changes require connectivity
+          </div>
+        )}
+
+        {/* Header */}
+        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h1 className="text-xl font-bold">Supply Run</h1>
+              <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-gray-400">
+                <span>📅 {run.run_date}{run.time ? ` · ${run.time}` : ''}</span>
+                {unitName && <span>🚑 {unitName}</span>}
+                {incidentName && <span>🔥 {incidentName}</span>}
+                {run.resource_number && <span>🪪 {run.resource_number}</span>}
+                {run.dispensed_by && <span>👤 {run.dispensed_by}</span>}
+              </div>
+              {run.notes && <p className="mt-2 text-sm text-gray-400">{run.notes}</p>}
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-xs text-gray-500">Total</p>
+              <p className="text-xs text-gray-500">Items: {items.length}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Barcode Scan Section ── */}
+        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
+            <div className="flex items-center gap-2">
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Barcode Scanner</h2>
+              {scannedCount > 0 && (
+                <span className="text-xs px-2 py-0.5 bg-blue-900 text-blue-300 rounded-full">
+                  {scannedCount} scanned
+                </span>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                setScanMode(v => {
+                  const next = !v
+                  if (next) setTimeout(() => barcodeRef.current?.focus(), 50)
+                  return next
+                })
+              }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                scanMode
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                  : 'bg-gray-700 hover:bg-gray-600 text-white'
+              }`}
+            >
+              🔍 Scan Mode {scanMode ? 'ON' : 'OFF'}
+            </button>
+          </div>
+
+          {scanMode && (
+            <div className="p-4 space-y-3 bg-gray-800/30">
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <label className={labelCls}>Scan Barcode</label>
+                  <input
+                    ref={barcodeRef}
+                    type="text"
+                    value={barcodeInput}
+                    onChange={e => setBarcodeInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleBarcodeScan(barcodeInput)
+                      }
+                    }}
+                    placeholder="Scan or type barcode, then press Enter"
+                    className={`${inputCls} ${scanning ? 'opacity-50' : ''}`}
+                    disabled={scanning}
+                    autoComplete="off"
+                    autoFocus
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleBarcodeScan(barcodeInput)}
+                  disabled={!barcodeInput.trim() || scanning}
+                  className="mt-5 px-3 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-sm font-semibold transition-colors"
+                >
+                  {scanning ? '...' : '→'}
+                </button>
+              </div>
+
+              {scanMessage && (
+                <div className={`text-sm px-3 py-2 rounded-lg ${
+                  scanMessage.type === 'success' ? 'bg-green-900/60 text-green-300' :
+                  scanMessage.type === 'warn' ? 'bg-yellow-900/60 text-yellow-300' :
+                  'bg-red-900/60 text-red-300'
+                }`}>
+                  {scanMessage.text}
+                </div>
+              )}
+
+              {run.raw_barcodes && run.raw_barcodes.length > 0 && (
+                <div className="text-xs text-gray-500">
+                  Unrecognized barcodes: {run.raw_barcodes.join(', ')}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── Items ── */}
+        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="flex items-center justify-between p-4 border-b border-gray-800">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+              Items ({items.length})
+              {scannedCount > 0 && (
+                <span className="ml-2 text-blue-400 normal-case font-normal">
+                  · {scannedCount} via barcode
+                </span>
+              )}
+            </h2>
+            <button
+              onClick={() => setShowAddForm(prev => !prev)}
+              className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-xs font-semibold transition-colors"
+            >
+              {showAddForm ? '✕ Cancel' : '+ Add Item'}
+            </button>
+          </div>
+
+          {/* Manual Add Item Form */}
+          {showAddForm && (
+            <div className="p-4 border-b border-gray-800 bg-gray-800/50 space-y-3">
+              <p className="text-xs font-semibold text-gray-300 uppercase tracking-wide">New Item (Manual)</p>
+              <div>
+                <label className={labelCls}>Item Name</label>
+                <input
+                  type="text"
+                  className={inputCls}
+                  value={newItem.item_name}
+                  onChange={e => {
+                    setNew('item_name', e.target.value)
+                    const match = formulary.find(f => f.item_name.toLowerCase() === e.target.value.toLowerCase())
+                    if (match) setNew('category', match.category)
+                  }}
+                  list="formulary-list"
+                  placeholder="Type or select from formulary"
+                />
+                <datalist id="formulary-list">
+                  {formulary.map(f => (
+                    <option key={f.id} value={f.item_name} />
+                  ))}
+                </datalist>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className={labelCls}>Category</label>
+                  <select className={inputCls} value={newItem.category} onChange={e => setNew('category', e.target.value)}>
+                    <option value="">Select</option>
+                    <option value="Rx">Rx</option>
+                    <option value="OTC">OTC</option>
+                    <option value="CS">CS</option>
+                    <option value="Supply">Supply</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Qty</label>
+                  <input type="number" className={inputCls} value={newItem.quantity} onChange={e => setNew('quantity', e.target.value)} min="0" step="1" />
+                </div>
+                <div>
+                  <label className={labelCls}>Unit Cost $</label>
+                  <input type="number" className={inputCls} value={newItem.unit_cost} onChange={e => setNew('unit_cost', e.target.value)} min="0" step="0.01" />
+                </div>
+              </div>
+              {newItem.quantity && newItem.unit_cost && (
+                <p className="text-xs text-green-400">
+                  Total: ${(parseFloat(newItem.quantity) * parseFloat(newItem.unit_cost)).toFixed(2)}
+                </p>
+              )}
+              <button
+                onClick={handleAddItem}
+                disabled={addingItem}
+                className="w-full py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 rounded-lg text-sm font-semibold transition-colors"
+              >
+                {addingItem ? 'Adding...' : 'Add Item'}
+              </button>
+            </div>
+          )}
+
+          {/* Items table */}
+          {items.length === 0 ? (
+            <div className="text-center text-gray-600 py-8">
+              <p>No items yet.</p>
+              <div className="flex justify-center gap-3 mt-3">
+                <button onClick={() => setScanMode(true)} className="text-blue-400 text-sm">
+                  🔍 Start scanning
+                </button>
+                <span className="text-gray-700">or</span>
+                <button onClick={() => setShowAddForm(true)} className="text-red-400 text-sm">
+                  + Add manually
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700">
+                <span className="flex-1 min-w-0">Item</span>
+                <span className="w-20 shrink-0 hidden sm:block">Category</span>
+                <span className="w-20 shrink-0 text-center">Qty</span>
+                <span className="w-24 shrink-0 text-right hidden sm:block">Unit $</span>
+                <span className="w-24 shrink-0 text-right">Total</span>
+                <span className="w-16 shrink-0"></span>
+              </div>
+              {items.map(item => (
+                <div key={item.id} className="flex items-center px-4 py-2.5 border-b border-gray-800/50 text-sm">
+                  <span className="flex-1 min-w-0 pr-2">
+                    <span className="font-medium truncate block">{item.item_name}</span>
+                    {item.barcode && (
+                      <span className="text-xs text-blue-400 font-mono">📷 {item.barcode}</span>
+                    )}
+                  </span>
+                  <span className="w-20 shrink-0 hidden sm:block">
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full ${CAT_COLORS[item.category] || CAT_COLORS.OTC}`}>
+                      {item.category}
+                    </span>
+                  </span>
+                  <span className="w-20 shrink-0 text-center text-gray-300">
+                    {editingQtyId === item.id ? (
+                      <input
+                        type="number"
+                        min="0"
+                        autoFocus
+                        className="w-16 bg-gray-700 rounded px-2 py-1 text-sm text-white"
+                        value={editingQtyValue}
+                        onChange={e => setEditingQtyValue(e.target.value)}
+                        onBlur={() => handleUpdateItemQty(item, editingQtyValue)}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') handleUpdateItemQty(item, editingQtyValue)
+                          if (e.key === 'Escape') setEditingQtyId(null)
+                        }}
+                      />
+                    ) : (
+                      <button
+                        onClick={() => { setEditingQtyId(item.id); setEditingQtyValue(String(item.quantity)) }}
+                        className="hover:text-white transition-colors"
+                        title="Click to edit quantity"
+                      >
+                        {item.quantity}
+                      </button>
+                    )}
+                  </span>
+                  <span className="w-24 shrink-0 text-right text-gray-400 text-xs hidden sm:block">
+                    ${Number(item.unit_cost).toFixed(2)}
+                  </span>
+                  <span className="w-24 shrink-0 text-right text-green-400 text-xs font-mono">
+                  </span>
+                  <span className="w-16 shrink-0 text-right">
+                    <button
+                      onClick={() => handleDeleteItem(item.id)}
+                      disabled={deletingId === item.id}
+                      className="text-xs text-red-500 hover:text-red-400 disabled:opacity-50 transition-colors"
+                    >
+                      {deletingId === item.id ? '...' : 'Delete'}
+                    </button>
+                  </span>
+                </div>
+              ))}
+
+            </>
+          )}
+        </div>
+
+      </div>
+    </div>
+  )
+}
