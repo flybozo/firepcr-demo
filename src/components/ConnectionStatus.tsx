@@ -157,7 +157,7 @@ export default function ConnectionStatus() {
   // ── Render: thin bar at top ──
   const barHeight = '24px'
 
-  if (phase === 'idle') return null
+  if (phase === 'idle' || phase === 'ready') return null
 
   // Colors & content by phase
   let bgColor = ''

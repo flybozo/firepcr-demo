@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getCachedData, getCachedById, cacheData } from '@/lib/offlineStore'
+import { loadSingle, loadList } from '@/lib/offlineFirst'
 import { Link } from 'react-router-dom'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
@@ -504,32 +505,19 @@ export default function IncidentDetailPage() {
   const load = useCallback(async () => {
     const supabaseClient = createClient()
 
-    let inc: any = null
+    // Load incident with offline fallback
+    const incResult = await loadSingle(
+      () => supabaseClient.from('incidents').select('*').eq('id', activeIncidentId).single() as any,
+      'incidents',
+      activeIncidentId
+    )
+    let inc = incResult.data
     let iUnits: any[] | null = null
     let allUnitsData: any[] | null = null
     let userData: any = null
 
-    try {
-    const [
-      { data: _inc },
-      { data: _iUnits },
-      { data: _allUnitsData },
-      { data: _userData },
-    ] = await Promise.all([
-      supabaseClient.from('incidents').select('*').eq('id', activeIncidentId).single(),
-      supabaseClient.from('incident_units').select(`
-        id,
-        unit:units(id, name, unit_type:unit_types(name)),
-        unit_assignments(id)
-      `).eq('incident_id', activeIncidentId).is('released_at', null),
-      supabaseClient.from('units').select('id, name, unit_type:unit_types(name)').eq('is_storage', false).order('name'),
-      supabaseClient.auth.getUser(),
-    ])
-    inc = _inc; iUnits = _iUnits; allUnitsData = _allUnitsData; userData = _userData
-    if (inc) await cacheData('incidents', [inc])
-    } catch (_offlineErr) {
-      // Offline — serve from IndexedDB cache
-      inc = await getCachedById('incidents', activeIncidentId)
+    if (incResult.offline) {
+      // Offline — load everything from IndexedDB
       if (inc) {
         setIsOfflineData(true)
         setIncident(inc as Incident)
@@ -546,6 +534,20 @@ export default function IncidentDetailPage() {
       setLoading(false)
       return
     }
+
+    // Online — load the rest
+    try {
+      const [iuRes, unitsRes, authRes] = await Promise.all([
+        supabaseClient.from('incident_units').select(`
+          id,
+          unit:units(id, name, unit_type:unit_types(name)),
+          unit_assignments(id)
+        `).eq('incident_id', activeIncidentId).is('released_at', null),
+        supabaseClient.from('units').select('id, name, unit_type:unit_types(name)').eq('is_storage', false).order('name'),
+        supabaseClient.auth.getUser(),
+      ])
+      iUnits = iuRes.data; allUnitsData = unitsRes.data; userData = authRes.data
+    } catch {}
 
     setIncident(inc as Incident | null)
     // Load active incidents for reassign dropdown
