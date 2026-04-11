@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { loadSingle, loadList } from '@/lib/offlineFirst'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Link } from 'react-router-dom'
 import { SearchableSelect } from '@/components/SearchableSelect'
@@ -188,24 +189,18 @@ function EditEncounterInner() {
 
   useEffect(() => {
     const load = async () => {
-      let enc: any = null
-      let emps: any[] = []
-      try {
-        const [{ data: encData }, { data: empsData }] = await Promise.all([
-          supabase.from('patient_encounters').select('*').eq('id', id).single(),
-          supabase.from('employees').select('id, full_name, role').in('role', ['MD', 'MD/DO']).eq('status', 'Active').order('full_name'),
-        ])
-        enc = encData
-        emps = empsData || []
-      } catch {
-        // Offline — load from IndexedDB
-        try {
-          const { getCachedById, getCachedData } = await import('@/lib/offlineStore')
-          enc = await getCachedById('encounters', id)
-          const cachedEmps = await getCachedData('employees')
-          emps = (cachedEmps as any[]).filter((e: any) => ['MD', 'MD/DO'].includes(e.role))
-        } catch {}
-      }
+      const [{ data: enc }, { data: emps }] = await Promise.all([
+        loadSingle(
+          () => supabase.from('patient_encounters').select('*').eq('id', id).single() as any,
+          'encounters',
+          id
+        ),
+        loadList<Employee>(
+          () => supabase.from('employees').select('id, full_name, role').in('role', ['MD', 'MD/DO']).eq('status', 'Active').order('full_name'),
+          'employees',
+          (all) => all.filter((e: any) => ['MD', 'MD/DO'].includes(e.role))
+        ),
+      ])
       setEmployees(emps)
       if (!enc) {
         setError('Encounter not found.')

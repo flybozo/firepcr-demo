@@ -3,7 +3,8 @@
 import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getIsOnline } from '@/lib/syncManager'
-import { getCachedData, cacheData, queueOfflineWrite } from '@/lib/offlineStore'
+import { loadList } from '@/lib/offlineFirst'
+import { queueOfflineWrite } from '@/lib/offlineStore'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { SearchableSelect } from '@/components/SearchableSelect'
@@ -740,22 +741,17 @@ function PCRFormInner() {
 
   useEffect(() => {
     const load = async () => {
-      try {
-        const { data, error } = await supabase
+      const { data } = await loadList<Employee>(
+        () => supabase
           .from('employees')
           .select('id, name, role')
           .in('role', ['MD', 'MD/DO', 'NP', 'PA'])
           .eq('status', 'Active')
-          .order('role')
-        if (error) throw error
-        setEmployees(data || [])
-        if (data) await cacheData('employees', data)
-      } catch {
-        // Offline — filter providers from cached employees
-        const cached = await getCachedData('employees')
-        const providers = cached.filter((e: any) => ['MD', 'MD/DO', 'NP', 'PA'].includes(e.role))
-        if (providers.length > 0) setEmployees(providers)
-      }
+          .order('role'),
+        'employees',
+        (all) => all.filter(e => ['MD', 'MD/DO', 'NP', 'PA'].includes(e.role))
+      )
+      setEmployees(data)
     }
     load()
   }, [])

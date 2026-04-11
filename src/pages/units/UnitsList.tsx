@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
-import { getCachedData, cacheData } from '@/lib/offlineStore'
+import { loadList } from '@/lib/offlineFirst'
 
 type Unit = {
   id: string
@@ -69,9 +69,9 @@ function UnitsPageInner() {
   } | null>(null)
 
   const load = async () => {
-    try {
-      const [unitRes, empRes] = await Promise.all([
-        supabase
+    const [unitResult, empResult] = await Promise.all([
+      loadList<Unit>(
+        () => supabase
           .from('units')
           .select(`
             id, name, active, unit_status, vin, license_plate, plate_state, make, model, year,
@@ -83,30 +83,23 @@ function UnitsPageInner() {
             )
           `)
           .eq('active', true)
-          .order('name'),
-        supabase.from('employees').select('id, name, role').eq('status', 'Active').order('name'),
-      ])
-      if (unitRes.error) throw unitRes.error
-      const sorted = ((unitRes.data as unknown as Unit[]) || []).sort((a, b) => {
-        const aType = (a.unit_type as any)?.name || 'REMS'
-        const bType = (b.unit_type as any)?.name || 'REMS'
-        const orderDiff = (TYPE_ORDER[aType] ?? 99) - (TYPE_ORDER[bType] ?? 99)
-        if (orderDiff !== 0) return orderDiff
-        return a.name.localeCompare(b.name)
-      })
-      setUnits(sorted)
-      if (sorted.length > 0) await cacheData('units', sorted)
-      setAllEmployees((empRes.data || []) as {id: string; name: string; role: string}[])
-      if (empRes.data) await cacheData('employees', empRes.data)
-    } catch (err) {
-      console.log('[Offline] Units loading from cache', err)
-      try {
-        const cached = await getCachedData('units')
-        setUnits(cached as Unit[])
-        const cachedEmps = await getCachedData('employees')
-        setAllEmployees(cachedEmps as {id: string; name: string; role: string}[])
-      } catch { setUnits([]) }
-    }
+          .order('name') as any,
+        'units'
+      ),
+      loadList<{id: string; name: string; role: string}>(
+        () => supabase.from('employees').select('id, name, role').eq('status', 'Active').order('name'),
+        'employees'
+      ),
+    ])
+    const sorted = unitResult.data.sort((a, b) => {
+      const aType = (a.unit_type as any)?.name || 'REMS'
+      const bType = (b.unit_type as any)?.name || 'REMS'
+      const orderDiff = (TYPE_ORDER[aType] ?? 99) - (TYPE_ORDER[bType] ?? 99)
+      if (orderDiff !== 0) return orderDiff
+      return a.name.localeCompare(b.name)
+    })
+    setUnits(sorted)
+    setAllEmployees(empResult.data)
     setLoading(false)
   }
 

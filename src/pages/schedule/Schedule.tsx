@@ -258,17 +258,22 @@ export default function SchedulePage() {
   const loadCalendar = useCallback(async () => {
     if (calendarLoading) return
     setCalendarLoading(true)
-    const [{ data: deps }, { data: unitData }] = await Promise.all([
-      supabase
-        .from('deployment_records')
-        .select('id, employee_id, unit_id, start_date, end_date, employee:employees(name, role), unit:units(name, unit_type:unit_types(name))')
-        .not('start_date', 'is', null)
-        .not('end_date', 'is', null)
-        .order('start_date'),
-      supabase.from('units').select('id, name').eq('active', true).order('name'),
-    ])
-    setDeployments((deps || []) as unknown as DeploymentRecord[])
-    setCalendarUnits((unitData || []) as { id: string; name: string }[])
+    try {
+      const [{ data: deps }, { data: unitData }] = await Promise.all([
+        supabase
+          .from('deployment_records')
+          .select('id, employee_id, unit_id, start_date, end_date, employee:employees(name, role), unit:units(name, unit_type:unit_types(name))')
+          .not('start_date', 'is', null)
+          .not('end_date', 'is', null)
+          .order('start_date'),
+        supabase.from('units').select('id, name').eq('active', true).order('name'),
+      ])
+      setDeployments((deps || []) as unknown as DeploymentRecord[])
+      setCalendarUnits((unitData || []) as { id: string; name: string }[])
+    } catch {
+      setDeployments([])
+      setCalendarUnits([])
+    }
     setCalendarLoading(false)
   }, []) // eslint-disable-line
 

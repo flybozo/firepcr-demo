@@ -3,6 +3,7 @@ import { FieldGuard } from '@/components/FieldGuard'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { loadList } from '@/lib/offlineFirst'
 
 type FormulaItem = {
   id: string
@@ -59,20 +60,17 @@ function FormularyPageInner() {
     if (!unitTypes[activeTab]) return
     setLoading(true)
     const load = async () => {
-      try {
-        const { data, error } = await supabase
+      const { data, offline } = await loadList<FormulaItem>(
+        () => supabase
           .from('formulary_templates')
           .select('id, item_name, category, unit_of_measure, supplier, units_per_case, case_cost, ndc, concentration, route')
           .eq('unit_type_id', unitTypes[activeTab])
           .order('category')
-          .order('item_name')
-        if (error) throw error
-        setItems(data || [])
-        setIsOfflineData(false)
-      } catch {
-        setItems([])
-        setIsOfflineData(true)
-      }
+          .order('item_name'),
+        'formulary'
+      )
+      setItems(data)
+      setIsOfflineData(offline)
       setLoading(false)
     }
     load()

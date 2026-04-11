@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { getCachedData, cacheData } from '@/lib/offlineStore'
+import { loadList } from '@/lib/offlineFirst'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import SignatureCanvas from 'react-signature-canvas'
 import { useOfflineWrite } from '@/lib/useOfflineWrite'
@@ -75,47 +75,38 @@ function DailyCountInner() {
   }, [selectedUnit, unitIdMap])
 
   async function loadInit() {
+    const { data: emps } = await loadList<Employee>(
+      () => supabase.from('employees').select('id, name, role').eq('status', 'Active').in('role', CLINICAL_ROLES).order('name'),
+      'employees',
+      (all) => all.filter(e => CLINICAL_ROLES.includes(e.role))
+    )
+    setEmployees(emps)
     try {
-      const [{ data: emps, error: empErr }, { data: units }] = await Promise.all([
-        supabase.from('employees').select('id, name, role').eq('status', 'Active').in('role', CLINICAL_ROLES).order('name'),
-        supabase.from('incident_units').select('id, name'),
-      ])
-      if (empErr) throw empErr
-      setEmployees(emps || [])
+      const { data: units } = await supabase.from('incident_units').select('id, name')
       const map: Record<string, string> = {}
       if (units) for (const u of units) map[u.name] = u.id
       setUnitIdMap(map)
-    } catch {
-      // Offline fallback — use cached employees
-      const cached = await getCachedData('employees')
-      const filtered = cached.filter((e: any) => CLINICAL_ROLES.includes(e.role))
-      if (filtered.length > 0) setEmployees(filtered)
-    }
+    } catch {}
   }
 
   async function loadCSItems(unit: string) {
     setLoadingItems(true)
     const unitId = unitIdMap[unit]
 
-    let items: CSItem[] = []
-    try {
-      if (!unitId) throw new Error('No unit ID')
-      const { data, error } = await supabase
-        .from('unit_inventory')
-        .select('id, item_name, quantity, cs_lot_number, cs_expiration_date, incident_unit_id')
-        .eq('incident_unit_id', unitId)
-        .eq('category', 'CS')
-      if (error) throw error
-      items = data || []
-      if (items.length > 0) await cacheData('inventory', items)
-    } catch {
-      // Offline — filter CS items from cached inventory
-      const cached = await getCachedData('inventory')
-      items = cached.filter((i: any) => i.category === 'CS' && (!unitId || i.incident_unit_id === unitId)) as CSItem[]
-    }
+    const { data: items } = await loadList<CSItem>(
+      () => unitId
+        ? supabase
+            .from('unit_inventory')
+            .select('id, item_name, quantity, cs_lot_number, cs_expiration_date, incident_unit_id')
+            .eq('incident_unit_id', unitId)
+            .eq('category', 'CS')
+        : Promise.resolve({ data: [], error: null }),
+      'inventory',
+      unitId ? (all) => all.filter((i: any) => i.category === 'CS' && i.incident_unit_id === unitId) : undefined
+    )
 
-    setCSItems(items)
-    setEntries(items.map(inv => ({ inv, actualCount: String(inv.quantity), discrepancyNote: '' })))
+    setCSItems(items || [])
+    setEntries((items || []).map(inv => ({ inv, actualCount: String(inv.quantity), discrepancyNote: '' })))
     setLoadingItems(false)
   }
 

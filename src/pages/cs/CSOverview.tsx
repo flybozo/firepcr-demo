@@ -7,7 +7,8 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
-import { getCachedData, cacheData } from '@/lib/offlineStore'
+import { loadList } from '@/lib/offlineFirst'
+import { getCachedData } from '@/lib/offlineStore'
 
 type UnitInventoryItem = {
   id: string
@@ -103,14 +104,14 @@ function CSOverviewPageInner() {
       }
 
       // Load CS inventory for field units (unit_inventory)
-      const { data: inventory, error: invErr } = await supabase
-        .from('unit_inventory')
-        .select('id, item_name, quantity, cs_lot_number, cs_expiration_date, incident_unit_id')
-        .eq('category', 'CS')
-        .gt('quantity', 0)
-      if (invErr) throw invErr
-      // Cache for offline
-      if (inventory) await cacheData('inventory', inventory)
+      const { data: inventory } = await loadList(
+        () => supabase
+          .from('unit_inventory')
+          .select('id, item_name, quantity, cs_lot_number, cs_expiration_date, incident_unit_id')
+          .eq('category', 'CS')
+          .gt('quantity', 0),
+        'inventory'
+      )
 
       // Load CS inventory for warehouse (warehouse_inventory)
       const { data: warehouseInventory } = await supabase

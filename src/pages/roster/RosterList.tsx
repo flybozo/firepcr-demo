@@ -4,7 +4,7 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { getCachedData, cacheData } from '@/lib/offlineStore'
+import { loadList } from '@/lib/offlineFirst'
 import { Link } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 
@@ -105,21 +105,15 @@ export default function RosterPage() {
 
   useEffect(() => {
     const load = async () => {
-      try {
-        const { data, error } = await supabase
+      const { data, offline } = await loadList<Employee>(
+        () => supabase
           .from('employees')
           .select('id, name, role, email, wf_email, phone, status, rems, bls, acls, paramedic_license, medical_license, ambulance_driver_cert, s130, s190, l180, ics100, ics200, ics700, ics800, headshot_url, rems_capable, red_card, red_card_year, dea_license, ssv_lemsa')
-          .order('name')
-        if (error) throw error
-        setEmployees(data || [])
-        if (data) await cacheData('employees', data)
-      } catch {
-        const cached = await getCachedData('employees')
-        if (cached.length > 0) {
-          setEmployees(cached as Employee[])
-          setIsOfflineData(true)
-        }
-      }
+          .order('name'),
+        'employees'
+      )
+      setEmployees(data)
+      if (offline) setIsOfflineData(true)
       setLoading(false)
     }
     load()

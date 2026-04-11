@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { loadList } from '@/lib/offlineFirst'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useOfflineWrite } from '@/lib/useOfflineWrite'
@@ -138,29 +139,24 @@ function SimpleEHRInner() {
 
   useEffect(() => {
     const load = async () => {
-      try {
-        const [{ data: emps }, { data: incs }, { data: unitData }] = await Promise.all([
-          supabase.from('employees').select('id, name, role').in('role', CLINICAL_ROLES).eq('status', 'Active').order('role'),
-          supabase.from('incidents').select('id, name').order('name'),
-          supabase.from('units').select('id, name').order('name'),
-        ])
-        setProviders(emps || [])
-        setIncidents(incs || [])
-        setUnits(unitData || [])
-      } catch {
-        // Offline — load from IndexedDB
-        try {
-          const { getCachedData } = await import('@/lib/offlineStore')
-          const [cachedEmps, cachedIncs, cachedUnits] = await Promise.all([
-            getCachedData('employees'),
-            getCachedData('incidents'),
-            getCachedData('units'),
-          ])
-          setProviders((cachedEmps as any[]).filter((e: any) => CLINICAL_ROLES.includes(e.role)))
-          setIncidents(cachedIncs as any[])
-          setUnits(cachedUnits as any[])
-        } catch {}
-      }
+      const [empResult, incResult, unitResult] = await Promise.all([
+        loadList(
+          () => supabase.from('employees').select('id, name, role').in('role', CLINICAL_ROLES).eq('status', 'Active').order('role'),
+          'employees',
+          (all) => all.filter((e: any) => CLINICAL_ROLES.includes(e.role))
+        ),
+        loadList(
+          () => supabase.from('incidents').select('id, name').order('name'),
+          'incidents'
+        ),
+        loadList(
+          () => supabase.from('units').select('id, name').order('name'),
+          'units'
+        ),
+      ])
+      setProviders(empResult.data as any)
+      setIncidents(incResult.data as any)
+      setUnits(unitResult.data as any)
     }
     load()
   }, [])

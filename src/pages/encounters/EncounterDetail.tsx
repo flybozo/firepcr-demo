@@ -11,7 +11,8 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { createClient } from '@/lib/supabase/client'
 import { getIsOnline } from '@/lib/syncManager'
-import { getCachedData, getCachedById, cacheData, queueOfflineWrite } from '@/lib/offlineStore'
+import { loadSingle } from '@/lib/offlineFirst'
+import { getCachedData, cacheData, queueOfflineWrite } from '@/lib/offlineStore'
 import { Link } from 'react-router-dom'
 import { useParams, useNavigate } from 'react-router-dom'
 import { SearchableSelect } from '@/components/SearchableSelect'
@@ -1160,32 +1161,29 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
 
   useEffect(() => {
     const load = async () => {
-      // Try Supabase first, fall back to IndexedDB when offline
-      let data: any = null
-      try {
-        const [{ data: _encData }, { data: { user } }] = await Promise.all([
-          supabase.from('patient_encounters').select('*').eq('id', id).single(),
-          supabase.auth.getUser(),
-        ])
-        data = _encData
-        setUserEmail(user?.email || null)
-        if (data) await cacheData('encounters', [data])
-      } catch (_offlineErr) {
-        // Offline — serve from IndexedDB cache
-        data = await getCachedById('encounters', id)
+      const { data, offline } = await loadSingle(
+        () => supabase.from('patient_encounters').select('*').eq('id', id).single() as any,
+        'encounters',
+        id
+      )
+      if (offline) {
         if (data) {
           setIsOfflineData(true)
           const cachedVitals = await getCachedData('vitals')
           setAdditionalVitals(cachedVitals.filter((v: any) => v.encounter_id === id))
           const cachedMar = await getCachedData('mar_entries')
-          if (data.encounter_id) {
-            setMarEntries(cachedMar.filter((m: any) => m.encounter_id === data.encounter_id))
+          if ((data as any).encounter_id) {
+            setMarEntries(cachedMar.filter((m: any) => m.encounter_id === (data as any).encounter_id))
           }
         }
         setEnc(data)
         setLoading(false)
         return
       }
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        setUserEmail(user?.email || null)
+      } catch {}
       setEnc(data)
 
       // Load serial vitals

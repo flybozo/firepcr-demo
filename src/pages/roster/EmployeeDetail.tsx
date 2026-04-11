@@ -4,7 +4,7 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { getCachedById, cacheData } from '@/lib/offlineStore'
+import { loadSingle } from '@/lib/offlineFirst'
 import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
 
@@ -110,25 +110,19 @@ export default function RosterDetailPage() {
 
   useEffect(() => {
     const load = async () => {
-      try {
-        const [{ data: empData, error: empErr }, { data: credData }] = await Promise.all([
-          supabase.from('employees').select('*').eq('id', id).single(),
-          supabase.from('employee_credentials').select('*').eq('employee_id', id).order('cert_type'),
-        ])
-        if (empErr) throw empErr
-        setEmp(empData as unknown as Employee)
-        setCreds(credData || [])
-        setQrUrl(empData?.qr_code_url || null)
-        // Cache for offline
-        if (empData) await cacheData('employees', [empData])
-      } catch {
-        // Offline — load cached employee
-        const cached = await getCachedById('employees', id) as Employee | null
-        if (cached) {
-          setEmp(cached)
-          setQrUrl(cached.qr_code_url as string | null)
-          setIsOfflineData(true)
-        }
+      const { data: empData, offline } = await loadSingle<Employee>(
+        () => supabase.from('employees').select('*').eq('id', id).single() as any,
+        'employees',
+        id
+      )
+      setEmp(empData)
+      setQrUrl((empData as any)?.qr_code_url || null)
+      if (offline) setIsOfflineData(true)
+      if (empData && !offline) {
+        try {
+          const { data: credData } = await supabase.from('employee_credentials').select('*').eq('employee_id', id).order('cert_type')
+          setCreds(credData || [])
+        } catch {}
       }
       setLoading(false)
     }

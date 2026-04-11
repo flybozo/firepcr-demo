@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRole } from '@/lib/useRole'
 import { createClient } from '@/lib/supabase/client'
-import { getCachedById, cacheData } from '@/lib/offlineStore'
+import { loadSingle } from '@/lib/offlineFirst'
 import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
 
@@ -84,12 +84,8 @@ export default function UnitDetailPage() {
   const [docType, setDocType] = useState('Registration')
 
   const load = async () => {
-    let unitData: any = null
-    let emps: any[] | null = null
-    let children: any[] | null = null
-    try {
-    const [{ data: _unitData }, { data: _emps }, { data: _children }] = await Promise.all([
-      supabase
+    const { data: unitData, offline } = await loadSingle<Unit>(
+      () => supabase
         .from('units')
         .select(`
           id, name, active, unit_status,
@@ -105,22 +101,29 @@ export default function UnitDetailPage() {
           )
         `)
         .eq('id', id)
-        .single(),
+        .single() as any,
+      'units',
+      id
+    )
+    if (offline || !unitData) {
+      if (unitData) setIsOfflineData(true)
+      setUnit(unitData as unknown as Unit)
+      setLoading(false)
+      return
+    }
+    let emps: any[] | null = null
+    let children: any[] | null = null
+    try {
+    const [{ data: _emps }, { data: _children }] = await Promise.all([
       supabase.from('employees').select('id, name, role').eq('status', 'Active').order('name'),
       supabase
         .from('units')
         .select('id, name, vin, license_plate, plate_state, vehicle_subtype')
         .eq('parent_unit_id', id),
     ])
-    unitData = _unitData; emps = _emps; children = _children
-    if (unitData) await cacheData('units', [unitData])
+    emps = _emps; children = _children
     } catch (_offlineErr) {
-      // Offline — serve from IndexedDB cache
-      unitData = await getCachedById('units', id)
-      if (unitData) setIsOfflineData(true)
-      setUnit(unitData as unknown as Unit)
-      setLoading(false)
-      return
+      // Best-effort
     }
 
     const u = unitData as unknown as Unit

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { getCachedData } from '@/lib/offlineStore'
+import { loadList } from '@/lib/offlineFirst'
 import { getIsOnline } from '@/lib/syncManager'
 import { useNavigate } from 'react-router-dom'
 import SignatureCanvas from 'react-signature-canvas'
@@ -57,21 +57,18 @@ export default function ReceiveCSPage() {
   }, [])
 
   async function loadEmployees() {
-    try {
-      const { data, error } = await supabase
+    const { data, offline } = await loadList<Employee>(
+      () => supabase
         .from('employees')
         .select('id, name, role')
         .eq('status', 'Active')
         .in('role', CLINICAL_ROLES)
-        .order('name')
-      if (error) throw error
-      setEmployees(data || [])
-    } catch {
-      const cached = await getCachedData('employees')
-      const filtered = cached.filter((e: any) => CLINICAL_ROLES.includes(e.role))
-      if (filtered.length > 0) setEmployees(filtered as Employee[])
-      setIsOffline(true)
-    }
+        .order('name'),
+      'employees',
+      (all) => all.filter(e => CLINICAL_ROLES.includes(e.role))
+    )
+    setEmployees(data)
+    if (offline) setIsOffline(true)
   }
 
   function set(field: string, value: string) {

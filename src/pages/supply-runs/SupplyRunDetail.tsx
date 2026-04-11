@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { getCachedById, cacheData } from '@/lib/offlineStore'
+import { loadSingle } from '@/lib/offlineFirst'
 import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
@@ -93,19 +93,28 @@ export default function SupplyRunDetailPage() {
   })
 
   const loadData = useCallback(async () => {
-    let runData: any = null
-    let itemData: any[] | null = null
-    let formularyData: any[] | null = null
-    try {
-    const [{ data: _run, error: runErr }, { data: _items }, { data: _formulary }] = await Promise.all([
-      supabase
+    const { data: runData, offline } = await loadSingle<SupplyRun>(
+      () => supabase
         .from('supply_runs')
         .select(`
           id, run_date, time, resource_number, dispensed_by, crew_member, notes, incident_unit_id, raw_barcodes,
           incident_unit:incident_units(unit:units(id, name), incident:incidents(name))
         `)
         .eq('id', id)
-        .single(),
+        .single() as any,
+      'supply_runs',
+      id
+    )
+    if (offline || !runData) {
+      if (runData) setIsOfflineData(true)
+      setRun(runData as unknown as SupplyRun)
+      setLoading(false)
+      return
+    }
+    let itemData: any[] | null = null
+    let formularyData: any[] | null = null
+    try {
+    const [{ data: _items }, { data: _formulary }] = await Promise.all([
       supabase
         .from('supply_run_items')
         .select('*')
@@ -117,16 +126,8 @@ export default function SupplyRunDetailPage() {
         .in('category', ['OTC', 'Supply'])
         .order('item_name'),
     ])
-    if (runErr) throw runErr
-    runData = _run; itemData = _items; formularyData = _formulary
-    if (runData) await cacheData('supply_runs', [runData])
-    } catch {
-      runData = await getCachedById('supply_runs', id)
-      if (runData) setIsOfflineData(true)
-      setRun(runData as unknown as SupplyRun)
-      setLoading(false)
-      return
-    }
+    itemData = _items; formularyData = _formulary
+    } catch {}
     setRun(runData as unknown as SupplyRun)
     setItems(itemData || [])
     // Filter formulary to match this unit's type (ambulance/med unit/rems)

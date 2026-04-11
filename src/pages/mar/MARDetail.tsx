@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { getCachedById, cacheData } from '@/lib/offlineStore'
+import { loadSingle } from '@/lib/offlineFirst'
 import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
 import SignatureCanvas from 'react-signature-canvas'
@@ -73,20 +73,12 @@ export default function MARDetailPage() {
   const sigRef = useRef<SignatureCanvas>(null)
 
   const loadEntry = async () => {
-    let data: MAREntry | null = null
-    try {
-      const { data: _data, error } = await supabase
-        .from('dispense_admin_log')
-        .select('*')
-        .eq('id', id)
-        .single()
-      if (error) throw error
-      data = _data
-      if (data) await cacheData('mar_entries', [data])
-    } catch {
-      data = await getCachedById('mar_entries', id) as MAREntry | null
-      if (data) setIsOfflineData(true)
-    }
+    const { data, offline } = await loadSingle<MAREntry>(
+      () => supabase.from('dispense_admin_log').select('*').eq('id', id).single() as any,
+      'mar_entries',
+      id
+    )
+    if (offline) setIsOfflineData(true)
     setEntry(data)
     setLoading(false)
     // Resolve encounter text ID → UUID for navigation (online only)

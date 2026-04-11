@@ -64,15 +64,19 @@ export default function MyUnitDashboard() {
     if (!assignment.employee) { setDeploymentLoading(false); return }
 
     const loadDeployment = async () => {
-      const { data } = await supabase
-        .from('deployment_records')
-        .select('id, status, travel_date, check_in_date, check_out_date, daily_rate, incidents(name)')
-        .eq('employee_id', assignment.employee!.id)
-        .in('status', ['Traveling', 'On Scene'])
-        .order('travel_date', { ascending: false })
-        .limit(1)
-        .single()
-      setDeployment((data as unknown as DeploymentRecord) ?? null)
+      try {
+        const { data } = await supabase
+          .from('deployment_records')
+          .select('id, status, travel_date, check_in_date, check_out_date, daily_rate, incidents(name)')
+          .eq('employee_id', assignment.employee!.id)
+          .in('status', ['Traveling', 'On Scene'])
+          .order('travel_date', { ascending: false })
+          .limit(1)
+          .single()
+        setDeployment((data as unknown as DeploymentRecord) ?? null)
+      } catch {
+        setDeployment(null)
+      }
       setDeploymentLoading(false)
     }
     loadDeployment()

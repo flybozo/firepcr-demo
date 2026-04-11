@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { loadSingle } from '@/lib/offlineFirst'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useTheme, THEME_PRESETS } from '@/components/ThemeProvider'
 import type { Theme } from '@/components/ThemeProvider'
@@ -51,21 +52,11 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!assignment.loading && assignment.employee?.id) {
       const load = async () => {
-        let data: any = null
-        try {
-          const { data: empData } = await supabase
-            .from('employees')
-            .select('*')
-            .eq('id', assignment.employee!.id)
-            .single()
-          data = empData
-        } catch {
-          // Offline — load from IndexedDB
-          try {
-            const { getCachedById } = await import('@/lib/offlineStore')
-            data = await getCachedById('employees', assignment.employee!.id)
-          } catch {}
-        }
+        const { data } = await loadSingle(
+          () => supabase.from('employees').select('*').eq('id', assignment.employee!.id).single() as any,
+          'employees',
+          assignment.employee!.id
+        )
         if (data) {
           setEmployee(data)
           setForm({

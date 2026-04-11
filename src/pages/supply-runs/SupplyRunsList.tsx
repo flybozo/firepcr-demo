@@ -5,7 +5,8 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { getCachedData, cacheData } from '@/lib/offlineStore'
+import { loadList } from '@/lib/offlineFirst'
+import { getCachedData } from '@/lib/offlineStore'
 import { Link } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 
@@ -41,14 +42,11 @@ function SupplyRunsPageInner() {
   useEffect(() => {
     if (isField) return
     const loadIncidents = async () => {
-      try {
-        const { data, error } = await supabase.from('incidents').select('id, name').eq('status', 'Active').order('name')
-        if (error) throw error
-        if (data) setActiveIncidents(data)
-      } catch {
-        const cached = await getCachedData('incidents')
-        if (cached.length > 0) setActiveIncidents(cached as {id:string;name:string}[])
-      }
+      const { data } = await loadList<{id:string;name:string}>(
+        () => supabase.from('incidents').select('id, name').eq('status', 'Active').order('name'),
+        'incidents'
+      )
+      if (data.length > 0) setActiveIncidents(data)
     }
     loadIncidents()
   }, [isField])
@@ -67,11 +65,12 @@ function SupplyRunsPageInner() {
         const effectiveIncident = incidentIdParam || (isField ? assignment.incidentUnit?.incident_id : null)
         if (effectiveIncident) query = (query as any).eq('incident_id', effectiveIncident)
         else if (!isField && incidentFilter !== 'All') query = (query as any).eq('incident_id', incidentFilter)
-        const { data, error } = await (query as any).limit(200)
-        if (error) throw error
-        const runsData = (data as any) || []
-        setRuns(runsData)
-        if (runsData.length > 0) await cacheData('supply_runs', runsData)
+        const { data, offline } = await loadList<SupplyRun>(
+          () => (query as any).limit(200),
+          'supply_runs'
+        )
+        setRuns(data)
+        if (offline) setIsOfflineData(true)
       } catch {
         const cached = await getCachedData('supply_runs')
         if (cached.length > 0) {

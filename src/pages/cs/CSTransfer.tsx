@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { getCachedData } from '@/lib/offlineStore'
+import { loadList } from '@/lib/offlineFirst'
 import { getIsOnline } from '@/lib/syncManager'
 import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
@@ -57,36 +57,21 @@ export default function CSTransferPage() {
 
   useEffect(() => {
     const load = async () => {
-      try {
-        // Load all units including Warehouse
-        const { data: unitData, error: unitErr } = await supabase
-          .from('units')
-          .select('id, name')
-          .eq('active', true)
-          .order('name')
-        if (unitErr) throw unitErr
-        setUnits(unitData || [])
-
-        const { data: empData, error: empErr } = await supabase
-          .from('employees')
-          .select('id, name')
-          .eq('status', 'Active')
-          .in('role', ['MD', 'MD/DO', 'NP', 'PA', 'RN', 'Paramedic'])
-          .order('name')
-        if (empErr) throw empErr
-        setEmployees(empData || [])
-      } catch {
-        // Offline — load cached employees
-        const cached = await getCachedData('employees')
-        const filtered = cached.filter((e: any) =>
-          ['MD', 'MD/DO', 'NP', 'PA', 'RN', 'Paramedic'].includes(e.role)
-        )
-        if (filtered.length > 0) setEmployees(filtered.map((e: any) => ({ id: e.id, name: e.name })))
-        // Load cached units
-        const cachedUnits = await getCachedData('units')
-        if (cachedUnits.length > 0) setUnits(cachedUnits.map((u: any) => ({ id: u.id, name: u.name })))
-        setIsOffline(true)
-      }
+      const [unitResult, empResult] = await Promise.all([
+        loadList<UnitOption>(
+          () => supabase.from('units').select('id, name').eq('active', true).order('name'),
+          'units'
+        ),
+        loadList<{ id: string; name: string }>(
+          () => supabase.from('employees').select('id, name').eq('status', 'Active')
+            .in('role', ['MD', 'MD/DO', 'NP', 'PA', 'RN', 'Paramedic']).order('name'),
+          'employees',
+          (all) => all.filter((e: any) => ['MD', 'MD/DO', 'NP', 'PA', 'RN', 'Paramedic'].includes((e as any).role))
+        ),
+      ])
+      setUnits(unitResult.data)
+      setEmployees(empResult.data)
+      if (unitResult.offline || empResult.offline) setIsOffline(true)
     }
     load()
   }, [])

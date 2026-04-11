@@ -3,6 +3,7 @@ import EncounterPicker, { type PickedEncounter } from '@/components/EncounterPic
 
 import { useEffect, useRef, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { loadList } from '@/lib/offlineFirst'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useRole } from '@/lib/useRole'
@@ -120,12 +121,8 @@ function MARNewFormInner() {
         .limit(20)
       setEncounterOptions(data || [])
     } catch {
-      // Offline — load encounters from IndexedDB
-      try {
-        const { getCachedData } = await import('@/lib/offlineStore')
-        const cached = await getCachedData('encounters')
-        setEncounterOptions((cached as any[]).filter((e: any) => e.unit === unitName).slice(0, 20))
-      } catch {}
+      // Offline — best effort, encounters not available without store filter
+      setEncounterOptions([])
     }
   }
 
@@ -237,31 +234,22 @@ function MARNewFormInner() {
   useEffect(() => {
     const load = async () => {
       if (unitParam) await loadUnitInventory(unitParam)
-      try {
-        const { data: emps } = await supabase
-          .from('employees')
-          .select('id, name, role')
-          .eq('status', 'Active')
-          .order('name')
-        setEmployees((emps || []).map((e: any) => ({...e, name: e.name || e.full_name})))
-
-        const { data: items } = await supabase
-          .from('formulary_templates')
-          .select('id, item_name, category, unit_type')
-          .in('category', ['Rx', 'CS'])
-          .order('category')
-          .order('item_name')
-        setFormulary(items || [])
-      } catch {
-        // Offline — load from IndexedDB
-        try {
-          const { getCachedData } = await import('@/lib/offlineStore')
-          const cachedEmps = await getCachedData('employees')
-          setEmployees((cachedEmps as any[]).map((e: any) => ({...e, name: e.name || e.full_name})))
-          const cachedFormulary = await getCachedData('formulary')
-          setFormulary(cachedFormulary as any[])
-        } catch {}
-      }
+      const [empResult, formularyResult] = await Promise.all([
+        loadList(
+          () => supabase.from('employees').select('id, name, role').eq('status', 'Active').order('name'),
+          'employees'
+        ),
+        loadList(
+          () => supabase.from('formulary_templates')
+            .select('id, item_name, category, unit_type')
+            .in('category', ['Rx', 'CS'])
+            .order('category')
+            .order('item_name'),
+          'formulary'
+        ),
+      ])
+      setEmployees(empResult.data.map((e: any) => ({...e, name: e.name || e.full_name})))
+      setFormulary(formularyResult.data as any[])
     }
     load()
   }, [])

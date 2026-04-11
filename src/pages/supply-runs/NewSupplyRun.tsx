@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { loadList } from '@/lib/offlineFirst'
 import { getIsOnline } from '@/lib/syncManager'
 import { queueOfflineWrite } from '@/lib/offlineStore'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -212,12 +213,18 @@ function SupplyRunNewInner() {
       }
 
       // Admin mode — load incidents + all employees
-      const [{ data: incData }, { data: empData }] = await Promise.all([
-        supabase.from('incidents').select('id, name, status').in('status', ['Active', 'Closed']).order('status').order('name'),
-        supabase.from('employees').select('id, name, role').eq('status', 'Active').order('name'),
+      const [incResult, empResult] = await Promise.all([
+        loadList<Incident>(
+          () => supabase.from('incidents').select('id, name, status').in('status', ['Active', 'Closed']).order('status').order('name'),
+          'incidents'
+        ),
+        loadList<Employee>(
+          () => supabase.from('employees').select('id, name, role').eq('status', 'Active').order('name'),
+          'employees'
+        ),
       ])
-      setIncidents(incData || [])
-      setAllEmployees(empData || [])
+      setIncidents(incResult.data)
+      setAllEmployees(empResult.data)
 
       // If preset incident from URL, load its units
       if (presetIncidentId) {

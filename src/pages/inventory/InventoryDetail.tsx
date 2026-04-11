@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { getCachedById, cacheData, queueOfflineWrite } from '@/lib/offlineStore'
+import { loadSingle } from '@/lib/offlineFirst'
+import { cacheData, queueOfflineWrite } from '@/lib/offlineStore'
 import { getIsOnline } from '@/lib/syncManager'
 import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
@@ -64,9 +65,8 @@ export default function InventoryDetailPage() {
   const [isOfflineData, setIsOfflineData] = useState(false)
 
   const load = async () => {
-    let inv: InventoryItem | null = null
-    try {
-      const { data, error } = await supabase
+    const { data: inv, offline } = await loadSingle<InventoryItem>(
+      () => supabase
         .from('unit_inventory')
         .select(`
           id, item_name, category, quantity, par_qty, lot_number, expiration_date, unit,
@@ -74,15 +74,12 @@ export default function InventoryDetailPage() {
           incident_unit:incident_units(unit:units(id, name))
         `)
         .eq('id', id)
-        .single()
-      if (error) throw error
-      inv = data as unknown as InventoryItem
-      if (inv) await cacheData('inventory', [inv])
-    } catch {
-      inv = await getCachedById('inventory', id) as InventoryItem
-      if (inv) setIsOfflineData(true)
-    }
+        .single() as any,
+      'inventory',
+      id
+    )
     setItem(inv)
+    if (offline) setIsOfflineData(true)
 
     // Load all units carrying same item
     if (inv?.item_name) {

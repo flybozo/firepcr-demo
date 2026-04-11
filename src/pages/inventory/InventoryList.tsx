@@ -5,7 +5,7 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { getCachedData, cacheData } from '@/lib/offlineStore'
+import { loadList } from '@/lib/offlineFirst'
 import { Link } from 'react-router-dom'
 import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
 
@@ -51,23 +51,17 @@ function InventoryPageInner() {
 
   useEffect(() => {
     const load = async () => {
-      try {
-        const { data, error } = await supabase
+      const { data, offline } = await loadList(
+        () => supabase
           .from('unit_inventory')
           .select(`id, item_name, category, quantity, par_qty, lot_number, expiration_date,
             incident_unit:incident_units(unit:units(name, unit_type:unit_types(name)))`)
           .order('item_name')
-          .limit(2000)
-        if (error) throw error
-        setItems((data as any) || [])
-        if (data) await cacheData('inventory', data)
-      } catch {
-        const cached = await getCachedData('inventory')
-        if (cached.length > 0) {
-          setItems(cached as any)
-          setIsOfflineData(true)
-        }
-      }
+          .limit(2000),
+        'inventory'
+      )
+      setItems(data as any)
+      if (offline) setIsOfflineData(true)
       setLoading(false)
     }
     load()
