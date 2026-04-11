@@ -39,7 +39,8 @@ function IncidentsPageInner() {
           .order('created_at', { ascending: false }) as any,
         'incidents'
       )
-      setIncidents(data as Incident[])
+      const sorted = [...data].sort((a: any, b: any) => (b.start_date || b.created_at || '').localeCompare(a.start_date || a.created_at || ''))
+      setIncidents(sorted as Incident[])
       if (offline) setIsOfflineData(true)
       setLoading(false)
     }
@@ -109,9 +110,9 @@ function IncidentsPageInner() {
           <div className="bg-gray-900 rounded-xl overflow-hidden border border-gray-800">
             <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
               <span className="flex-1 min-w-0">Incident Name</span>
+              <span className="w-24 shrink-0">Start Date</span>
               <span className="flex-1 min-w-0 hidden sm:block">Location</span>
               <span className="w-28 shrink-0 hidden md:block">Number</span>
-              <span className="w-24 shrink-0 hidden sm:block">{tab === 'Closed' ? 'Closed' : 'Start Date'}</span>
               <span className="w-16 shrink-0 text-center">Units</span>
             </div>
             {filtered.map(incident => (
@@ -121,6 +122,9 @@ function IncidentsPageInner() {
                 className="flex items-center px-4 py-2.5 hover:bg-gray-800 cursor-pointer border-b border-gray-800/50 text-sm"
               >
                 <span className="flex-1 min-w-0 font-medium truncate pr-2">{incident.name}</span>
+                <span className="w-24 shrink-0 text-gray-400 text-xs pr-2">
+                  {incident.start_date || '—'}
+                </span>
                 <span className="flex-1 min-w-0 text-gray-400 text-xs truncate pr-2 hidden sm:block">
                   {incident.location || '—'}
                 </span>

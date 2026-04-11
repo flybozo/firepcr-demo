@@ -69,7 +69,8 @@ function SupplyRunsPageInner() {
           () => (query as any).limit(200),
           'supply_runs'
         )
-        setRuns(data)
+        const sorted = [...data].sort((a: any, b: any) => (b.run_date || b.created_at || '').localeCompare(a.run_date || a.created_at || ''))
+        setRuns(sorted)
         if (offline) setIsOfflineData(true)
       } catch {
         const cached = await getCachedData('supply_runs')

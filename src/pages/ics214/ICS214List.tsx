@@ -65,6 +65,7 @@ export default function ICS214ListPage() {
       const { data, error } = await q
       if (error) throw error
       const rows = (data as ICS214Row[]) || []
+      rows.sort((a: any, b: any) => (b.created_at || '').localeCompare(a.created_at || ''))
       setRows(rows)
       const allUnits = Array.from(new Set(rows.map(r => r.unit_name).filter(Boolean)))
       setUnits(allUnits)
@@ -73,7 +74,8 @@ export default function ICS214ListPage() {
       try {
         const { getCachedData } = await import('@/lib/offlineStore')
         const cached = await getCachedData('ics214s')
-        setRows(cached as ICS214Row[])
+        const sorted = [...cached].sort((a: any, b: any) => (b.created_at || '').localeCompare(a.created_at || ''))
+        setRows(sorted as ICS214Row[])
       } catch { setRows([]) }
     }
     setLoading(false)

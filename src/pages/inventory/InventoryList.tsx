@@ -69,13 +69,21 @@ function InventoryPageInner() {
           const cachedIUs = await getCachedData('incident_units')
           console.log('[Inventory] Enriching', enrichedData.length, 'items with', cachedIUs.length, 'incident_units')
           enrichedData = enrichedData.map((item: any) => {
+            // Try existing join data first
             if (item.incident_unit?.unit?.name) return item
-            const iuId = item.incident_unit_id || (item.incident_unit && typeof item.incident_unit === 'string' ? item.incident_unit : null)
+            // Find incident_unit_id — could be top-level or nested
+            const iuId = item.incident_unit_id 
+              || (typeof item.incident_unit === 'string' ? item.incident_unit : null)
+              || (item.incident_unit?.id || null)
             if (!iuId) return item
             const iu = cachedIUs.find((u: any) => u.id === iuId)
-            if (iu && iu.unit) return { ...item, incident_unit: { unit: { name: iu.unit.name, unit_type: iu.unit.unit_type || null } } }
+            if (iu && iu.unit) {
+              return { ...item, incident_unit: { unit: { name: iu.unit.name, unit_type: iu.unit.unit_type || null } } }
+            }
             return item
           })
+          console.log('[Inventory] After enrichment, units found:', 
+            new Set(enrichedData.map((i: any) => i.incident_unit?.unit?.name).filter(Boolean)).size)
         } catch (e) { console.error('[Inventory] Enrichment failed:', e) }
       }
       setItems(enrichedData)

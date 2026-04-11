@@ -140,7 +140,8 @@ function MARListInner() {
         },
         'mar_entries'
       )
-      setEntries(data as MAREntry[])
+      const sorted = [...data].sort((a: any, b: any) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''))
+      setEntries(sorted as MAREntry[])
       if (offline) setIsOffline(true)
       setLoading(false)
     }
