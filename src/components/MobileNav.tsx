@@ -1,4 +1,5 @@
-import { useState, ErrorInfo, Component, ReactNode } from 'react'
+import { useState, Component } from 'react'
+import type { ErrorInfo, ReactNode } from 'react'
 import Sidebar from './Sidebar'
 
 // Error boundary to catch Sidebar crashes
