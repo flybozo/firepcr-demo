@@ -110,31 +110,29 @@ function EncountersInner() {
     // Wait for assignment to finish loading before querying, so field filters are applied
     if (roleLoading || assignment.loading) return
     const load = async () => {
-      let query = supabase
-        .from('patient_encounters')
-        .select('id, encounter_id, date, unit, patient_first_name, patient_last_name, patient_dob, primary_symptom_text, initial_acuity, patient_disposition, pcr_status, provider_of_record, incident:incidents(name)')
-        .order('date', { ascending: false })
-        .order('created_at', { ascending: false })
+      try {
+        let query = supabase
+          .from('patient_encounters')
+          .select('id, encounter_id, date, unit, patient_first_name, patient_last_name, patient_dob, primary_symptom_text, initial_acuity, patient_disposition, pcr_status, provider_of_record, incident:incidents(name)')
+          .order('date', { ascending: false })
+          .order('created_at', { ascending: false })
 
-      // Field users: restrict to their incident
-      const fieldIncidentId = incidentId || (isField ? assignment.incidentUnit?.incident_id : null)
-      if (fieldIncidentId) query = query.eq('incident_id', fieldIncidentId)
-      else if (!isField && incidentFilter !== 'All') query = query.eq('incident_id', incidentFilter)
-      // Field users: also restrict to their unit
-      if (isField && assignment.unit?.name) query = (query as any).eq('unit', assignment.unit.name)
+        const fieldIncidentId = incidentId || (isField ? assignment.incidentUnit?.incident_id : null)
+        if (fieldIncidentId) query = query.eq('incident_id', fieldIncidentId)
+        else if (!isField && incidentFilter !== 'All') query = query.eq('incident_id', incidentFilter)
+        if (isField && assignment.unit?.name) query = (query as any).eq('unit', assignment.unit.name)
 
-      const { data, error: queryError } = await query.limit(2000)
-      if (!queryError && data && data.length > 0) {
-        const mapped = data.map((e: any) => ({ ...e, incident_name: e.incident?.name || null }))
+        const { data, error: queryError } = await query.limit(2000)
+        if (queryError) throw queryError
+        const mapped = (data || []).map((e: any) => ({ ...e, incident_name: e.incident?.name || null }))
         setEncounters(mapped)
-        // Cache for offline use
-        await cacheData('encounters', mapped)
-      } else if (!getIsOnline() || queryError) {
-        // Offline fallback
-        const cached = await getCachedData('encounters')
-        setEncounters(cached)
-      } else {
-        setEncounters([])
+        if (mapped.length > 0) await cacheData('encounters', mapped)
+      } catch (err) {
+        console.log('[Offline] Encounters loading from cache', err)
+        try {
+          const cached = await getCachedData('encounters')
+          setEncounters(cached as any[])
+        } catch { setEncounters([]) }
       }
       setLoading(false)
     }

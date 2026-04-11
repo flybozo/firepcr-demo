@@ -69,39 +69,44 @@ function UnitsPageInner() {
   } | null>(null)
 
   const load = async () => {
-    const [unitRes, empRes] = await Promise.all([
-      supabase
-        .from('units')
-        .select(`
-          id, name, active, unit_status, vin, license_plate, plate_state, make, model, year,
-          unit_type:unit_types(name),
-          incident_units(
-            id, released_at,
-            incident:incidents(name, status),
-            unit_assignments(id, released_at, employee:employees(id, name, role))
-          )
-        `)
-        .eq('active', true)
-        .order('name'),
-      supabase.from('employees').select('id, name, role').eq('status', 'Active').order('name'),
-    ])
-    const sorted = ((unitRes.data as unknown as Unit[]) || []).sort((a, b) => {
-      const aType = (a.unit_type as any)?.name || 'REMS'
-      const bType = (b.unit_type as any)?.name || 'REMS'
-      const orderDiff = (TYPE_ORDER[aType] ?? 99) - (TYPE_ORDER[bType] ?? 99)
-      if (orderDiff !== 0) return orderDiff
-      return a.name.localeCompare(b.name)
-    })
-    if (sorted.length > 0) {
+    try {
+      const [unitRes, empRes] = await Promise.all([
+        supabase
+          .from('units')
+          .select(`
+            id, name, active, unit_status, vin, license_plate, plate_state, make, model, year,
+            unit_type:unit_types(name),
+            incident_units(
+              id, released_at,
+              incident:incidents(name, status),
+              unit_assignments(id, released_at, employee:employees(id, name, role))
+            )
+          `)
+          .eq('active', true)
+          .order('name'),
+        supabase.from('employees').select('id, name, role').eq('status', 'Active').order('name'),
+      ])
+      if (unitRes.error) throw unitRes.error
+      const sorted = ((unitRes.data as unknown as Unit[]) || []).sort((a, b) => {
+        const aType = (a.unit_type as any)?.name || 'REMS'
+        const bType = (b.unit_type as any)?.name || 'REMS'
+        const orderDiff = (TYPE_ORDER[aType] ?? 99) - (TYPE_ORDER[bType] ?? 99)
+        if (orderDiff !== 0) return orderDiff
+        return a.name.localeCompare(b.name)
+      })
       setUnits(sorted)
-      await cacheData('units', sorted)
-    } else if (!getIsOnline() || unitRes.error) {
-      const cached = await getCachedData('units')
-      setUnits(cached as Unit[])
-    } else {
-      setUnits([])
+      if (sorted.length > 0) await cacheData('units', sorted)
+      setAllEmployees((empRes.data || []) as {id: string; name: string; role: string}[])
+      if (empRes.data) await cacheData('employees', empRes.data)
+    } catch (err) {
+      console.log('[Offline] Units loading from cache', err)
+      try {
+        const cached = await getCachedData('units')
+        setUnits(cached as Unit[])
+        const cachedEmps = await getCachedData('employees')
+        setAllEmployees(cachedEmps as {id: string; name: string; role: string}[])
+      } catch { setUnits([]) }
     }
-    setAllEmployees((empRes.data || []) as {id: string; name: string; role: string}[])
     setLoading(false)
   }
 
