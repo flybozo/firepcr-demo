@@ -33,12 +33,15 @@ function ChatRequestsPageInner() {
 
   const loadRequests = async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('chat_requests')
-      .select('*')
-      .order('created_at', { ascending: false })
-
-    setRequests((data || []) as ChatRequest[])
+    try {
+      const { data } = await supabase
+        .from('chat_requests')
+        .select('*')
+        .order('created_at', { ascending: false })
+      setRequests((data || []) as ChatRequest[])
+    } catch {
+      // Offline — show empty list
+    }
     setLoading(false)
   }
 

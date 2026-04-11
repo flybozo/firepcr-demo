@@ -12,14 +12,19 @@ export default function Dashboard() {
         navigate('/login', { replace: true })
         return
       }
-      const { data: employee } = await supabase
-        .from('employees')
-        .select('role')
-        .eq('auth_user_id', user.id)
-        .single()
-      const isAdmin = employee && ['MD', 'MD/DO', 'Admin'].includes((employee as any).role)
-      navigate(isAdmin ? '/admin' : '/dashboard/my-unit', { replace: true })
-    })
+      try {
+        const { data: employee } = await supabase
+          .from('employees')
+          .select('role')
+          .eq('auth_user_id', user.id)
+          .single()
+        const isAdmin = employee && ['MD', 'MD/DO', 'Admin'].includes((employee as any).role)
+        navigate(isAdmin ? '/admin' : '/dashboard/my-unit', { replace: true })
+      } catch {
+        // Offline — default to field view
+        navigate('/dashboard/my-unit', { replace: true })
+      }
+    }).catch(() => navigate('/dashboard/my-unit', { replace: true }))
   }, [navigate])
 
   return <div className="min-h-screen bg-gray-950" />

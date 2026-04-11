@@ -73,13 +73,17 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
 
   const loadCodes = useCallback(async () => {
     setLoading(true)
-    const supabase = createClient()
-    const { data } = await supabase
-      .from('incident_access_codes')
-      .select('*')
-      .eq('incident_id', incidentId)
-      .order('created_at', { ascending: false })
-    setCodes(data || [])
+    try {
+      const supabase = createClient()
+      const { data } = await supabase
+        .from('incident_access_codes')
+        .select('*')
+        .eq('incident_id', incidentId)
+        .order('created_at', { ascending: false })
+      setCodes(data || [])
+    } catch {
+      // Offline — show empty list
+    }
     setLoading(false)
   }, [incidentId])
 

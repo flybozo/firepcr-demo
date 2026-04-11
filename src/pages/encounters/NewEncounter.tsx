@@ -59,16 +59,29 @@ function NewEncounterInner() {
 
   useEffect(() => {
     const load = async () => {
-      const [{ data: unitData }, { data: incData }] = await Promise.all([
-        supabase.from('units')
-          .select('id, name, unit_type:unit_types(name), incident_units(id, incident:incidents(id, name, status))')
-          .eq('active', true)
-          .neq('name', 'Warehouse')
-          .order('name'),
-        supabase.from('incidents').select('id, name').in('status', ['Active', 'Closed']).order('name'),
-      ])
-      setUnits((unitData as any) || [])
-      setIncidents(incData || [])
+      try {
+        const [{ data: unitData }, { data: incData }] = await Promise.all([
+          supabase.from('units')
+            .select('id, name, unit_type:unit_types(name), incident_units(id, incident:incidents(id, name, status))')
+            .eq('active', true)
+            .neq('name', 'Warehouse')
+            .order('name'),
+          supabase.from('incidents').select('id, name').in('status', ['Active', 'Closed']).order('name'),
+        ])
+        setUnits((unitData as any) || [])
+        setIncidents(incData || [])
+      } catch {
+        // Offline — load from IndexedDB
+        try {
+          const { getCachedData } = await import('@/lib/offlineStore')
+          const [cachedUnits, cachedIncs] = await Promise.all([
+            getCachedData('units'),
+            getCachedData('incidents'),
+          ])
+          setUnits(cachedUnits as any[])
+          setIncidents(cachedIncs as any[])
+        } catch {}
+      }
       setLoading(false)
     }
     load()

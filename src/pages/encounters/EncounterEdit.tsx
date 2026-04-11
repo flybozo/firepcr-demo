@@ -188,11 +188,25 @@ function EditEncounterInner() {
 
   useEffect(() => {
     const load = async () => {
-      const [{ data: enc }, { data: emps }] = await Promise.all([
-        supabase.from('patient_encounters').select('*').eq('id', id).single(),
-        supabase.from('employees').select('id, full_name, role').in('role', ['MD', 'MD/DO']).eq('status', 'Active').order('full_name'),
-      ])
-      setEmployees(emps || [])
+      let enc: any = null
+      let emps: any[] = []
+      try {
+        const [{ data: encData }, { data: empsData }] = await Promise.all([
+          supabase.from('patient_encounters').select('*').eq('id', id).single(),
+          supabase.from('employees').select('id, full_name, role').in('role', ['MD', 'MD/DO']).eq('status', 'Active').order('full_name'),
+        ])
+        enc = encData
+        emps = empsData || []
+      } catch {
+        // Offline — load from IndexedDB
+        try {
+          const { getCachedById, getCachedData } = await import('@/lib/offlineStore')
+          enc = await getCachedById('encounters', id)
+          const cachedEmps = await getCachedData('employees')
+          emps = (cachedEmps as any[]).filter((e: any) => ['MD', 'MD/DO'].includes(e.role))
+        } catch {}
+      }
+      setEmployees(emps)
       if (!enc) {
         setError('Encounter not found.')
         setLoading(false)
@@ -296,16 +310,23 @@ function EditEncounterInner() {
       notes: form.notes || null,
     }
 
-    const { error: updateErr } = await supabase
-      .from('patient_encounters')
-      .update(payload)
-      .eq('id', id)
-
-    setSubmitting(false)
-    if (updateErr) {
-      setError(`Save failed: ${updateErr.message}`)
-    } else {
+    try {
+      const { getIsOnline } = await import('@/lib/syncManager')
+      if (getIsOnline()) {
+        const { error: updateErr } = await supabase
+          .from('patient_encounters')
+          .update(payload)
+          .eq('id', id)
+        if (updateErr) { setError(`Save failed: ${updateErr.message}`); setSubmitting(false); return }
+      } else {
+        const { queueOfflineWrite } = await import('@/lib/offlineStore')
+        await queueOfflineWrite('patient_encounters', 'update', { id, ...payload })
+      }
+      setSubmitting(false)
       navigate(`/encounters/${id}`)
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Save failed')
+      setSubmitting(false)
     }
   }
 

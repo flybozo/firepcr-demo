@@ -14,31 +14,42 @@ function AdminDashboardPageInner() {
 
   useEffect(() => {
     const load = async () => {
-      const today = new Date().toLocaleDateString('en-CA')  // YYYY-MM-DD in local tz
-      const [
-        { count: employees },
-        { count: activeIncidents },
-        { count: encToday },
-        { count: unsignedOrders },
-        { count: lowStock },
-        { count: totalDocs },
-      ] = await Promise.all([
-        supabase.from('employees').select('id', { count: 'exact', head: true }).eq('status', 'Active'),
-        supabase.from('incidents').select('id', { count: 'exact', head: true }).eq('status', 'Active'),
-        supabase.from('patient_encounters').select('id', { count: 'exact', head: true }).eq('date', today),
-        supabase.from('dispense_admin_log').select('id', { count: 'exact', head: true }).eq('requires_cosign', true).is('provider_signature_url', null),
-        supabase.from('unit_inventory').select('id', { count: 'exact', head: true }).lte('quantity', 1),
-        supabase.from('documents').select('id', { count: 'exact', head: true }).eq('active', true),
-      ])
-
-      setStats([
-        { label: 'Active Employees', value: employees || 0, href: '/roster', color: 'text-blue-400' },
-        { label: 'Active Incidents', value: activeIncidents || 0, href: '/incidents', color: 'text-red-400' },
-        { label: 'Encounters Today', value: encToday || 0, href: '/encounters', color: 'text-green-400' },
-        { label: 'Unsigned Orders', value: unsignedOrders || 0, href: '/unsigned-orders', color: unsignedOrders ? 'text-orange-400' : 'text-gray-500' },
-        { label: 'Low Stock Items', value: lowStock || 0, href: '/inventory/reorder', color: lowStock ? 'text-yellow-400' : 'text-gray-500' },
-        { label: 'P&P Documents', value: totalDocs || 0, href: '/documents', color: 'text-purple-400' },
-      ])
+      try {
+        const today = new Date().toLocaleDateString('en-CA')  // YYYY-MM-DD in local tz
+        const [
+          { count: employees },
+          { count: activeIncidents },
+          { count: encToday },
+          { count: unsignedOrders },
+          { count: lowStock },
+          { count: totalDocs },
+        ] = await Promise.all([
+          supabase.from('employees').select('id', { count: 'exact', head: true }).eq('status', 'Active'),
+          supabase.from('incidents').select('id', { count: 'exact', head: true }).eq('status', 'Active'),
+          supabase.from('patient_encounters').select('id', { count: 'exact', head: true }).eq('date', today),
+          supabase.from('dispense_admin_log').select('id', { count: 'exact', head: true }).eq('requires_cosign', true).is('provider_signature_url', null),
+          supabase.from('unit_inventory').select('id', { count: 'exact', head: true }).lte('quantity', 1),
+          supabase.from('documents').select('id', { count: 'exact', head: true }).eq('active', true),
+        ])
+        setStats([
+          { label: 'Active Employees', value: employees || 0, href: '/roster', color: 'text-blue-400' },
+          { label: 'Active Incidents', value: activeIncidents || 0, href: '/incidents', color: 'text-red-400' },
+          { label: 'Encounters Today', value: encToday || 0, href: '/encounters', color: 'text-green-400' },
+          { label: 'Unsigned Orders', value: unsignedOrders || 0, href: '/unsigned-orders', color: unsignedOrders ? 'text-orange-400' : 'text-gray-500' },
+          { label: 'Low Stock Items', value: lowStock || 0, href: '/inventory/reorder', color: lowStock ? 'text-yellow-400' : 'text-gray-500' },
+          { label: 'P&P Documents', value: totalDocs || 0, href: '/documents', color: 'text-purple-400' },
+        ])
+      } catch {
+        // Offline — show zeros so page doesn't crash
+        setStats([
+          { label: 'Active Employees', value: 0, href: '/roster', color: 'text-blue-400' },
+          { label: 'Active Incidents', value: 0, href: '/incidents', color: 'text-red-400' },
+          { label: 'Encounters Today', value: 0, href: '/encounters', color: 'text-green-400' },
+          { label: 'Unsigned Orders', value: 0, href: '/unsigned-orders', color: 'text-gray-500' },
+          { label: 'Low Stock Items', value: 0, href: '/inventory/reorder', color: 'text-gray-500' },
+          { label: 'P&P Documents', value: 0, href: '/documents', color: 'text-purple-400' },
+        ])
+      }
       setLoading(false)
     }
     load()

@@ -138,14 +138,29 @@ function SimpleEHRInner() {
 
   useEffect(() => {
     const load = async () => {
-      const [{ data: emps }, { data: incs }, { data: unitData }] = await Promise.all([
-        supabase.from('employees').select('id, name, role').in('role', CLINICAL_ROLES).eq('status', 'Active').order('role'),
-        supabase.from('incidents').select('id, name').order('name'),
-        supabase.from('units').select('id, name').order('name'),
-      ])
-      setProviders(emps || [])
-      setIncidents(incs || [])
-      setUnits(unitData || [])
+      try {
+        const [{ data: emps }, { data: incs }, { data: unitData }] = await Promise.all([
+          supabase.from('employees').select('id, name, role').in('role', CLINICAL_ROLES).eq('status', 'Active').order('role'),
+          supabase.from('incidents').select('id, name').order('name'),
+          supabase.from('units').select('id, name').order('name'),
+        ])
+        setProviders(emps || [])
+        setIncidents(incs || [])
+        setUnits(unitData || [])
+      } catch {
+        // Offline — load from IndexedDB
+        try {
+          const { getCachedData } = await import('@/lib/offlineStore')
+          const [cachedEmps, cachedIncs, cachedUnits] = await Promise.all([
+            getCachedData('employees'),
+            getCachedData('incidents'),
+            getCachedData('units'),
+          ])
+          setProviders((cachedEmps as any[]).filter((e: any) => CLINICAL_ROLES.includes(e.role)))
+          setIncidents(cachedIncs as any[])
+          setUnits(cachedUnits as any[])
+        } catch {}
+      }
     }
     load()
   }, [])

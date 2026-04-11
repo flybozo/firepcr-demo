@@ -111,13 +111,22 @@ function MARNewFormInner() {
 
   const loadEncountersForUnit = async (unitName: string) => {
     if (!unitName) { setEncounterOptions([]); return }
-    const { data } = await supabase
-      .from('patient_encounters')
-      .select('id, encounter_id, patient_first_name, patient_last_name, primary_symptom_text, date, unit, provider_of_record, incident:incidents(name)')
-      .eq('unit', unitName)
-      .order('date', { ascending: false })
-      .limit(20)
-    setEncounterOptions(data || [])
+    try {
+      const { data } = await supabase
+        .from('patient_encounters')
+        .select('id, encounter_id, patient_first_name, patient_last_name, primary_symptom_text, date, unit, provider_of_record, incident:incidents(name)')
+        .eq('unit', unitName)
+        .order('date', { ascending: false })
+        .limit(20)
+      setEncounterOptions(data || [])
+    } catch {
+      // Offline — load encounters from IndexedDB
+      try {
+        const { getCachedData } = await import('@/lib/offlineStore')
+        const cached = await getCachedData('encounters')
+        setEncounterOptions((cached as any[]).filter((e: any) => e.unit === unitName).slice(0, 20))
+      } catch {}
+    }
   }
 
   const [formulary, setFormulary] = useState<FormularyItem[]>([])
@@ -228,21 +237,31 @@ function MARNewFormInner() {
   useEffect(() => {
     const load = async () => {
       if (unitParam) await loadUnitInventory(unitParam)
+      try {
+        const { data: emps } = await supabase
+          .from('employees')
+          .select('id, name, role')
+          .eq('status', 'Active')
+          .order('name')
+        setEmployees((emps || []).map((e: any) => ({...e, name: e.name || e.full_name})))
 
-      const { data: emps } = await supabase
-        .from('employees')
-        .select('id, name, role')
-        .eq('status', 'Active')
-        .order('name')
-      setEmployees((emps || []).map((e: any) => ({...e, name: e.name || e.full_name})))
-
-      const { data: items } = await supabase
-        .from('formulary_templates')
-        .select('id, item_name, category, unit_type')
-        .in('category', ['Rx', 'CS'])
-        .order('category')
-        .order('item_name')
-      setFormulary(items || [])
+        const { data: items } = await supabase
+          .from('formulary_templates')
+          .select('id, item_name, category, unit_type')
+          .in('category', ['Rx', 'CS'])
+          .order('category')
+          .order('item_name')
+        setFormulary(items || [])
+      } catch {
+        // Offline — load from IndexedDB
+        try {
+          const { getCachedData } = await import('@/lib/offlineStore')
+          const cachedEmps = await getCachedData('employees')
+          setEmployees((cachedEmps as any[]).map((e: any) => ({...e, name: e.name || e.full_name})))
+          const cachedFormulary = await getCachedData('formulary')
+          setFormulary(cachedFormulary as any[])
+        } catch {}
+      }
     }
     load()
   }, [])
@@ -329,17 +348,26 @@ function MARNewFormInner() {
   // Load crew assigned to the current unit
   const loadUnitCrew = async (unitName: string) => {
     if (!unitName) { setUnitCrew([]); return }
-    const { data: unitData } = await supabase.from('units').select('id').eq('name', unitName).single()
-    if (!unitData) return
-    const { data: iuData } = await supabase.from('incident_units').select('id').eq('unit_id', unitData.id).limit(1).single()
-    if (!iuData) return
-    const { data: crew } = await supabase
-      .from('unit_assignments')
-      .select('employee:employees(id, name, role)')
-      .eq('incident_unit_id', iuData.id)
-      .is('released_at', null)
-    const crewList = (crew || []).map((c: any) => c.employee).filter(Boolean)
-    setUnitCrew(crewList)
+    try {
+      const { data: unitData } = await supabase.from('units').select('id').eq('name', unitName).single()
+      if (!unitData) return
+      const { data: iuData } = await supabase.from('incident_units').select('id').eq('unit_id', unitData.id).limit(1).single()
+      if (!iuData) return
+      const { data: crew } = await supabase
+        .from('unit_assignments')
+        .select('employee:employees(id, name, role)')
+        .eq('incident_unit_id', iuData.id)
+        .is('released_at', null)
+      const crewList = (crew || []).map((c: any) => c.employee).filter(Boolean)
+      setUnitCrew(crewList)
+    } catch {
+      // Offline — load employees from cache as fallback crew
+      try {
+        const { getCachedData } = await import('@/lib/offlineStore')
+        const cachedEmps = await getCachedData('employees')
+        setUnitCrew(cachedEmps as any[])
+      } catch {}
+    }
   }
 
     // Provider employees: always show ALL active providers (prescriber may not be on the unit)

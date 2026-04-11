@@ -125,37 +125,40 @@ function ClinicalTab() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const dateFrom = getDateFilter(range)
+    try {
+      const dateFrom = getDateFilter(range)
 
-    let q = supabase
-      .from('patient_encounters')
-      .select('date, primary_symptom_text, initial_acuity, patient_disposition, unit')
-    if (dateFrom) q = q.gte('date', dateFrom)
-    const { data: enc } = await q
-    setEncounters(enc || [])
+      let q = supabase
+        .from('patient_encounters')
+        .select('date, primary_symptom_text, initial_acuity, patient_disposition, unit')
+      if (dateFrom) q = q.gte('date', dateFrom)
+      const { data: enc } = await q
+      setEncounters(enc || [])
 
-    // Medications — all time (no date filter on dispense_admin_log.date text field is tricky; filter by created_at)
-    let mq = supabase
-      .from('dispense_admin_log')
-      .select('item_name')
-      .not('item_name', 'is', null)
-    if (dateFrom) mq = mq.gte('date', dateFrom)
-    const { data: medData } = await mq
+      // Medications — all time (no date filter on dispense_admin_log.date text field is tricky; filter by created_at)
+      let mq = supabase
+        .from('dispense_admin_log')
+        .select('item_name')
+        .not('item_name', 'is', null)
+      if (dateFrom) mq = mq.gte('date', dateFrom)
+      const { data: medData } = await mq
 
-    if (medData) {
-      const counts: Record<string, number> = {}
-      medData.forEach(m => {
-        const k = m.item_name || 'Unknown'
-        counts[k] = (counts[k] || 0) + 1
-      })
-      setMeds(
-        Object.entries(counts)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 10)
-          .map(([item_name, count]) => ({ item_name, count }))
-      )
+      if (medData) {
+        const counts: Record<string, number> = {}
+        medData.forEach(m => {
+          const k = m.item_name || 'Unknown'
+          counts[k] = (counts[k] || 0) + 1
+        })
+        setMeds(
+          Object.entries(counts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([item_name, count]) => ({ item_name, count }))
+        )
+      }
+    } catch {
+      // Offline — analytics require connectivity; show empty state
     }
-
     setLoading(false)
   }, [range])
 
@@ -387,30 +390,33 @@ function OperationsTab() {
 
   useEffect(() => {
     const load = async () => {
-      const [{ data: inc }, { data: enc }, { data: units }] = await Promise.all([
-        supabase.from('incidents').select('id, name, status, start_date, closed_at, incident_units(id)'),
-        supabase.from('patient_encounters').select('incident_id').not('incident_id', 'is', null),
-        supabase.from('units').select('unit_type_id, unit_types!units_unit_type_id_fkey(name)') as unknown as Promise<{ data: { unit_type_id: string; unit_types: { name: string } | null }[] | null; error: unknown }>,
-      ])
+      try {
+        const [{ data: inc }, { data: enc }, { data: units }] = await Promise.all([
+          supabase.from('incidents').select('id, name, status, start_date, closed_at, incident_units(id)'),
+          supabase.from('patient_encounters').select('incident_id').not('incident_id', 'is', null),
+          supabase.from('units').select('unit_type_id, unit_types!units_unit_type_id_fkey(name)') as unknown as Promise<{ data: { unit_type_id: string; unit_types: { name: string } | null }[] | null; error: unknown }>,
+        ])
 
-      setIncidents((inc || []) as IncidentRow[])
+        setIncidents((inc || []) as IncidentRow[])
 
-      // encounters per incident
-      const counts: Record<string, number> = {}
-      ;(enc || []).forEach((e: { incident_id: string | null }) => {
-        if (e.incident_id) counts[e.incident_id] = (counts[e.incident_id] || 0) + 1
-      })
-      setEncByIncident(Object.entries(counts).map(([incident_id, count]) => ({ incident_id, count })))
+        // encounters per incident
+        const counts: Record<string, number> = {}
+        ;(enc || []).forEach((e: { incident_id: string | null }) => {
+          if (e.incident_id) counts[e.incident_id] = (counts[e.incident_id] || 0) + 1
+        })
+        setEncByIncident(Object.entries(counts).map(([incident_id, count]) => ({ incident_id, count })))
 
-      // units by type
-      const typeCounts: Record<string, number> = {}
-      const unitsData = (units || []) as { unit_type_id: string; unit_types: { name: string } | null }[]
-      unitsData.forEach((u) => {
-        const t = u.unit_types?.name || 'Unknown'
-        typeCounts[t] = (typeCounts[t] || 0) + 1
-      })
-      setUnitsByType(Object.entries(typeCounts).map(([name, value]) => ({ name, value })))
-
+        // units by type
+        const typeCounts: Record<string, number> = {}
+        const unitsData = (units || []) as { unit_type_id: string; unit_types: { name: string } | null }[]
+        unitsData.forEach((u) => {
+          const t = u.unit_types?.name || 'Unknown'
+          typeCounts[t] = (typeCounts[t] || 0) + 1
+        })
+        setUnitsByType(Object.entries(typeCounts).map(([name, value]) => ({ name, value })))
+      } catch {
+        // Offline — analytics require connectivity; show empty state
+      }
       setLoading(false)
     }
     load()
@@ -570,12 +576,16 @@ function WorkforceTab() {
 
   useEffect(() => {
     const load = async () => {
-      const certKeys = CERT_FIELDS.map(f => f.key).join(', ')
-      const { data } = await supabase
-        .from('employees')
-        .select(`id, role, experience_level, status, ${certKeys}`)
-        .eq('status', 'Active') as unknown as { data: Employee[] | null }
-      setEmployees(data || [])
+      try {
+        const certKeys = CERT_FIELDS.map(f => f.key).join(', ')
+        const { data } = await supabase
+          .from('employees')
+          .select(`id, role, experience_level, status, ${certKeys}`)
+          .eq('status', 'Active') as unknown as { data: Employee[] | null }
+        setEmployees(data || [])
+      } catch {
+        // Offline — workforce analytics require connectivity
+      }
       setLoading(false)
     }
     load()

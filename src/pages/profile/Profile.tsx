@@ -51,11 +51,21 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!assignment.loading && assignment.employee?.id) {
       const load = async () => {
-        const { data } = await supabase
-          .from('employees')
-          .select('*')
-          .eq('id', assignment.employee!.id)
-          .single()
+        let data: any = null
+        try {
+          const { data: empData } = await supabase
+            .from('employees')
+            .select('*')
+            .eq('id', assignment.employee!.id)
+            .single()
+          data = empData
+        } catch {
+          // Offline — load from IndexedDB
+          try {
+            const { getCachedById } = await import('@/lib/offlineStore')
+            data = await getCachedById('employees', assignment.employee!.id)
+          } catch {}
+        }
         if (data) {
           setEmployee(data)
           setForm({
@@ -69,8 +79,8 @@ export default function ProfilePage() {
             emergency_contact_phone: data.emergency_contact_phone || '',
             emergency_contact_relationship: data.emergency_contact_relationship || '',
           })
-          // Load credential files
-          await loadCreds(assignment.employee!.id)
+          // Load credential files (online only)
+          try { await loadCreds(assignment.employee!.id) } catch {}
         }
       }
       load()

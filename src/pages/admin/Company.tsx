@@ -413,8 +413,12 @@ function CompanyProfilePageInner() {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase.from('organizations').select('*').limit(1).single()
-      if (data) setOrg(data as unknown as Organization)
+      try {
+        const { data } = await supabase.from('organizations').select('*').limit(1).single()
+        if (data) setOrg(data as unknown as Organization)
+      } catch {
+        // Offline — org data not cached, page shows empty
+      }
       setLoading(false)
     }
     load()
