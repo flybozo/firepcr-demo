@@ -237,7 +237,7 @@ export default function ConnectionStatus() {
   return (
     <div
       className={`w-full border-b px-3 text-[11px] font-medium flex items-center transition-all duration-500 ${bgColor}`}
-      style={{ minHeight: barHeight, height: barHeight }}
+      style={{ minHeight: barHeight, paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
       <div className="w-full text-center" style={{ color: 'var(--color-text, #e5e7eb)' }}>
         {content}

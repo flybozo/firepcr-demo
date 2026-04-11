@@ -420,7 +420,7 @@ export default function ChatBubble() {
         }`}
       >
         {/* Header */}
-        <div className="px-4 pt-4 pb-0 bg-gray-900 border-b border-gray-800 shrink-0">
+        <div className="px-4 pb-0 bg-gray-900 border-b border-gray-800 shrink-0" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px) + 8px, 20px)' }}>
           <div className="flex items-center justify-between pb-3">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-gray-800 flex items-center justify-center text-lg shrink-0">
