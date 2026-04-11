@@ -42,6 +42,13 @@ export default function NewIncidentPage() {
     setError('')
 
     try {
+      if (!navigator.onLine) {
+        const { queueOfflineWrite } = await import('@/lib/offlineStore')
+        await queueOfflineWrite('incidents', 'insert', { id: crypto.randomUUID(), ...form, status: 'Active' })
+        alert('Incident saved offline — will sync when back online.')
+        navigate('/incidents')
+        return
+      }
       // Create incident
       const { data: incident, error: incErr } = await supabase
         .from('incidents')

@@ -74,7 +74,7 @@ export async function syncDataFromServer(): Promise<void> {
 
     // Phase 1: Core reference data (small, fast)
     const [incidents, units, employees, formulary] = await Promise.all([
-      supabase.from('incidents').select('*'),  // ALL incidents (active + closed)
+      supabase.from('incidents').select('*, incident_units(id, released_at)'),  // ALL incidents with unit counts
       supabase.from('units').select('*, unit_type:unit_types(name)'),  // ALL units
       supabase.from('employees').select('*'),  // ALL employees with ALL fields
       supabase.from('formulary').select('*'),  // ALL formulary items
@@ -103,7 +103,7 @@ export async function syncDataFromServer(): Promise<void> {
     // Phase 3: Operations data
     const [inventory, supplyRuns] = await Promise.all([
       supabase.from('unit_inventory').select('*').order('item_name').limit(2000),
-      supabase.from('supply_runs').select('*').order('run_date', { ascending: false }).limit(200),
+      supabase.from('supply_runs').select('*, incident_unit:incident_units(unit:units(name)), incident:incidents(name)').order('run_date', { ascending: false }).limit(200),
     ])
 
     console.log('[Sync] Phase 3:', { inventory: inventory.data?.length, supplyRuns: supplyRuns.data?.length })

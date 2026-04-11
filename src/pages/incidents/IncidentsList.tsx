@@ -3,6 +3,7 @@ import { FieldGuard } from '@/components/FieldGuard'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
+import { loadList } from '@/lib/offlineFirst'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Suspense } from 'react'
 
@@ -31,25 +32,15 @@ function IncidentsPageInner() {
 
   useEffect(() => {
     const load = async () => {
-      try {
-        const { data, error } = await supabase
+      const { data, offline } = await loadList(
+        () => supabase
           .from('incidents')
           .select('id, name, location, incident_number, start_date, closed_at, status, incident_units(id, released_at)')
-          .order('created_at', { ascending: false })
-        if (error) throw error
-        setIncidents(data || [])
-        if (data) {
-          const { cacheData } = await import('@/lib/offlineStore')
-          await cacheData('incidents', data)
-        }
-      } catch {
-        const { getCachedData } = await import('@/lib/offlineStore')
-        const cached = await getCachedData('incidents')
-        if (cached.length > 0) {
-          setIncidents(cached as Incident[])
-          setIsOfflineData(true)
-        }
-      }
+          .order('created_at', { ascending: false }) as any,
+        'incidents'
+      )
+      setIncidents(data as Incident[])
+      if (offline) setIsOfflineData(true)
       setLoading(false)
     }
     load()
