@@ -219,27 +219,7 @@ export default function ConnectionStatus() {
       )
       break
 
-    case 'ready':
-      bgColor = 'bg-green-950/60 border-green-900'
-      content = (
-        <div className="flex items-center justify-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-          <span>Online</span>
-          {pendingCount > 0 && (
-            <>
-              <span className="opacity-40">·</span>
-              <span className="text-amber-400">{pendingCount} pending</span>
-            </>
-          )}
-          {lastSynced && (
-            <>
-              <span className="opacity-40">·</span>
-              <span className="opacity-50">Synced {timeAgo(lastSynced)}</span>
-            </>
-          )}
-        </div>
-      )
-      break
+
   }
 
   return (
