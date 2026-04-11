@@ -158,6 +158,8 @@ export default function ConnectionStatus() {
   const barHeight = '24px'
 
   if (phase === 'idle' || phase === 'ready') return null
+  // Don't show syncing bar for background reconnection syncs — only show during initial startup or offline
+  if (phase === 'syncing-data' && online && pendingCount === 0) return null
 
   // Colors & content by phase
   let bgColor = ''

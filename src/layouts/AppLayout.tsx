@@ -9,7 +9,7 @@ import { ThemeProvider } from '@/components/ThemeProvider'
 export default function AppLayout() {
   return (
     <ThemeProvider>
-      <div className="flex h-screen overflow-hidden flex-col">
+      <div className="flex h-screen overflow-hidden flex-col" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <ConnectionStatus />
         <Ticker />
         <div className="flex flex-1 overflow-hidden">
