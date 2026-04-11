@@ -1,108 +1,107 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { Suspense, lazy } from 'react'
+
 import AuthGuard from '@/components/AuthGuard'
 import AppLayout from '@/layouts/AppLayout'
 
 // Auth
-const Login = lazy(() => import('@/pages/auth/Login'))
+import Login from '@/pages/auth/Login'
 
 // Core pages
-const Dashboard = lazy(() => import('@/pages/Dashboard'))
+import Dashboard from '@/pages/Dashboard'
 
 // Encounters
-const EncountersList = lazy(() => import('@/pages/encounters/EncountersList'))
-const NewEncounter = lazy(() => import('@/pages/encounters/NewEncounter'))
-const NewSimpleEncounter = lazy(() => import('@/pages/encounters/NewSimpleEncounter'))
-const NewPCREncounter = lazy(() => import('@/pages/encounters/NewPCREncounter'))
-const EncounterDetail = lazy(() => import('@/pages/encounters/EncounterDetail'))
-const EncounterEdit = lazy(() => import('@/pages/encounters/EncounterEdit'))
-const NewPhoto = lazy(() => import('@/pages/encounters/NewPhoto'))
-const NewProcedure = lazy(() => import('@/pages/encounters/NewProcedure'))
+import EncountersList from '@/pages/encounters/EncountersList'
+import NewEncounter from '@/pages/encounters/NewEncounter'
+import NewSimpleEncounter from '@/pages/encounters/NewSimpleEncounter'
+import NewPCREncounter from '@/pages/encounters/NewPCREncounter'
+import EncounterDetail from '@/pages/encounters/EncounterDetail'
+import EncounterEdit from '@/pages/encounters/EncounterEdit'
+import NewPhoto from '@/pages/encounters/NewPhoto'
+import NewProcedure from '@/pages/encounters/NewProcedure'
 
 // MAR
-const MARList = lazy(() => import('@/pages/mar/MARList'))
-const MARNew = lazy(() => import('@/pages/mar/MARNew'))
-const MARDetail = lazy(() => import('@/pages/mar/MARDetail'))
+import MARList from '@/pages/mar/MARList'
+import MARNew from '@/pages/mar/MARNew'
+import MARDetail from '@/pages/mar/MARDetail'
 
 // Incidents
-const IncidentsList = lazy(() => import('@/pages/incidents/IncidentsList'))
-const NewIncident = lazy(() => import('@/pages/incidents/NewIncident'))
-const IncidentDetail = lazy(() => import('@/pages/incidents/IncidentDetail'))
-const ShiftTicket = lazy(() => import('@/pages/incidents/ShiftTicket'))
+import IncidentsList from '@/pages/incidents/IncidentsList'
+import NewIncident from '@/pages/incidents/NewIncident'
+import IncidentDetail from '@/pages/incidents/IncidentDetail'
+import ShiftTicket from '@/pages/incidents/ShiftTicket'
 
 // Units
-const UnitsList = lazy(() => import('@/pages/units/UnitsList'))
-const NewUnit = lazy(() => import('@/pages/units/NewUnit'))
-const UnitDetail = lazy(() => import('@/pages/units/UnitDetail'))
+import UnitsList from '@/pages/units/UnitsList'
+import NewUnit from '@/pages/units/NewUnit'
+import UnitDetail from '@/pages/units/UnitDetail'
 
 // CS
-const CSOverview = lazy(() => import('@/pages/cs/CSOverview'))
-const CSReceive = lazy(() => import('@/pages/cs/CSReceive'))
-const CSTransfer = lazy(() => import('@/pages/cs/CSTransfer'))
-const CSCount = lazy(() => import('@/pages/cs/CSCount'))
-const CSAudit = lazy(() => import('@/pages/cs/CSAudit'))
-const CSChecklist = lazy(() => import('@/pages/cs/CSChecklist'))
-const CSInventoryCount = lazy(() => import('@/pages/cs/CSInventoryCount'))
+import CSOverview from '@/pages/cs/CSOverview'
+import CSReceive from '@/pages/cs/CSReceive'
+import CSTransfer from '@/pages/cs/CSTransfer'
+import CSCount from '@/pages/cs/CSCount'
+import CSAudit from '@/pages/cs/CSAudit'
+import CSChecklist from '@/pages/cs/CSChecklist'
+import CSInventoryCount from '@/pages/cs/CSInventoryCount'
 
 // Inventory
-const InventoryList = lazy(() => import('@/pages/inventory/InventoryList'))
-const InventoryAdd = lazy(() => import('@/pages/inventory/InventoryAdd'))
-const InventoryDetail = lazy(() => import('@/pages/inventory/InventoryDetail'))
-const BurnRate = lazy(() => import('@/pages/inventory/BurnRate'))
-const Reorder = lazy(() => import('@/pages/inventory/Reorder'))
+import InventoryList from '@/pages/inventory/InventoryList'
+import InventoryAdd from '@/pages/inventory/InventoryAdd'
+import InventoryDetail from '@/pages/inventory/InventoryDetail'
+import BurnRate from '@/pages/inventory/BurnRate'
+import Reorder from '@/pages/inventory/Reorder'
 
 // Supply Runs
-const SupplyRunsList = lazy(() => import('@/pages/supply-runs/SupplyRunsList'))
-const NewSupplyRun = lazy(() => import('@/pages/supply-runs/NewSupplyRun'))
-const SupplyRunDetail = lazy(() => import('@/pages/supply-runs/SupplyRunDetail'))
+import SupplyRunsList from '@/pages/supply-runs/SupplyRunsList'
+import NewSupplyRun from '@/pages/supply-runs/NewSupplyRun'
+import SupplyRunDetail from '@/pages/supply-runs/SupplyRunDetail'
 
 // Roster
-const RosterList = lazy(() => import('@/pages/roster/RosterList'))
-const NewEmployee = lazy(() => import('@/pages/roster/NewEmployee'))
-const HRCredentials = lazy(() => import('@/pages/roster/HRCredentials'))
-const EmployeeDetail = lazy(() => import('@/pages/roster/EmployeeDetail'))
+import RosterList from '@/pages/roster/RosterList'
+import NewEmployee from '@/pages/roster/NewEmployee'
+import HRCredentials from '@/pages/roster/HRCredentials'
+import EmployeeDetail from '@/pages/roster/EmployeeDetail'
 
 // Schedule
-const Schedule = lazy(() => import('@/pages/schedule/Schedule'))
-const ScheduleCalendar = lazy(() => import('@/pages/schedule/ScheduleCalendar'))
-const GenerateSchedule = lazy(() => import('@/pages/schedule/GenerateSchedule'))
+import Schedule from '@/pages/schedule/Schedule'
+import ScheduleCalendar from '@/pages/schedule/ScheduleCalendar'
+import GenerateSchedule from '@/pages/schedule/GenerateSchedule'
 
 // ICS 214
-const ICS214List = lazy(() => import('@/pages/ics214/ICS214List'))
-const NewICS214 = lazy(() => import('@/pages/ics214/NewICS214'))
-const ICS214Detail = lazy(() => import('@/pages/ics214/ICS214Detail'))
-const ICS214Activity = lazy(() => import('@/pages/ics214/ICS214Activity'))
+import ICS214List from '@/pages/ics214/ICS214List'
+import NewICS214 from '@/pages/ics214/NewICS214'
+import ICS214Detail from '@/pages/ics214/ICS214Detail'
+import ICS214Activity from '@/pages/ics214/ICS214Activity'
 
 // Other
-const Analytics = lazy(() => import('@/pages/analytics/Analytics'))
-const Billing = lazy(() => import('@/pages/billing/Billing'))
-const CompClaimsList = lazy(() => import('@/pages/comp-claims/CompClaimsList'))
-const NewCompClaim = lazy(() => import('@/pages/comp-claims/NewCompClaim'))
-const AMAConsent = lazy(() => import('@/pages/consent/AMAConsent'))
-const Contacts = lazy(() => import('@/pages/contacts/Contacts'))
-const DocumentsList = lazy(() => import('@/pages/documents/DocumentsList'))
-const Handbook = lazy(() => import('@/pages/documents/Handbook'))
-const NewDocument = lazy(() => import('@/pages/documents/NewDocument'))
-const Formulary = lazy(() => import('@/pages/formulary/Formulary'))
-const Payroll = lazy(() => import('@/pages/payroll/Payroll'))
-const MyPayroll = lazy(() => import('@/pages/payroll/MyPayroll'))
-const Profile = lazy(() => import('@/pages/profile/Profile'))
-const UnsignedOrders = lazy(() => import('@/pages/unsigned-orders/UnsignedOrders'))
-const MyUnit = lazy(() => import('@/pages/dashboard/MyUnit'))
+import Analytics from '@/pages/analytics/Analytics'
+import Billing from '@/pages/billing/Billing'
+import CompClaimsList from '@/pages/comp-claims/CompClaimsList'
+import NewCompClaim from '@/pages/comp-claims/NewCompClaim'
+import AMAConsent from '@/pages/consent/AMAConsent'
+import Contacts from '@/pages/contacts/Contacts'
+import DocumentsList from '@/pages/documents/DocumentsList'
+import Handbook from '@/pages/documents/Handbook'
+import NewDocument from '@/pages/documents/NewDocument'
+import Formulary from '@/pages/formulary/Formulary'
+import Payroll from '@/pages/payroll/Payroll'
+import MyPayroll from '@/pages/payroll/MyPayroll'
+import Profile from '@/pages/profile/Profile'
+import UnsignedOrders from '@/pages/unsigned-orders/UnsignedOrders'
+import MyUnit from '@/pages/dashboard/MyUnit'
 
 // Admin
-const Admin = lazy(() => import('@/pages/admin/Admin'))
-const Announcements = lazy(() => import('@/pages/admin/Announcements'))
-const ChatRequests = lazy(() => import('@/pages/admin/ChatRequests'))
-const Company = lazy(() => import('@/pages/admin/Company'))
-const FireDashboard = lazy(() => import('@/pages/admin/FireDashboard'))
+import Admin from '@/pages/admin/Admin'
+import Announcements from '@/pages/admin/Announcements'
+import ChatRequests from '@/pages/admin/ChatRequests'
+import Company from '@/pages/admin/Company'
+import FireDashboard from '@/pages/admin/FireDashboard'
 
-const Loading = () => <div className="min-h-screen bg-gray-950" />
 
 function App() {
   return (
     <BrowserRouter>
-      <Suspense fallback={<Loading />}>
+      <>
         <Routes>
           <Route path="/login" element={<Login />} />
 
@@ -201,7 +200,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
-      </Suspense>
+      </>
     </BrowserRouter>
   )
 }
