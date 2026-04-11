@@ -145,11 +145,8 @@ export async function getPendingWrites(): Promise<any[]> {
 export async function markSynced(id: number): Promise<void> {
   const db = await getDB()
   if (!db) return
-  const item = await db.get('pending_sync', id)
-  if (item) {
-    item.synced = true
-    await db.put('pending_sync', item)
-  }
+  // Delete the synced entry instead of just marking it
+  try { await db.delete('pending_sync', id) } catch {}
 }
 
 export async function getPendingCount(): Promise<number> {

@@ -4,6 +4,7 @@ import MobileNav from '@/components/MobileNav'
 import Ticker from '@/components/Ticker'
 import ChatBubble from '@/components/ChatBubble'
 import ConnectionStatus from '@/components/ConnectionStatus'
+import CacheStatusBar from '@/components/CacheStatusBar'
 import { ThemeProvider } from '@/components/ThemeProvider'
 
 export default function AppLayout() {
@@ -11,6 +12,7 @@ export default function AppLayout() {
     <ThemeProvider>
       <div className="flex h-screen overflow-hidden flex-col" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <ConnectionStatus />
+        <CacheStatusBar />
         <Ticker />
         <div className="flex flex-1 overflow-hidden">
           <div className="hidden md:flex md:w-56 md:flex-shrink-0 h-full">

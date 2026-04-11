@@ -78,7 +78,7 @@ export async function syncDataFromServer(): Promise<void> {
       supabase.from('units').select('*, unit_type:unit_types(name)'),  // ALL units
       supabase.from('employees').select('*'),  // ALL employees with ALL fields
       supabase.from('formulary').select('*'),  // ALL formulary items
-      supabase.from('incident_units').select('id, incident_id, released_at, unit:units(id, name)'),  // For CS/unit mapping
+      supabase.from('incident_units').select('id, incident_id, released_at, unit:units(id, name, unit_type:unit_types(name))'),  // For CS/unit mapping
     ])
 
     console.log('[Sync] Phase 1:', { incidents: incidents.data?.length, units: units.data?.length, employees: employees.data?.length, formulary: formulary.data?.length, incidentUnits: incidentUnits.data?.length })

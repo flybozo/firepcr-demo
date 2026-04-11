@@ -69,7 +69,7 @@ function InventoryPageInner() {
           enrichedData = enrichedData.map((item: any) => {
             if (item.incident_unit?.unit?.name) return item
             const iu = cachedIUs.find((u: any) => u.id === item.incident_unit_id)
-            if (iu) return { ...item, incident_unit: { unit: iu.unit || { name: 'Unknown' } } }
+            if (iu && iu.unit) return { ...item, incident_unit: { unit: { name: iu.unit.name, unit_type: iu.unit.unit_type || null } } }
             return item
           })
         } catch {}
