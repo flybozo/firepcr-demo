@@ -111,7 +111,8 @@ function CSOverviewPageInner() {
           .select('id, item_name, quantity, cs_lot_number, cs_expiration_date, incident_unit_id')
           .eq('category', 'CS')
           .gt('quantity', 0),
-        'inventory'
+        'inventory',
+        (items) => items.filter((i: any) => i.category === 'CS' && (i.quantity || 0) > 0)
       )
 
       // Load CS inventory for warehouse (warehouse_inventory)

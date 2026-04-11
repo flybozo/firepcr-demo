@@ -523,6 +523,15 @@ export default function IncidentDetailPage() {
         setIncident(inc as Incident)
         const cachedUnits = await getCachedData('units')
         setAllUnits(cachedUnits)
+        // Load incident units from cache
+        const cachedIUs = await getCachedData('incident_units')
+        const filteredIUs = cachedIUs.filter((iu: any) => iu.incident_id === activeIncidentId && !iu.released_at)
+        const mappedIUs = filteredIUs.map((iu: any) => ({
+          id: iu.id,
+          unit: iu.unit || cachedUnits.find((u: any) => u.id === iu.unit_id) || null,
+          _crew_count: 0,
+        }))
+        setIncidentUnits(mappedIUs)
         const cachedEncs = await getCachedData('encounters')
         const filteredEncs = cachedEncs.filter((e: any) => e.incident_id === activeIncidentId)
         setEncounters(filteredEncs.slice(0, 5))
@@ -530,6 +539,9 @@ export default function IncidentDetailPage() {
         const cachedMar = await getCachedData('mar_entries')
         setMarEntries(cachedMar.slice(0, 3))
         setMarCount(cachedMar.length)
+        // Supply runs
+        const cachedRuns = await getCachedData('supply_runs')
+        setSupplyRuns(cachedRuns.filter((r: any) => r.incident_id === activeIncidentId).slice(0, 3))
       }
       setLoading(false)
       return

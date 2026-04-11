@@ -1,9 +1,19 @@
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 
-// When offline, throw immediately — don't let Supabase swallow the error
+// When offline, return a proper error response that Supabase SDK will propagate
+// as { data: null, error: { message: 'offline' } }
 const offlineAwareFetch: typeof fetch = async (input, init) => {
   if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    throw new TypeError('Failed to fetch')
+    // Return a 400 with PostgrestError-shaped body so Supabase propagates the error
+    return new Response(JSON.stringify({
+      message: 'OFFLINE',
+      details: 'Device is offline',
+      hint: '',
+      code: 'PGRST000'
+    }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
   }
   return fetch(input, init)
 }
