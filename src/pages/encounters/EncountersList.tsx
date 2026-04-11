@@ -129,6 +129,8 @@ function EncountersInner() {
         'encounters'
       )
       const mapped = data.map((e: any) => ({ ...e, incident_name: e.incident?.name || e.incident_name || null }))
+      // Sort newest first (IndexedDB doesn't preserve order)
+      mapped.sort((a: any, b: any) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''))
       setEncounters(mapped)
       if (offline) setIsOffline(true)
       setLoading(false)

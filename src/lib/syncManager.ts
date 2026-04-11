@@ -77,7 +77,7 @@ export async function syncDataFromServer(): Promise<void> {
     // Phase 1: Core reference data (small, fast)
     const [incidents, units, employees, formulary, incidentUnits] = await Promise.all([
       supabase.from('incidents').select('*, incident_units(id, released_at)'),  // ALL incidents with unit counts
-      supabase.from('units').select('*, unit_type:unit_types(name)'),  // ALL units
+      supabase.from('units').select('*, unit_type:unit_types(name), incident_units(id, released_at, incident:incidents(name, status), unit_assignments(id, released_at, employee:employees(id, name, role)))'),  // ALL units with assignments
       supabase.from('employees').select('*'),  // ALL employees with ALL fields
       supabase.from('formulary').select('*'),  // ALL formulary items
       supabase.from('incident_units').select('id, incident_id, released_at, unit:units(id, name, unit_type:unit_types(name))'),  // For CS/unit mapping

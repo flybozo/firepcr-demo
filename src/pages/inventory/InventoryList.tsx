@@ -62,8 +62,8 @@ function InventoryPageInner() {
       )
       // If offline data is missing unit joins, reconstruct from incident_units cache
       let enrichedData = data as any[]
-      // Ensure every item has incident_unit.unit.name for filter buttons
-      if (enrichedData.length > 0 && !enrichedData[0]?.incident_unit?.unit?.name) {
+      // Always enrich offline data with unit names from incident_units cache
+      if (offline && enrichedData.length > 0) {
         try {
           const { getCachedData } = await import('@/lib/offlineStore')
           const cachedIUs = await getCachedData('incident_units')
