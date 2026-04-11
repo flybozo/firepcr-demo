@@ -11,7 +11,7 @@ import { getCachedData, getCachedById, cacheData } from './offlineStore'
  * @returns { data, offline }
  */
 export async function loadList<T = any>(
-  queryFn: () => Promise<{ data: T[] | null; error: any }>,
+  queryFn: () => PromiseLike<{ data: T[] | null; error: any }>,
   cacheName: string,
   filter?: (items: T[]) => T[]
 ): Promise<{ data: T[]; offline: boolean }> {
@@ -51,7 +51,7 @@ export async function loadList<T = any>(
  * Load a single item from Supabase with IndexedDB fallback
  */
 export async function loadSingle<T = any>(
-  queryFn: () => Promise<{ data: T | null; error: any }>,
+  queryFn: () => PromiseLike<{ data: T | null; error: any }>,
   cacheName: string,
   id: string
 ): Promise<{ data: T | null; offline: boolean }> {

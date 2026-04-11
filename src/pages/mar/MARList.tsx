@@ -122,7 +122,7 @@ function MARListInner() {
       // Load incidents for filter
       if (!isField) {
         const incResult = await loadList(
-          () => supabase.from('incidents').select('id, name').eq('status', 'Active').order('name'),
+          async () => supabase.from('incidents').select('id, name').eq('status', 'Active').order('name'),
           'incidents'
         )
         setActiveIncidents(incResult.data as any[])
