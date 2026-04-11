@@ -1,4 +1,7 @@
 @import "tailwindcss";
+
+/* Global font */
+* { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
