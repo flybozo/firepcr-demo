@@ -62,29 +62,27 @@ function InventoryPageInner() {
       )
       // If offline data is missing unit joins, reconstruct from incident_units cache
       let enrichedData = data as any[]
-      // Always enrich offline data with unit names from incident_units cache
-      if (offline && enrichedData.length > 0) {
+      // Enrich ALL items (online or offline) that are missing unit names
+      // Build a lookup map from incident_units cache for items missing joins
+      const needsEnrichment = enrichedData.some((item: any) => !item.incident_unit?.unit?.name && item.incident_unit_id)
+      if (needsEnrichment) {
         try {
           const { getCachedData } = await import('@/lib/offlineStore')
           const cachedIUs = await getCachedData('incident_units')
-          console.log('[Inventory] Enriching', enrichedData.length, 'items with', cachedIUs.length, 'incident_units')
+          // Build fast lookup: incident_unit_id -> { name, unit_type }
+          const iuMap: Record<string, { name: string; unit_type: any }> = {}
+          cachedIUs.forEach((iu: any) => {
+            if (iu.id && iu.unit?.name) iuMap[iu.id] = { name: iu.unit.name, unit_type: iu.unit.unit_type || null }
+          })
           enrichedData = enrichedData.map((item: any) => {
-            // Try existing join data first
             if (item.incident_unit?.unit?.name) return item
-            // Find incident_unit_id — could be top-level or nested
-            const iuId = item.incident_unit_id 
-              || (typeof item.incident_unit === 'string' ? item.incident_unit : null)
-              || (item.incident_unit?.id || null)
-            if (!iuId) return item
-            const iu = cachedIUs.find((u: any) => u.id === iuId)
-            if (iu && iu.unit) {
-              return { ...item, incident_unit: { unit: { name: iu.unit.name, unit_type: iu.unit.unit_type || null } } }
+            const iuId = item.incident_unit_id
+            if (iuId && iuMap[iuId]) {
+              return { ...item, incident_unit: { unit: iuMap[iuId] } }
             }
             return item
           })
-          console.log('[Inventory] After enrichment, units found:', 
-            new Set(enrichedData.map((i: any) => i.incident_unit?.unit?.name).filter(Boolean)).size)
-        } catch (e) { console.error('[Inventory] Enrichment failed:', e) }
+        } catch {}
       }
       setItems(enrichedData)
       if (offline) setIsOfflineData(true)
