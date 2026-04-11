@@ -11,7 +11,8 @@ export default function MobileNav() {
       {/* Hamburger button */}
       <button
         onClick={() => setOpen(true)}
-        className="fixed top-4 left-4 z-50 p-2 bg-gray-900 border border-gray-700 rounded-lg md:hidden"
+        className="fixed left-3 z-[60] p-2.5 bg-gray-900/95 backdrop-blur border border-gray-700 rounded-xl md:hidden shadow-xl"
+        style={{ top: 'max(env(safe-area-inset-top, 0px) + 8px, 12px)' }}
       >
         <div className="space-y-1">
           <div className="w-5 h-0.5 bg-white" />
