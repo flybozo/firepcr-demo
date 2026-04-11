@@ -13,7 +13,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 
 type SubItem = { label: string; href: string }
-type NavItem = { icon: string; label: string; href: string; sub: SubItem[]; adminOnly?: boolean }
+type NavItem = { icon: string; label: string; href: string; sub: SubItem[]; adminOnly?: boolean; onlineOnly?: boolean }
 
 const NAV: NavItem[] = [
   {
@@ -100,6 +100,7 @@ const NAV: NavItem[] = [
     href: '/analytics',
     sub: [],
     adminOnly: false,
+    onlineOnly: true,
   },
   {
     icon: '📅',
@@ -110,6 +111,7 @@ const NAV: NavItem[] = [
       { label: '⚡ Generate Schedule', href: '/schedule/generate' },
     ],
     adminOnly: false,
+    onlineOnly: true,
   },
   {
     icon: '💰',
@@ -123,6 +125,7 @@ const NAV: NavItem[] = [
     href: '/contacts',
     sub: [],
     adminOnly: false,
+    onlineOnly: true,
   },
   {
     icon: '🔥',
@@ -163,7 +166,7 @@ function loadOrder(labels: string[]): string[] {
 function SortableNavItem({
   item, isAdmin, isField, pathname, expanded, toggle, onNavigate, assignment, roleLoading, getHref,
 }: {
-  item: NavItem
+  item: NavItem & { _disabled?: boolean }
   isAdmin: boolean
   isField: boolean
   pathname: string
@@ -202,7 +205,7 @@ function SortableNavItem({
   })
 
   return (
-    <div ref={setNodeRef} style={style}>
+    <div ref={setNodeRef} style={style} className={item._disabled ? 'opacity-40 pointer-events-none' : ''}>
       <div className="flex items-center group">
         {/* Drag handle — subtle grip, only visible on hover */}
         <div
@@ -278,6 +281,15 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { isAdmin, isField, loading: roleLoading } = useRole()
   const assignment = useUserAssignment()
   const [org, setOrg] = useState<OrgBranding | null>(null)
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true)
+
+  useEffect(() => {
+    const on = () => setIsOnline(true)
+    const off = () => setIsOnline(false)
+    window.addEventListener('online', on)
+    window.addEventListener('offline', off)
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off) }
+  }, [])
 
   useEffect(() => {
     const supabase = createClient()
@@ -291,7 +303,13 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       })
   }, [])
 
-  const visibleNav = NAV.filter(item => !(item.adminOnly && isField))
+  const visibleNav = NAV.filter(item => {
+    if (item.adminOnly && isField) return false
+    return true
+  }).map(item => ({
+    ...item,
+    _disabled: item.onlineOnly && !isOnline,
+  }))
   const defaultLabels = visibleNav.map(n => n.label)
 
   const [order, setOrder] = useState<string[]>(defaultLabels)

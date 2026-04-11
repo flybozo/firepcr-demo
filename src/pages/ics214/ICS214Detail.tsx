@@ -193,14 +193,26 @@ export default function ICS214DetailPage() {
   }
 
   const load = async () => {
-    const [{ data: hData }, { data: aData }, { data: pData }] = await Promise.all([
-      supabase.from('ics214_headers').select('*').eq('ics214_id', ics214IdParam).single(),
-      supabase.from('ics214_activities').select('*').eq('ics214_id', ics214IdParam).order('log_datetime'),
-      supabase.from('ics214_personnel').select('*').eq('ics214_id', ics214IdParam),
-    ])
-    setHeader(hData as ICS214Header | null)
-    setActivities((aData as Activity[]) || [])
-    setPersonnel((pData as Personnel[]) || [])
+    try {
+      const [{ data: hData }, { data: aData }, { data: pData }] = await Promise.all([
+        supabase.from('ics214_headers').select('*').eq('ics214_id', ics214IdParam).single(),
+        supabase.from('ics214_activities').select('*').eq('ics214_id', ics214IdParam).order('log_datetime'),
+        supabase.from('ics214_personnel').select('*').eq('ics214_id', ics214IdParam),
+      ])
+      setHeader(hData as ICS214Header | null)
+      setActivities((aData as Activity[]) || [])
+      setPersonnel((pData as Personnel[]) || [])
+    } catch {
+      // Offline — load from IndexedDB
+      const { getCachedData } = await import('@/lib/offlineStore')
+      const cachedHeaders = await getCachedData('ics214s')
+      const h = cachedHeaders.find((h: any) => h.ics214_id === ics214IdParam || h.id === ics214IdParam)
+      if (h) setHeader(h as ICS214Header)
+      const cachedActs = await getCachedData('ics214_activities')
+      setActivities(cachedActs.filter((a: any) => a.ics214_id === ics214IdParam) as Activity[])
+      const cachedPers = await getCachedData('ics214_personnel')
+      setPersonnel(cachedPers.filter((p: any) => p.ics214_id === ics214IdParam) as Personnel[])
+    }
     setLoading(false)
   }
 

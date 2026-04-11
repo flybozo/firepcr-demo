@@ -103,10 +103,12 @@ export async function syncDataFromServer(): Promise<void> {
     console.log('[Sync] Phase 2 done — patient data cached')
 
     // Phase 3: Operations data
-    const [inventory, supplyRuns, ics214s] = await Promise.all([
+    const [inventory, supplyRuns, ics214s, ics214Activities, ics214Personnel] = await Promise.all([
       supabase.from('unit_inventory').select('*, incident_unit:incident_units(unit:units(name, unit_type:unit_types(name)))').order('item_name').limit(2000),
       supabase.from('supply_runs').select('*, incident_unit:incident_units(unit:units(name)), incident:incidents(name), supply_run_items(*)').order('run_date', { ascending: false }).limit(200),
       supabase.from('ics214_headers').select('*').order('created_at', { ascending: false }).limit(100),
+      supabase.from('ics214_activities').select('*').order('log_datetime', { ascending: false }).limit(500),
+      supabase.from('ics214_personnel').select('*').limit(500),
     ])
 
     console.log('[Sync] Phase 3:', { inventory: inventory.data?.length, supplyRuns: supplyRuns.data?.length, ics214s: ics214s.data?.length })
@@ -114,6 +116,8 @@ export async function syncDataFromServer(): Promise<void> {
     if (supplyRuns.data) await cacheData('supply_runs', supplyRuns.data)
     // ICS 214 headers — no dedicated store, but cache attempt won't crash
     try { if (ics214s.data) await cacheData('ics214s' as any, ics214s.data) } catch {}
+    try { if (ics214Activities.data) await cacheData('ics214_activities' as any, ics214Activities.data) } catch {}
+    try { if (ics214Personnel.data) await cacheData('ics214_personnel' as any, ics214Personnel.data) } catch {}
     console.log('[Sync] Phase 3 done — operations data cached')
 
     // Phase 4: Progress notes + procedures (for encounter detail views)
