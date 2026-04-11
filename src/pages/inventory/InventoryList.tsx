@@ -60,7 +60,21 @@ function InventoryPageInner() {
           .limit(2000),
         'inventory'
       )
-      setItems(data as any)
+      // If offline data is missing unit joins, reconstruct from incident_units cache
+      let enrichedData = data as any[]
+      if (offline && enrichedData.length > 0 && !(enrichedData[0] as any)?.incident_unit?.unit?.name) {
+        try {
+          const { getCachedData } = await import('@/lib/offlineStore')
+          const cachedIUs = await getCachedData('incident_units')
+          enrichedData = enrichedData.map((item: any) => {
+            if (item.incident_unit?.unit?.name) return item
+            const iu = cachedIUs.find((u: any) => u.id === item.incident_unit_id)
+            if (iu) return { ...item, incident_unit: { unit: iu.unit || { name: 'Unknown' } } }
+            return item
+          })
+        } catch {}
+      }
+      setItems(enrichedData)
       if (offline) setIsOfflineData(true)
       setLoading(false)
     }
