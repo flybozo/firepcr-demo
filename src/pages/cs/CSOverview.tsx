@@ -86,10 +86,11 @@ function CSOverviewPageInner() {
     setLoading(true)
     try {
       // Load all incident units joined to unit names
-      const { data: incidentUnits, error: iuErr } = await supabase
-        .from('incident_units')
-        .select('id, unit:units(name)')
-      if (iuErr) throw iuErr
+      const iuResult = await loadList(
+        () => supabase.from('incident_units').select('id, unit:units(name)') as any,
+        'incident_units'
+      )
+      const incidentUnits = iuResult.data
 
       const unitMap: Record<string, string> = {}  // unitName → incident_unit_id
       const unitIdToName: Record<string, string> = {} // incident_unit_id → unitName
@@ -114,11 +115,15 @@ function CSOverviewPageInner() {
       )
 
       // Load CS inventory for warehouse (warehouse_inventory)
-      const { data: warehouseInventory } = await supabase
-        .from('warehouse_inventory')
-        .select('id, item_name, quantity, cs_lot_number, cs_expiration_date')
-        .eq('category', 'CS')
-        .gt('quantity', 0)
+      let warehouseInventory: any[] = []
+      try {
+        const { data } = await supabase
+          .from('warehouse_inventory')
+          .select('id, item_name, quantity, cs_lot_number, cs_expiration_date')
+          .eq('category', 'CS')
+          .gt('quantity', 0)
+        warehouseInventory = data || []
+      } catch {}
 
       // Group field units by unit name
       const unitDataMap: Record<string, UnitInventoryItem[]> = {}
@@ -146,11 +151,15 @@ function CSOverviewPageInner() {
       setUnits(filteredUnits)
 
       // Load recent transactions
-      const { data: txns } = await supabase
-        .from('cs_transactions')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(10)
+      let txns: any[] = []
+      try {
+        const { data } = await supabase
+          .from('cs_transactions')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10)
+        txns = data || []
+      } catch {}
 
       // Field users: filter transactions to their unit
       const filteredTxns = isField && !assignment.loading && assignment.unit?.name

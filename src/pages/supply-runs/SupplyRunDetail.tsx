@@ -127,7 +127,12 @@ export default function SupplyRunDetailPage() {
         .order('item_name'),
     ])
     itemData = _items; formularyData = _formulary
-    } catch {}
+    } catch {
+      // Offline — try to get items from the cached supply run itself
+      if (runData && (runData as any).supply_run_items) {
+        itemData = (runData as any).supply_run_items
+      }
+    }
     setRun(runData as unknown as SupplyRun)
     setItems(itemData || [])
     // Filter formulary to match this unit's type (ambulance/med unit/rems)

@@ -69,8 +69,12 @@ export default function ICS214ListPage() {
       const allUnits = Array.from(new Set(rows.map(r => r.unit_name).filter(Boolean)))
       setUnits(allUnits)
     } catch {
-      // Offline — show empty but don't crash
-      setRows([])
+      // Offline — try cached ICS 214 headers
+      try {
+        const { getCachedData } = await import('@/lib/offlineStore')
+        const cached = await getCachedData('ics214s')
+        setRows(cached as ICS214Row[])
+      } catch { setRows([]) }
     }
     setLoading(false)
   }
