@@ -62,17 +62,21 @@ function InventoryPageInner() {
       )
       // If offline data is missing unit joins, reconstruct from incident_units cache
       let enrichedData = data as any[]
-      if (offline && enrichedData.length > 0) {
+      // Ensure every item has incident_unit.unit.name for filter buttons
+      if (enrichedData.length > 0 && !enrichedData[0]?.incident_unit?.unit?.name) {
         try {
           const { getCachedData } = await import('@/lib/offlineStore')
           const cachedIUs = await getCachedData('incident_units')
+          console.log('[Inventory] Enriching', enrichedData.length, 'items with', cachedIUs.length, 'incident_units')
           enrichedData = enrichedData.map((item: any) => {
             if (item.incident_unit?.unit?.name) return item
-            const iu = cachedIUs.find((u: any) => u.id === item.incident_unit_id)
+            const iuId = item.incident_unit_id || (item.incident_unit && typeof item.incident_unit === 'string' ? item.incident_unit : null)
+            if (!iuId) return item
+            const iu = cachedIUs.find((u: any) => u.id === iuId)
             if (iu && iu.unit) return { ...item, incident_unit: { unit: { name: iu.unit.name, unit_type: iu.unit.unit_type || null } } }
             return item
           })
-        } catch {}
+        } catch (e) { console.error('[Inventory] Enrichment failed:', e) }
       }
       setItems(enrichedData)
       if (offline) setIsOfflineData(true)

@@ -45,6 +45,8 @@ async function notifyListeners() {
 }
 
 export function getIsOnline(): boolean {
+  // Always check navigator directly — cached value can be stale on iOS
+  if (typeof navigator !== 'undefined') return navigator.onLine
   return isOnline
 }
 
