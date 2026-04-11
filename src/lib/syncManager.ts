@@ -80,6 +80,7 @@ export async function syncDataFromServer(): Promise<void> {
       supabase.from('formulary').select('*'),  // ALL formulary items
     ])
 
+    console.log('[Sync] Phase 1:', { incidents: incidents.data?.length, units: units.data?.length, employees: employees.data?.length, formulary: formulary.data?.length })
     if (incidents.data) await cacheData('incidents', incidents.data)
     if (units.data) await cacheData('units', units.data)
     if (employees.data) await cacheData('employees', employees.data)
@@ -88,11 +89,12 @@ export async function syncDataFromServer(): Promise<void> {
 
     // Phase 2: Patient data (larger, but critical)
     const [encounters, mar, vitals] = await Promise.all([
-      supabase.from('patient_encounters').select('*').gte('created_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()).order('created_at', { ascending: false }),
-      supabase.from('dispense_admin_log').select('*').gte('created_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()).order('created_at', { ascending: false }),
-      supabase.from('encounter_vitals').select('*').gte('recorded_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()).order('recorded_at', { ascending: false }),
+      supabase.from('patient_encounters').select('*').order('created_at', { ascending: false }).limit(500),
+      supabase.from('dispense_admin_log').select('*').order('created_at', { ascending: false }).limit(500),
+      supabase.from('encounter_vitals').select('*').order('recorded_at', { ascending: false }).limit(1000),
     ])
 
+    console.log('[Sync] Phase 2:', { encounters: encounters.data?.length, mar: mar.data?.length, vitals: vitals.data?.length })
     if (encounters.data) await cacheData('encounters', encounters.data)
     if (mar.data) await cacheData('mar_entries', mar.data)
     if (vitals.data) await cacheData('vitals', vitals.data)
@@ -101,17 +103,18 @@ export async function syncDataFromServer(): Promise<void> {
     // Phase 3: Operations data
     const [inventory, supplyRuns] = await Promise.all([
       supabase.from('unit_inventory').select('*').order('item_name').limit(2000),
-      supabase.from('supply_runs').select('*').gte('run_date', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString().slice(0,10)).order('run_date', { ascending: false }),
+      supabase.from('supply_runs').select('*').order('run_date', { ascending: false }).limit(200),
     ])
 
+    console.log('[Sync] Phase 3:', { inventory: inventory.data?.length, supplyRuns: supplyRuns.data?.length })
     if (inventory.data) await cacheData('inventory', inventory.data)
     if (supplyRuns.data) await cacheData('supply_runs', supplyRuns.data)
     console.log('[Sync] Phase 3 done — operations data cached')
 
     // Phase 4: Progress notes + procedures (for encounter detail views)
     const [progressNotes, procedures] = await Promise.all([
-      supabase.from('progress_notes').select('*').gte('note_datetime', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()).order('note_datetime', { ascending: false }),
-      supabase.from('encounter_procedures').select('*').gte('performed_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()).order('performed_at', { ascending: false }),
+      supabase.from('progress_notes').select('*').order('note_datetime', { ascending: false }).limit(500),
+      supabase.from('encounter_procedures').select('*').order('performed_at', { ascending: false }).limit(500),
     ])
 
     // Cache these into encounters store as sub-collections
