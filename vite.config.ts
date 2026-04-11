@@ -11,3 +11,4 @@ export default defineConfig({
     },
   },
 })
+// Vite migration complete - Sat Apr 11 10:17:29 PDT 2026
