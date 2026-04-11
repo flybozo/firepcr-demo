@@ -10,6 +10,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
 import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
 import { getCachedData, cacheData } from '@/lib/offlineStore'
+import { loadList } from '@/lib/offlineFirst'
 
 const PAGE_SIZE = 50
 
@@ -110,30 +111,26 @@ function EncountersInner() {
     // Wait for assignment to finish loading before querying, so field filters are applied
     if (roleLoading || assignment.loading) return
     const load = async () => {
-      try {
-        let query = supabase
-          .from('patient_encounters')
-          .select('id, encounter_id, date, unit, patient_first_name, patient_last_name, patient_dob, primary_symptom_text, initial_acuity, patient_disposition, pcr_status, provider_of_record, incident:incidents(name)')
-          .order('date', { ascending: false })
-          .order('created_at', { ascending: false })
+      const { data, offline } = await loadList(
+        async () => {
+          let query = supabase
+            .from('patient_encounters')
+            .select('id, encounter_id, date, unit, patient_first_name, patient_last_name, patient_dob, primary_symptom_text, initial_acuity, patient_disposition, pcr_status, provider_of_record, incident:incidents(name)')
+            .order('date', { ascending: false })
+            .order('created_at', { ascending: false })
 
-        const fieldIncidentId = incidentId || (isField ? assignment.incidentUnit?.incident_id : null)
-        if (fieldIncidentId) query = query.eq('incident_id', fieldIncidentId)
-        else if (!isField && incidentFilter !== 'All') query = query.eq('incident_id', incidentFilter)
-        if (isField && assignment.unit?.name) query = (query as any).eq('unit', assignment.unit.name)
+          const fieldIncidentId = incidentId || (isField ? assignment.incidentUnit?.incident_id : null)
+          if (fieldIncidentId) query = query.eq('incident_id', fieldIncidentId)
+          else if (!isField && incidentFilter !== 'All') query = query.eq('incident_id', incidentFilter)
+          if (isField && assignment.unit?.name) query = (query as any).eq('unit', assignment.unit.name)
 
-        const { data, error: queryError } = await query.limit(2000)
-        if (queryError) throw queryError
-        const mapped = (data || []).map((e: any) => ({ ...e, incident_name: e.incident?.name || null }))
-        setEncounters(mapped)
-        if (mapped.length > 0) await cacheData('encounters', mapped)
-      } catch (err) {
-        console.log('[Offline] Encounters loading from cache', err)
-        try {
-          const cached = await getCachedData('encounters')
-          setEncounters(cached as any[])
-        } catch { setEncounters([]) }
-      }
+          return query.limit(2000)
+        },
+        'encounters'
+      )
+      const mapped = data.map((e: any) => ({ ...e, incident_name: e.incident?.name || e.incident_name || null }))
+      setEncounters(mapped)
+      if (offline) setIsOffline(true)
       setLoading(false)
     }
     load()

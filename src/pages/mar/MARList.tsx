@@ -10,6 +10,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
 import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
 import { getCachedData, cacheData } from '@/lib/offlineStore'
+import { loadList } from '@/lib/offlineFirst'
 
 type MAREntry = {
   id: string
@@ -118,33 +119,29 @@ function MARListInner() {
   useEffect(() => {
     if (roleLoading || assignment.loading) return
     const load = async () => {
-      try {
-        if (!isField) {
-          const { data: incs, error: incErr } = await supabase.from('incidents').select('id, name').eq('status', 'Active').order('name')
-          if (incErr) throw incErr
-          setActiveIncidents(incs || [])
-        }
-        let query = supabase
-          .from('dispense_admin_log')
-          .select('id, date, time, patient_name, dob, item_name, qty_used, medication_route, dosage_units, med_unit, dispensed_by, item_type, entry_type, requires_cosign, provider_signature_url, incident')
-          .order('date', { ascending: false })
-        const effectiveUnit = unitParam || (isField ? assignment.unit?.name : null)
-        if (effectiveUnit) query = query.eq('med_unit', effectiveUnit)
-        if (!isField && incidentFilter !== 'All') query = (query as any).ilike('incident', `%${activeIncidents.find(i => i.id === incidentFilter)?.name || ''}%`)
-        const { data, error: queryError } = await query.limit(200)
-        if (queryError) throw queryError
-        setEntries(data || [])
-        if (data) await cacheData('mar_entries', data)
-      } catch (err) {
-        console.log('[Offline] MAR loading from cache')
-        try {
-          const cachedInc = await getCachedData('incidents')
-          setActiveIncidents(cachedInc as any[])
-          const cached = await getCachedData('mar_entries')
-          setEntries(cached as MAREntry[])
-          setIsOffline(true)
-        } catch { setEntries([]) }
+      // Load incidents for filter
+      if (!isField) {
+        const incResult = await loadList(
+          () => supabase.from('incidents').select('id, name').eq('status', 'Active').order('name'),
+          'incidents'
+        )
+        setActiveIncidents(incResult.data as any[])
       }
+      // Load MAR entries
+      const { data, offline } = await loadList(
+        async () => {
+          let query = supabase
+            .from('dispense_admin_log')
+            .select('id, date, time, patient_name, dob, item_name, qty_used, medication_route, dosage_units, med_unit, dispensed_by, item_type, entry_type, requires_cosign, provider_signature_url, incident')
+            .order('date', { ascending: false })
+          const effectiveUnit = unitParam || (isField ? assignment.unit?.name : null)
+          if (effectiveUnit) query = query.eq('med_unit', effectiveUnit)
+          return query.limit(200)
+        },
+        'mar_entries'
+      )
+      setEntries(data as MAREntry[])
+      if (offline) setIsOffline(true)
       setLoading(false)
     }
     load()
