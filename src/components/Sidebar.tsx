@@ -364,7 +364,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       className="flex flex-col h-full border-r"
       style={{ backgroundColor: 'var(--color-sidebar-bg, #111827)', borderColor: 'var(--color-border, #1f2937)' }}
     >
-      <Link to="/" style={{ borderColor: 'var(--color-border, #1f2937)' }} className="px-4 py-4 border-b flex items-center gap-3 hover:bg-gray-800/50 transition-colors">
+      <Link to="/" style={{ borderColor: 'var(--color-border, #1f2937)', paddingTop: 'max(env(safe-area-inset-top, 0px) + 12px, 16px)' }} className="px-4 pb-4 border-b flex items-center gap-3 hover:bg-gray-800/50 transition-colors">
         {org?.logo_url ? (
           <img
             src={org.logo_url}
