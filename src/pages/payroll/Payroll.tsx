@@ -57,6 +57,7 @@ export default function AdminPayrollPage() {
   const [incidentFilter, setIncidentFilter] = useState<string>('all')
   const [sortKey, setSortKey] = useState<SortKey>('employee')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
+  const [dateRange, setDateRange] = useState('30d')
 
   // Redirect non-admins
   useEffect(() => {
@@ -68,18 +69,25 @@ export default function AdminPayrollPage() {
   }, [assignment.loading, assignment.employee?.role])
 
   const load = useCallback(async () => {
-    const [{ data: incData }, { data: depData }] = await Promise.all([
-      supabase.from('incidents').select('id, name').order('name'),
-      supabase
-        .from('deployment_records')
-        .select('id, employee_id, incident_id, travel_date, check_in_date, check_out_date, daily_rate, status, employees(name, role), incidents(name)')
-        .order('travel_date', { ascending: false }),
-    ])
-
-    setIncidents((incData as Incident[]) ?? [])
-    setDeployments((depData as unknown as DeploymentRow[]) ?? [])
+    const dateFilter = dateRange === 'All' ? null :
+      new Date(Date.now() - (dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90) * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+    let depQuery = supabase
+      .from('deployment_records')
+      .select('id, employee_id, incident_id, travel_date, check_in_date, check_out_date, daily_rate, status, employees(name, role), incidents(name)')
+      .order('travel_date', { ascending: false })
+    if (dateFilter) depQuery = depQuery.gte('travel_date', dateFilter)
+    try {
+      const [{ data: incData }, { data: depData }] = await Promise.all([
+        supabase.from('incidents').select('id, name').order('name'),
+        depQuery,
+      ])
+      setIncidents((incData as Incident[]) ?? [])
+      setDeployments((depData as unknown as DeploymentRow[]) ?? [])
+    } catch {
+      setDeployments([])
+    }
     setLoading(false)
-  }, [])
+  }, [dateRange])
 
   useEffect(() => { load() }, [load])
 
@@ -179,7 +187,15 @@ export default function AdminPayrollPage() {
         <div className="mt-8 md:mt-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold text-white">💰 Payroll Summary</h1>
-            <p className="text-gray-400 text-sm mt-1">All deployments · Admin view</p>
+            <p className="text-gray-400 text-sm mt-1">{deployments.length} deployments · Admin view</p>
+          </div>
+          <div className="flex gap-1.5">
+            {(['7d', '30d', '90d', 'All'] as const).map(range => (
+              <button key={range} onClick={() => setDateRange(range)}
+                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${dateRange === range ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+                {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : range === '90d' ? '90 Days' : 'All Time'}
+              </button>
+            ))}
           </div>
           <button
             onClick={exportCSV}
