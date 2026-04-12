@@ -1,5 +1,6 @@
 
 import { FieldGuard } from '@/components/FieldGuard'
+import { useRole } from '@/lib/useRole'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -30,6 +31,7 @@ const TABS = ['Ambulance', 'Med Unit', 'REMS', 'Warehouse']
 
 function FormularyPageInner() {
   const supabase = createClient()
+  const { isAdmin } = useRole()
   const [activeTab, setActiveTab] = useState('Ambulance')
   const [items, setItems] = useState<FormulaItem[]>([])
   const [unitTypes, setUnitTypes] = useState<Record<string, string>>({})
@@ -235,14 +237,19 @@ function FormularyPageInner() {
             className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-700 hover:bg-gray-600 text-white">
             ⬇ Export CSV
           </button>
-          <label className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-700 hover:bg-gray-600 text-white cursor-pointer">
-            ⬆ Import CSV
-            <input type="file" accept=".csv,.xlsx,.numbers" className="hidden" onChange={handleImportCSV} />
-          </label>
-          <button onClick={() => setShowAdd(v => !v)}
-            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-700 hover:bg-gray-600 text-white">
-            {showAdd ? '✕ Cancel' : '+ Add Item'}
-          </button>
+          {/* Edit actions — admin only, not for Warehouse (auto-populated from others) */}
+          {isAdmin && activeTab !== 'Warehouse' && (
+            <>
+              <label className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-700 hover:bg-gray-600 text-white cursor-pointer">
+                ⬆ Import CSV
+                <input type="file" accept=".csv,.xlsx,.numbers" className="hidden" onChange={handleImportCSV} />
+              </label>
+              <button onClick={() => setShowAdd(v => !v)}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-700 hover:bg-gray-600 text-white">
+                {showAdd ? '✕ Cancel' : '+ Add Item'}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -368,8 +375,12 @@ function FormularyPageInner() {
                     <div className="col-span-1 hidden md:block text-right text-xs text-gray-400">{item.case_cost ? `$${item.case_cost.toFixed(2)}` : '—'}</div>
                     <div className="col-span-1 hidden md:block text-right text-xs text-gray-300 font-mono">{unitCost(item) ? `$${unitCost(item)}` : '—'}</div>
                     <div className="col-span-2 flex gap-1 justify-end">
-                      <button onClick={() => { setEditingId(item.id); setEditItem({}) }} className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-gray-300">Edit</button>
-                      <button onClick={() => handleDelete(item.id)} className="px-2 py-1 bg-red-900/50 hover:bg-red-900 rounded text-xs text-red-300">Del</button>
+                      {isAdmin && activeTab !== 'Warehouse' && (
+                        <>
+                          <button onClick={() => { setEditingId(item.id); setEditItem({}) }} className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-gray-300">Edit</button>
+                          <button onClick={() => handleDelete(item.id)} className="px-2 py-1 bg-red-900/50 hover:bg-red-900 rounded text-xs text-red-300">Del</button>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
