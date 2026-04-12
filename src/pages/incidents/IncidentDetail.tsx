@@ -1710,7 +1710,7 @@ export default function IncidentDetailPage() {
                           return <span className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{t}</span>
                         })()}
                       </Link>
-                      {isAdmin && <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                      {isAdmin && <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-2">
                         {activeIncidents.length > 0 && (
                           <select
                             className="text-xs bg-gray-700 border border-gray-600 rounded px-1.5 py-1 text-gray-300 focus:outline-none focus:ring-1 focus:ring-red-500"
