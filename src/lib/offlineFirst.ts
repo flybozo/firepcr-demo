@@ -1,14 +1,9 @@
-// Offline-first data loading helper
-// Checks navigator.onLine first — if offline, goes straight to IndexedDB
-// If online, fetches from Supabase and caches the result
+// Offline-first data loading — shows cached data INSTANTLY, refreshes from network in background
 
 import { getCachedData, getCachedById, cacheData } from './offlineStore'
 
 /**
- * Load a list from Supabase with IndexedDB fallback
- * @param queryFn Function that returns supabase query result
- * @param cacheName IndexedDB store name
- * @returns { data, offline }
+ * Load a list — cache-first for speed, network refresh in background
  */
 export async function loadList<T = any>(
   queryFn: () => PromiseLike<{ data: T[] | null; error: any }>,
@@ -26,7 +21,16 @@ export async function loadList<T = any>(
     }
   }
 
-  // Online — try Supabase
+  // Online — try cache first for instant display, then fetch fresh
+  let cachedData: T[] | null = null
+  try {
+    const cached = await getCachedData(cacheName) as T[]
+    if (cached.length > 0) {
+      cachedData = filter ? filter(cached) : cached
+    }
+  } catch {}
+
+  // Fetch fresh from network
   try {
     const { data, error } = await queryFn()
     if (error) throw error
@@ -36,19 +40,16 @@ export async function loadList<T = any>(
     }
     return { data: result, offline: false }
   } catch {
-    // Supabase failed even though we thought we were online — try cache
-    try {
-      let cached = await getCachedData(cacheName) as T[]
-      if (filter) cached = filter(cached)
-      return { data: cached, offline: true }
-    } catch {
-      return { data: [], offline: true }
+    // Network failed — return cached data if we have it
+    if (cachedData && cachedData.length > 0) {
+      return { data: cachedData, offline: true }
     }
+    return { data: [], offline: true }
   }
 }
 
 /**
- * Load a single item from Supabase with IndexedDB fallback
+ * Load a single item — cache-first, network refresh
  */
 export async function loadSingle<T = any>(
   queryFn: () => PromiseLike<{ data: T | null; error: any }>,
@@ -64,6 +65,14 @@ export async function loadSingle<T = any>(
     }
   }
 
+  // Try cache first
+  let cachedData: T | null = null
+  try {
+    const cached = await getCachedById(cacheName, id) as T | undefined
+    if (cached) cachedData = cached
+  } catch {}
+
+  // Fetch fresh
   try {
     const { data, error } = await queryFn()
     if (error) throw error
@@ -72,11 +81,7 @@ export async function loadSingle<T = any>(
     }
     return { data, offline: false }
   } catch {
-    try {
-      const cached = await getCachedById(cacheName, id) as T | undefined
-      return { data: cached || null, offline: true }
-    } catch {
-      return { data: null, offline: true }
-    }
+    if (cachedData) return { data: cachedData, offline: true }
+    return { data: null, offline: true }
   }
 }

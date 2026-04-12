@@ -106,8 +106,8 @@ export async function syncDataFromServer(): Promise<void> {
 
     // Phase 3: Operations data
     const [inventory, supplyRuns, ics214s, ics214Activities, ics214Personnel] = await Promise.all([
-      supabase.from('unit_inventory').select('*, unit:units(id, name, unit_type:unit_types(name))').order('item_name').limit(2000),
-      supabase.from('supply_runs').select('*, incident_unit:incident_units(unit:units(name)), incident:incidents(name), supply_run_items(*)').order('run_date', { ascending: false }).limit(200),
+      supabase.from('unit_inventory').select('*').order('item_name').limit(2000),
+      supabase.from('supply_runs').select('*, incident:incidents(name), supply_run_items(*)').order('run_date', { ascending: false }).limit(200),
       supabase.from('ics214_headers').select('*').order('created_at', { ascending: false }).limit(100),
       supabase.from('ics214_activities').select('*').order('log_datetime', { ascending: false }).limit(500),
       supabase.from('ics214_personnel').select('*').limit(500),

@@ -56,8 +56,7 @@ function InventoryPageInner() {
       const { data, offline } = await loadList(
         () => supabase
           .from('unit_inventory')
-          .select(`id, item_name, category, quantity, par_qty, lot_number, expiration_date, unit_id,
-            unit:units(id, name, unit_type:unit_types(name))`)
+          .select('id, item_name, category, quantity, par_qty, lot_number, expiration_date, unit_id')
           .order('item_name')
           .limit(2000),
         'inventory'
@@ -65,8 +64,8 @@ function InventoryPageInner() {
       // If offline data is missing unit joins, reconstruct from incident_units cache
       let enrichedData = data as any[]
       // Enrich items missing unit name — lookup from cached units by unit_id
-      const needsEnrichment = enrichedData.some((item: any) => !item.unit?.name && item.unit_id)
-      if (needsEnrichment) {
+      // Always enrich with unit names from cache (faster than JOIN)
+      if (enrichedData.length > 0) {
         try {
           const { getCachedData } = await import('@/lib/offlineStore')
           const cachedUnits = await getCachedData('units')
