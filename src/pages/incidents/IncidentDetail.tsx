@@ -812,7 +812,7 @@ export default function IncidentDetailPage() {
           supabaseClient
             .from('employees')
             .select('id, name, role, daily_rate')
-            .eq('is_active', true)
+            .eq('status', 'Active')
             .order('name'),
         ])
         setDeployments((depData as unknown as DeploymentRecord[]) ?? [])
@@ -910,6 +910,29 @@ export default function IncidentDetailPage() {
       created_by: assignment.employee?.name ?? 'Admin',
     })
     if (error) { alert('Failed to add deployment: ' + error.message); setDeploySubmitting(false); return }
+
+    // Check if employee is assigned to a unit on this incident
+    const empAssignments = incidentUnits.flatMap((iu: any) =>
+      (iu.unit_assignments || []).map((ua: any) => ua.employee?.id)
+    )
+    if (!empAssignments.includes(deployForm.employeeId)) {
+      const empName = allEmployees.find((e: any) => e.id === deployForm.employeeId)?.name || 'This employee'
+      const unitNames = incidentUnits.map((iu: any) => iu.unit?.name).filter(Boolean)
+      if (unitNames.length > 0) {
+        const assignToUnit = prompt(`${empName} is not assigned to a unit on this incident.\n\nAssign to a unit? Enter unit name:\n${unitNames.join(', ')}\n\n(Leave blank to skip)`)
+        if (assignToUnit) {
+          const matchedIU = incidentUnits.find((iu: any) => iu.unit?.name?.toLowerCase() === assignToUnit.toLowerCase())
+          if (matchedIU) {
+            await supabase.from('unit_assignments').insert({
+              incident_unit_id: matchedIU.id,
+              employee_id: deployForm.employeeId,
+              role_on_unit: '',
+            })
+          }
+        }
+      }
+    }
+
     setShowAddDeployment(false)
     setDeployForm({ employeeId: '', travelDate: new Date().toISOString().split('T')[0], dailyRate: '', notes: '' })
     // Reload deployments
@@ -1014,7 +1037,7 @@ export default function IncidentDetailPage() {
             {/* Table */}
             {deployments.length > 0 && (
               <div className="overflow-x-auto">
-                <table className="w-full text-xs">
+                <table className="w-full text-xs" style={{ minWidth: '600px' }}>
                   <thead>
                     <tr className="border-b border-gray-800 bg-gray-800/30">
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Employee</th>

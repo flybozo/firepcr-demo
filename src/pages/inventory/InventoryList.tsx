@@ -6,6 +6,7 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
+import { getCachedData } from '@/lib/offlineStore'
 import { Link } from 'react-router-dom'
 import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
 
