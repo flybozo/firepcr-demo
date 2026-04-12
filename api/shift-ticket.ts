@@ -2,11 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { jsPDF } from 'jspdf'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method === "GET") return handleGET(req, res)
-  if (req.method === "PATCH") return handlePATCH(req, res)
-  return handlePOST(req, res)
-}
-async function handlePOST(req: VercelRequest, res: VercelResponse {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
   const body = req.body
   const {
     incident, unit, ticketType, measureType, transportRetained,

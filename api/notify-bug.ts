@@ -1,11 +1,8 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node"
+import type { VercelRequest, VercelResponse } from '@vercel/node'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method === "GET") return handleGET(req, res)
-  if (req.method === "PATCH") return handlePATCH(req, res)
-  return handlePOST(req, res)
-}
-async function handlePOST(req: VercelRequest, res: VercelResponse {
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  
   try {
     const { employee_name, content, admin_notes, request_id } = req.body
 
@@ -13,7 +10,6 @@ async function handlePOST(req: VercelRequest, res: VercelResponse {
     const chatId = process.env.TELEGRAM_CHAT_ID || '8464621928'
 
     if (!botToken) {
-      console.warn('TELEGRAM_BOT_TOKEN not set — skipping bug notification')
       return res.json({ ok: true, skipped: true })
     }
 
@@ -31,16 +27,11 @@ async function handlePOST(req: VercelRequest, res: VercelResponse {
     await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chat_id: chatId,
-        text: message,
-        parse_mode: 'Markdown',
-      }),
+      body: JSON.stringify({ chat_id: chatId, text: message, parse_mode: 'Markdown' }),
     })
 
     return res.json({ ok: true })
   } catch (err: any) {
-    console.error('notify-bug error:', err)
     return res.status(500).json({ ok: false, error: err.message })
   }
 }

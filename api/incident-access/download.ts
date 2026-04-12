@@ -4,7 +4,7 @@ import { createServiceClient } from '../_supabase'
 // GET /api/incident-access/download?code=XXXX&type=comp_claim&id=YYYY
 // Validates the access code, confirms the document belongs to the incident, returns signed URL.
 
-async function handleGET(req: VercelRequest, res: VercelResponse {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   const query = req.query
   const code = (query['code'] as string)
   const type = (query['type'] as string) // 'comp_claim' | 'ics214'

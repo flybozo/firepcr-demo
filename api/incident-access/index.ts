@@ -38,7 +38,7 @@ function mapAcuity(raw: string | null): string {
 }
 
 // ── GET: validate code and return incident data ────────────────────────────
-async function handleGET(req: VercelRequest, res: VercelResponse {
+async function handleGET(req: VercelRequest, res: VercelResponse) {
   const query = req.query
   const code = (query['code'] as string)
   if (!code) return res.status(400).json({ error: 'Missing code' })
@@ -155,7 +155,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method === "PATCH") return handlePATCH(req, res)
   return handlePOST(req, res)
 }
-async function handlePOST(req: VercelRequest, res: VercelResponse {
+async function handlePOST(req: VercelRequest, res: VercelResponse) {
   const supabaseAuth = await createClient()
   const { data: { user } } = await supabaseAuth.auth.getUser()
   if (!user) return res.status(401).json({ error: 'Unauthorized' })
@@ -187,7 +187,7 @@ async function handlePOST(req: VercelRequest, res: VercelResponse {
 }
 
 // ── PATCH: toggle code active/inactive ────────────────────────────────────────
-async function handlePATCH(req: VercelRequest, res: VercelResponse {
+async function handlePATCH(req: VercelRequest, res: VercelResponse) {
   const supabaseAuth = await createClient()
   const { data: { user } } = await supabaseAuth.auth.getUser()
   if (!user) return res.status(401).json({ error: 'Unauthorized' })
