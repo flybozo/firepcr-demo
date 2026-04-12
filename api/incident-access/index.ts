@@ -1,0 +1,98 @@
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { createClient } from '@supabase/supabase-js'
+
+function getSupabase() {
+  const url = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://kfkpvazkikpuwatthtow.supabase.co'
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  return createClient(url, key)
+}
+
+function generateCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  let code = ''
+  for (let i = 0; i < 8; i++) code += chars[Math.floor(Math.random() * chars.length)]
+  return code
+}
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  if (req.method === 'OPTIONS') return res.status(200).end()
+
+  try {
+    if (req.method === 'GET') {
+      const code = req.query['code'] as string
+      if (!code) return res.status(400).json({ error: 'Missing code' })
+      const supabase = getSupabase()
+      const { data: codeRow, error: codeErr } = await supabase
+        .from('incident_access_codes').select('*').eq('access_code', code.toUpperCase()).single()
+      if (codeErr || !codeRow || !codeRow.active) return res.status(404).json({ error: 'Invalid or inactive access code' })
+      if (codeRow.expires_at && new Date(codeRow.expires_at) < new Date()) return res.status(410).json({ error: 'Expired' })
+
+      // Log access (non-blocking)
+      supabase.from('incident_access_log').insert({ access_code_id: codeRow.id, incident_id: codeRow.incident_id, access_code: code.toUpperCase(), label: codeRow.label, accessed_at: new Date().toISOString(), user_agent: req.headers['user-agent'] || null }).then(() => {}).catch(() => {})
+
+      const incidentId = codeRow.incident_id
+      const [incR, orgR, encR, iuR, compR, ics214R] = await Promise.all([
+        supabase.from('incidents').select('*').eq('id', incidentId).single(),
+        supabase.from('organizations').select('name, dba, logo_url').limit(1).single(),
+        supabase.from('patient_encounters').select('id, date, unit, patient_age, patient_age_units, primary_symptom_text, initial_acuity, final_acuity, patient_disposition, created_at').eq('incident_id', incidentId).order('date', { ascending: false }),
+        supabase.from('incident_units').select('id, unit:units(name)').eq('incident_id', incidentId),
+        supabase.from('comp_claims').select('id, date_of_injury, status, pdf_url, osha_recordable, created_at').eq('incident_id', incidentId).order('created_at', { ascending: false }),
+        supabase.from('ics214_headers').select('id, ics214_id, unit_name, op_date, status, pdf_url, created_at').eq('incident_id', incidentId).order('op_date', { ascending: false }),
+      ])
+      if (!incR.data) return res.status(404).json({ error: 'Incident not found' })
+
+      const encounters = (encR.data || []).map((enc: any, i: number) => ({
+        id: enc.id, seq_id: `PT-${String(i+1).padStart(3,'0')}`, date: enc.date, unit: enc.unit,
+        age: enc.patient_age ? `${enc.patient_age} ${enc.patient_age_units||'yrs'}` : null,
+        chief_complaint: enc.primary_symptom_text, acuity: enc.initial_acuity || 'Unknown',
+        disposition: enc.patient_disposition, created_at: enc.created_at,
+      }))
+
+      const dailyCounts: Record<string, number> = {}
+      encounters.forEach((e: any) => { if (e.date) dailyCounts[e.date] = (dailyCounts[e.date] || 0) + 1 })
+      const ccCounts: Record<string, number> = {}
+      encounters.forEach((e: any) => { if (e.chief_complaint) ccCounts[e.chief_complaint] = (ccCounts[e.chief_complaint] || 0) + 1 })
+      const acCounts: Record<string, number> = {}
+      encounters.forEach((e: any) => { if (e.acuity) acCounts[e.acuity] = (acCounts[e.acuity] || 0) + 1 })
+
+      return res.json({
+        incident: incR.data, org: orgR.data || null, codeLabel: codeRow.label,
+        stats: { total_patients: encounters.length, total_encounters: encounters.length, units_deployed: (iuR.data||[]).length, unique_units: [...new Set(encounters.map((e: any) => e.unit).filter(Boolean))] },
+        encounters, encountersByDay: Object.entries(dailyCounts).sort(([a],[b])=>a.localeCompare(b)).map(([date,count])=>({date,count})),
+        analytics: { chief_complaints: Object.entries(ccCounts).sort(([,a],[,b])=>b-a).slice(0,10).map(([name,count])=>({name,count})), acuity_breakdown: Object.entries(acCounts).map(([name,value])=>({name,value})), encounters_by_day: Object.entries(dailyCounts).sort(([a],[b])=>a.localeCompare(b)).map(([date,count])=>({date,count})) },
+        compClaims: (compR.data||[]).map((c: any,i: number)=>({...c, seq_id:`WC-${String(i+1).padStart(3,'0')}`, has_pdf:!!c.pdf_url})),
+        ics214s: (ics214R.data||[]).map((f: any)=>({...f, date:f.op_date, unit:f.unit_name, prepared_by:null, has_pdf:!!f.pdf_url})),
+      })
+    }
+
+    if (req.method === 'POST') {
+      const { incident_id, label } = req.body as { incident_id?: string; label?: string }
+      if (!incident_id) return res.status(400).json({ error: 'incident_id required' })
+      const supabase = getSupabase()
+      let code = ''
+      for (let i = 0; i < 5; i++) {
+        code = generateCode()
+        const { data: ex } = await supabase.from('incident_access_codes').select('id').eq('access_code', code).single()
+        if (!ex) break
+      }
+      const { data, error } = await supabase.from('incident_access_codes').insert({ incident_id, access_code: code, label: label || null, created_by: 'Admin', active: true }).select().single()
+      if (error) return res.status(500).json({ error: error.message })
+      return res.status(201).json({ code: data })
+    }
+
+    if (req.method === 'PATCH') {
+      const { code_id, active } = req.body as { code_id?: string; active?: boolean }
+      if (!code_id || typeof active !== 'boolean') return res.status(400).json({ error: 'code_id and active required' })
+      const supabase = getSupabase()
+      const { data, error } = await supabase.from('incident_access_codes').update({ active }).eq('id', code_id).select().single()
+      if (error) return res.status(500).json({ error: error.message })
+      return res.json({ code: data })
+    }
+
+    return res.status(405).json({ error: 'Method not allowed' })
+  } catch (err: any) {
+    console.error('API error:', err)
+    return res.status(500).json({ error: err.message || 'Internal error' })
+  }
+}
