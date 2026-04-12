@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 
-const APP_VERSION = '1.3.0'
+const APP_VERSION = '1.3.0.0'
 
 export default function VersionNotifier() {
   useEffect(() => {
