@@ -49,6 +49,7 @@ function InventoryPageInner() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
   const [showLowOnly, setShowLowOnly] = useState(false)
+  const [showAlsOnly, setShowAlsOnly] = useState(false)
 
   const [isOfflineData, setIsOfflineData] = useState(false)
 
@@ -94,7 +95,7 @@ function InventoryPageInner() {
   }, [])
 
   // Reset page when filters change
-  useEffect(() => { setPage(1) }, [unitFilter, catFilter, search, showLowOnly])
+  useEffect(() => { setPage(1) }, [unitFilter, catFilter, search, showLowOnly, showAlsOnly])
 
   // Unit type lookup for color sorting
 const unitTypeMap: Record<string, string> = {}
@@ -117,6 +118,7 @@ const units = ['All', ...Array.from(new Set(
     if (effectiveFilter !== 'All' && unitName !== effectiveFilter) return false
     if (catFilter !== 'All' && item.category !== catFilter) return false
     if (showLowOnly && item.quantity > item.par_qty) return false
+    if (showAlsOnly && !(item as any).is_als) return false
     if (search && !item.item_name.toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
@@ -165,6 +167,11 @@ const units = ['All', ...Array.from(new Set(
           <button onClick={() => setShowLowOnly(v => !v)}
             className={'px-2 py-1 rounded text-xs font-medium transition-colors ' + (showLowOnly ? 'bg-red-900 text-red-300' : 'bg-gray-800 text-gray-400 hover:bg-gray-700')}>
             ⚠ Low
+          </button>
+          {/* ALS only toggle */}
+          <button onClick={() => setShowAlsOnly(v => !v)}
+            className={'px-2 py-1 rounded text-xs font-medium transition-colors ' + (showAlsOnly ? 'bg-blue-900 text-blue-300' : 'bg-gray-800 text-gray-400 hover:bg-gray-700')}>
+            ALS
           </button>
         </div>
         {/* Mobile: category dropdown + low stock toggle */}
