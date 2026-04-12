@@ -120,8 +120,9 @@ function EncountersInner() {
         if (cached.length > 0) {
           const mapped = cached.map((e: any) => ({ ...e, incident_name: e.incident?.name || e.incident_name || null }))
           mapped.sort((a: any, b: any) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''))
-          setEncounters(dateFilter ? mapped.filter((e: any) => (e.date || '') >= dateFilter) : mapped)
-          setLoading(false)
+          const filtered = dateFilter ? mapped.filter((e: any) => (e.date || '') >= dateFilter) : mapped
+          setEncounters(filtered)
+          setLoading(false) // Always stop loading if we have ANY cached data
         }
       } catch {}
       // Fetch fresh data from network (background refresh)
@@ -140,11 +141,11 @@ function EncountersInner() {
 
         const { data, error } = await query.limit(2000)
         if (error) throw error
-        if (data) {
+        if (data && data.length > 0) {
+          // Only update if network returned actual data (don't overwrite cache with empty)
           const mapped = data.map((e: any) => ({ ...e, incident_name: e.incident?.name || e.incident_name || null }))
           mapped.sort((a: any, b: any) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''))
           setEncounters(mapped)
-          // Cache the unfiltered results for offline
           await cacheData('encounters', data).catch(() => {})
         }
       } catch {
