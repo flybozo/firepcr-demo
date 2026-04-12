@@ -214,7 +214,7 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
 }
 
 // ── Dashboard tabs (same as external but with admin context) ──────────────────
-type DashTab = 'overview' | 'patients' | 'comp' | 'ics214'
+type DashTab = 'overview' | 'patients' | 'comp' | 'ics214' | 'access-log' | 'access-log'
 
 function IncidentDashboard({ incidentId }: { incidentId: string }) {
   const [data, setData] = useState<DashboardData | null>(null)
@@ -317,6 +317,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
     { id: 'patients', label: 'Patient Log', icon: '📋' },
     { id: 'comp', label: 'Comp Claims', icon: '📄' },
     { id: 'ics214', label: 'ICS 214s', icon: '📝' },
+    { id: 'access-log', label: 'Access Log', icon: '👀' },
   ]
 
   if (loading) return (
@@ -484,6 +485,87 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {/* 👀 Access Log tab */}
+      {tab === 'access-log' && (
+        <AccessLogTab incidentId={incidentId} />
+      )}
+    </div>
+  )
+}
+
+// ── Access Log Tab ──────────────────────────────────────────────────────────
+function AccessLogTab({ incidentId }: { incidentId: string }) {
+  const supabase = createClient()
+  const [logs, setLogs] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    supabase
+      .from('incident_access_log')
+      .select('*')
+      .eq('incident_id', incidentId)
+      .order('accessed_at', { ascending: false })
+      .limit(200)
+      .then(({ data }) => { setLogs(data || []); setLoading(false) })
+  }, [incidentId])
+
+  const byCode: Record<string, { count: number; lastAccess: string }> = {}
+  logs.forEach(l => {
+    const key = l.label || l.access_code
+    if (!byCode[key]) byCode[key] = { count: 0, lastAccess: '' }
+    byCode[key].count++
+    if (!byCode[key].lastAccess || l.accessed_at > byCode[key].lastAccess) byCode[key].lastAccess = l.accessed_at
+  })
+
+  if (loading) return <p className="text-gray-500 text-sm py-4 text-center">Loading access log...</p>
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+          <p className="text-2xl font-bold text-blue-400">{logs.length}</p>
+          <p className="text-xs text-gray-500 mt-1">Total Views</p>
+        </div>
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+          <p className="text-2xl font-bold text-amber-400">{logs.filter(l => new Date(l.accessed_at) > new Date(Date.now() - 24*60*60*1000)).length}</p>
+          <p className="text-xs text-gray-500 mt-1">Views Today</p>
+        </div>
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+          <p className="text-2xl font-bold text-purple-400">{logs.length > 0 ? new Date(logs[0].accessed_at).toLocaleDateString() : '—'}</p>
+          <p className="text-xs text-gray-500 mt-1">Last Access</p>
+        </div>
+      </div>
+
+      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+        <div className="px-4 py-3 border-b border-gray-800">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">👀 Views by Code</h3>
+        </div>
+        {Object.entries(byCode).sort((a, b) => b[1].count - a[1].count).map(([label, info]) => (
+          <div key={label} className="flex items-center justify-between px-4 py-3 border-b border-gray-800/50 text-sm">
+            <p className="font-medium">{label}</p>
+            <div className="text-right">
+              <p className="font-bold text-blue-400">{info.count} views</p>
+              <p className="text-xs text-gray-500">{new Date(info.lastAccess).toLocaleString()}</p>
+            </div>
+          </div>
+        ))}
+        {logs.length === 0 && <p className="px-4 py-6 text-gray-600 text-sm text-center">No access yet — share a code to start tracking</p>}
+      </div>
+
+      {logs.length > 0 && (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+          <div className="px-4 py-3 border-b border-gray-800"><h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Recent Access</h3></div>
+          <div className="divide-y divide-gray-800/50">
+            {logs.slice(0, 50).map(l => (
+              <div key={l.id} className="flex items-center justify-between px-4 py-2 text-xs">
+                <span className="font-medium text-white">{l.label || l.access_code}</span>
+                <span className="text-gray-500">{new Date(l.accessed_at).toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
