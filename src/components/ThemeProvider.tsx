@@ -532,9 +532,31 @@ function applyThemeToDom(theme: Theme) {
 
   // Apply font
   const fontMap: Record<string, string> = {
+    // Sci-fi / tech themes
     cyborg: "'Share Tech Mono', 'Courier New', monospace",
     terminal: "'VT323', 'Courier New', monospace",
     neon: "'Orbitron', 'Arial', sans-serif",
+    // Dark operational themes
+    ember: "'Inter', system-ui, sans-serif",         // Cal Fire — clean default
+    pacific: "'Rajdhani', 'Arial', sans-serif",       // Maritime — bold condensed
+    forest: "'Cabin', 'Arial', sans-serif",           // Forest Service — outdoorsy humanist
+    sierra: "'Josefin Sans', 'Arial', sans-serif",    // Sierra — geometric minimal
+    arctic: "'Exo 2', 'Arial', sans-serif",           // Arctic — clean futuristic
+    midnight: "'Quicksand', 'Arial', sans-serif",     // Midnight — rounded modern
+    // Fun / personality themes
+    barbie: "'Pacifico', cursive",                   // Barbie — handwritten round
+    rainbow: "'Nunito', 'Arial', sans-serif",         // Rainbow — friendly rounded
+    douchebag: "'Black Ops One', cursive",            // Douchebag — chunky military
+    prepper: "'Special Elite', cursive",              // Prepper — typewriter weathered
+    patriot: "'Libre Baskerville', serif",            // Patriot — classic serif
+    // Light themes
+    sunworshipper: "'Playfair Display', serif",       // Sun Worshipper — elegant serif
+    grandma: "'Lato', 'Arial', sans-serif",          // Grandma — soft clean sans
+    surfer: "'Comfortaa', cursive",                  // Surfer — rounded casual
+    elgaucho: "'Righteous', cursive",                // El Gaucho — bold display
+    overcast: "'Source Sans 3', 'Arial', sans-serif", // Overcast — corporate clean
+    hippie: "'Amatic SC', cursive",                  // Hippie — hand-drawn wide
+    doc: "'IBM Plex Sans', 'Arial', sans-serif",     // Doc — clinical monospace feel
   }
   const font = fontMap[theme.preset] || theme.font || "'Inter', system-ui, -apple-system, sans-serif"
   root.style.setProperty('--theme-font', font)
@@ -551,9 +573,30 @@ function applyThemeToDom(theme: Theme) {
 
   // Load Google Fonts for special themes
   const googleFonts: Record<string, string> = {
+    // Sci-fi
     cyborg: 'Share+Tech+Mono',
     terminal: 'VT323:wght@400',
     neon: 'Orbitron:wght@400;700',
+    // Operational
+    pacific: 'Rajdhani:wght@400;600;700',
+    forest: 'Cabin:wght@400;600;700',
+    sierra: 'Josefin+Sans:wght@300;400;600;700',
+    arctic: 'Exo+2:wght@300;400;600;700',
+    midnight: 'Quicksand:wght@400;500;600;700',
+    // Fun
+    barbie: 'Pacifico',
+    rainbow: 'Nunito:wght@400;600;700',
+    douchebag: 'Black+Ops+One',
+    prepper: 'Special+Elite',
+    patriot: 'Libre+Baskerville:wght@400;700',
+    // Light
+    sunworshipper: 'Playfair+Display:wght@400;700',
+    grandma: 'Lato:wght@300;400;700',
+    surfer: 'Comfortaa:wght@400;600;700',
+    elgaucho: 'Righteous',
+    overcast: 'Source+Sans+3:wght@300;400;600',
+    hippie: 'Amatic+SC:wght@400;700',
+    doc: 'IBM+Plex+Sans:wght@300;400;600',
   }
   const gFont = googleFonts[theme.preset]
   const linkId = 'theme-google-font'
