@@ -536,27 +536,39 @@ function applyThemeToDom(theme: Theme) {
     terminal: "'VT323', 'Courier New', monospace",
     neon: "'Orbitron', 'Arial', sans-serif",
   }
-  const font = fontMap[theme.preset] || theme.font || "'Inter', system-ui, sans-serif"
-  document.body.style.fontFamily = font
+  const font = fontMap[theme.preset] || theme.font || "'Inter', system-ui, -apple-system, sans-serif"
   root.style.setProperty('--theme-font', font)
+
+  // Inject or update a <style> tag that overrides Tailwind's font with !important
+  const styleId = 'theme-font-override'
+  let styleEl = document.getElementById(styleId) as HTMLStyleElement
+  if (!styleEl) {
+    styleEl = document.createElement('style')
+    styleEl.id = styleId
+    document.head.appendChild(styleEl)
+  }
+  styleEl.textContent = `*, *::before, *::after { font-family: ${font} !important; }`
 
   // Load Google Fonts for special themes
   const googleFonts: Record<string, string> = {
     cyborg: 'Share+Tech+Mono',
-    terminal: 'VT323',
+    terminal: 'VT323:wght@400',
     neon: 'Orbitron:wght@400;700',
   }
   const gFont = googleFonts[theme.preset]
+  const linkId = 'theme-google-font'
+  let link = document.getElementById(linkId) as HTMLLinkElement
   if (gFont) {
-    const linkId = 'theme-google-font'
-    let link = document.getElementById(linkId) as HTMLLinkElement
     if (!link) {
       link = document.createElement('link')
       link.id = linkId
       link.rel = 'stylesheet'
       document.head.appendChild(link)
     }
-    link.href = `https://fonts.googleapis.com/css2?family=${gFont}&display=swap`
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(gFont.replace(/:/g, ':'))}&display=swap`
+  } else if (link) {
+    // Remove font link for non-font themes
+    link.remove()
   }
 }
 
