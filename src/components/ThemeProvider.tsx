@@ -546,8 +546,8 @@ function applyThemeToDom(theme: Theme) {
     // Fun / personality themes
     barbie: "'Pacifico', cursive",                   // Barbie — handwritten round
     rainbow: "'Nunito', 'Arial', sans-serif",         // Rainbow — friendly rounded
-    douchebag: "'Black Ops One', cursive",            // Douchebag — chunky military
-    prepper: "'Special Elite', cursive",              // Prepper — typewriter weathered
+    douchebag: "'Anton', 'Impact', sans-serif",      // Douchebag — bold condensed impact
+    prepper: "'Courier Prime', 'Courier New', monospace", // Prepper — clean field manual
     patriot: "'Libre Baskerville', serif",            // Patriot — classic serif
     // Light themes
     sunworshipper: "'Playfair Display', serif",       // Sun Worshipper — elegant serif
@@ -555,7 +555,7 @@ function applyThemeToDom(theme: Theme) {
     surfer: "'Comfortaa', cursive",                  // Surfer — rounded casual
     elgaucho: "'Righteous', cursive",                // El Gaucho — bold display
     overcast: "'Source Sans 3', 'Arial', sans-serif", // Overcast — corporate clean
-    hippie: "'Amatic SC', cursive",                  // Hippie — hand-drawn wide
+    hippie: "'Caveat', cursive",                     // Hippie — clean handwritten readable
     doc: "'IBM Plex Sans', 'Arial', sans-serif",     // Doc — clinical monospace feel
   }
   const font = fontMap[theme.preset] || theme.font || "'Inter', system-ui, -apple-system, sans-serif"
@@ -586,8 +586,8 @@ function applyThemeToDom(theme: Theme) {
     // Fun
     barbie: 'Pacifico',
     rainbow: 'Nunito:wght@400;600;700',
-    douchebag: 'Black+Ops+One',
-    prepper: 'Special+Elite',
+    douchebag: 'Anton',
+    prepper: 'Courier+Prime:wght@400;700',
     patriot: 'Libre+Baskerville:wght@400;700',
     // Light
     sunworshipper: 'Playfair+Display:wght@400;700',
@@ -595,7 +595,7 @@ function applyThemeToDom(theme: Theme) {
     surfer: 'Comfortaa:wght@400;600;700',
     elgaucho: 'Righteous',
     overcast: 'Source+Sans+3:wght@300;400;600',
-    hippie: 'Amatic+SC:wght@400;700',
+    hippie: 'Caveat:wght@400;600;700',
     doc: 'IBM+Plex+Sans:wght@300;400;600',
   }
   const gFont = googleFonts[theme.preset]
