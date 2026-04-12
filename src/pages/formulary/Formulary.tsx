@@ -22,9 +22,11 @@ const CAT_COLORS: Record<string, string> = {
   CS: 'bg-orange-900 text-orange-300',
   Rx: 'bg-blue-900 text-blue-300',
   OTC: 'bg-gray-700 text-gray-300',
+  DE: 'bg-amber-900 text-amber-300',
+  RE: 'bg-green-900 text-green-300',
 }
 
-const TABS = ['Ambulance', 'Med Unit', 'REMS']
+const TABS = ['Ambulance', 'Med Unit', 'REMS', 'Warehouse']
 
 function FormularyPageInner() {
   const supabase = createClient()
@@ -218,7 +220,7 @@ function FormularyPageInner() {
       <div className="flex gap-2 mb-4 flex-wrap">
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search items..."
           className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 placeholder-gray-600 flex-1 min-w-48" />
-        {['All', 'CS', 'Rx', 'OTC'].map(c => (
+        {['All', 'CS', 'Rx', 'OTC', 'DE', 'RE'].map(c => (
           <button key={c} onClick={() => setCatFilter(c)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${catFilter === c ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
             {c} {c !== 'All' && !loading ? `(${items.filter(i => i.category === c).length})` : ''}
@@ -254,7 +256,7 @@ function FormularyPageInner() {
           <div>
             <label className="text-xs text-gray-400">Category</label>
             <select value={newItem.category} onChange={e => setNewItem(p => ({ ...p, category: e.target.value }))} className={inputCls + ' mt-1'}>
-              <option>OTC</option><option>Rx</option><option>CS</option>
+              <option>OTC</option><option>Rx</option><option>CS</option><option>DE</option><option>RE</option>
             </select>
           </div>
           <div>
@@ -310,7 +312,7 @@ function FormularyPageInner() {
                       <select defaultValue={item.category}
                         onChange={e => setEditItem(p => ({ ...p, category: e.target.value }))}
                         className={inputCls}>
-                        <option>OTC</option><option>Rx</option><option>CS</option>
+                        <option>OTC</option><option>Rx</option><option>CS</option><option>DE</option><option>RE</option>
                       </select>
                     </div>
                     <div className="col-span-2 hidden md:block">

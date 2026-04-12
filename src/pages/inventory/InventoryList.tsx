@@ -28,6 +28,8 @@ const CAT_COLORS: Record<string, string> = {
   Rx: 'bg-blue-900 text-blue-300',
   OTC: 'bg-gray-700 text-gray-300',
   Supply: 'bg-gray-700 text-gray-300',
+  DE: 'bg-amber-900 text-amber-300',
+  RE: 'bg-green-900 text-green-300',
 }
 
 const PAGE_SIZE = 50
@@ -156,7 +158,7 @@ const units = ['All', ...Array.from(new Set(
 
         {/* Desktop: category pills */}
         <div className="hidden md:flex gap-1.5 flex-wrap">
-          {['All', 'CS', 'Rx', 'OTC'].map(c => (
+          {['All', 'CS', 'Rx', 'OTC', 'DE', 'RE'].map(c => (
             <button key={c} onClick={() => setCatFilter(c)}
               className={'px-2 py-1 rounded text-xs font-medium transition-colors ' + (catFilter === c ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700')}>
               {c}
@@ -266,6 +268,12 @@ const units = ['All', ...Array.from(new Set(
                         {item.category}
                       </span>
                     </span>
+                    {(item as any).is_als && (
+                      <span className="w-8 text-center hidden sm:block">
+                        <span className="text-xs px-1 py-0.5 rounded bg-blue-900 text-blue-300">ALS</span>
+                      </span>
+                    )}
+                    {!(item as any).is_als && <span className="w-8 hidden sm:block" />}
                     <span className={`w-12 text-right text-xs font-mono font-semibold ${low ? 'text-red-400' : 'text-white'}`}>
                       {item.quantity}
                     </span>
