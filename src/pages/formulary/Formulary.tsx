@@ -347,7 +347,21 @@ function FormularyPageInner() {
                       {item.unit_of_measure && <span className="text-gray-500 text-xs ml-1">({item.unit_of_measure})</span>}
                     </div>
                     <div className="col-span-1">
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${CAT_COLORS[item.category] || CAT_COLORS.OTC}`}>{item.category}</span>
+                      <select
+                        value={item.category}
+                        onChange={async (e) => {
+                          const newCat = e.target.value
+                          await supabase.from('formulary_templates').update({ category: newCat }).eq('id', item.id)
+                          setItems(prev => prev.map(i => i.id === item.id ? { ...i, category: newCat } : i))
+                        }}
+                        className={`text-xs px-1.5 py-0.5 rounded-full border-0 cursor-pointer ${CAT_COLORS[item.category] || CAT_COLORS.OTC} bg-transparent`}
+                        style={{ appearance: 'none', WebkitAppearance: 'none' }}
+                        title="Click to change category"
+                      >
+                        {['CS', 'Rx', 'OTC', 'DE', 'RE'].map(c => (
+                          <option key={c} value={c} className="bg-gray-900 text-white">{c}</option>
+                        ))}
+                      </select>
                     </div>
                     <div className="col-span-2 hidden md:block text-xs text-gray-400 truncate">{item.supplier || '—'}</div>
                     <div className="col-span-1 hidden md:block text-right text-xs text-gray-400">{item.units_per_case ?? '—'}</div>
