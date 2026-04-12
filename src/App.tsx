@@ -96,6 +96,7 @@ import Announcements from '@/pages/admin/Announcements'
 import ChatRequests from '@/pages/admin/ChatRequests'
 import Company from '@/pages/admin/Company'
 import FireDashboard from '@/pages/admin/FireDashboard'
+import FireAdminDashboard from '@/pages/fire-admin/FireAdminDashboard'
 
 
 function App() {
@@ -104,6 +105,8 @@ function App() {
       <>
         <Routes>
           <Route path="/login" element={<Login />} />
+          {/* External fire admin dashboard — no auth required */}
+          <Route path="/fire-admin/:code" element={<FireAdminDashboard />} />
 
           <Route path="/" element={<AuthGuard><AppLayout /></AuthGuard>}>
             <Route index element={<Dashboard />} />
