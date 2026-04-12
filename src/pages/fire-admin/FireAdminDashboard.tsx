@@ -184,49 +184,75 @@ function OverviewTab({ data }: { data: DashboardData }) {
 
 // ── Tab 2: Patient Log ────────────────────────────────────────────────────────
 function PatientLogTab({ data, code }: { data: DashboardData; code: string }) {
-  const [sort, setSort] = useState<'asc' | 'desc'>('asc')
-  const sorted = [...data.encounters].sort((a, b) => {
-    const cmp = (a.date || '').localeCompare(b.date || '')
-    return sort === 'asc' ? cmp : -cmp
+  const [unitFilter, setUnitFilter] = useState('All')
+  const [selected, setSelected] = useState<typeof data.encounters[0] | null>(null)
+
+  // Get unique units
+  const units = ['All', ...Array.from(new Set(data.encounters.map(e => e.unit).filter(Boolean))).sort()]
+
+  const filtered = unitFilter === 'All' ? data.encounters : data.encounters.filter(e => e.unit === unitFilter)
+  const byUnit: Record<string, typeof data.encounters> = {}
+  filtered.forEach(e => {
+    const u = e.unit || 'Unassigned'
+    if (!byUnit[u]) byUnit[u] = []
+    byUnit[u].push(e)
   })
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <p className="text-xs text-gray-500">
-          {data.encounters.length} total encounters — patient names and DOB are not shown. Sequential IDs assigned for reference only.
-        </p>
-        <button onClick={() => setSort(s => s === 'asc' ? 'desc' : 'asc')}
-          className="text-xs text-gray-400 bg-gray-800 hover:bg-gray-700 px-3 py-1 rounded-lg transition-colors">
-          Date {sort === 'asc' ? '↑' : '↓'}
-        </button>
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-xs text-gray-500 flex-1">{filtered.length} encounters · de-identified · tap to view chart</p>
+        {/* Unit filter */}
+        <div className="flex gap-1.5 flex-wrap">
+          {units.map(u => (
+            <button key={u} onClick={() => setUnitFilter(u)}
+              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${unitFilter === u ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+              {u}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {sorted.length === 0 ? <Empty text="No encounters recorded for this incident" /> : (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-          {/* Header */}
-          <div className="grid grid-cols-[72px_80px_60px_1fr_80px_1fr_1fr] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
-            <span>Patient ID</span>
-            <span>Date</span>
-            <span>Age</span>
-            <span>Chief Complaint</span>
-            <span>Acuity</span>
-            <span className="hidden md:block">Disposition</span>
-            <span className="hidden lg:block">Unit</span>
+      {Object.entries(byUnit).map(([unitName, encs]) => (
+        <div key={unitName} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-gray-800 bg-gray-800/40">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">🚑 {unitName} — {encs.length} patient{encs.length !== 1 ? 's' : ''}</h3>
           </div>
-          {sorted.map(enc => (
-            <div key={enc.id} className="grid grid-cols-[72px_80px_60px_1fr_80px_1fr_1fr] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 transition-colors items-center">
-              <span className="font-mono text-gray-300 text-xs font-semibold">{enc.seq_id}</span>
-              <span className="text-gray-400 text-xs">{enc.date ? new Date(enc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
-              <span className="text-gray-400 text-xs">{enc.age || '—'}</span>
-              <span className="text-white text-xs truncate">{enc.chief_complaint || <span className="text-gray-600 italic">Not recorded</span>}</span>
-              <span>
+          <div className="divide-y divide-gray-800/50">
+            {encs.map(enc => (
+              <button key={enc.id} onClick={() => setSelected(enc)}
+                className="w-full text-left grid grid-cols-[72px_72px_60px_1fr_90px] gap-2 px-4 py-2.5 text-sm hover:bg-gray-800/50 transition-colors items-center">
+                <span className="font-mono text-blue-400 text-xs font-semibold">{enc.seq_id}</span>
+                <span className="text-gray-400 text-xs">{enc.date ? new Date(enc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
+                <span className="text-gray-400 text-xs">{enc.age || '—'}</span>
+                <span className="text-white text-xs truncate">{enc.chief_complaint || <span className="text-gray-600 italic">Not recorded</span>}</span>
                 <Badge color={ACUITY_COLORS[enc.acuity] ?? C.gray} label={enc.acuity} />
-              </span>
-              <span className="hidden md:block text-gray-400 text-xs truncate">{enc.disposition || '—'}</span>
-              <span className="hidden lg:block text-gray-500 text-xs truncate">{enc.unit || '—'}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {filtered.length === 0 && <Empty text="No encounters for this unit" />}
+
+      {/* Patient detail modal */}
+      {selected && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setSelected(null)}>
+          <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 max-w-sm w-full space-y-3" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <h2 className="font-bold text-lg">{selected.seq_id}</h2>
+              <button onClick={() => setSelected(null)} className="text-gray-500 hover:text-white text-xl">✕</button>
             </div>
-          ))}
+            <div className="text-xs text-amber-400 bg-amber-900/20 px-3 py-1.5 rounded-lg">De-identified — no PHI shown</div>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between"><span className="text-gray-500">Unit</span><span>{selected.unit || '—'}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Date</span><span>{selected.date ? new Date(selected.date + 'T00:00:00').toLocaleDateString() : '—'}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Age</span><span>{selected.age || '—'}</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">Chief Complaint</span><span className="text-right max-w-[200px]">{selected.chief_complaint || '—'}</span></div>
+              <div className="flex justify-between items-center"><span className="text-gray-500">Acuity</span><Badge color={ACUITY_COLORS[selected.acuity] ?? C.gray} label={selected.acuity} /></div>
+              <div className="flex justify-between"><span className="text-gray-500">Disposition</span><span>{selected.disposition || '—'}</span></div>
+            </div>
+          </div>
         </div>
       )}
     </div>

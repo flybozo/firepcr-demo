@@ -79,6 +79,7 @@ function SimpleEHRInner() {
     // Patient
     patient_first_name: '',
     patient_last_name: '',
+    patient_dob: '',
     patient_age: '',
     patient_age_units: 'Years',
     patient_gender: '',
@@ -200,6 +201,7 @@ function SimpleEHRInner() {
         crew_resource_number: form.crew_resource_number,
         patient_first_name: form.patient_first_name,
         patient_last_name: form.patient_last_name,
+        patient_dob: form.patient_dob || null,
         patient_age: form.patient_age ? Number(form.patient_age) : null,
         patient_age_units: form.patient_age_units,
         patient_gender: form.patient_gender,
@@ -327,6 +329,13 @@ function SimpleEHRInner() {
                 <label className={labelClass}>Last Name *</label>
                 <input value={form.patient_last_name} onChange={e => set('patient_last_name', e.target.value)} className={inputClass} />
               </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelClass}>Date of Birth</label>
+                <input type="date" value={form.patient_dob} onChange={e => set('patient_dob', e.target.value)} className={inputClass} style={{ maxWidth: '180px' }} />
+              </div>
+              <div />
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-1">
