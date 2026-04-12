@@ -1,17 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
+import type { VercelRequest, VercelResponse } from "@vercel/node"
+import { createServiceClient } from '../_supabase'
 
 // GET /api/incident-access/download?code=XXXX&type=comp_claim&id=YYYY
 // Validates the access code, confirms the document belongs to the incident, returns signed URL.
 
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
-  const code = searchParams.get('code')
-  const type = searchParams.get('type') // 'comp_claim' | 'ics214'
-  const id = searchParams.get('id')
+async function handleGET(req: VercelRequest, res: VercelResponse {
+  const query = req.query
+  const code = (query['code'] as string)
+  const type = (query['type'] as string) // 'comp_claim' | 'ics214'
+  const id = (query['id'] as string)
 
   if (!code || !type || !id) {
-    return NextResponse.json({ error: 'Missing parameters' }, { status: 400 })
+    return res.status(400).json({ error: 'Missing parameters' })
   }
 
   const supabase = createServiceClient()
@@ -24,11 +24,11 @@ export async function GET(req: NextRequest) {
     .single()
 
   if (codeErr || !codeRow || !codeRow.active) {
-    return NextResponse.json({ error: 'Invalid access code' }, { status: 403 })
+    return res.status(403).json({ error: 'Invalid access code' })
   }
 
   if (codeRow.expires_at && new Date(codeRow.expires_at) < new Date()) {
-    return NextResponse.json({ error: 'Access code expired' }, { status: 410 })
+    return res.status(410).json({ error: 'Access code expired' })
   }
 
   const incidentId = codeRow.incident_id
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
       .single()
 
     if (!claim) {
-      return NextResponse.json({ error: 'Document not found or access denied' }, { status: 404 })
+      return res.status(404).json({ error: 'Document not found or access denied' })
     }
     pdfUrl = claim.pdf_url
   } else if (type === 'ics214') {
@@ -55,15 +55,15 @@ export async function GET(req: NextRequest) {
       .single()
 
     if (!form) {
-      return NextResponse.json({ error: 'Document not found or access denied' }, { status: 404 })
+      return res.status(404).json({ error: 'Document not found or access denied' })
     }
     pdfUrl = form.pdf_url
   } else {
-    return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
+    return res.status(400).json({ error: 'Invalid type' })
   }
 
   if (!pdfUrl) {
-    return NextResponse.json({ error: 'No PDF available for this record' }, { status: 404 })
+    return res.status(404).json({ error: 'No PDF available for this record' })
   }
 
   // Extract storage path from the URL and create a signed URL (60 minutes)
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest) {
     const storageIdx = pathParts.findIndex(p => p === 'public' || p === 'sign')
     if (storageIdx === -1) {
       // Just return the URL directly if it's not a Supabase storage URL
-      return NextResponse.json({ url: pdfUrl })
+      return res.json({ url: pdfUrl })
     }
 
     const bucket = pathParts[storageIdx + 1]
@@ -89,12 +89,12 @@ export async function GET(req: NextRequest) {
 
     if (signErr || !signedData?.signedUrl) {
       // Fall back to returning the original URL
-      return NextResponse.json({ url: pdfUrl })
+      return res.json({ url: pdfUrl })
     }
 
-    return NextResponse.json({ url: signedData.signedUrl })
+    return res.json({ url: signedData.signedUrl })
   } catch {
     // Fall back to returning original URL on parse error
-    return NextResponse.json({ url: pdfUrl })
+    return res.json({ url: pdfUrl })
   }
 }

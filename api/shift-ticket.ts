@@ -1,8 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server'
+import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { jsPDF } from 'jspdf'
 
-export async function POST(req: NextRequest) {
-  const body = await req.json()
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method === "GET") return handleGET(req, res)
+  if (req.method === "PATCH") return handlePATCH(req, res)
+  return handlePOST(req, res)
+}
+async function handlePOST(req: VercelRequest, res: VercelResponse {
+  const body = req.body
   const {
     incident, unit, ticketType, measureType, transportRetained,
     shiftRows, personnelRows, remarks,
@@ -208,7 +213,7 @@ export async function POST(req: NextRequest) {
   doc.text('OPTIONAL FORM 297 (REV. 5/2024) — USDA/USDI', W - margin, y, { align: 'right' })
 
   const pdfBuffer = Buffer.from(doc.output('arraybuffer'))
-  return new NextResponse(pdfBuffer, {
+  return res.send(pdfBuffer, {
     headers: {
       'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="OF297-${incident?.name?.replace(/\s+/g,'-') || 'Shift'}.pdf"`,

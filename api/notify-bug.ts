@@ -1,15 +1,20 @@
-import { NextRequest, NextResponse } from 'next/server'
+import type { VercelRequest, VercelResponse } from "@vercel/node"
 
-export async function POST(req: NextRequest) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method === "GET") return handleGET(req, res)
+  if (req.method === "PATCH") return handlePATCH(req, res)
+  return handlePOST(req, res)
+}
+async function handlePOST(req: VercelRequest, res: VercelResponse {
   try {
-    const { employee_name, content, admin_notes, request_id } = await req.json()
+    const { employee_name, content, admin_notes, request_id } = req.body
 
     const botToken = process.env.TELEGRAM_BOT_TOKEN
     const chatId = process.env.TELEGRAM_CHAT_ID || '8464621928'
 
     if (!botToken) {
       console.warn('TELEGRAM_BOT_TOKEN not set — skipping bug notification')
-      return NextResponse.json({ ok: true, skipped: true })
+      return res.json({ ok: true, skipped: true })
     }
 
     const message = [
@@ -33,9 +38,9 @@ export async function POST(req: NextRequest) {
       }),
     })
 
-    return NextResponse.json({ ok: true })
+    return res.json({ ok: true })
   } catch (err: any) {
     console.error('notify-bug error:', err)
-    return NextResponse.json({ ok: false, error: err.message }, { status: 500 })
+    return res.status(500).json({ ok: false, error: err.message })
   }
 }

@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
+import type { VercelRequest, VercelResponse } from "@vercel/node"
+import { createServiceClient } from '../_supabase'
 import { createClient } from '@/lib/supabase/server'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -38,10 +38,10 @@ function mapAcuity(raw: string | null): string {
 }
 
 // ── GET: validate code and return incident data ────────────────────────────
-export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url)
-  const code = searchParams.get('code')
-  if (!code) return NextResponse.json({ error: 'Missing code' }, { status: 400 })
+async function handleGET(req: VercelRequest, res: VercelResponse {
+  const query = req.query
+  const code = (query['code'] as string)
+  if (!code) return res.status(400).json({ error: 'Missing code' })
 
   const supabase = createServiceClient()
 
@@ -52,9 +52,9 @@ export async function GET(req: NextRequest) {
     .eq('active', true)
     .single()
 
-  if (codeErr || !codeRow) return NextResponse.json({ error: 'Invalid or inactive access code' }, { status: 404 })
+  if (codeErr || !codeRow) return res.status(404).json({ error: 'Invalid or inactive access code' })
   if (codeRow.expires_at && new Date(codeRow.expires_at) < new Date()) {
-    return NextResponse.json({ error: 'Access code has expired' }, { status: 410 })
+    return res.status(410).json({ error: 'Access code has expired' })
   }
 
   const incidentId: string = codeRow.incident_id
@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
       supabase.from('ics214_headers').select('id, ics214_id, unit_name, leader_name, op_date, status, pdf_url, pdf_file_name, created_by, created_at, closed_at').eq('incident_id', incidentId).order('op_date', { ascending: true }),
     ])
 
-  if (!incident) return NextResponse.json({ error: 'Incident not found' }, { status: 404 })
+  if (!incident) return res.status(404).json({ error: 'Incident not found' })
 
   const encList: EncounterRow[] = (encountersRaw || []) as EncounterRow[]
   const encounters = encList.map((enc, idx) => ({
@@ -130,7 +130,7 @@ export async function GET(req: NextRequest) {
   encounters.forEach(e => { if (e.date) dailyCounts[e.date] = (dailyCounts[e.date] || 0) + 1 })
   const encountersByDay = Object.entries(dailyCounts).sort((a, b) => a[0].localeCompare(b[0])).map(([date, count]) => ({ date, count }))
 
-  return NextResponse.json({
+  return res.json({
     incident,
     org: org || null,
     stats: {
@@ -150,14 +150,19 @@ export async function GET(req: NextRequest) {
 }
 
 // ── POST: generate a new access code ─────────────────────────────────────────
-export async function POST(req: NextRequest) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method === "GET") return handleGET(req, res)
+  if (req.method === "PATCH") return handlePATCH(req, res)
+  return handlePOST(req, res)
+}
+async function handlePOST(req: VercelRequest, res: VercelResponse {
   const supabaseAuth = await createClient()
   const { data: { user } } = await supabaseAuth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return res.status(401).json({ error: 'Unauthorized' })
 
-  const body = await req.json()
+  const body = req.body
   const { incident_id, label } = body as { incident_id?: string; label?: string }
-  if (!incident_id) return NextResponse.json({ error: 'incident_id required' }, { status: 400 })
+  if (!incident_id) return res.status(400).json({ error: 'incident_id required' })
 
   const supabase = createServiceClient()
   const { data: emp } = await supabase.from('employees').select('name').eq('auth_user_id', user.id).single()
@@ -177,22 +182,22 @@ export async function POST(req: NextRequest) {
     .select()
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ code: newCode }, { status: 201 })
+  if (error) return res.status(500).json({ error: error.message })
+  return res.status(201).json({ code: newCode })
 }
 
 // ── PATCH: toggle code active/inactive ────────────────────────────────────────
-export async function PATCH(req: NextRequest) {
+async function handlePATCH(req: VercelRequest, res: VercelResponse {
   const supabaseAuth = await createClient()
   const { data: { user } } = await supabaseAuth.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return res.status(401).json({ error: 'Unauthorized' })
 
-  const body = await req.json()
+  const body = req.body
   const { code_id, active } = body as { code_id?: string; active?: boolean }
-  if (!code_id || typeof active !== 'boolean') return NextResponse.json({ error: 'code_id and active required' }, { status: 400 })
+  if (!code_id || typeof active !== 'boolean') return res.status(400).json({ error: 'code_id and active required' })
 
   const supabase = createServiceClient()
   const { data, error } = await supabase.from('incident_access_codes').update({ active }).eq('id', code_id).select().single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ code: data })
+  if (error) return res.status(500).json({ error: error.message })
+  return res.json({ code: data })
 }

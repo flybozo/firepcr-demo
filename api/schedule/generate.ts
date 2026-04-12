@@ -1,12 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
+import type { VercelRequest, VercelResponse } from "@vercel/node"
+import { createServiceClient } from '../_supabase'
 
-export async function POST(req: NextRequest) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method === "GET") return handleGET(req, res)
+  if (req.method === "PATCH") return handlePATCH(req, res)
+  return handlePOST(req, res)
+}
+async function handlePOST(req: VercelRequest, res: VercelResponse {
   try {
-    const { start_date, end_date, unit_ids } = await req.json()
+    const { start_date, end_date, unit_ids } = req.body
 
     if (!start_date || !end_date || !unit_ids?.length) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+      return res.status(400).json({ error: 'Missing required fields' })
     }
 
     const supabase = createServiceClient()
@@ -111,7 +116,7 @@ Return ONLY a valid JSON array (no explanation, no markdown) in this exact forma
 
     if (!anthropicRes.ok) {
       const err = await anthropicRes.text()
-      return NextResponse.json({ error: `Anthropic API error: ${err}` }, { status: 500 })
+      return res.status(500).json({ error: `Anthropic API error: ${err}` })
     }
 
     const aiData = await anthropicRes.json()
@@ -120,13 +125,13 @@ Return ONLY a valid JSON array (no explanation, no markdown) in this exact forma
     // Extract JSON from response
     const jsonMatch = content.match(/\[[\s\S]*\]/)
     if (!jsonMatch) {
-      return NextResponse.json({ error: 'Could not parse schedule from AI response', raw: content }, { status: 500 })
+      return res.status(500).json({ error: 'Could not parse schedule from AI response', raw: content })
     }
 
     const schedule = JSON.parse(jsonMatch[0])
-    return NextResponse.json({ schedule })
+    return res.json({ schedule })
   } catch (err: any) {
     console.error('Schedule generate error:', err)
-    return NextResponse.json({ error: err.message || 'Internal error' }, { status: 500 })
+    return res.status(500).json({ error: err.message || 'Internal error' })
   }
 }
