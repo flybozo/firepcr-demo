@@ -304,7 +304,7 @@ function UnitsPageInner() {
 
           {filteredUnits.map(unit => {
             const active = activeIncidentUnit(unit)
-            const crew = active?.unit_assignments || []
+            const crew = (active?.unit_assignments || []).filter((ua: any) => !ua.released_at)
             const typeName = (unit.unit_type as any)?.name || '—'
             const emoji = TYPE_EMOJI[typeName] || '🚐'
             const colorClass = TYPE_COLORS[typeName] || 'bg-gray-700 text-gray-400'
