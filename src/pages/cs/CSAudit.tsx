@@ -140,7 +140,7 @@ function AuditLogInner() {
       </div>
 
       {/* Date range filter pills */}
-      <div className="flex gap-1.5 mb-3">
+      <div className="hidden md:flex gap-1.5 mb-3">
         {(['7d', '30d', '90d', 'All'] as const).map(range => (
           <button key={range} onClick={() => setDateRange(range)}
             className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
@@ -150,6 +150,17 @@ function AuditLogInner() {
           </button>
         ))}
       </div>
+      {/* Mobile: date range dropdown */}
+      <select
+        value={dateRange}
+        onChange={e => setDateRange(e.target.value)}
+        className="md:hidden w-full mb-3 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
+      >
+        <option value="7d">7 Days</option>
+        <option value="30d">30 Days</option>
+        <option value="90d">90 Days</option>
+        <option value="All">All Time</option>
+      </select>
 
       {/* Filters */}
       <div className="bg-gray-900 rounded-xl border border-gray-700 p-4 mb-4">

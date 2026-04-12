@@ -239,31 +239,49 @@ function CSOverviewPageInner() {
 
       {/* Unit filter — admin sees all + filter; field user sees locked chip */}
       {!loading && (
-        <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <div className="mb-4">
           {isField ? (
             assignment.unit?.name && (
-              <>
+              <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500">Showing:</span>
                 <span className="px-2 py-1 rounded text-xs font-medium bg-blue-900 text-blue-300">{assignment.unit.name}</span>
-              </>
+              </div>
             )
           ) : (
             <>
-              <span className="text-xs text-gray-500">Filter:</span>
-              <button onClick={() => setSelectedUnit('All')}
-                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${unitFilterButtonClass('All', selectedUnit === 'All')}`}>
-                All Units
-              </button>
-              {[...fieldUnits].sort((a,b) => {
-                const aO = UNIT_TYPE_ORDER[CS_UNIT_TYPE[a.unitName] || ''] ?? 99
-                const bO = UNIT_TYPE_ORDER[CS_UNIT_TYPE[b.unitName] || ''] ?? 99
-                return aO !== bO ? aO - bO : a.unitName.localeCompare(b.unitName)
-              }).map(u => (
-                <button key={u.unitName} onClick={() => setSelectedUnit(u.unitName)}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${unitFilterButtonClass(CS_UNIT_TYPE[u.unitName] || '', selectedUnit === u.unitName)}`}>
-                  {u.unitName}
+              {/* Desktop: unit pills */}
+              <div className="hidden md:flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-gray-500">Filter:</span>
+                <button onClick={() => setSelectedUnit('All')}
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${unitFilterButtonClass('All', selectedUnit === 'All')}`}>
+                  All Units
                 </button>
-              ))}
+                {[...fieldUnits].sort((a,b) => {
+                  const aO = UNIT_TYPE_ORDER[CS_UNIT_TYPE[a.unitName] || ''] ?? 99
+                  const bO = UNIT_TYPE_ORDER[CS_UNIT_TYPE[b.unitName] || ''] ?? 99
+                  return aO !== bO ? aO - bO : a.unitName.localeCompare(b.unitName)
+                }).map(u => (
+                  <button key={u.unitName} onClick={() => setSelectedUnit(u.unitName)}
+                    className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${unitFilterButtonClass(CS_UNIT_TYPE[u.unitName] || '', selectedUnit === u.unitName)}`}>
+                    {u.unitName}
+                  </button>
+                ))}
+              </div>
+              {/* Mobile: unit dropdown */}
+              <select
+                value={selectedUnit}
+                onChange={e => setSelectedUnit(e.target.value)}
+                className="md:hidden w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
+              >
+                <option value="All">All Units</option>
+                {[...fieldUnits].sort((a,b) => {
+                  const aO = UNIT_TYPE_ORDER[CS_UNIT_TYPE[a.unitName] || ''] ?? 99
+                  const bO = UNIT_TYPE_ORDER[CS_UNIT_TYPE[b.unitName] || ''] ?? 99
+                  return aO !== bO ? aO - bO : a.unitName.localeCompare(b.unitName)
+                }).map(u => (
+                  <option key={u.unitName} value={u.unitName}>{u.unitName}</option>
+                ))}
+              </select>
             </>
           )}
         </div>

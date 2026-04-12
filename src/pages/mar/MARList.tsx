@@ -211,7 +211,7 @@ function MARListInner() {
         )}
 
         {/* Date range filter pills */}
-        <div className="flex gap-1.5">
+        <div className="hidden md:flex gap-1.5">
           {(['7d', '30d', '90d', 'All'] as const).map(range => (
             <button key={range} onClick={() => setDateRange(range)}
               className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
@@ -221,6 +221,17 @@ function MARListInner() {
             </button>
           ))}
         </div>
+        {/* Mobile: date range dropdown */}
+        <select
+          value={dateRange}
+          onChange={e => setDateRange(e.target.value)}
+          className="md:hidden w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
+        >
+          <option value="7d">7 Days</option>
+          <option value="30d">30 Days</option>
+          <option value="90d">90 Days</option>
+          <option value="All">All Time</option>
+        </select>
 
         <input
           type="text"
@@ -245,41 +256,69 @@ function MARListInner() {
         {/* Unit filter buttons — hidden/locked for field users */}
         {/* Incident filter pills — admin only */}
         {!isField && activeIncidents.length > 0 && (
-          <div className="flex gap-1.5 flex-wrap">
-            <button onClick={() => setIncidentFilter('All')}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${incidentFilter === 'All' ? 'bg-gray-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
-              All Incidents
-            </button>
-            {activeIncidents.map((inc, i) => (
-              <button key={inc.id} onClick={() => setIncidentFilter(inc.id)}
-                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                  incidentFilter === inc.id
-                    ? ['bg-teal-700 text-white','bg-amber-700 text-white','bg-indigo-700 text-white'][i % 3]
-                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                }`}>
-                🔥 {inc.name}
+          <>
+            {/* Desktop: incident pills */}
+            <div className="hidden md:flex gap-1.5 flex-wrap">
+              <button onClick={() => setIncidentFilter('All')}
+                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${incidentFilter === 'All' ? 'bg-gray-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+                All Incidents
               </button>
-            ))}
-          </div>
+              {activeIncidents.map((inc, i) => (
+                <button key={inc.id} onClick={() => setIncidentFilter(inc.id)}
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                    incidentFilter === inc.id
+                      ? ['bg-teal-700 text-white','bg-amber-700 text-white','bg-indigo-700 text-white'][i % 3]
+                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                  }`}>
+                  🔥 {inc.name}
+                </button>
+              ))}
+            </div>
+            {/* Mobile: incident dropdown */}
+            <select
+              value={incidentFilter}
+              onChange={e => setIncidentFilter(e.target.value)}
+              className="md:hidden w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
+            >
+              <option value="All">All Incidents</option>
+              {activeIncidents.map(inc => (
+                <option key={inc.id} value={inc.id}>🔥 {inc.name}</option>
+              ))}
+            </select>
+          </>
         )}
         {unitNames.length > 0 && !isField && (
-          <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={() => setUnitFilter('All')}
-              className={'px-2 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0 ' + unitFilterButtonClass('All', unitFilter === 'All')}
-            >
-              All
-            </button>
-            {unitNames.map(u => (
+          <>
+            {/* Desktop: unit pills */}
+            <div className="hidden md:flex gap-2 flex-wrap">
               <button
-                key={u}
-                onClick={() => setUnitFilter(u)}
-                className={'px-2 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0 ' + unitFilterButtonClass(getUnitType(u), unitFilter === u)}
+                onClick={() => setUnitFilter('All')}
+                className={'px-2 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0 ' + unitFilterButtonClass('All', unitFilter === 'All')}
               >
-                {u}
+                All
               </button>
-            ))}
-          </div>
+              {unitNames.map(u => (
+                <button
+                  key={u}
+                  onClick={() => setUnitFilter(u)}
+                  className={'px-2 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0 ' + unitFilterButtonClass(getUnitType(u), unitFilter === u)}
+                >
+                  {u}
+                </button>
+              ))}
+            </div>
+            {/* Mobile: unit dropdown */}
+            <select
+              value={unitFilter}
+              onChange={e => setUnitFilter(e.target.value)}
+              className="md:hidden w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
+            >
+              <option value="All">All</option>
+              {unitNames.map(u => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+          </>
         )}
         {isField && assignment.unit?.name && (
           <div className="flex items-center gap-2">

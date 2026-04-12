@@ -102,7 +102,7 @@ export default function ICS214ListPage() {
         </div>
 
         {/* Date range filter pills */}
-        <div className="flex gap-1.5 mb-3">
+        <div className="hidden md:flex gap-1.5 mb-3">
           {(['7d', '30d', '90d', 'All'] as const).map(range => (
             <button key={range} onClick={() => setDateRange(range)}
               className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
@@ -112,69 +112,115 @@ export default function ICS214ListPage() {
             </button>
           ))}
         </div>
+        {/* Mobile: date range dropdown */}
+        <select
+          value={dateRange}
+          onChange={e => setDateRange(e.target.value)}
+          className="md:hidden w-full mb-3 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
+        >
+          <option value="7d">7 Days</option>
+          <option value="30d">30 Days</option>
+          <option value="90d">90 Days</option>
+          <option value="All">All Time</option>
+        </select>
 
         {/* Filters */}
-        <div className="flex flex-wrap gap-2 mb-4">
-          {/* Unit filter */}
-                    {/* Incident filter pills — admin only */}
+        <div className="flex flex-col gap-2 mb-4">
+          {/* Incident filter — admin only */}
           {isAdmin && activeIncidents.length > 0 && (
-            <div className="flex gap-1.5 flex-wrap">
-              <button onClick={() => setIncidentFilter('All')}
-                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${incidentFilter === 'All' ? 'bg-gray-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
-                All Incidents
-              </button>
-              {activeIncidents.map((inc, i) => (
-                <button key={inc.id} onClick={() => setIncidentFilter(inc.id)}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                    incidentFilter === inc.id
-                      ? ['bg-teal-700 text-white','bg-amber-700 text-white','bg-indigo-700 text-white'][i % 3]
-                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                  }`}>
-                  🔥 {inc.name}
+            <>
+              {/* Desktop: incident pills */}
+              <div className="hidden md:flex gap-1.5 flex-wrap">
+                <button onClick={() => setIncidentFilter('All')}
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${incidentFilter === 'All' ? 'bg-gray-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+                  All Incidents
                 </button>
-              ))}
-            </div>
-          )}
-          {isAdmin ? (
-            <div className="flex gap-1.5 flex-wrap">
-              <button onClick={() => setUnitFilter('')}
-                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${unitFilter === '' ? 'bg-gray-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
-                All Units
-              </button>
-              {[...units].sort((a,b) => {
-                const order: Record<string,number> = {'MSU':1,'RAMBO':2,'REMS':3}
-                const aK = Object.keys(order).find(k => a.startsWith(k)) || 'z'
-                const bK = Object.keys(order).find(k => b.startsWith(k)) || 'z'
-                return (order[aK]||9) - (order[bK]||9) || a.localeCompare(b)
-              }).map(u => {
-                const type = u.startsWith('RAMBO') ? 'Ambulance' : u.startsWith('MSU') || u === 'The Beast' ? 'Med Unit' : 'REMS'
-                const activeClass = type === 'Ambulance' ? 'bg-red-700 text-white' : type === 'Med Unit' ? 'bg-blue-700 text-white' : 'bg-green-700 text-white'
-                return (
-                  <button key={u} onClick={() => setUnitFilter(u)}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${unitFilter === u ? activeClass : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
-                    {u}
+                {activeIncidents.map((inc, i) => (
+                  <button key={inc.id} onClick={() => setIncidentFilter(inc.id)}
+                    className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                      incidentFilter === inc.id
+                        ? ['bg-teal-700 text-white','bg-amber-700 text-white','bg-indigo-700 text-white'][i % 3]
+                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                    }`}>
+                    🔥 {inc.name}
                   </button>
-                )
-              })}
-            </div>
+                ))}
+              </div>
+              {/* Mobile: incident dropdown */}
+              <select
+                value={incidentFilter}
+                onChange={e => setIncidentFilter(e.target.value)}
+                className="md:hidden w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
+              >
+                <option value="All">All Incidents</option>
+                {activeIncidents.map(inc => (
+                  <option key={inc.id} value={inc.id}>🔥 {inc.name}</option>
+                ))}
+              </select>
+            </>
+          )}
+          {/* Unit filter */}
+          {isAdmin ? (
+            <>
+              {/* Desktop: unit pills */}
+              <div className="hidden md:flex gap-1.5 flex-wrap">
+                <button onClick={() => setUnitFilter('')}
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${unitFilter === '' ? 'bg-gray-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+                  All Units
+                </button>
+                {[...units].sort((a,b) => {
+                  const order: Record<string,number> = {'MSU':1,'RAMBO':2,'REMS':3}
+                  const aK = Object.keys(order).find(k => a.startsWith(k)) || 'z'
+                  const bK = Object.keys(order).find(k => b.startsWith(k)) || 'z'
+                  return (order[aK]||9) - (order[bK]||9) || a.localeCompare(b)
+                }).map(u => {
+                  const type = u.startsWith('RAMBO') ? 'Ambulance' : u.startsWith('MSU') || u === 'The Beast' ? 'Med Unit' : 'REMS'
+                  const activeClass = type === 'Ambulance' ? 'bg-red-700 text-white' : type === 'Med Unit' ? 'bg-blue-700 text-white' : 'bg-green-700 text-white'
+                  return (
+                    <button key={u} onClick={() => setUnitFilter(u)}
+                      className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${unitFilter === u ? activeClass : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+                      {u}
+                    </button>
+                  )
+                })}
+              </div>
+              {/* Mobile: unit dropdown */}
+              <select
+                value={unitFilter}
+                onChange={e => setUnitFilter(e.target.value)}
+                className="md:hidden w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
+              >
+                <option value="">All Units</option>
+                {[...units].sort((a,b) => {
+                  const order: Record<string,number> = {'MSU':1,'RAMBO':2,'REMS':3}
+                  const aK = Object.keys(order).find(k => a.startsWith(k)) || 'z'
+                  const bK = Object.keys(order).find(k => b.startsWith(k)) || 'z'
+                  return (order[aK]||9) - (order[bK]||9) || a.localeCompare(b)
+                }).map(u => (
+                  <option key={u} value={u}>{u}</option>
+                ))}
+              </select>
+            </>
           ) : (
             <span className="px-2.5 py-1 rounded text-xs font-medium bg-blue-900 text-blue-300">{assignment.unit?.name || '—'}</span>
           )}
 
           {/* Status filter */}
-          {(['All', 'Open', 'Closed'] as const).map(s => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                statusFilter === s
-                  ? s === 'Open' ? 'bg-green-700 text-white' : s === 'Closed' ? 'bg-gray-600 text-white' : 'bg-red-700 text-white'
-                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-              }`}
-            >
-              {s}
-            </button>
-          ))}
+          <div className="flex flex-wrap gap-2">
+            {(['All', 'Open', 'Closed'] as const).map(s => (
+              <button
+                key={s}
+                onClick={() => setStatusFilter(s)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                  statusFilter === s
+                    ? s === 'Open' ? 'bg-green-700 text-white' : s === 'Closed' ? 'bg-gray-600 text-white' : 'bg-red-700 text-white'
+                    : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Table */}

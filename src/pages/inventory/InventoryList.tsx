@@ -151,8 +151,8 @@ const units = ['All', ...Array.from(new Set(
           placeholder="Search..."
           className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-red-500 placeholder-gray-600" />
 
-        <div className="flex gap-1.5 flex-wrap">
-          {/* Category filter */}
+        {/* Desktop: category pills */}
+        <div className="hidden md:flex gap-1.5 flex-wrap">
           {['All', 'CS', 'Rx', 'OTC'].map(c => (
             <button key={c} onClick={() => setCatFilter(c)}
               className={'px-2 py-1 rounded text-xs font-medium transition-colors ' + (catFilter === c ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700')}>
@@ -166,6 +166,23 @@ const units = ['All', ...Array.from(new Set(
             ⚠ Low
           </button>
         </div>
+        {/* Mobile: category dropdown + low stock toggle */}
+        <div className="md:hidden flex gap-2">
+          <select
+            value={catFilter}
+            onChange={e => setCatFilter(e.target.value)}
+            className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
+          >
+            <option value="All">All Categories</option>
+            <option value="CS">CS</option>
+            <option value="Rx">Rx</option>
+            <option value="OTC">OTC</option>
+          </select>
+          <button onClick={() => setShowLowOnly(v => !v)}
+            className={'px-3 py-2 rounded-lg text-xs font-medium transition-colors ' + (showLowOnly ? 'bg-red-900 text-red-300' : 'bg-gray-800 text-gray-400 hover:bg-gray-700')}>
+            ⚠ Low
+          </button>
+        </div>
 
         {/* Unit filter - scrollable row — hidden for field users */}
         {isField ? (
@@ -176,14 +193,27 @@ const units = ['All', ...Array.from(new Set(
             </div>
           )
         ) : (
-          <div className="flex gap-1.5 overflow-x-auto pb-1">
-            {units.map(u => (
-              <button key={u} onClick={() => setUnitFilter(u)}
-                className={'px-2 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0 ' + unitFilterButtonClass(unitTypeMap[u] || u, unitFilter === u)}>
-                {u}
-              </button>
-            ))}
-          </div>
+          <>
+            {/* Desktop: unit pills */}
+            <div className="hidden md:flex gap-1.5 overflow-x-auto pb-1">
+              {units.map(u => (
+                <button key={u} onClick={() => setUnitFilter(u)}
+                  className={'px-2 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0 ' + unitFilterButtonClass(unitTypeMap[u] || u, unitFilter === u)}>
+                  {u}
+                </button>
+              ))}
+            </div>
+            {/* Mobile: unit dropdown */}
+            <select
+              value={unitFilter}
+              onChange={e => setUnitFilter(e.target.value)}
+              className="md:hidden w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
+            >
+              {units.map(u => (
+                <option key={u} value={u}>{u}</option>
+              ))}
+            </select>
+          </>
         )}
       </div>
 

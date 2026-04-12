@@ -205,6 +205,26 @@ function UnitsPageInner() {
       'archived': 'in_service',
     }
     const next = cycle[currentStatus || 'in_service'] || 'in_service'
+
+    // Confirm + release crew when taking a unit out of active service
+    const needsRelease = (currentStatus === 'in_service' || currentStatus === 'out_of_service') && next !== 'in_service'
+    if (needsRelease) {
+      const unit = units.find(u => u.id === unitId)
+      const unitName = unit?.name || 'this unit'
+      const label = next === 'archived' ? 'Archived' : 'Out of Service'
+      const ok = confirm(`Change ${unitName} to ${label}? This will release all crew assignments.`)
+      if (!ok) return
+      // Release all active crew assignments for this unit
+      const active = unit ? activeIncidentUnit(unit) : null
+      if (active) {
+        await supabase
+          .from('unit_assignments')
+          .update({ released_at: new Date().toISOString() })
+          .eq('incident_unit_id', active.id)
+          .is('released_at', null)
+      }
+    }
+
     setCyclingStatus(unitId)
     await supabase.from('units').update({ unit_status: next }).eq('id', unitId)
     setCyclingStatus(null)
@@ -232,8 +252,8 @@ function UnitsPageInner() {
         </div>
       )}
 
-      {/* Status filter tabs */}
-      <div className="flex gap-1.5 flex-wrap mb-4">
+      {/* Status filter tabs — desktop: pills, mobile: dropdown */}
+      <div className="hidden md:flex gap-1.5 flex-wrap mb-4">
         {(['all', 'in_service', 'out_of_service', 'archived'] as const).map(f => (
           <button key={f} onClick={() => setStatusFilter(f)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
@@ -246,6 +266,16 @@ function UnitsPageInner() {
           </button>
         ))}
       </div>
+      <select
+        value={statusFilter}
+        onChange={e => setStatusFilter(e.target.value as typeof statusFilter)}
+        className="md:hidden w-full mb-4 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
+      >
+        <option value="all">All ({units.length})</option>
+        <option value="in_service">In Service ({units.filter(u => (u.unit_status || 'in_service') === 'in_service').length})</option>
+        <option value="out_of_service">Out of Service ({units.filter(u => u.unit_status === 'out_of_service').length})</option>
+        <option value="archived">Archived ({units.filter(u => u.unit_status === 'archived').length})</option>
+      </select>
 
       {loading ? (
         <p className="text-gray-500">Loading...</p>
