@@ -52,6 +52,12 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!assignment.loading && assignment.employee?.id) {
       const load = async () => {
+        // Show cached data instantly
+        try {
+          const { getCachedById } = await import('@/lib/offlineStore')
+          const cached = await getCachedById('employees', assignment.employee!.id) as any
+          if (cached) setEmployee(cached)
+        } catch {}
         const { data } = await loadSingle(
           () => supabase.from('employees').select('*').eq('id', assignment.employee!.id).single() as any,
           'employees',

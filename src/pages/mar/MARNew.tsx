@@ -233,6 +233,14 @@ function MARNewFormInner() {
 
   useEffect(() => {
     const load = async () => {
+      // Preload dropdown data from cache
+      try {
+        const { getCachedData } = await import('@/lib/offlineStore')
+        const cachedEmps = await getCachedData('employees') as any[]
+        if (cachedEmps.length > 0) setEmployees(cachedEmps.map((e: any) => ({...e, name: e.name || e.full_name})) as Employee[])
+        const cachedFormulary = await getCachedData('formulary') as any[]
+        if (cachedFormulary.length > 0) setFormulary(cachedFormulary.filter((i: any) => ['Rx','CS'].includes(i.category)) as FormularyItem[])
+      } catch {}
       if (unitParam) await loadUnitInventory(unitParam)
       const [empResult, formularyResult] = await Promise.all([
         loadList(

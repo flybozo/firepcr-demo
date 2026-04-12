@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadSingle } from '@/lib/offlineFirst'
-import { cacheData, queueOfflineWrite } from '@/lib/offlineStore'
+import { getCachedById, cacheData, queueOfflineWrite } from '@/lib/offlineStore'
 import { getIsOnline } from '@/lib/syncManager'
 import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
@@ -65,6 +65,14 @@ export default function InventoryDetailPage() {
   const [isOfflineData, setIsOfflineData] = useState(false)
 
   const load = async () => {
+    // Show cached data instantly
+    try {
+      const cached = await getCachedById('inventory', id) as any
+      if (cached) {
+        setItem(cached as InventoryItem)
+        setLoading(false)
+      }
+    } catch {}
     const { data: inv, offline } = await loadSingle<InventoryItem>(
       () => supabase
         .from('unit_inventory')

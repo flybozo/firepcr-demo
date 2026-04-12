@@ -105,6 +105,15 @@ export default function RosterPage() {
 
   useEffect(() => {
     const load = async () => {
+      // Show cached data instantly
+      try {
+        const { getCachedData } = await import('@/lib/offlineStore')
+        const cached = await getCachedData('employees') as any[]
+        if (cached.length > 0) {
+          setEmployees(cached as Employee[])
+          setLoading(false)
+        }
+      } catch {}
       const { data, offline } = await loadList<Employee>(
         () => supabase
           .from('employees')

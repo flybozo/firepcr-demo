@@ -73,6 +73,15 @@ export default function MARDetailPage() {
   const sigRef = useRef<SignatureCanvas>(null)
 
   const loadEntry = async () => {
+    // Show cached data instantly
+    try {
+      const { getCachedById } = await import('@/lib/offlineStore')
+      const cached = await getCachedById('mar_entries', id) as any
+      if (cached) {
+        setEntry(cached)
+        setLoading(false)
+      }
+    } catch {}
     const { data, offline } = await loadSingle<MAREntry>(
       () => supabase.from('dispense_admin_log').select('*').eq('id', id).single() as any,
       'mar_entries',

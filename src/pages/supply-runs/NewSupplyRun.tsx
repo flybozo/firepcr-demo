@@ -124,6 +124,14 @@ function SupplyRunNewInner() {
   // Initial load
   useEffect(() => {
     const init = async () => {
+      // Preload dropdown data from cache
+      try {
+        const { getCachedData } = await import('@/lib/offlineStore')
+        const cachedInc = await getCachedData('incidents') as any[]
+        if (cachedInc.length > 0) setIncidents(cachedInc as Incident[])
+        const cachedEmps = await getCachedData('employees') as any[]
+        if (cachedEmps.length > 0) setAllEmployees(cachedEmps as Employee[])
+      } catch {}
       const { data: { user } } = await supabase.auth.getUser()
 
       // Try to find active unit assignment for this user

@@ -189,6 +189,15 @@ function EditEncounterInner() {
 
   useEffect(() => {
     const load = async () => {
+      // Show cached data instantly
+      try {
+        const { getCachedById } = await import('@/lib/offlineStore')
+        const cached = await getCachedById('encounters', id) as any
+        if (cached) {
+          setEncounter(cached)
+          setLoading(false)
+        }
+      } catch {}
       const [{ data: enc }, { data: emps }] = await Promise.all([
         loadSingle(
           () => supabase.from('patient_encounters').select('*').eq('id', id).single() as any,

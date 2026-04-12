@@ -57,6 +57,14 @@ export default function CSTransferPage() {
 
   useEffect(() => {
     const load = async () => {
+      // Preload dropdown data from cache
+      try {
+        const { getCachedData } = await import('@/lib/offlineStore')
+        const cachedUnits = await getCachedData('units') as any[]
+        if (cachedUnits.length > 0) setUnits(cachedUnits as UnitOption[])
+        const cachedEmps = await getCachedData('employees') as any[]
+        if (cachedEmps.length > 0) setEmployees(cachedEmps.filter((e: any) => ['MD','MD/DO','NP','PA','RN','Paramedic'].includes(e.role)))
+      } catch {}
       const [unitResult, empResult] = await Promise.all([
         loadList<UnitOption>(
           () => supabase.from('units').select('id, name').eq('active', true).order('name'),

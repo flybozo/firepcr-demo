@@ -57,6 +57,12 @@ export default function ReceiveCSPage() {
   }, [])
 
   async function loadEmployees() {
+    // Preload dropdown data from cache
+    try {
+      const { getCachedData } = await import('@/lib/offlineStore')
+      const cachedEmps = await getCachedData('employees') as any[]
+      if (cachedEmps.length > 0) setEmployees(cachedEmps.filter((e: any) => CLINICAL_ROLES.includes(e.role)) as Employee[])
+    } catch {}
     const { data, offline } = await loadList<Employee>(
       () => supabase
         .from('employees')

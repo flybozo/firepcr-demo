@@ -741,6 +741,12 @@ function PCRFormInner() {
 
   useEffect(() => {
     const load = async () => {
+      // Preload dropdown data from cache
+      try {
+        const { getCachedData } = await import('@/lib/offlineStore')
+        const cachedEmps = await getCachedData('employees') as any[]
+        if (cachedEmps.length > 0) setEmployees(cachedEmps.filter((e: any) => ['MD', 'MD/DO', 'NP', 'PA'].includes(e.role)) as Employee[])
+      } catch {}
       const { data } = await loadList<Employee>(
         () => supabase
           .from('employees')

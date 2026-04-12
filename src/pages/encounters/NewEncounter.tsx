@@ -60,6 +60,14 @@ function NewEncounterInner() {
 
   useEffect(() => {
     const load = async () => {
+      // Preload dropdown data from cache
+      try {
+        const { getCachedData } = await import('@/lib/offlineStore')
+        const cachedUnits = await getCachedData('units') as any[]
+        if (cachedUnits.length > 0) setUnits(cachedUnits as any)
+        const cachedInc = await getCachedData('incidents') as any[]
+        if (cachedInc.length > 0) setIncidents(cachedInc)
+      } catch {}
       const [unitResult, incResult] = await Promise.all([
         loadList(
           () => supabase.from('units')

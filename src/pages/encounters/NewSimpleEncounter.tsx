@@ -139,6 +139,16 @@ function SimpleEHRInner() {
 
   useEffect(() => {
     const load = async () => {
+      // Preload dropdown data from cache
+      try {
+        const { getCachedData } = await import('@/lib/offlineStore')
+        const cachedEmps = await getCachedData('employees') as any[]
+        if (cachedEmps.length > 0) setProviders(cachedEmps.filter((e: any) => CLINICAL_ROLES.includes(e.role)) as any)
+        const cachedInc = await getCachedData('incidents') as any[]
+        if (cachedInc.length > 0) setIncidents(cachedInc)
+        const cachedUnits = await getCachedData('units') as any[]
+        if (cachedUnits.length > 0) setUnits(cachedUnits)
+      } catch {}
       const [empResult, incResult, unitResult] = await Promise.all([
         loadList(
           () => supabase.from('employees').select('id, name, role').in('role', CLINICAL_ROLES).eq('status', 'Active').order('role'),

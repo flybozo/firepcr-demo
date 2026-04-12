@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { createClient } from '@/lib/supabase/client'
 import { getIsOnline } from '@/lib/syncManager'
 import { loadSingle } from '@/lib/offlineFirst'
-import { getCachedData, cacheData, queueOfflineWrite } from '@/lib/offlineStore'
+import { getCachedData, getCachedById, cacheData, queueOfflineWrite } from '@/lib/offlineStore'
 import { Link } from 'react-router-dom'
 import { useParams, useNavigate } from 'react-router-dom'
 import { SearchableSelect } from '@/components/SearchableSelect'
@@ -1161,6 +1161,14 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
 
   useEffect(() => {
     const load = async () => {
+      // Show cached data instantly
+      try {
+        const cached = await getCachedById('encounters', id) as any
+        if (cached) {
+          setEnc(cached)
+          setLoading(false)
+        }
+      } catch {}
       const { data, offline } = await loadSingle(
         () => supabase.from('patient_encounters').select('*').eq('id', id).single() as any,
         'encounters',

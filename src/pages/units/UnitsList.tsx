@@ -69,6 +69,15 @@ function UnitsPageInner() {
   } | null>(null)
 
   const load = async () => {
+    // Show cached data instantly
+    try {
+      const { getCachedData } = await import('@/lib/offlineStore')
+      const cached = await getCachedData('units') as any[]
+      if (cached.length > 0) {
+        setUnits(cached as Unit[])
+        setLoading(false)
+      }
+    } catch {}
     const [unitResult, empResult] = await Promise.all([
       loadList<Unit>(
         () => supabase

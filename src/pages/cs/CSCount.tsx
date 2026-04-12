@@ -75,6 +75,14 @@ function DailyCountInner() {
   }, [selectedUnit, unitIdMap])
 
   async function loadInit() {
+    // Preload dropdown data from cache
+    try {
+      const { getCachedData } = await import('@/lib/offlineStore')
+      const cachedEmps = await getCachedData('employees') as any[]
+      if (cachedEmps.length > 0) setEmployees(cachedEmps.filter((e: any) => CLINICAL_ROLES.includes(e.role)) as Employee[])
+      const cachedInv = await getCachedData('inventory') as any[]
+      if (cachedInv.length > 0) setCSItems(cachedInv.filter((i: any) => i.category === 'CS') as CSItem[])
+    } catch {}
     const { data: emps } = await loadList<Employee>(
       () => supabase.from('employees').select('id, name, role').eq('status', 'Active').in('role', CLINICAL_ROLES).order('name'),
       'employees',

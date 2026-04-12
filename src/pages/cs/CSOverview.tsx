@@ -83,6 +83,28 @@ function CSOverviewPageInner() {
   }, [isField, assignment.loading, assignment.unit?.name])
 
   async function loadData() {
+    // Show cached CS inventory instantly
+    try {
+      const cached = await getCachedData('inventory') as any[]
+      const csItems = cached.filter((i: any) => i.category === 'CS')
+      if (csItems.length > 0) {
+        const grouped: Record<string, UnitInventoryItem[]> = {}
+        for (const item of csItems) {
+          const key = (item as any).unit_id || 'unknown'
+          if (!grouped[key]) grouped[key] = []
+          grouped[key].push(item)
+        }
+        const offlineUnits: UnitData[] = Object.entries(grouped).map(([iuid, items]) => ({
+          unitName: UNITS.find(n => n) || 'Unit',
+          incidentUnitId: iuid,
+          items,
+        }))
+        if (offlineUnits.length > 0) {
+          setUnits(offlineUnits)
+          setLoading(false)
+        }
+      }
+    } catch {}
     setLoading(true)
     try {
       // Load units for name lookup

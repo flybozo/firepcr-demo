@@ -84,6 +84,15 @@ export default function UnitDetailPage() {
   const [docType, setDocType] = useState('Registration')
 
   const load = async () => {
+    // Show cached data instantly
+    try {
+      const { getCachedById } = await import('@/lib/offlineStore')
+      const cached = await getCachedById('units', id) as any
+      if (cached) {
+        setUnit(cached as Unit)
+        setLoading(false)
+      }
+    } catch {}
     const { data: unitData, offline } = await loadSingle<Unit>(
       () => supabase
         .from('units')

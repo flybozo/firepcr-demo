@@ -93,6 +93,15 @@ export default function SupplyRunDetailPage() {
   })
 
   const loadData = useCallback(async () => {
+    // Show cached data instantly
+    try {
+      const { getCachedById } = await import('@/lib/offlineStore')
+      const cached = await getCachedById('supply_runs', id) as any
+      if (cached) {
+        setRun(cached as SupplyRun)
+        setLoading(false)
+      }
+    } catch {}
     const { data: runData, offline } = await loadSingle<SupplyRun>(
       () => supabase
         .from('supply_runs')

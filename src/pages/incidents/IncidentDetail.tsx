@@ -503,6 +503,14 @@ export default function IncidentDetailPage() {
   )
 
   const load = useCallback(async () => {
+    // Show cached data instantly
+    try {
+      const cached = await getCachedById('incidents', activeIncidentId) as any
+      if (cached) {
+        setIncident(cached)
+        setLoading(false)
+      }
+    } catch {}
     const supabaseClient = createClient()
 
     // Load incident with offline fallback

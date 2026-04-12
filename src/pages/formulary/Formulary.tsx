@@ -60,6 +60,15 @@ function FormularyPageInner() {
     if (!unitTypes[activeTab]) return
     setLoading(true)
     const load = async () => {
+      // Show cached data instantly
+      try {
+        const { getCachedData } = await import('@/lib/offlineStore')
+        const cached = await getCachedData('formulary') as any[]
+        if (cached.length > 0) {
+          setItems(cached as FormulaItem[])
+          setLoading(false)
+        }
+      } catch {}
       const { data, offline } = await loadList<FormulaItem>(
         () => supabase
           .from('formulary_templates')

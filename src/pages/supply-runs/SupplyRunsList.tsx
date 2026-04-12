@@ -57,6 +57,14 @@ function SupplyRunsPageInner() {
 
   useEffect(() => {
     const load = async () => {
+      // Show cached data instantly
+      try {
+        const cached = await getCachedData('supply_runs') as any[]
+        if (cached.length > 0) {
+          setRuns(cached as SupplyRun[])
+          setLoading(false)
+        }
+      } catch {}
       try {
         let query = supabase
           .from('supply_runs')
