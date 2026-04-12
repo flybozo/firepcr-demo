@@ -432,7 +432,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </button>
       </div>
       <div className="px-4 pb-3 pt-1">
-        <p className="text-[10px] text-center" style={{ color: 'var(--color-text-muted, #6b7280)' }}>FirePCR v1.0.0</p>
+        <p className="text-[10px] text-center" style={{ color: 'var(--color-text-muted, #6b7280)' }}>FirePCR v1.1.0</p>
       </div>
     </nav>
   )
