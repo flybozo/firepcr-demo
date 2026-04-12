@@ -32,6 +32,16 @@ function IncidentsPageInner() {
 
   useEffect(() => {
     const load = async () => {
+      // Show cached incidents instantly
+      try {
+        const { getCachedData } = await import('@/lib/offlineStore')
+        const cached = await getCachedData('incidents') as any[]
+        if (cached.length > 0) {
+          cached.sort((a: any, b: any) => (b.start_date || b.created_at || '').localeCompare(a.start_date || a.created_at || ''))
+          setIncidents(cached as any[])
+          setLoading(false)
+        }
+      } catch {}
       const { data, offline } = await loadList(
         () => supabase
           .from('incidents')

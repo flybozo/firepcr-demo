@@ -115,6 +115,16 @@ function EncountersInner() {
     // Wait for assignment to finish loading before querying, so field filters are applied
     if (roleLoading || assignment.loading) return
     const load = async () => {
+      // Show cached data instantly while network loads
+      try {
+        const cached = await getCachedData('encounters') as any[]
+        if (cached.length > 0) {
+          const mapped = cached.map((e: any) => ({ ...e, incident_name: e.incident?.name || e.incident_name || null }))
+          mapped.sort((a: any, b: any) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''))
+          setEncounters(dateFilter ? mapped.filter((e: any) => (e.date || '') >= dateFilter) : mapped)
+          setLoading(false)
+        }
+      } catch {}
       const { data, offline } = await loadList(
         async () => {
           let query = supabase

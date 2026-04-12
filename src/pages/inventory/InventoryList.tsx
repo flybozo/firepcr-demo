@@ -53,6 +53,11 @@ function InventoryPageInner() {
 
   useEffect(() => {
     const load = async () => {
+      // Show cached inventory instantly
+      try {
+        const cached = await getCachedData('inventory') as any[]
+        if (cached.length > 0) { setItems(cached); setLoading(false) }
+      } catch {}
       const { data, offline } = await loadList(
         () => supabase
           .from('unit_inventory')

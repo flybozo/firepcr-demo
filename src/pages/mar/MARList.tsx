@@ -123,6 +123,15 @@ function MARListInner() {
   useEffect(() => {
     if (roleLoading || assignment.loading) return
     const load = async () => {
+      // Show cached data instantly
+      try {
+        const cached = await getCachedData('mar_entries') as any[]
+        if (cached.length > 0) {
+          const sorted = [...cached].sort((a: any, b: any) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''))
+          setEntries(sorted as any[])
+          setLoading(false)
+        }
+      } catch {}
       // Load incidents for filter
       if (!isField) {
         const incResult = await loadList(
