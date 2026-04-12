@@ -5,6 +5,7 @@ import Ticker from '@/components/Ticker'
 import ChatBubble from '@/components/ChatBubble'
 import ConnectionStatus from '@/components/ConnectionStatus'
 import CacheStatusBar from '@/components/CacheStatusBar'
+import VersionNotifier from '@/components/VersionNotifier'
 import { ThemeProvider } from '@/components/ThemeProvider'
 
 export default function AppLayout() {
@@ -24,6 +25,7 @@ export default function AppLayout() {
           </main>
         </div>
         <ChatBubble />
+        <VersionNotifier />
       </div>
     </ThemeProvider>
   )
