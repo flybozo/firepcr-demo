@@ -120,9 +120,15 @@ function EncountersInner() {
         if (cached.length > 0) {
           const mapped = cached.map((e: any) => ({ ...e, incident_name: e.incident?.name || e.incident_name || null }))
           mapped.sort((a: any, b: any) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''))
-          const filtered = dateFilter ? mapped.filter((e: any) => (e.date || '') >= dateFilter) : mapped
+          let filtered = mapped
+          // Apply all active filters to cached data
+          const fieldIncidentId = incidentId || (isField ? assignment.incidentUnit?.incident_id : null)
+          if (fieldIncidentId) filtered = filtered.filter((e: any) => e.incident_id === fieldIncidentId)
+          else if (!isField && incidentFilter !== 'All') filtered = filtered.filter((e: any) => e.incident_id === incidentFilter)
+          if (isField && assignment.unit?.name) filtered = filtered.filter((e: any) => e.unit === assignment.unit!.name)
+          if (dateFilter) filtered = filtered.filter((e: any) => (e.date || '') >= dateFilter)
           setEncounters(filtered)
-          setLoading(false) // Always stop loading if we have ANY cached data
+          setLoading(false)
         }
       } catch {}
       // Fetch fresh data from network (background refresh)
@@ -141,13 +147,11 @@ function EncountersInner() {
 
         const { data, error } = await query.limit(2000)
         if (error) throw error
-        if (data && data.length > 0) {
-          // Only update if network returned actual data (don't overwrite cache with empty)
-          const mapped = data.map((e: any) => ({ ...e, incident_name: e.incident?.name || e.incident_name || null }))
-          mapped.sort((a: any, b: any) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''))
-          setEncounters(mapped)
-          await cacheData('encounters', data).catch(() => {})
-        }
+        // Update encounters — use whatever the network returned (empty is valid for filtered queries)
+        const mapped = (data || []).map((e: any) => ({ ...e, incident_name: e.incident?.name || e.incident_name || null }))
+        mapped.sort((a: any, b: any) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''))
+        setEncounters(mapped)
+        if (data && data.length > 0) await cacheData('encounters', data).catch(() => {})
       } catch {
         // Network failed — keep showing cached data (already set above)
         setIsOffline(true)
