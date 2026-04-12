@@ -34,6 +34,7 @@ function FormularyPageInner() {
   const [loading, setLoading] = useState(true)
   const [isOfflineData, setIsOfflineData] = useState(false)
   const [catFilter, setCatFilter] = useState('All')
+  const [alsFilter, setAlsFilter] = useState(false)
   const [search, setSearch] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -87,6 +88,7 @@ function FormularyPageInner() {
 
   const filtered = items.filter(i => {
     if (catFilter !== 'All' && i.category !== catFilter) return false
+    if (alsFilter && !(i as any).is_als) return false
     if (search && !i.item_name.toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
@@ -222,6 +224,10 @@ function FormularyPageInner() {
             {c} {c !== 'All' && !loading ? `(${items.filter(i => i.category === c).length})` : ''}
           </button>
         ))}
+        <button onClick={() => setAlsFilter(v => !v)}
+          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${alsFilter ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+          ALS Only
+        </button>
         <div className="ml-auto flex gap-1.5">
           <button onClick={handleExportCSV}
             className="px-3 py-1.5 rounded-lg text-xs font-medium bg-gray-700 hover:bg-gray-600 text-white">
