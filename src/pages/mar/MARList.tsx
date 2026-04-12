@@ -110,6 +110,10 @@ function MARListInner() {
   const [unitFilter, setUnitFilter] = useState('All')
   const [incidentFilter, setIncidentFilter] = useState('All')
   const [activeIncidents, setActiveIncidents] = useState<{id: string; name: string}[]>([])
+  const [dateRange, setDateRange] = useState('7d')
+
+  const dateFilter = dateRange === 'All' ? null :
+    new Date(Date.now() - (dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90) * 86400000).toISOString().split('T')[0]
 
   useEffect(() => {
     setIsOffline(!getIsOnline())
@@ -136,17 +140,19 @@ function MARListInner() {
             .order('date', { ascending: false })
           const effectiveUnit = unitParam || (isField ? assignment.unit?.name : null)
           if (effectiveUnit) query = query.eq('med_unit', effectiveUnit)
+          if (dateFilter) query = query.gte('date', dateFilter)
           return query.limit(200)
         },
         'mar_entries'
       )
       const sorted = [...data].sort((a: any, b: any) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''))
-      setEntries(sorted as MAREntry[])
+      const dateFiltered = dateFilter ? sorted.filter((e: any) => (e.date || '') >= dateFilter) : sorted
+      setEntries(dateFiltered as MAREntry[])
       if (offline) setIsOffline(true)
       setLoading(false)
     }
     load()
-  }, [isField, assignment.loading, assignment.unit?.name, unitParam, incidentFilter])
+  }, [isField, assignment.loading, assignment.unit?.name, unitParam, incidentFilter, dateRange])
 
   // Distinct unit names sorted by type order
   const unitNames = Array.from(
@@ -194,6 +200,18 @@ function MARListInner() {
             ✅ Medication administration recorded successfully.
           </div>
         )}
+
+        {/* Date range filter pills */}
+        <div className="flex gap-1.5">
+          {(['7d', '30d', '90d', 'All'] as const).map(range => (
+            <button key={range} onClick={() => setDateRange(range)}
+              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                dateRange === range ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              }`}>
+              {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : range === '90d' ? '90 Days' : 'All Time'}
+            </button>
+          ))}
+        </div>
 
         <input
           type="text"

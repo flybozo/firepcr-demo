@@ -37,6 +37,7 @@ function SupplyRunsPageInner() {
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [unitFilter, setUnitFilter] = useState('All')
+  const [dateRange, setDateRange] = useState('7d')
 
   // Load active incidents for admin filter pills
   useEffect(() => {
@@ -50,6 +51,9 @@ function SupplyRunsPageInner() {
     }
     loadIncidents()
   }, [isField])
+
+  const dateFilter = dateRange === 'All' ? null :
+    new Date(Date.now() - (dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90) * 86400000).toISOString().split('T')[0]
 
   useEffect(() => {
     const load = async () => {
@@ -65,12 +69,14 @@ function SupplyRunsPageInner() {
         const effectiveIncident = incidentIdParam || (isField ? assignment.incidentUnit?.incident_id : null)
         if (effectiveIncident) query = (query as any).eq('incident_id', effectiveIncident)
         else if (!isField && incidentFilter !== 'All') query = (query as any).eq('incident_id', incidentFilter)
+        if (dateFilter) query = (query as any).gte('run_date', dateFilter)
         const { data, offline } = await loadList<SupplyRun>(
           () => (query as any).limit(200),
           'supply_runs'
         )
         const sorted = [...data].sort((a: any, b: any) => (b.run_date || b.created_at || '').localeCompare(a.run_date || a.created_at || ''))
-        setRuns(sorted)
+        const dateFiltered = dateFilter ? sorted.filter((r: any) => (r.run_date || '') >= dateFilter) : sorted
+        setRuns(dateFiltered)
         if (offline) setIsOfflineData(true)
       } catch {
         const cached = await getCachedData('supply_runs')
@@ -83,7 +89,7 @@ function SupplyRunsPageInner() {
     }
     if (roleLoading || assignment.loading) return
     load()
-  }, [isField, assignment.loading, assignment.incidentUnit?.incident_id, incidentIdParam, incidentFilter])
+  }, [isField, assignment.loading, assignment.incidentUnit?.incident_id, incidentIdParam, incidentFilter, dateRange])
 
   const units = ['All', ...Array.from(new Set(
     runs.map(r => (r.incident_unit as any)?.unit?.name).filter(Boolean)
@@ -127,6 +133,18 @@ function SupplyRunsPageInner() {
 
       {/* Filters */}
       <div className="space-y-2 mb-4">
+        {/* Date range filter pills */}
+        <div className="flex gap-1.5">
+          {(['7d', '30d', '90d', 'All'] as const).map(range => (
+            <button key={range} onClick={() => setDateRange(range)}
+              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                dateRange === range ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              }`}>
+              {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : range === '90d' ? '90 Days' : 'All Time'}
+            </button>
+          ))}
+        </div>
+
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="Search by date, crew, incident..."
           className="w-full bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-red-500 placeholder-gray-600" />

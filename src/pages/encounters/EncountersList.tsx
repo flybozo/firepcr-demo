@@ -92,7 +92,11 @@ function EncountersInner() {
   const [incidentFilter, setIncidentFilter] = useState('All')
   const [activeIncidents, setActiveIncidents] = useState<{id: string; name: string}[]>([])
   const [page, setPage] = useState(1)
+  const [dateRange, setDateRange] = useState('7d')
   const [isOffline, setIsOffline] = useState(false)
+
+  const dateFilter = dateRange === 'All' ? null :
+    new Date(Date.now() - (dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90) * 86400000).toISOString().split('T')[0]
 
   // Track connection state
   useEffect(() => {
@@ -123,6 +127,7 @@ function EncountersInner() {
           if (fieldIncidentId) query = query.eq('incident_id', fieldIncidentId)
           else if (!isField && incidentFilter !== 'All') query = query.eq('incident_id', incidentFilter)
           if (isField && assignment.unit?.name) query = (query as any).eq('unit', assignment.unit.name)
+          if (dateFilter) query = query.gte('date', dateFilter)
 
           return query.limit(2000)
         },
@@ -131,15 +136,16 @@ function EncountersInner() {
       const mapped = data.map((e: any) => ({ ...e, incident_name: e.incident?.name || e.incident_name || null }))
       // Sort newest first (IndexedDB doesn't preserve order)
       mapped.sort((a: any, b: any) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''))
-      setEncounters(mapped)
+      const dateFiltered = dateFilter ? mapped.filter((e: any) => (e.date || '') >= dateFilter) : mapped
+      setEncounters(dateFiltered)
       if (offline) setIsOffline(true)
       setLoading(false)
     }
     load()
-  }, [incidentId, isField, assignment.loading, assignment.incidentUnit?.incident_id, incidentFilter])
+  }, [incidentId, isField, assignment.loading, assignment.incidentUnit?.incident_id, incidentFilter, dateRange])
 
   // Reset page when filters change
-  useEffect(() => { setPage(1) }, [unitFilter, search])
+  useEffect(() => { setPage(1) }, [unitFilter, search, dateRange])
 
   const filtered = encounters.filter(e => {
     if (unitFilter !== 'All' && e.unit !== unitFilter) return false
@@ -214,6 +220,18 @@ function EncountersInner() {
             ))}
           </div>
         )}
+
+        {/* Date range filter pills */}
+        <div className="flex gap-1.5">
+          {(['7d', '30d', '90d', 'All'] as const).map(range => (
+            <button key={range} onClick={() => { setDateRange(range); setPage(1) }}
+              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                dateRange === range ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              }`}>
+              {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : range === '90d' ? '90 Days' : 'All Time'}
+            </button>
+          ))}
+        </div>
 
         <input
           value={search}

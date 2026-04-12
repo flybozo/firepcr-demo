@@ -28,6 +28,7 @@ export default function ICS214ListPage() {
   const [unitFilter, setUnitFilter] = useState<string>('')
   const [incidentFilter, setIncidentFilter] = useState<string>('All')
   const [statusFilter, setStatusFilter] = useState<string>('All')
+  const [dateRange, setDateRange] = useState('7d')
   const [activeIncidents, setActiveIncidents] = useState<{id: string; name: string}[]>([])
   const [units, setUnits] = useState<string[]>([])
 
@@ -39,10 +40,13 @@ export default function ICS214ListPage() {
     }
   }, [assignment.loading, isAdmin, assignment.unit?.name])
 
+  const dateFilter = dateRange === 'All' ? null :
+    new Date(Date.now() - (dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90) * 86400000).toISOString()
+
   useEffect(() => {
     if (assignment.loading) return
     load()
-  }, [unitFilter, incidentFilter, statusFilter, assignment.loading])
+  }, [unitFilter, incidentFilter, statusFilter, dateRange, assignment.loading])
 
   const load = async () => {
     setLoading(true)
@@ -61,6 +65,7 @@ export default function ICS214ListPage() {
       if (effectiveUnit) q = q.eq('unit_name', effectiveUnit)
       if (isAdmin && incidentFilter !== 'All') q = (q as any).eq('incident_id', incidentFilter)
       if (statusFilter !== 'All') q = q.eq('status', statusFilter)
+      if (dateFilter) q = q.gte('created_at', dateFilter)
 
       const { data, error } = await q
       if (error) throw error
@@ -94,6 +99,18 @@ export default function ICS214ListPage() {
           >
             + New 214
           </Link>
+        </div>
+
+        {/* Date range filter pills */}
+        <div className="flex gap-1.5 mb-3">
+          {(['7d', '30d', '90d', 'All'] as const).map(range => (
+            <button key={range} onClick={() => setDateRange(range)}
+              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                dateRange === range ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              }`}>
+              {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : range === '90d' ? '90 Days' : 'All Time'}
+            </button>
+          ))}
         </div>
 
         {/* Filters */}

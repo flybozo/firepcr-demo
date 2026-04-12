@@ -52,6 +52,7 @@ function AuditLogInner() {
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
 
+  const [dateRange, setDateRange] = useState('7d')
   const [filters, setFilters] = useState({
     unit: searchParams.get('unit') || '',
     drug: searchParams.get('drug') || '',
@@ -60,9 +61,12 @@ function AuditLogInner() {
     dateTo: searchParams.get('to') || '',
   })
 
+  const quickDateFilter = dateRange === 'All' ? null :
+    new Date(Date.now() - (dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90) * 86400000).toISOString()
+
   useEffect(() => {
     loadTransactions()
-  }, [filters])
+  }, [filters, dateRange])
 
   async function loadTransactions() {
     setLoading(true)
@@ -75,6 +79,7 @@ function AuditLogInner() {
     if (filters.drug) query = query.eq('drug_name', filters.drug)
     if (filters.type) query = query.eq('transfer_type', filters.type)
     if (filters.dateFrom) query = query.gte('created_at', filters.dateFrom)
+    else if (quickDateFilter) query = query.gte('created_at', quickDateFilter)
     if (filters.dateTo) query = query.lte('created_at', filters.dateTo + 'T23:59:59')
     if (filters.unit) {
       query = query.or(`from_unit.eq.${filters.unit},to_unit.eq.${filters.unit}`)
@@ -132,6 +137,18 @@ function AuditLogInner() {
         >
           ↓ Export CSV
         </button>
+      </div>
+
+      {/* Date range filter pills */}
+      <div className="flex gap-1.5 mb-3">
+        {(['7d', '30d', '90d', 'All'] as const).map(range => (
+          <button key={range} onClick={() => setDateRange(range)}
+            className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+              dateRange === range ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+            }`}>
+            {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : range === '90d' ? '90 Days' : 'All Time'}
+          </button>
+        ))}
       </div>
 
       {/* Filters */}
