@@ -30,6 +30,7 @@ export type Theme = {
   backgroundOpacity: number
   cardTransparency: number
   borderRadius: string
+  font?: string // CSS font-family value
 }
 
 // ── Presets ───────────────────────────────────────────────────────────────────
@@ -395,6 +396,66 @@ export const THEME_PRESETS: Record<string, { label: string; description: string;
       danger: '#dc2626',
     },
   },
+  cyborg: {
+    label: '🤖 Cyborg',
+    description: 'Machine learning intensifies',
+    colors: {
+      primary: '#00ff41',
+      primaryHover: '#00cc33',
+      secondary: '#0066ff',
+      accent: '#00ffff',
+      headerBg: '#0a0a0a',
+      cardBg: '#0d1117',
+      pageBg: '#0a0a0a',
+      sidebarBg: '#050a05',
+      text: '#00ff41',
+      textMuted: '#00aa2a',
+      border: '#00ff4133',
+      success: '#00ff41',
+      warning: '#ffff00',
+      danger: '#ff0000',
+    },
+  },
+  terminal: {
+    label: '⌨️ Terminal',
+    description: 'sudo make me a sandwich',
+    colors: {
+      primary: '#ff6600',
+      primaryHover: '#cc5200',
+      secondary: '#ffaa00',
+      accent: '#ff8800',
+      headerBg: '#0c0c0c',
+      cardBg: '#141414',
+      pageBg: '#0c0c0c',
+      sidebarBg: '#080808',
+      text: '#ff6600',
+      textMuted: '#994400',
+      border: '#ff660033',
+      success: '#00ff00',
+      warning: '#ffff00',
+      danger: '#ff0000',
+    },
+  },
+  neon: {
+    label: '💠 Neon',
+    description: 'Synthwave vibes only',
+    colors: {
+      primary: '#ff00ff',
+      primaryHover: '#cc00cc',
+      secondary: '#00ffff',
+      accent: '#ff00aa',
+      headerBg: '#0d0014',
+      cardBg: '#1a0028',
+      pageBg: '#0d0014',
+      sidebarBg: '#08000f',
+      text: '#ffffff',
+      textMuted: '#cc88ff',
+      border: '#ff00ff33',
+      success: '#00ffaa',
+      warning: '#ffff00',
+      danger: '#ff0055',
+    },
+  },
 }
 
 export const DEFAULT_THEME: Theme = {
@@ -468,6 +529,35 @@ function applyThemeToDom(theme: Theme) {
   // Update page background on body
   document.body.style.backgroundColor = c.pageBg
   document.body.style.color = c.text
+
+  // Apply font
+  const fontMap: Record<string, string> = {
+    cyborg: "'Share Tech Mono', 'Courier New', monospace",
+    terminal: "'VT323', 'Courier New', monospace",
+    neon: "'Orbitron', 'Arial', sans-serif",
+  }
+  const font = fontMap[theme.preset] || theme.font || "'Inter', system-ui, sans-serif"
+  document.body.style.fontFamily = font
+  root.style.setProperty('--theme-font', font)
+
+  // Load Google Fonts for special themes
+  const googleFonts: Record<string, string> = {
+    cyborg: 'Share+Tech+Mono',
+    terminal: 'VT323',
+    neon: 'Orbitron:wght@400;700',
+  }
+  const gFont = googleFonts[theme.preset]
+  if (gFont) {
+    const linkId = 'theme-google-font'
+    let link = document.getElementById(linkId) as HTMLLinkElement
+    if (!link) {
+      link = document.createElement('link')
+      link.id = linkId
+      link.rel = 'stylesheet'
+      document.head.appendChild(link)
+    }
+    link.href = `https://fonts.googleapis.com/css2?family=${gFont}&display=swap`
+  }
 }
 
 // ── Provider ──────────────────────────────────────────────────────────────────
