@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse, after } from 'next/server'
-import { createServiceClient } from '@/lib/supabase/server'
+import type { VercelRequest, VercelResponse } from '@vercel/node'
+import { createServiceClient } from './_supabase'
 
 // Vercel Pro: max 60s, Enterprise: 900s. Needed for executive tool calls.
-export const maxDuration = 60
+// Vercel serverless
 
 // iMac Codsworth relay — admin users get full context via Tailscale
 const IMAC_GATEWAY_URL = process.env.IMAC_GATEWAY_URL || 'https://aarons-imac-2.tailebc17f.ts.net'
@@ -218,12 +218,13 @@ Keep responses concise and practical. You know this team works in demanding fiel
 }
 
 // ── Main route ────────────────────────────────────────────────────────────────
-export async function POST(req: NextRequest) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" })
   try {
-    const { message, employee_id } = await req.json()
+    const { message, employee_id } = req.body
 
     if (!message || !employee_id) {
-      return NextResponse.json({ error: 'Missing message or employee_id' }, { status: 400 })
+      return res.status(400).json({ error: 'Missing message or employee_id' })
     }
 
     const supabase = createServiceClient()
@@ -236,7 +237,7 @@ export async function POST(req: NextRequest) {
       .single()
 
     if (!employee) {
-      return NextResponse.json({ error: 'Employee not found' }, { status: 404 })
+      return res.status(404).json({ error: 'Employee not found' })
     }
 
     // Fetch current unit assignment
@@ -325,13 +326,14 @@ export async function POST(req: NextRequest) {
 
       if (placeholderErr || !placeholder) {
         console.error('[async relay] Failed to insert placeholder:', placeholderErr)
-        return NextResponse.json({ error: 'Failed to initialize chat' }, { status: 500 })
+        return res.status(500).json({ error: 'Failed to initialize chat' })
       }
 
       const pendingMessageId = placeholder.id
 
       // 3. Fire relay in background — runs AFTER response is sent to client
-      after(async () => {
+      // Run relay in background (Vercel keeps the function alive)
+      (async () => {
         try {
           const relayReply = await relayToImac(message, employee, unitName, incidentName, relayHistory)
 
@@ -376,7 +378,7 @@ export async function POST(req: NextRequest) {
       })
 
       // 4. Return immediately — client will poll for the pending message
-      return NextResponse.json({
+      return res.json({
         reply: null,
         pending: true,
         pendingMessageId,
@@ -394,11 +396,11 @@ export async function POST(req: NextRequest) {
         { employee_id, role: 'assistant', content: reply, status: 'complete' },
       ])
 
-      return NextResponse.json({ reply, requestLogged, routedVia: 'haiku' })
+      return res.json({ reply, requestLogged, routedVia: 'haiku' })
     }
 
   } catch (err: any) {
     console.error('employee-chat route error:', err)
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+    return res.status(500).json({ error: 'Internal server error' })
   }
 }
