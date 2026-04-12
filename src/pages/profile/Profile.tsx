@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadSingle } from '@/lib/offlineFirst'
 import { useUserAssignment } from '@/lib/useUserAssignment'
-import { useTheme, THEME_PRESETS } from '@/components/ThemeProvider'
+import { useTheme, THEME_PRESETS, THEME_FONTS } from '@/components/ThemeProvider'
 import type { Theme } from '@/components/ThemeProvider'
 
 
@@ -450,12 +450,18 @@ function AppearanceSection() {
                 <span className="text-sm font-semibold" style={{ color: preset.colors.text }}>{preset.label}</span>
                 {isActive && <span className="text-xs">✓</span>}
               </div>
-              <div className="flex gap-1">
+              <div className="flex gap-1 mb-1.5">
                 {[preset.colors.primary, preset.colors.secondary, preset.colors.accent, preset.colors.cardBg].map((c, i) => (
                   <div key={i} className="w-5 h-5 rounded-full border border-white/10" style={{ backgroundColor: c }} />
                 ))}
               </div>
-              <p className="text-xs mt-1" style={{ color: preset.colors.textMuted }}>{preset.description}</p>
+              {/* Font sample */}
+              {THEME_FONTS[key] && (
+                <p className="text-xs mb-1" style={{ color: preset.colors.primary, fontFamily: THEME_FONTS[key].family, opacity: 0.9 }}>
+                  Aa — {THEME_FONTS[key].name}
+                </p>
+              )}
+              <p className="text-xs" style={{ color: preset.colors.textMuted }}>{preset.description}</p>
             </button>
           )
         })}

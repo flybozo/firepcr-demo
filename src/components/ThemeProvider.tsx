@@ -33,6 +33,31 @@ export type Theme = {
   font?: string // CSS font-family value
 }
 
+// ── Font Map (exported for use in theme cards) ────────────────────────────────
+export const THEME_FONTS: Record<string, { family: string; name: string }> = {
+  ember:        { family: "'Inter', system-ui, sans-serif", name: 'Inter' },
+  pacific:      { family: "'Rajdhani', sans-serif", name: 'Rajdhani' },
+  forest:       { family: "'Cabin', sans-serif", name: 'Cabin' },
+  sierra:       { family: "'Josefin Sans', sans-serif", name: 'Josefin Sans' },
+  arctic:       { family: "'Exo 2', sans-serif", name: 'Exo 2' },
+  midnight:     { family: "'Quicksand', sans-serif", name: 'Quicksand' },
+  barbie:       { family: "'Pacifico', cursive", name: 'Pacifico' },
+  rainbow:      { family: "'Nunito', sans-serif", name: 'Nunito' },
+  douchebag:    { family: "'Anton', sans-serif", name: 'Anton' },
+  prepper:      { family: "'Courier Prime', monospace", name: 'Courier Prime' },
+  patriot:      { family: "'Libre Baskerville', serif", name: 'Libre Baskerville' },
+  sunworshipper:{ family: "'Playfair Display', serif", name: 'Playfair Display' },
+  grandma:      { family: "'Lato', sans-serif", name: 'Lato' },
+  surfer:       { family: "'Comfortaa', cursive", name: 'Comfortaa' },
+  elgaucho:     { family: "'Righteous', cursive", name: 'Righteous' },
+  overcast:     { family: "'Source Sans 3', sans-serif", name: 'Source Sans 3' },
+  hippie:       { family: "'Caveat', cursive", name: 'Caveat' },
+  doc:          { family: "'IBM Plex Sans', sans-serif", name: 'IBM Plex Sans' },
+  cyborg:       { family: "'Share Tech Mono', monospace", name: 'Share Tech Mono' },
+  terminal:     { family: "'VT323', monospace", name: 'VT323' },
+  neon:         { family: "'Orbitron', sans-serif", name: 'Orbitron' },
+}
+
 // ── Presets ───────────────────────────────────────────────────────────────────
 
 export const THEME_PRESETS: Record<string, { label: string; description: string; colors: ThemeColors }> = {
