@@ -148,7 +148,7 @@ const NAV: NavItem[] = [
   },
 ]
 
-const STORAGE_KEY = 'ram-sidebar-order'
+const STORAGE_KEY = 'firepcr-sidebar-order'
 
 function loadOrder(labels: string[]): string[] {
   if (typeof window === 'undefined') return labels
@@ -373,13 +373,13 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           />
         ) : (
           <img
-            src="https://kfkpvazkikpuwatthtow.supabase.co/storage/v1/object/public/headshots/ram-logo.png"
-            alt="Remote Area Medicine"
+            src="https://api.dicebear.com/7.x/shapes/svg?seed=firepcr&backgroundColor=0066ff"
+            alt="FirePCR"
             className="w-10 h-10 rounded-full object-contain bg-white p-0.5 shrink-0"
           />
         )}
         <div className="min-w-0">
-          <h1 className="text-sm font-bold text-white leading-tight">{org?.dba ?? org?.name ?? 'Remote Area Medicine'}</h1>
+          <h1 className="text-sm font-bold text-white leading-tight">{org?.dba ?? org?.name ?? 'FirePCR'}</h1>
           <p className="text-xs text-gray-500">Field Ops</p>
         </div>
       </Link>

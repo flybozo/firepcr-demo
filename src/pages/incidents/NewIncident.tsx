@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
 
-const UNIT_NAMES = ['RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'The Beast', 'MSU 1', 'MSU 2', 'REMS 1', 'REMS 2']
+const UNIT_NAMES = ['GRANITE 1', 'GRANITE 2', 'GRANITE MSU', 'GRANITE REMS']
 
 export default function NewIncidentPage() {
   const supabase = createClient()

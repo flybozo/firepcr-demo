@@ -400,7 +400,7 @@ export default function SchedulePage() {
               value={notes}
               onChange={e => setNotes(e.target.value)}
               className={`${inputCls} h-16 resize-none`}
-              placeholder={type === 'time_off' ? 'Reason, travel plans, etc.' : 'Available for any assignment, prefer RAMBO 1, etc.'}
+              placeholder={type === 'time_off' ? 'Reason, travel plans, etc.' : 'Available for any assignment, prefer GRANITE 1, etc.'}
             />
           </div>
 

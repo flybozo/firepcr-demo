@@ -38,13 +38,13 @@ type UnitData = {
 
 const CS_UNIT_TYPE: Record<string, string> = {
   'Warehouse': 'Warehouse',
-  'RAMBO 1': 'Ambulance', 'RAMBO 2': 'Ambulance', 'RAMBO 3': 'Ambulance', 'RAMBO 4': 'Ambulance',
+  'GRANITE 1': 'Ambulance', 'GRANITE 2': 'Ambulance',
   'MSU 1': 'Med Unit', 'MSU 2': 'Med Unit', 'The Beast': 'Med Unit',
   'REMS 1': 'REMS', 'REMS 1 Trailer': 'REMS', 'REMS 2': 'REMS',
   'Truck 1': 'REMS', 'Truck 2': 'REMS', 'Truck 3': 'REMS', 'UTV 1': 'REMS', 'UTV 2': 'REMS',
 }
 
-const UNITS = ['Warehouse', 'RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
+const UNITS = ['Warehouse', 'GRANITE 1', 'GRANITE 2', 'GRANITE MSU', 'GRANITE REMS']
 
 const TYPE_COLORS: Record<string, string> = {
   Receive: 'text-green-400',

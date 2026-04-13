@@ -59,7 +59,7 @@ const STATUS_COLOR: Record<string, string> = {
   'Denied': C.red, 'Under Review': C.violet,
 }
 
-const BASE_URL = import.meta.env.VITE_SITE_URL || 'https://ram-field-ops.vercel.app'
+const BASE_URL = import.meta.env.VITE_SITE_URL || 'https://demo.firepcr.com'
 
 // ── Access Codes Panel ────────────────────────────────────────────────────────
 function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; incidentName: string }) {

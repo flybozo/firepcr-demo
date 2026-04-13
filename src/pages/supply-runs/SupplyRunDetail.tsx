@@ -152,7 +152,7 @@ export default function SupplyRunDetailPage() {
     setItems(itemData || [])
     // Filter formulary to match this unit's type (ambulance/med unit/rems)
     const runUnit = (runData as any)?.incident_unit?.unit?.name || ''
-    const unitType = runUnit.startsWith('RAMBO') ? 'Ambulance' : 
+    const unitType = runUnit.startsWith('GRANITE') ? 'Ambulance' : 
                      (runUnit.startsWith('REMS') ? 'REMS' : 'Med Unit')
     const filteredFormulary = (formularyData || []).filter((f: any) => 
       !f.unit_type?.name || f.unit_type.name === unitType

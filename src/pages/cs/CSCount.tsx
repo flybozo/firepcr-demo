@@ -28,7 +28,7 @@ type CountEntry = {
   discrepancyNote: string
 }
 
-const ALL_UNITS = ['Warehouse', 'RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
+const ALL_UNITS = ['Warehouse', 'GRANITE 1', 'GRANITE 2', 'GRANITE MSU', 'GRANITE REMS']
 const CLINICAL_ROLES = ['MD/DO', 'NP', 'PA', 'Paramedic', 'RN']
 
 const inputCls = 'w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500'

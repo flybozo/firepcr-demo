@@ -107,7 +107,7 @@ export default function NewUnitPage() {
           <div>
             <label className={labelClass}>Unit Name *</label>
             <input value={form.name} onChange={e => set('name', e.target.value)}
-              placeholder="e.g. RAMBO 5, MSU 3, REMS 3" className={inputClass} />
+              placeholder="e.g. GRANITE 3, MSU 2" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Unit Type *</label>

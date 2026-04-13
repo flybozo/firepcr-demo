@@ -1093,7 +1093,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
   // Set card order based on unit type after enc loads (only if no saved user preference)
   useEffect(() => {
     if (enc && !savedPrefRef.current) {
-      const isAmb = enc.unit?.toUpperCase().startsWith('RAMBO')
+      const isAmb = enc.unit?.toUpperCase().startsWith('GRANITE')
       setCardOrder(isAmb ? AMBULANCE_DEFAULT_ORDER : MEDUNIT_DEFAULT_ORDER)
     }
   }, [enc?.id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -1392,7 +1392,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
   const markComplete = async () => {
     if (!enc) return
     // Block completion if there are NEMSIS errors on ambulance PCRs
-    if (enc.unit?.toUpperCase().startsWith('RAMBO') && nemsisErrorCountRef.current > 0) {
+    if (enc.unit?.toUpperCase().startsWith('GRANITE') && nemsisErrorCountRef.current > 0) {
       const errs = nemsisErrorsRef.current
       const errorList = errs.slice(0, 3).map((e: any) => '• ' + e.message).join('\n')
       const moreMsg = nemsisErrorCountRef.current > 3 ? '\n• ...and ' + (nemsisErrorCountRef.current - 3) + ' more' : ''
@@ -1408,7 +1408,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
     setEnc(prev => prev ? { ...prev, pcr_status: 'Complete' } : prev)
 
     // Auto-generate and store NEMSIS XML for ambulance units (online only)
-    if (getIsOnline() && enc.unit?.startsWith('RAMBO')) {
+    if (getIsOnline() && enc.unit?.startsWith('GRANITE')) {
       try {
         const xmlResp = await fetch(`/api/encounters/${id}/nemsis-export`)
         if (xmlResp.ok) {
@@ -1469,7 +1469,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
 
   // NEMSIS quality warnings — must be called before any early returns (hooks rule)
   const allNemsisWarnings = useNEMSISWarnings(enc ?? {} as Record<string, any>)
-  const isAmbulance = enc?.unit?.toUpperCase().startsWith('RAMBO') ?? false
+  const isAmbulance = enc?.unit?.toUpperCase().startsWith('GRANITE') ?? false
   const nemsisWarnings = isAmbulance ? allNemsisWarnings : []
   const nemsisErrors = nemsisWarnings.filter((w: any) => w.severity === 'error')
   const nemsisWarningCount = nemsisWarnings.filter((w: any) => w.severity === 'warning').length
@@ -1720,7 +1720,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                                 <span>✏️</span> Edit
                               </Link>
                             )}
-                            {enc.unit?.toUpperCase().startsWith('RAMBO') && (
+                            {enc.unit?.toUpperCase().startsWith('GRANITE') && (
                               <>
                                 <a
                                   href={`/api/encounters/${enc.id}/nemsis-export`}

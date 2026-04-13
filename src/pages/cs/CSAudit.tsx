@@ -22,7 +22,7 @@ type CSTransaction = {
 
 const CS_DRUGS = ['Morphine Sulfate', 'Fentanyl', 'Midazolam (Versed)', 'Ketamine']
 const TRANSFER_TYPES = ['Receive', 'Transfer', 'Administer', 'Waste', 'Return', 'Audit']
-const ALL_UNITS = ['Warehouse', 'RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
+const ALL_UNITS = ['Warehouse', 'GRANITE 1', 'GRANITE 2', 'GRANITE MSU', 'GRANITE REMS']
 
 const TYPE_COLORS: Record<string, string> = {
   Receive: 'bg-green-900/40 text-green-300 border border-green-700',

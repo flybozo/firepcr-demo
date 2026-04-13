@@ -23,7 +23,7 @@ export type CompClaimsData = {
   mechanism?: string
   what_harmed?: string
   lost_time?: string
-  // RAM supplement
+  // Clinical supplement
   incident?: string
   unit?: string
   clinical_impression?: string
@@ -104,14 +104,14 @@ export function generateCompClaimsPDF(d: CompClaimsData): jsPDF {
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
   doc.text('OSHA Form 301  |  OMB No. 1218-0176', W / 2, y + 10, { align: 'center' }); y += 12
   doc.setFontSize(8); doc.setTextColor(30, 58, 95)
-  doc.text('RAM Clinical Supplement attached — clinical details on reverse', W / 2, y + 10, { align: 'center' })
+  doc.text('Clinical Supplement attached — clinical details on reverse', W / 2, y + 10, { align: 'center' })
   doc.setTextColor(...BLACK); y += 18
 
   // ── Section 1: Employee ──
   sectionHeader('1. Information About the Employee')
   rowFields([
     { label: '1. Full name', value: f(d.patient_name), w: colW * 0.55 },
-    { label: 'Agency', value: f(d.employee_agency) || 'Remote Area Medicine', w: colW * 0.42 },
+    { label: 'Agency', value: f(d.employee_agency) || 'FirePCR EMS', w: colW * 0.42 },
   ])
   rowFields([
     { label: '3. Date of birth', value: '', w: colW * 0.25 },
@@ -179,7 +179,7 @@ export function generateCompClaimsPDF(d: CompClaimsData): jsPDF {
   doc.setDrawColor(...BLACK)
   y += 8
 
-  sectionHeader('RAM Clinical Supplement — NOT Part of OSHA 301 (Attach to Form)', SUPHEAD)
+  sectionHeader('Clinical Supplement — NOT Part of OSHA 301 (Attach to Form)', SUPHEAD)
   rowFields([
     { label: 'Incident / Fire', value: f(d.incident), w: colW * 0.4 },
     { label: 'Medical Unit', value: f(d.unit), w: colW * 0.25 },

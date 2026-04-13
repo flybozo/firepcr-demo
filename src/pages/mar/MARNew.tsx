@@ -718,7 +718,7 @@ function MARNewFormInner() {
             ) : (
               <select className={inputCls} value={form.med_unit} onChange={e => handleUnitChange(e.target.value)}>
                 <option value="">Select unit</option>
-                {['RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2'].map(u => (
+                {['GRANITE 1', 'GRANITE 2', 'GRANITE MSU', 'GRANITE REMS'].map(u => (
                   <option key={u} value={u}>{u}</option>
                 ))}
               </select>

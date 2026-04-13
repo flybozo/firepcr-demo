@@ -173,7 +173,7 @@ export default function ICS214DetailPage() {
   const [showAddPersonnel, setShowAddPersonnel] = useState(false)
   const [newPersonName, setNewPersonName] = useState('')
   const [newPersonPos, setNewPersonPos] = useState('')
-  const [newPersonAgency, setNewPersonAgency] = useState('Remote Area Medicine')
+  const [newPersonAgency, setNewPersonAgency] = useState('Sierra Valley EMS')
 
   // Closeout
   const [showCloseout, setShowCloseout] = useState(false)
@@ -274,7 +274,7 @@ export default function ICS214DetailPage() {
     if (data) setPersonnel(prev => [...prev, data as Personnel])
     setNewPersonName('')
     setNewPersonPos('')
-    setNewPersonAgency('Remote Area Medicine')
+    setNewPersonAgency('Sierra Valley EMS')
     setShowAddPersonnel(false)
   }
 
