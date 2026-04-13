@@ -262,15 +262,17 @@ export default function HRCredentialsPage() {
         ) : filtered.length === 0 ? (
           <div className="text-center py-12 text-gray-500">No employees match this filter.</div>
         ) : (
-          <div className="bg-gray-900 rounded-xl overflow-hidden border border-gray-800">
+          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+            {/* Scrollable table wrapper for mobile */}
+            <div className="overflow-x-auto">
             {/* Table header */}
-            <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/50">
-              <span className="w-40 shrink-0">Name</span>
-              <span className="w-24 shrink-0">Role</span>
-              <span className="w-32 shrink-0 hidden md:block">Experience</span>
-              <span className="w-48 shrink-0">Compliance</span>
+            <div className="flex items-center px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/50" style={{ minWidth: '700px' }}>
+              <span className="w-36 shrink-0">Name</span>
+              <span className="w-20 shrink-0">Role</span>
+              <span className="w-28 shrink-0 hidden md:block">Exp</span>
+              <span className="w-44 shrink-0">Compliance</span>
               <span className="flex-1 min-w-0">Missing / Expired</span>
-              <span className="w-24 shrink-0 text-right">Action</span>
+              <span className="w-20 shrink-0 text-right">Action</span>
             </div>
 
             {filtered.map(({ employee: emp, pct, missing, expired, required }) => {
@@ -286,21 +288,21 @@ export default function HRCredentialsPage() {
               ]
 
               return (
-                <div key={emp.id} className="flex items-center px-4 py-3 border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors">
+                <div key={emp.id} className="flex items-center px-3 py-2 border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors" style={{ minWidth: '700px' }}>
                   {/* Name */}
-                  <div className="w-40 shrink-0">
+                  <div className="w-36 shrink-0 pr-2">
                     <p className="text-sm font-medium text-white truncate">{emp.name || '—'}</p>
                   </div>
 
                   {/* Role */}
-                  <div className="w-24 shrink-0">
-                    <span className="text-xs bg-gray-700 text-gray-300 px-2 py-0.5 rounded-full">
+                  <div className="w-20 shrink-0">
+                    <span className="text-xs bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded-full truncate block max-w-full">
                       {emp.role || '—'}
                     </span>
                   </div>
 
                   {/* Experience Level */}
-                  <div className="w-32 shrink-0 hidden md:block" onClick={e => e.stopPropagation()}>
+                  <div className="w-28 shrink-0 hidden md:block" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center gap-1.5">
                       <span className="text-sm">
                         {emp.experience_level === 1 ? '⭐' :
@@ -318,7 +320,7 @@ export default function HRCredentialsPage() {
                             setEmployees(prev => prev.map(x => x.id === emp.id ? { ...x, experience_level: val } : x))
                             setSavingExp(null)
                           }}
-                          className="bg-gray-800 text-gray-300 text-xs rounded px-1 py-0.5 border border-gray-700 focus:outline-none focus:border-red-500"
+                          className="bg-gray-800 text-gray-300 text-xs rounded px-1 py-0.5 border border-gray-700 focus:outline-none focus:border-red-500 max-w-[70px]"
                           title="Experience Level (1=Junior, 2=Mid, 3=Senior)"
                         >
                           <option value="">—</option>
@@ -331,7 +333,7 @@ export default function HRCredentialsPage() {
                   </div>
 
                   {/* Compliance bar */}
-                  <div className="w-48 shrink-0 pr-4">
+                  <div className="w-44 shrink-0 pr-3">
                     <div className="flex items-center gap-2">
                       <div className="flex-1 bg-gray-700 rounded-full h-2 overflow-hidden">
                         <div
@@ -384,6 +386,7 @@ export default function HRCredentialsPage() {
                 </div>
               )
             })}
+            </div> {/* end overflow-x-auto scroll wrapper */}
           </div>
         )}
 
