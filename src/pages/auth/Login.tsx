@@ -33,7 +33,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <img
-            src="/firepcr-logo.svg"
+            src="/icons/icon-512.png"
             alt="FirePCR"
             className="w-24 h-24 mx-auto mb-4 rounded-2xl shadow-[0_0_32px_#0066ff60]"
           />
