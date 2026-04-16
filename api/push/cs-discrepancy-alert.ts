@@ -3,11 +3,7 @@ import { createServiceClient } from '../_supabase.js'
 import { requireEmployee } from '../_auth.js'
 import { sendEmail, buildEmailHtml } from '../_email.js'
 import webpush from 'web-push'
-
-const VAPID_PUBLIC = 'BCW3KyLolVrvyMdd4H9UkG9gcLbuxnS02WEL-8zOXt0yP20LfCklisBo4-HeE4tfx_qtpqVj3vrJm7elLZqm63c'
-const VAPID_PRIVATE = '1aoCYCPIEMr0PsjrSwzUyuwtv7iPToKHA53l3nAIBjM'
-
-webpush.setVapidDetails('mailto:codsworth@wildfiremedical.com', VAPID_PUBLIC, VAPID_PRIVATE)
+import { ensureVapid } from '../_vapid.js'
 
 // POST /api/push/cs-discrepancy-alert
 // Called when a CS count finds discrepancies. Alerts all admins via push + email.
@@ -23,6 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
+    ensureVapid()
     // Authenticate the caller (any employee can submit a count)
     await requireEmployee(req)
 

@@ -146,7 +146,7 @@ export default function RosterDetailPage() {
         }
       } catch {}
       const { data: empData, offline } = await loadSingle<Employee>(
-        () => supabase.from('employees').select('*').eq('id', id).single() as any,
+        () => supabase.from('employees').select('id, name, role, app_role, status, wf_email, email, phone, personal_email, personal_phone, home_address, emergency_contact_name, emergency_contact_phone, emergency_contact_relationship, headshot_url, date_of_birth, ram_id, auth_user_id, qr_code_url, bls, acls, pals, itls, paramedic_license, ambulance_driver_cert, medical_license, s130, s190, l180, ics100, ics200, ics700, ics800, dea_license, ssv_lemsa, npi').eq('id', id).single() as any,
         'employees',
         id
       )

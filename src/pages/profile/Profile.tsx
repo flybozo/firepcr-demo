@@ -70,7 +70,7 @@ export default function ProfilePage() {
           if (cached) setEmployee(cached)
         } catch {}
         const { data } = await loadSingle(
-          () => supabase.from('employees').select('*').eq('id', assignment.employee!.id).single() as any,
+          () => supabase.from('employees').select('id, name, role, app_role, status, wf_email, email, phone, personal_email, personal_phone, home_address, emergency_contact_name, emergency_contact_phone, emergency_contact_relationship, headshot_url, date_of_birth, ram_id, auth_user_id').eq('id', assignment.employee!.id).single() as any,
           'employees',
           assignment.employee!.id
         )
@@ -560,8 +560,10 @@ function PinSetupSection({ employeeId }: { employeeId: string | undefined }) {
 
   useEffect(() => {
     if (!employeeId) return
-    supabase.from('employees').select('signing_pin_hash').eq('id', employeeId).single()
-      .then(({ data }) => setHasPin(!!data?.signing_pin_hash))
+    authFetch('/api/pin/status')
+      .then(r => r.json())
+      .then(data => setHasPin(!!data?.hasPin))
+      .catch(() => setHasPin(null))
   }, [employeeId])
 
   const handleSave = async () => {
