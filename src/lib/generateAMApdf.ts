@@ -29,7 +29,7 @@ export async function generateAMAPDF(data: AMAData, logoDataUrl?: string | null)
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255)
   doc.text('REMOTE AREA MEDICINE', W / 2, y + 6, { align: 'center' })
   doc.setFontSize(8); doc.setFont('helvetica', 'normal')
-  doc.text('Ridgeline EMS  |  Medical Director: Provider of Record', W / 2, y + 20, { align: 'center' })
+  doc.text('Ridgeline EMS  |  Medical Director: Aaron Stutz, MD', W / 2, y + 20, { align: 'center' })
   doc.setTextColor(0, 0, 0)
   y += 44
   doc.setFont('helvetica', 'bold'); doc.setFontSize(11)

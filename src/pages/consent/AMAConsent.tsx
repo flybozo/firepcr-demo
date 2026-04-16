@@ -524,7 +524,7 @@ function AMAFormInner() {
         {/* Header */}
         <div className="text-center pt-4">
           <h1 className="text-xl font-bold text-red-500">REMOTE AREA MEDICINE</h1>
-          <p className="text-sm text-gray-400">Ridgeline EMS P.C. | DBA Ridgeline EMS</p>
+          <p className="text-sm text-gray-400">Ridgeline EMS | DBA Ridgeline EMS</p>
           <p className="text-xs text-gray-500">Medical Director: Aaron Stutz, MD</p>
           <p className="text-sm font-semibold mt-2">REFUSAL OF EMERGENCY MEDICAL CARE / AMA</p>
           <p className="text-xs text-gray-400 mt-1">{formDate} — {formTime}</p>
@@ -602,7 +602,7 @@ function AMAFormInner() {
           <section className="bg-gray-900 rounded-xl p-4">
             <h2 className="font-bold text-sm uppercase tracking-wide text-gray-300 mb-2">Patient Statement & Release</h2>
             <p className="text-xs text-gray-400 leading-relaxed">
-              I, <span className="text-white font-medium">{patientName}</span>, have been informed of my medical condition, the recommended treatment and/or transport, and the risks of refusal — including serious injury or death. I am voluntarily refusing the emergency medical care described above and release Ridgeline EMS (Ridgeline EMS P.C.), its medical director, and all EMS providers from any liability arising from this refusal. I have been advised to call 911 or seek emergency care immediately if my condition worsens.
+              I, <span className="text-white font-medium">{patientName}</span>, have been informed of my medical condition, the recommended treatment and/or transport, and the risks of refusal — including serious injury or death. I am voluntarily refusing the emergency medical care described above and release Ridgeline EMS (Ridgeline EMS), its medical director, and all EMS providers from any liability arising from this refusal. I have been advised to call 911 or seek emergency care immediately if my condition worsens.
             </p>
           </section>
 
@@ -610,12 +610,39 @@ function AMAFormInner() {
           <section className="bg-gray-900 rounded-xl p-4 space-y-3">
             <h2 className="font-bold text-sm uppercase tracking-wide text-gray-300">Patient Signature *</h2>
             <p className="text-xs text-gray-500">{formDate} {formTime}</p>
-            <div className="bg-white rounded-lg overflow-hidden">
+            <div
+              className="bg-white rounded-lg overflow-hidden"
+              style={{ touchAction: 'none' }}
+              ref={(el) => {
+                if (el) {
+                  const canvas = el.querySelector('canvas')
+                  if (canvas) {
+                    const rect = el.getBoundingClientRect()
+                    if (rect.width > 0 && canvas.width !== Math.round(rect.width)) {
+                      canvas.width = Math.round(rect.width)
+                      canvas.height = 140
+                    }
+                  }
+                }
+              }}
+            >
               <SignatureCanvas
                 ref={patientSigRef}
-                canvasProps={{ className: 'w-full', height: 140 }}
                 backgroundColor="white"
                 penColor="black"
+                canvasProps={{ style: { width: '100%', height: '140px', display: 'block' } }}
+                onBegin={() => {
+                  const canvas = patientSigRef.current?.getCanvas()
+                  if (canvas) {
+                    const rect = canvas.getBoundingClientRect()
+                    if (rect.width > 0 && canvas.width !== Math.round(rect.width)) {
+                      const data = patientSigRef.current?.toData()
+                      canvas.width = Math.round(rect.width)
+                      canvas.height = 140
+                      if (data) patientSigRef.current?.fromData(data)
+                    }
+                  }
+                }}
               />
             </div>
             <button type="button" onClick={() => patientSigRef.current?.clear()}
@@ -634,12 +661,39 @@ function AMAFormInner() {
               </select>
             </div>
             <p className="text-xs text-gray-500">{formDate} {formTime}</p>
-            <div className="bg-white rounded-lg overflow-hidden">
+            <div
+              className="bg-white rounded-lg overflow-hidden"
+              style={{ touchAction: 'none' }}
+              ref={(el) => {
+                if (el) {
+                  const canvas = el.querySelector('canvas')
+                  if (canvas) {
+                    const rect = el.getBoundingClientRect()
+                    if (rect.width > 0 && canvas.width !== Math.round(rect.width)) {
+                      canvas.width = Math.round(rect.width)
+                      canvas.height = 140
+                    }
+                  }
+                }
+              }}
+            >
               <SignatureCanvas
                 ref={providerSigRef}
-                canvasProps={{ className: 'w-full', height: 140 }}
                 backgroundColor="white"
                 penColor="black"
+                canvasProps={{ style: { width: '100%', height: '140px', display: 'block' } }}
+                onBegin={() => {
+                  const canvas = providerSigRef.current?.getCanvas()
+                  if (canvas) {
+                    const rect = canvas.getBoundingClientRect()
+                    if (rect.width > 0 && canvas.width !== Math.round(rect.width)) {
+                      const data = providerSigRef.current?.toData()
+                      canvas.width = Math.round(rect.width)
+                      canvas.height = 140
+                      if (data) providerSigRef.current?.fromData(data)
+                    }
+                  }
+                }}
               />
             </div>
             <button type="button" onClick={() => providerSigRef.current?.clear()}

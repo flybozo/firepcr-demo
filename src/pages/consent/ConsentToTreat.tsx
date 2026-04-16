@@ -339,7 +339,7 @@ function ConsentToTreatInner() {
             <div className="text-xs text-gray-300 space-y-2 leading-relaxed max-h-48 overflow-y-auto pr-2">
               <p>
                 I, <span className="text-white font-medium">{patientName}</span>, hereby consent to emergency medical
-                treatment and care provided by Ridgeline EMS (Ridgeline EMS P.C.) personnel, including
+                treatment and care provided by Ridgeline EMS (Ridgeline EMS) personnel, including
                 physicians, physician assistants, nurse practitioners, registered nurses, EMTs, and paramedics.
               </p>
               <p className="font-semibold text-gray-200">I understand and acknowledge:</p>
@@ -367,11 +367,43 @@ function ConsentToTreatInner() {
               <button type="button" onClick={() => patientSigRef.current?.clear()}
                 className="text-xs text-gray-500 hover:text-white transition-colors">Clear</button>
             </div>
-            <div className="bg-white rounded-lg overflow-hidden" style={{ touchAction: 'none' }}>
+            <div
+              className="bg-white rounded-lg overflow-hidden"
+              style={{ touchAction: 'none' }}
+              ref={(el) => {
+                // Sync canvas pixel dimensions to CSS dimensions on mount
+                // Fixes touch/mouse coordinate offset when canvas is CSS-stretched
+                if (el) {
+                  const canvas = el.querySelector('canvas')
+                  if (canvas) {
+                    const rect = el.getBoundingClientRect()
+                    if (rect.width > 0 && canvas.width !== Math.round(rect.width)) {
+                      canvas.width = Math.round(rect.width)
+                      canvas.height = 150
+                    }
+                  }
+                }
+              }}
+            >
               <SignatureCanvas
                 ref={patientSigRef}
                 penColor="black"
-                canvasProps={{ className: 'w-full', height: 150, style: { width: '100%', height: 150 } }}
+                canvasProps={{
+                  style: { width: '100%', height: '150px', display: 'block' },
+                }}
+                onBegin={() => {
+                  // Re-sync dimensions each time drawing begins (handles resize/scroll)
+                  const canvas = patientSigRef.current?.getCanvas()
+                  if (canvas) {
+                    const rect = canvas.getBoundingClientRect()
+                    if (rect.width > 0 && canvas.width !== Math.round(rect.width)) {
+                      const data = patientSigRef.current?.toData()
+                      canvas.width = Math.round(rect.width)
+                      canvas.height = 150
+                      if (data) patientSigRef.current?.fromData(data)
+                    }
+                  }
+                }}
               />
             </div>
             <p className="text-[10px] text-gray-600 text-center">Sign with finger or stylus above</p>
