@@ -1,13 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { createServiceClient } from '../_supabase'
-import { requireEmployee } from '../_auth'
-import { sendEmail, buildEmailHtml } from '../_email'
+import { createServiceClient } from '../_supabase.js'
+import { requireEmployee } from '../_auth.js'
+import { sendEmail, buildEmailHtml } from '../_email.js'
 import webpush from 'web-push'
 
 const VAPID_PUBLIC = 'BCW3KyLolVrvyMdd4H9UkG9gcLbuxnS02WEL-8zOXt0yP20LfCklisBo4-HeE4tfx_qtpqVj3vrJm7elLZqm63c'
 const VAPID_PRIVATE = '1aoCYCPIEMr0PsjrSwzUyuwtv7iPToKHA53l3nAIBjM'
 
-webpush.setVapidDetails('mailto:admin@ridgelineems.com', VAPID_PUBLIC, VAPID_PRIVATE)
+webpush.setVapidDetails('mailto:codsworth@wildfiremedical.com', VAPID_PUBLIC, VAPID_PRIVATE)
 
 type SendRequest = {
   title: string
@@ -140,7 +140,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             title,
             body: `<p>${body.replace(/\n/g, '<br>')}</p>`,
             ctaText: url ? 'Open in FirePCR' : undefined,
-            ctaUrl: url ? `https://demo.firepcr.com${url}` : undefined,
+            ctaUrl: url ? `https://ram-field-ops.vercel.app${url}` : undefined,
           }),
         })
         if (sent) emailsSent = emails.length

@@ -47,7 +47,7 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
       subject: params.subject,
       html: params.html,
       text: params.text,
-      reply_to: params.replyTo,
+      replyTo: params.replyTo,
     })
     if (error) {
       console.error('[Email] Send failed:', error)
@@ -94,7 +94,7 @@ export function buildEmailHtml(opts: {
     </tr>
     <tr>
       <td style="padding:16px 24px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:11px">
-        ${footer || 'Ridgeline EMS &bull; Ridgeline EMS P.C.'}
+        ${footer || 'Ridgeline EMS &bull; Mossbrae Medical Group P.C.'}
       </td>
     </tr>
   </table>

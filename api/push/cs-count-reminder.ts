@@ -1,12 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { createServiceClient } from '../_supabase'
-import { sendEmail, buildEmailHtml } from '../_email'
+import { createServiceClient } from '../_supabase.js'
+import { sendEmail, buildEmailHtml } from '../_email.js'
 import webpush from 'web-push'
 
 const VAPID_PUBLIC = 'BCW3KyLolVrvyMdd4H9UkG9gcLbuxnS02WEL-8zOXt0yP20LfCklisBo4-HeE4tfx_qtpqVj3vrJm7elLZqm63c'
 const VAPID_PRIVATE = '1aoCYCPIEMr0PsjrSwzUyuwtv7iPToKHA53l3nAIBjM'
 
-webpush.setVapidDetails('mailto:admin@ridgelineems.com', VAPID_PUBLIC, VAPID_PRIVATE)
+webpush.setVapidDetails('mailto:codsworth@wildfiremedical.com', VAPID_PUBLIC, VAPID_PRIVATE)
 
 // GET /api/push/cs-count-reminder
 // Called by cron twice daily. Checks which units haven't done a CS count
@@ -176,7 +176,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           <p>Please complete your CS count as soon as possible.</p>
         `,
         ctaText: 'Complete CS Count',
-        ctaUrl: 'https://demo.firepcr.com/cs/count',
+        ctaUrl: 'https://ram-field-ops.vercel.app/cs/count',
       }),
     })
     if (sent) emailsSent++

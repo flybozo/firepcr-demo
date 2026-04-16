@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import bcrypt from 'bcryptjs'
-import { HttpError, requireAuthUser } from '../_auth'
-import { createServiceClient } from '../_supabase'
-import { validateBody } from '../_validate'
-import { rateLimit } from '../_rateLimit'
+import { HttpError, requireAuthUser } from '../_auth.js'
+import { createServiceClient } from '../_supabase.js'
+import { validateBody } from '../_validate.js'
+import { rateLimit } from '../_rateLimit.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })

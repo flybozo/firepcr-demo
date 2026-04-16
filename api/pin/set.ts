@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import bcrypt from 'bcryptjs'
-import { HttpError, requireEmployee } from '../_auth'
+import { HttpError, requireEmployee } from '../_auth.js'
 
 const BCRYPT_ROUNDS = 12
 

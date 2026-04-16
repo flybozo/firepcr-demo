@@ -1,13 +1,13 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { createServiceClient } from '../_supabase'
-import { requireEmployee } from '../_auth'
-import { sendEmail, buildEmailHtml } from '../_email'
+import { createServiceClient } from '../_supabase.js'
+import { requireEmployee } from '../_auth.js'
+import { sendEmail, buildEmailHtml } from '../_email.js'
 import webpush from 'web-push'
 
 const VAPID_PUBLIC = 'BCW3KyLolVrvyMdd4H9UkG9gcLbuxnS02WEL-8zOXt0yP20LfCklisBo4-HeE4tfx_qtpqVj3vrJm7elLZqm63c'
 const VAPID_PRIVATE = '1aoCYCPIEMr0PsjrSwzUyuwtv7iPToKHA53l3nAIBjM'
 
-webpush.setVapidDetails('mailto:admin@ridgelineems.com', VAPID_PUBLIC, VAPID_PRIVATE)
+webpush.setVapidDetails('mailto:codsworth@wildfiremedical.com', VAPID_PUBLIC, VAPID_PRIVATE)
 
 // POST /api/push/cs-discrepancy-alert
 // Called when a CS count finds discrepancies. Alerts all admins via push + email.
@@ -122,7 +122,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             <p style="margin-top:16px;color:#991b1b;font-weight:600">This requires immediate review.</p>
           `,
           ctaText: 'Review CS Audit Log',
-          ctaUrl: 'https://demo.firepcr.com/cs/audit',
+          ctaUrl: 'https://ram-field-ops.vercel.app/cs/audit',
         }),
       })
       if (sent) emailsSent = emailTargets.length
