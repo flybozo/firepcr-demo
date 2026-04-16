@@ -1,4 +1,4 @@
-import type jsPDF from 'jspdf'
+import { jsPDF } from 'jspdf'
 
 export type Header214 = {
   ics214_id: string
@@ -25,14 +25,12 @@ export type Personnel214 = {
   home_agency: string
 }
 
-export async function generate214PDF(
+export function generate214PDF(
   header: Header214,
   personnel: Personnel214[],
   activities: Activity214[]
-): Promise<jsPDF> {
-  const jspdfModule = await import('jspdf')
-  const JsPDF = (jspdfModule as any).jsPDF ?? (jspdfModule.default as any)?.jsPDF ?? (jspdfModule.default as any)?.default ?? jspdfModule.default
-  const doc = new JsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
+): jsPDF {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
   const W = 612, margin = 36, colW = W - margin * 2
   let y = margin
 
@@ -66,7 +64,7 @@ export async function generate214PDF(
   // Section 3-5
   cell(margin, y, 185, 32, `3. Name:\n${header.leader_name}`, { bg: LGRAY })
   cell(margin + 185, y, 155, 32, `4. ICS Position:\n${header.leader_position}`, { bg: LGRAY })
-  cell(margin + 340, y, 200, 32, `5. Home Agency:\nRidgeline EMS (${header.unit_name})`, { bg: LGRAY })
+  cell(margin + 340, y, 200, 32, `5. Home Agency:\nRemote Area Medicine (${header.unit_name})`, { bg: LGRAY })
   y += 32
 
   // Section 6: Personnel
@@ -84,7 +82,7 @@ export async function generate214PDF(
     const h = 16
     // Role: use ics_position if set, otherwise use employee role
     const role = p?.ics_position || ''
-    const agency = p?.home_agency || (p ? 'Ridgeline EMS' : '')
+    const agency = p?.home_agency || (p ? 'Remote Area Medicine' : '')
     cell(margin, y, 185, h, p?.employee_name || '')
     cell(margin + 185, y, 155, h, role)
     cell(margin + 340, y, 200, h, agency)

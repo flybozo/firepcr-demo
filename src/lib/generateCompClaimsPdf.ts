@@ -1,4 +1,4 @@
-import type jsPDF from 'jspdf'
+import { jsPDF } from 'jspdf'
 
 export type CompClaimsData = {
   // Employee info
@@ -41,10 +41,8 @@ export type CompClaimsData = {
   claim_id?: string
 }
 
-export async function generateCompClaimsPDF(d: CompClaimsData): Promise<jsPDF> {
-  const jspdfModule = await import('jspdf')
-  const JsPDF = (jspdfModule as any).jsPDF ?? (jspdfModule.default as any)?.jsPDF ?? (jspdfModule.default as any)?.default ?? jspdfModule.default
-  const doc = new JsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
+export function generateCompClaimsPDF(d: CompClaimsData): jsPDF {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
   const W = 612, ML = 36, MR = 36, colW = W - ML - MR
   let y = 36
 
@@ -113,7 +111,7 @@ export async function generateCompClaimsPDF(d: CompClaimsData): Promise<jsPDF> {
   sectionHeader('1. Information About the Employee')
   rowFields([
     { label: '1. Full name', value: f(d.patient_name), w: colW * 0.55 },
-    { label: 'Agency', value: f(d.employee_agency) || 'Ridgeline EMS', w: colW * 0.42 },
+    { label: 'Agency', value: f(d.employee_agency) || 'Remote Area Medicine', w: colW * 0.42 },
   ])
   rowFields([
     { label: '3. Date of birth', value: '', w: colW * 0.25 },
