@@ -8,6 +8,24 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Fix: trim-canvas CJS→ESM interop broken in rolldown (Vite 8)
+      // react-signature-canvas imports trim-canvas which is UMD with __esModule + .default
+      // rolldown wraps it so .default is an object, not the trim function
+      'trim-canvas': path.resolve(__dirname, './src/lib/shims/trim-canvas.ts'),
+    },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router-dom')) {
+            return 'vendor-react'
+          }
+          if (id.includes('node_modules/@supabase')) {
+            return 'vendor-supabase'
+          }
+        },
+      },
     },
   },
 })
