@@ -524,7 +524,7 @@ function AMAFormInner() {
         {/* Header */}
         <div className="text-center pt-4">
           <h1 className="text-xl font-bold text-red-500">REMOTE AREA MEDICINE</h1>
-          <p className="text-sm text-gray-400">Sierra Valley EMS P.C. | DBA Sierra Valley EMS</p>
+          <p className="text-sm text-gray-400">Ridgeline EMS P.C. | DBA Ridgeline EMS</p>
           <p className="text-xs text-gray-500">Medical Director: Aaron Stutz, MD</p>
           <p className="text-sm font-semibold mt-2">REFUSAL OF EMERGENCY MEDICAL CARE / AMA</p>
           <p className="text-xs text-gray-400 mt-1">{formDate} — {formTime}</p>
@@ -602,7 +602,7 @@ function AMAFormInner() {
           <section className="bg-gray-900 rounded-xl p-4">
             <h2 className="font-bold text-sm uppercase tracking-wide text-gray-300 mb-2">Patient Statement & Release</h2>
             <p className="text-xs text-gray-400 leading-relaxed">
-              I, <span className="text-white font-medium">{patientName}</span>, have been informed of my medical condition, the recommended treatment and/or transport, and the risks of refusal — including serious injury or death. I am voluntarily refusing the emergency medical care described above and release Sierra Valley EMS (Sierra Valley EMS P.C.), its medical director, and all EMS providers from any liability arising from this refusal. I have been advised to call 911 or seek emergency care immediately if my condition worsens.
+              I, <span className="text-white font-medium">{patientName}</span>, have been informed of my medical condition, the recommended treatment and/or transport, and the risks of refusal — including serious injury or death. I am voluntarily refusing the emergency medical care described above and release Ridgeline EMS (Ridgeline EMS P.C.), its medical director, and all EMS providers from any liability arising from this refusal. I have been advised to call 911 or seek emergency care immediately if my condition worsens.
             </p>
           </section>
 

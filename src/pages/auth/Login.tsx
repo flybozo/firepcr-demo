@@ -34,18 +34,18 @@ export default function LoginPage() {
         <div className="text-center">
           <img
             src="https://jlqpycxguovxnqtkjhzs.supabase.co/storage/v1/object/public/headshots/ram-logo.png"
-            alt="Sierra Valley EMS"
+            alt="Ridgeline EMS"
             className="w-24 h-24 mx-auto mb-4 rounded-full object-contain bg-white p-1"
           />
           <h1 className="text-2xl font-bold text-white">RAM Field Ops</h1>
-          <p className="text-gray-400 text-sm mt-1">Sierra Valley EMS</p>
+          <p className="text-gray-400 text-sm mt-1">Ridgeline EMS</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-sm text-gray-400 mb-1">Email</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="you@sierravalleyems.com" required
+              placeholder="you@ridgelineems.com" required
               className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-red-500" />
           </div>
           <div>

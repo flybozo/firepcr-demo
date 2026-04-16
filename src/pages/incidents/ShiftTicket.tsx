@@ -194,7 +194,7 @@ export default function ShiftTicketPage() {
             </div>
             <div>
               <label className={labelCls}>2. Contractor / Agency Name</label>
-              <input className={inputCls} value="Sierra Valley EMS" readOnly />
+              <input className={inputCls} value="Ridgeline EMS" readOnly />
             </div>
             <div>
               <label className={labelCls}>3. Resource Order Number</label>

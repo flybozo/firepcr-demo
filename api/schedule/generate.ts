@@ -50,7 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const availableEmployees = (employees || []).filter((e: any) => !timeOffEmployeeIds.has(e.id))
 
-    const prompt = `You are a medical team scheduler for Sierra Valley EMS (RAM), a company providing wildfire medical services.
+    const prompt = `You are a medical team scheduler for Ridgeline EMS (RAM), a company providing wildfire medical services.
 
 Schedule period: ${start_date} to ${end_date}
 

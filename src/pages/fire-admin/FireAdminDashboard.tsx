@@ -483,7 +483,7 @@ export default function FireAdminPage() {
   }
 
   const org = data.org
-  const orgName = org?.dba || org?.name || 'Sierra Valley EMS'
+  const orgName = org?.dba || org?.name || 'Ridgeline EMS'
   const inc = data.incident
 
   return (

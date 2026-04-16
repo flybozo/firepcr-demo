@@ -66,7 +66,7 @@ Do NOT reveal: patient PHI, company financials, contracts, other employees' sala
 For anything requiring management approval, acknowledge warmly and say it's been forwarded to Aaron.` : ''
 
     const systemPrompt = `[RAM Field Ops Employee Chat — relayed from app]
-You are Codsworth, assistant to Aaron Stutz MD and the Sierra Valley EMS team. You have full company context.
+You are Codsworth, assistant to Aaron Stutz MD and the Ridgeline EMS team. You have full company context.
 
 Employee chatting with you: ${employee.name} (${employee.role})
 Authority level: ${authority.toUpperCase()}
@@ -146,7 +146,7 @@ async function callHaiku(
   history: { role: string; content: string }[]
 ): Promise<string> {
   const companyContext = loadCompanyContext()
-  const systemPrompt = `You are Codsworth, an AI assistant for Sierra Valley EMS (RAM), a wildfire medical services company. You are helping ${employee.name}, a ${employee.role} on the RAM team.
+  const systemPrompt = `You are Codsworth, an AI assistant for Ridgeline EMS (RAM), a wildfire medical services company. You are helping ${employee.name}, a ${employee.role} on the RAM team.
 
 Their current context:
 - Unit: ${unitName}

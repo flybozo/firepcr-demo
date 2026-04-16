@@ -65,7 +65,7 @@ export async function generate214PDF(
   // Section 3-5
   cell(margin, y, 185, 32, `3. Name:\n${header.leader_name}`, { bg: LGRAY })
   cell(margin + 185, y, 155, 32, `4. ICS Position:\n${header.leader_position}`, { bg: LGRAY })
-  cell(margin + 340, y, 200, 32, `5. Home Agency:\nSierra Valley EMS (${header.unit_name})`, { bg: LGRAY })
+  cell(margin + 340, y, 200, 32, `5. Home Agency:\nRidgeline EMS (${header.unit_name})`, { bg: LGRAY })
   y += 32
 
   // Section 6: Personnel
@@ -83,7 +83,7 @@ export async function generate214PDF(
     const h = 16
     // Role: use ics_position if set, otherwise use employee role
     const role = p?.ics_position || ''
-    const agency = p?.home_agency || (p ? 'Sierra Valley EMS' : '')
+    const agency = p?.home_agency || (p ? 'Ridgeline EMS' : '')
     cell(margin, y, 185, h, p?.employee_name || '')
     cell(margin + 185, y, 155, h, role)
     cell(margin + 340, y, 200, h, agency)

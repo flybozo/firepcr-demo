@@ -339,7 +339,7 @@ function ConsentToTreatInner() {
             <div className="text-xs text-gray-300 space-y-2 leading-relaxed max-h-48 overflow-y-auto pr-2">
               <p>
                 I, <span className="text-white font-medium">{patientName}</span>, hereby consent to emergency medical
-                treatment and care provided by Sierra Valley EMS (Sierra Valley EMS P.C.) personnel, including
+                treatment and care provided by Ridgeline EMS (Ridgeline EMS P.C.) personnel, including
                 physicians, physician assistants, nurse practitioners, registered nurses, EMTs, and paramedics.
               </p>
               <p className="font-semibold text-gray-200">I understand and acknowledge:</p>
@@ -351,7 +351,7 @@ function ConsentToTreatInner() {
                 <li>I consent to clinical photographs for medical documentation</li>
                 <li>My medical information will be kept confidential per HIPAA</li>
                 <li>If transport is recommended, I consent to transport by the most appropriate means available</li>
-                <li><span className="text-gray-200 font-medium">Artificial Intelligence:</span> Sierra Valley EMS utilizes AI-assisted technology to support clinical documentation, medical record management, and administrative coordination of my care. AI tools do not make clinical decisions — all medical decisions are made by licensed healthcare providers. My health information processed by AI systems is subject to the same privacy protections as all other medical records.</li>
+                <li><span className="text-gray-200 font-medium">Artificial Intelligence:</span> Ridgeline EMS utilizes AI-assisted technology to support clinical documentation, medical record management, and administrative coordination of my care. AI tools do not make clinical decisions — all medical decisions are made by licensed healthcare providers. My health information processed by AI systems is subject to the same privacy protections as all other medical records.</li>
               </ul>
               <p>
                 I have read or had read to me the above consent. I understand its contents and voluntarily consent
