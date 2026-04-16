@@ -218,6 +218,7 @@ function NewCompClaimInner() {
   const [lastClaimData, setLastClaimData] = useState<any>(null)
   const [pdfGenerating, setPdfGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null)
   const [physicians, setPhysicians] = useState<Employee[]>([])
   const [encounterUUID, setEncounterUUID] = useState<string>('')
 
@@ -265,6 +266,13 @@ function NewCompClaimInner() {
     patient_dob: dobParam,
     time_employee_began_work: tebwParam ? (tebwParam.includes('T') ? tebwParam.slice(-5) : tebwParam) : '06:00',
   })
+
+  useEffect(() => {
+    fetch('/ram-logo.svg')
+      .then(r => r.text())
+      .then(svg => setLogoDataUrl('data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)))))
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     setForm(prev => ({
@@ -482,7 +490,7 @@ function NewCompClaimInner() {
           employer_address: form.employer_address,
           generated_date: new Date().toLocaleDateString(),
           claim_id: claimIdStr,
-        })
+        }, logoDataUrl)
         const pdfBlob = new Blob([doc2.output('arraybuffer')], { type: 'application/pdf' })
         const storagePath = `comp-claims/${claimIdStr}.pdf`
         const { error: upErr } = await supabase.storage.from('documents').upload(storagePath, pdfBlob, { contentType: 'application/pdf', upsert: true })
@@ -532,7 +540,7 @@ function NewCompClaimInner() {
         employer_address: lastClaimData.employer_address,
         generated_date: new Date().toLocaleDateString(),
         claim_id: lastClaimData.patient_name?.slice(0,10).replace(/\s/g,'') + '-' + Date.now().toString().slice(-6),
-      })
+      }, logoDataUrl)
       doc.save(`OSHA301-${lastClaimData?.patient_name?.replace(/\s+/g,'-') || 'claim'}-${Date.now().toString().slice(-6)}.pdf`)
     } catch (err) {
       console.error('PDF generation failed:', err)

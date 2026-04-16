@@ -18,11 +18,15 @@ export function generateAMAPDF(data: AMAData, logoDataUrl?: string | null): jsPD
   const W = 612, M = 54
   let y = M
 
-  // Header bar
+  // Header bar with circular logo
   doc.setFillColor(220, 38, 38)
-  doc.rect(0, y - 10, 612, 38, 'F')
+  doc.rect(0, y - 10, 612, 50, 'F')
   if (logoDataUrl) {
-    try { doc.addImage(logoDataUrl, 'PNG', M, y - 6, 52, 28) } catch {}
+    try {
+      doc.setFillColor(255, 255, 255)
+      doc.circle(M - 8, y + 12, 18, 'F')
+      doc.addImage(logoDataUrl, 'PNG', M - 24, y - 7, 36, 36)
+    } catch {}
   }
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255)
   doc.text('REMOTE AREA MEDICINE', W / 2, y + 6, { align: 'center' })

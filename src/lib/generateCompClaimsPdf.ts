@@ -41,7 +41,7 @@ export type CompClaimsData = {
   claim_id?: string
 }
 
-export function generateCompClaimsPDF(d: CompClaimsData): jsPDF {
+export function generateCompClaimsPDF(d: CompClaimsData, logoDataUrl?: string | null): jsPDF {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
   const W = 612, ML = 36, MR = 36, colW = W - ML - MR
   let y = 36
@@ -116,7 +116,15 @@ export function generateCompClaimsPDF(d: CompClaimsData): jsPDF {
     }
   }
 
-  // ── Page header ──
+  // ── Page header with RAM logo ──
+  // Circular logo upper-left
+  if (logoDataUrl) {
+    try {
+      doc.setFillColor(30, 58, 95)
+      doc.circle(ML + 18, y + 18, 20, 'F')
+      doc.addImage(logoDataUrl, 'PNG', ML, y, 36, 36)
+    } catch {}
+  }
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(100, 100, 100)
   doc.text('U.S. Department of Labor  |  Occupational Safety and Health Administration', W / 2, y + 10, { align: 'center' }); y += 14
   doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(...BLACK)
