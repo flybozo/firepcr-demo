@@ -268,9 +268,9 @@ function NewCompClaimInner() {
   })
 
   useEffect(() => {
-    fetch('/ram-logo.svg')
-      .then(r => r.text())
-      .then(svg => setLogoDataUrl('data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)))))
+    fetch('https://kfkpvazkikpuwatthtow.supabase.co/storage/v1/object/public/headshots/ram-logo.png')
+      .then(r => r.blob())
+      .then(blob => { const reader = new FileReader(); reader.onload = () => setLogoDataUrl(reader.result as string); reader.readAsDataURL(blob) })
       .catch(() => {})
   }, [])
 

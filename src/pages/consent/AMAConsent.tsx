@@ -180,12 +180,9 @@ function AMAFormInner() {
 
   // Preload logo as base64 for PDF embedding
   useEffect(() => {
-    fetch('/ram-logo.svg')
-      .then(r => r.text())
-      .then(svg => {
-        const b64 = btoa(unescape(encodeURIComponent(svg)))
-        setLogoDataUrl('data:image/svg+xml;base64,' + b64)
-      })
+    fetch('https://kfkpvazkikpuwatthtow.supabase.co/storage/v1/object/public/headshots/ram-logo.png')
+      .then(r => r.blob())
+      .then(blob => { const reader = new FileReader(); reader.onload = () => setLogoDataUrl(reader.result as string); reader.readAsDataURL(blob) })
       .catch(() => {})
   }, [])
   const [submitted, setSubmitted] = useState(false)
