@@ -116,7 +116,7 @@ function MARNewFormInner() {
     try {
       const { data, error } = await supabase
         .from('patient_encounters')
-        .select('id, encounter_id, patient_first_name, patient_last_name, primary_symptom_text, date, unit, unit_id, incident_id, provider_of_record')
+        .select('id, encounter_id, patient_first_name, patient_last_name, primary_symptom_text, date, unit, unit_id, incident_id, provider_of_record, incident:incidents(name)')
         .eq('unit', unitName)
         .not('patient_last_name', 'is', null)
         .order('date', { ascending: false })
@@ -548,7 +548,7 @@ function MARNewFormInner() {
         incident: (() => {
           // Derive incident name from selected encounter
           const enc = encounterOptions.find(x => x.encounter_id === form.encounter_id || x.id === form.encounter_id)
-          return (enc as any)?.incident_name || null
+          return (enc as any)?.incident?.name || (enc as any)?.incident_name || null
         })(),
         medication_route: form.medication_route || null,
         response_to_medication: form.response_to_medication || null,
@@ -604,7 +604,7 @@ function MARNewFormInner() {
         incident: (() => {
           // Derive incident name from selected encounter
           const enc = encounterOptions.find(x => x.encounter_id === form.encounter_id || x.id === form.encounter_id)
-          return (enc as any)?.incident_name || null
+          return (enc as any)?.incident?.name || (enc as any)?.incident_name || null
         })(),
         })
       }
