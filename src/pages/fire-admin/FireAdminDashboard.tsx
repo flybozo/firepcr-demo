@@ -97,9 +97,39 @@ const STATUS_COLOR: Record<string, string> = {
 }
 
 // ── Tab 1: Overview ──────────────────────────────────────────────────────────
-function OverviewTab({ data }: { data: DashboardData }) {
-  const { analytics, stats } = data
-  const acuityTotal = analytics.acuity_breakdown.reduce((s, d) => s + d.value, 0)
+function OverviewTab({ data, filteredEncounters }: {
+  data: DashboardData
+  filteredEncounters: DashboardData['encounters']
+}) {
+  const { stats } = data
+
+  // Recompute analytics from filtered encounters
+  const filteredSeqIds = new Set(filteredEncounters.map(e => e.seq_id))
+  const filteredCompClaimsCount = data.comp_claims.filter(
+    cc => cc.patient_seq_id && filteredSeqIds.has(cc.patient_seq_id)
+  ).length
+
+  const chiefComplaintsMap: Record<string, number> = {}
+  filteredEncounters.forEach(e => {
+    if (e.chief_complaint) chiefComplaintsMap[e.chief_complaint] = (chiefComplaintsMap[e.chief_complaint] || 0) + 1
+  })
+  const filteredChiefComplaints = Object.entries(chiefComplaintsMap)
+    .sort((a, b) => b[1] - a[1]).slice(0, 10)
+    .map(([name, count]) => ({ name, count }))
+
+  const acuityCounts: Record<string, number> = {}
+  filteredEncounters.forEach(e => { acuityCounts[e.acuity] = (acuityCounts[e.acuity] || 0) + 1 })
+  const filteredAcuityBreakdown = Object.entries(acuityCounts)
+    .filter(([, v]) => v > 0)
+    .map(([name, value]) => ({ name, value }))
+
+  const dailyCounts: Record<string, number> = {}
+  filteredEncounters.forEach(e => { if (e.date) dailyCounts[e.date] = (dailyCounts[e.date] || 0) + 1 })
+  const filteredEncountersByDay = Object.entries(dailyCounts)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([date, count]) => ({ date, count }))
+
+  const acuityTotal = filteredAcuityBreakdown.reduce((s, d) => s + d.value, 0)
 
   const renderPieLabel = ({ cx = 0, cy = 0, midAngle = 0, innerRadius = 0, outerRadius = 0, percent = 0 }) => {
     if (percent < 0.05) return null
@@ -114,11 +144,11 @@ function OverviewTab({ data }: { data: DashboardData }) {
     <div className="space-y-8">
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <StatCard label="Total Patients" value={stats.total_patients} accent={C.red} />
-        <StatCard label="Total Encounters" value={stats.total_encounters} accent={C.blue} />
+        <StatCard label="Total Patients" value={filteredEncounters.length} accent={C.red} />
+        <StatCard label="Total Encounters" value={filteredEncounters.length} accent={C.blue} />
         <StatCard label="Units Deployed" value={stats.units_deployed} accent={C.green}
           sub={stats.unique_units.slice(0, 3).join(', ')} />
-        <StatCard label="Comp Claims" value={stats.comp_claims_count} accent={C.amber} />
+        <StatCard label="Comp Claims" value={filteredCompClaimsCount} accent={C.amber} />
         <StatCard label="ICS 214s" value={stats.ics214_count} accent={C.violet} />
         <StatCard label="Incident Status" value={data.incident.status || '—'} accent={STATUS_COLOR[data.incident.status] ?? C.gray} />
       </div>
@@ -126,11 +156,11 @@ function OverviewTab({ data }: { data: DashboardData }) {
       {/* Chief complaints bar chart */}
       <section>
         <h3 className="text-sm font-semibold text-white mb-3">🩺 Chief Complaints (Top 10)</h3>
-        {analytics.chief_complaints.length === 0 ? <Empty /> : (
+        {filteredChiefComplaints.length === 0 ? <Empty /> : (
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-x-auto">
             {/* Vertical bar chart — works better on mobile */}
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={analytics.chief_complaints} margin={{ top: 5, right: 10, left: -20, bottom: 60 }}>
+              <BarChart data={filteredChiefComplaints} margin={{ top: 5, right: 10, left: -20, bottom: 60 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridStyle.stroke} />
                 <XAxis dataKey="name" tick={{ ...axisStyle, fontSize: 9 }} interval={0} angle={-45} textAnchor="end" height={80} />
                 <YAxis tick={axisStyle} allowDecimals={false} />
@@ -145,14 +175,14 @@ function OverviewTab({ data }: { data: DashboardData }) {
       {/* Acuity pie chart */}
       <section>
         <h3 className="text-sm font-semibold text-white mb-3">🚨 Acuity Breakdown</h3>
-        {analytics.acuity_breakdown.length === 0 ? <Empty /> : (
+        {filteredAcuityBreakdown.length === 0 ? <Empty /> : (
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col md:flex-row items-center gap-6">
             <div className="w-full md:w-64 shrink-0">
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
-                  <Pie data={analytics.acuity_breakdown} cx="50%" cy="50%" innerRadius={55} outerRadius={90}
+                  <Pie data={filteredAcuityBreakdown} cx="50%" cy="50%" innerRadius={55} outerRadius={90}
                     dataKey="value" labelLine={false} label={renderPieLabel}>
-                    {analytics.acuity_breakdown.map(entry => (
+                    {filteredAcuityBreakdown.map(entry => (
                       <Cell key={entry.name} fill={ACUITY_COLORS[entry.name] ?? C.gray} />
                     ))}
                   </Pie>
@@ -161,7 +191,7 @@ function OverviewTab({ data }: { data: DashboardData }) {
               </ResponsiveContainer>
             </div>
             <div className="space-y-2 flex-1">
-              {analytics.acuity_breakdown.map(d => (
+              {filteredAcuityBreakdown.map(d => (
                 <div key={d.name} className="flex items-center gap-3">
                   <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: ACUITY_COLORS[d.name] ?? C.gray }} />
                   <span className="text-sm text-gray-300 flex-1">{d.name}</span>
@@ -179,10 +209,10 @@ function OverviewTab({ data }: { data: DashboardData }) {
       {/* Encounter volume line chart */}
       <section>
         <h3 className="text-sm font-semibold text-white mb-3">📈 Encounter Volume by Day</h3>
-        {analytics.encounters_by_day.length === 0 ? <Empty /> : (
+        {filteredEncountersByDay.length === 0 ? <Empty /> : (
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-x-auto">
             <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={analytics.encounters_by_day.map(d => ({ ...d, date: d.date.slice(5) }))} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+              <LineChart data={filteredEncountersByDay.map(d => ({ ...d, date: d.date.slice(5) }))} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={gridStyle.stroke} />
                 <XAxis dataKey="date" tick={axisStyle} interval="preserveStartEnd" />
                 <YAxis tick={axisStyle} allowDecimals={false} />
@@ -405,7 +435,8 @@ function SupplyTab({ data }: { data: DashboardData }) {
   return (
     <div className="space-y-6">
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-        <h3 className="text-sm font-bold text-white mb-4">🧰 Consumables Used — All Units Combined</h3>
+        <h3 className="text-sm font-bold text-white mb-1">🧰 Consumables Used — All Units Combined</h3>
+        <p className="text-xs text-gray-500 mb-4">Full incident totals — not affected by date filter</p>
         <ResponsiveContainer width="100%" height={Math.max(200, chartItems.length * 28)}>
           <BarChart data={chartItems} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
             <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#1f2937" />
@@ -570,7 +601,7 @@ export default function FireAdminPage() {
         </div>
 
         {/* ── Tab content ── */}
-        {tab === 'overview' && <OverviewTab data={data} />}
+        {tab === 'overview' && <OverviewTab data={data} filteredEncounters={applyDateFilter(data.encounters)} />}
         {tab === 'patients' && <PatientLogTab data={{ ...data, encounters: applyDateFilter(data.encounters) }} code={code} />}
         {tab === 'ics214' && <ICS214Tab data={data} code={code} />}
         {tab === 'supply' && <SupplyTab data={data} />}

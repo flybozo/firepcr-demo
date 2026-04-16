@@ -354,8 +354,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
   )
   if (error || !data) return <div className="text-red-500 text-sm py-8 text-center">{error || 'No data'}</div>
 
-  const { analytics, stats } = data
-  const acuityTotal = analytics.acuity_breakdown.reduce((s, d) => s + d.value, 0)
+  const { stats } = data
   const renderPieLabel = ({ cx = 0, cy = 0, midAngle = 0, innerRadius = 0, outerRadius = 0, percent = 0 }) => {
     if (percent < 0.05) return null
     const RADIAN = Math.PI / 180
@@ -375,6 +374,24 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
   }
   const filteredEncounters = data.encounters.filter(enc => passesDateFilter(enc.created_at))
   const filteredCompClaims = data.comp_claims.filter(cc => passesDateFilter(cc.created_at))
+
+  // ── Recompute analytics from filtered encounters ───────────────────────────
+  const filteredChiefComplaints = (() => {
+    const counts: Record<string, number> = {}
+    filteredEncounters.forEach(e => { if (e.chief_complaint) counts[e.chief_complaint] = (counts[e.chief_complaint] || 0) + 1 })
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, count]) => ({ name, count }))
+  })()
+  const filteredAcuityBreakdown = (() => {
+    const acCounts: Record<string, number> = { Immediate: 0, Delayed: 0, Minimal: 0, Expectant: 0 }
+    filteredEncounters.forEach(e => { acCounts[e.acuity] = (acCounts[e.acuity] || 0) + 1 })
+    return Object.entries(acCounts).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value }))
+  })()
+  const filteredEncountersByDay = (() => {
+    const daily: Record<string, number> = {}
+    filteredEncounters.forEach(e => { if (e.date) daily[e.date] = (daily[e.date] || 0) + 1 })
+    return Object.entries(daily).sort((a, b) => a[0].localeCompare(b[0])).map(([date, count]) => ({ date, count }))
+  })()
+  const acuityTotal = filteredAcuityBreakdown.reduce((s, d) => s + d.value, 0)
 
   // ── WC encounter ID set ────────────────────────────────────────────────────
   const wcEncounterIds = new Set(
@@ -423,7 +440,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
       </div>
 
       {/* Date range filter (shown on all data tabs) */}
-      {(tab === 'patients' || tab === 'comp' || tab === 'overview') && (
+      {(tab === 'patients' || tab === 'comp' || tab === 'overview' || tab === 'supply') && (
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-500">Date range:</span>
           <DateFilterDropdown />
@@ -440,12 +457,12 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
             <StatCard label="ICS 214s" value={stats.ics214_count} accent={C.violet} />
             <StatCard label="Status" value={data.incident.status || '—'} accent={STATUS_COLOR[data.incident.status] ?? C.gray} />
           </div>
-          {analytics.chief_complaints.length > 0 && (
+          {filteredChiefComplaints.length > 0 && (
             <section>
               <h3 className="text-sm font-semibold text-white mb-3">🩺 Chief Complaints</h3>
               <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-x-auto">
-                <ResponsiveContainer width="100%" height={Math.max(180, analytics.chief_complaints.length * 28)}>
-                  <BarChart data={analytics.chief_complaints} layout="vertical" margin={{ top: 5, right: 30, left: 155, bottom: 5 }}>
+                <ResponsiveContainer width="100%" height={Math.max(180, filteredChiefComplaints.length * 28)}>
+                  <BarChart data={filteredChiefComplaints} layout="vertical" margin={{ top: 5, right: 30, left: 155, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={gridStyle.stroke} horizontal={false} />
                     <XAxis type="number" tick={axisStyle} allowDecimals={false} />
                     <YAxis type="category" dataKey="name" tick={{ ...axisStyle, fontSize: 11 }} width={150} />
@@ -456,22 +473,22 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
               </div>
             </section>
           )}
-          {analytics.acuity_breakdown.length > 0 && (
+          {filteredAcuityBreakdown.length > 0 && (
             <section>
               <h3 className="text-sm font-semibold text-white mb-3">🚨 Acuity</h3>
               <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col md:flex-row items-center gap-6">
                 <div className="w-full md:w-56 shrink-0">
                   <ResponsiveContainer width="100%" height={200}>
                     <PieChart>
-                      <Pie data={analytics.acuity_breakdown} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" labelLine={false} label={renderPieLabel}>
-                        {analytics.acuity_breakdown.map(e => <Cell key={e.name} fill={ACUITY_COLORS[e.name] ?? C.gray} />)}
+                      <Pie data={filteredAcuityBreakdown} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" labelLine={false} label={renderPieLabel}>
+                        {filteredAcuityBreakdown.map(e => <Cell key={e.name} fill={ACUITY_COLORS[e.name] ?? C.gray} />)}
                       </Pie>
                       <Tooltip contentStyle={tooltipStyle} formatter={(v: unknown) => { const n = typeof v === 'number' ? v : 0; return [`${n} (${acuityTotal > 0 ? ((n / acuityTotal) * 100).toFixed(1) : 0}%)`, ''] as [string, string] }} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
                 <div className="space-y-2 flex-1">
-                  {analytics.acuity_breakdown.map(d => (
+                  {filteredAcuityBreakdown.map(d => (
                     <div key={d.name} className="flex items-center gap-3">
                       <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: ACUITY_COLORS[d.name] ?? C.gray }} />
                       <span className="text-sm text-gray-300 flex-1">{d.name}</span>
@@ -482,12 +499,12 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
               </div>
             </section>
           )}
-          {analytics.encounters_by_day.length > 0 && (
+          {filteredEncountersByDay.length > 0 && (
             <section>
               <h3 className="text-sm font-semibold text-white mb-3">📈 Daily Volume</h3>
               <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
                 <ResponsiveContainer width="100%" height={180}>
-                  <LineChart data={analytics.encounters_by_day.map(d => ({ ...d, date: d.date.slice(5) }))} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
+                  <LineChart data={filteredEncountersByDay.map(d => ({ ...d, date: d.date.slice(5) }))} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke={gridStyle.stroke} />
                     <XAxis dataKey="date" tick={axisStyle} interval="preserveStartEnd" />
                     <YAxis tick={axisStyle} allowDecimals={false} />
@@ -596,7 +613,10 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
       {/* ── Supply Tab ── */}
       {tab === 'supply' && (
         <div className="space-y-6">
-          <h3 className="text-sm font-semibold text-white">🧰 Consumables Used — All Units Combined</h3>
+          <div>
+            <h3 className="text-sm font-semibold text-white">🧰 Consumables Used — All Units Combined</h3>
+            <p className="text-xs text-gray-500 mt-1">Full incident totals — not affected by date filter</p>
+          </div>
           {data.supply_aggregated.length === 0 ? (
             <Empty text="No supply run data for this incident" />
           ) : (
