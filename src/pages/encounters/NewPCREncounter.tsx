@@ -820,6 +820,7 @@ function PCRFormInner() {
   }
 
   const handleSubmit = async () => {
+    if (!form.dob) { alert('Date of birth is required'); return }
     setSubmitting(true)
     const encounter_id = `ENC-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.random().toString(36).slice(2,7).toUpperCase()}`
     const gcsTotalVal = gcsTotal()
@@ -1100,8 +1101,8 @@ function PCRFormInner() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className={labelCls}>Date of Birth</label>
-                <input type="date" className={inputCls} value={form.dob} onChange={e => set('dob', e.target.value)} />
+                <label className={labelCls}>Date of Birth <span className="text-red-400">*</span></label>
+                <input type="date" className={inputCls} value={form.dob} onChange={e => set('dob', e.target.value)} required />
               </div>
               <div className="flex gap-2">
                 <div className="flex-1">

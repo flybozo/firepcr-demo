@@ -237,6 +237,7 @@ function SimpleEHRInner() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.patient_last_name) { setError('Patient last name required'); return }
+    if (!form.patient_dob) { setError('Date of birth is required'); return }
     if (!form.chief_complaint) { setError('Chief complaint required'); return }
     if (!form.provider_of_record) { setError('Provider of record required'); return }
 
@@ -393,8 +394,8 @@ function SimpleEHRInner() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="min-w-0">
-                <label className={labelClass}>Date of Birth</label>
-                <input type="date" value={form.patient_dob} onChange={e => set('patient_dob', e.target.value)} className={inputClass + ' min-w-0'} />
+                <label className={labelClass}>Date of Birth <span className="text-red-400">*</span></label>
+                <input type="date" value={form.patient_dob} onChange={e => set('patient_dob', e.target.value)} className={inputClass + ' min-w-0'} required />
               </div>
               <div />
             </div>
