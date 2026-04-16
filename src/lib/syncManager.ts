@@ -93,7 +93,7 @@ export async function syncDataFromServer(): Promise<void> {
 
     // Phase 2: Patient data (larger, but critical)
     const [encounters, mar, vitals] = await Promise.all([
-      supabase.from('patient_encounters').select('*').order('created_at', { ascending: false }).limit(500),
+      supabase.from('patient_encounters').select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(500),
       supabase.from('dispense_admin_log').select('id, date, time, patient_name, item_name, qty_used, qty_wasted, med_unit, dispensed_by, category, route, medication_route, indication, dose_mg, concentration, lot_number, expiration_date, exp_date, witness_name, witness_signature_url, encounter_id, unit, incident, notes, prescribing_provider, entry_type, provider_signature_url, provider_signed_at, provider_signed_by, requires_cosign, cosigned_at, cosigned_by, cosign_signature_url, dosage_units, item_type, created_at').order('created_at', { ascending: false }).limit(500),
       supabase.from('encounter_vitals').select('id, encounter_id, recorded_at, recorded_by, hr, rr, spo2, bp_systolic, bp_diastolic, gcs_eye, gcs_verbal, gcs_motor, gcs_total, pain_scale, blood_glucose, temp_f, skin, cardiac_rhythm, etco2, pupils').order('recorded_at', { ascending: false }).limit(1000),
     ])
@@ -124,7 +124,7 @@ export async function syncDataFromServer(): Promise<void> {
 
     // Phase 4: Progress notes + procedures (for encounter detail views)
     const [progressNotes, procedures] = await Promise.all([
-      supabase.from('progress_notes').select('*').order('note_datetime', { ascending: false }).limit(500),
+      supabase.from('progress_notes').select('*').is('deleted_at', null).order('note_datetime', { ascending: false }).limit(500),
       supabase.from('encounter_procedures').select('id, encounter_id, procedure_name, performed_at, performed_by, body_site, outcome, complications, notes').order('performed_at', { ascending: false }).limit(500),
     ])
 
