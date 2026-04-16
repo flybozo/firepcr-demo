@@ -420,7 +420,7 @@ function OperationsTab() {
   const [incidents, setIncidents] = useState<IncidentRow[]>([])
   const [encByIncident, setEncByIncident] = useState<{ incident_id: string; count: number }[]>([])
   const [unitsByType, setUnitsByType] = useState<{ name: string; value: number }[]>([])
-  const [supplyItems, setSupplyItems] = useState<{ name: string; qty: number }[]>([])
+  const [supplyItems, setSupplyItems] = useState<{ name: string; qty: number; category: string; incident_id?: string | null }[]>([])
 
   useEffect(() => {
     const load = async () => {
@@ -429,7 +429,7 @@ function OperationsTab() {
           supabase.from('incidents').select('id, name, status, start_date, closed_at, incident_units(id)'),
           supabase.from('patient_encounters').select('incident_id').not('incident_id', 'is', null),
           supabase.from('units').select('unit_type_id, unit_types!units_unit_type_id_fkey(name)') as unknown as Promise<{ data: { unit_type_id: string; unit_types: { name: string } | null }[] | null; error: unknown }>,
-          supabase.from('supply_run_items').select('item_name, quantity'),
+          supabase.from('supply_run_items').select('item_name, quantity, category, supply_run:supply_runs(incident_id)'),
         ])
 
         setIncidents((inc || []) as IncidentRow[])
@@ -450,16 +450,17 @@ function OperationsTab() {
         })
         setUnitsByType(Object.entries(typeCounts).map(([name, value]) => ({ name, value })))
 
-        // supply run items — top 15 by total quantity dispensed
-        const itemQty: Record<string, number> = {}
-        ;(runItems || []).forEach((r: { item_name: string | null; quantity: number | null }) => {
-          if (r.item_name) itemQty[r.item_name] = (itemQty[r.item_name] || 0) + (r.quantity || 0)
+        // supply run items — keyed with incident_id for filtering
+        const itemMap: Record<string, { qty: number; category: string; incident_id: string | null }> = {}
+        ;(runItems || []).forEach((r: { item_name: string | null; quantity: number | null; category: string | null; supply_run: { incident_id: string | null } | null }) => {
+          if (!r.item_name) return
+          if (!itemMap[r.item_name]) itemMap[r.item_name] = { qty: 0, category: r.category || '', incident_id: r.supply_run?.incident_id || null }
+          itemMap[r.item_name].qty += (r.quantity || 0)
         })
         setSupplyItems(
-          Object.entries(itemQty)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 15)
-            .map(([name, qty]) => ({ name, qty }))
+          Object.entries(itemMap)
+            .sort((a, b) => b[1].qty - a[1].qty)
+            .map(([name, { qty, category, incident_id }]) => ({ name, qty, category, incident_id }))
         )
       } catch {
         // Offline — analytics require connectivity; show empty state
@@ -594,20 +595,47 @@ function OperationsTab() {
 
       {/* ── E: Supply Run Items Dispensed ── */}
       <section>
-        <SectionHeader title="📦 Items Dispensed (Supply Runs)" sub="Top 15 by total quantity" />
-        {loading ? <Skeleton h="h-52" /> : supplyItems.length === 0 ? <Empty /> : (
-          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-x-auto">
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={supplyItems} margin={{ top: 5, right: 10, left: 10, bottom: 90 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridStyle.stroke} />
-                <XAxis dataKey="name" tick={{ ...axisStyle, fontSize: 10 }} angle={-40} textAnchor="end" interval={0} />
-                <YAxis tick={axisStyle} allowDecimals={false} />
-                <Tooltip contentStyle={tooltipStyle} />
-                <Bar dataKey="qty" fill={C.teal} radius={[4, 4, 0, 0]} name="Qty Dispensed" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
+        <SectionHeader title="🧰 Consumables Used" sub={incidentFilter === 'All' ? 'All incidents — top 20 by quantity' : 'Filtered by selected incident'} />
+        {loading ? <Skeleton h="h-52" /> : (() => {
+          const BAR_COLORS = [C.blue, C.teal, C.violet, C.orange, C.red, C.green, C.amber, C.gray]
+          const CATEGORY_COLORS: Record<string, string> = {
+            'CS': C.red, 'Medication': C.violet, 'IV': C.blue,
+            'Airway': C.teal, 'Wound Care': C.orange, 'OTC': C.green, 'Supply': C.amber,
+          }
+          const filteredSupply = (incidentFilter === 'All'
+            ? supplyItems
+            : supplyItems.filter(i => i.incident_id === incidentFilter)
+          ).slice(0, 20)
+          if (filteredSupply.length === 0) return <Empty />
+          return (
+            <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+              <ResponsiveContainer width="100%" height={Math.max(240, filteredSupply.length * 28)}>
+                <BarChart data={filteredSupply} layout="vertical" margin={{ left: 8, right: 32, top: 4, bottom: 4 }}>
+                  <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke={gridStyle.stroke} />
+                  <XAxis type="number" tick={axisStyle} allowDecimals={false} />
+                  <YAxis type="category" dataKey="name" tick={{ ...axisStyle, fontSize: 10 }} width={150} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v: unknown) => [v, 'Qty']} />
+                  <Bar dataKey="qty" radius={[0, 4, 4, 0]} name="Qty Used">
+                    {filteredSupply.map((item, i) => (
+                      <Cell key={item.name} fill={CATEGORY_COLORS[item.category] || BAR_COLORS[i % BAR_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+              {/* Legend */}
+              <div className="flex flex-wrap gap-3 mt-3 px-1">
+                {Object.entries(CATEGORY_COLORS).filter(([cat]) =>
+                  filteredSupply.some(i => i.category === cat)
+                ).map(([cat, color]) => (
+                  <span key={cat} className="flex items-center gap-1.5 text-xs text-gray-400">
+                    <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: color }} />
+                    {cat}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )
+        })()}
       </section>
     </div>
   )
