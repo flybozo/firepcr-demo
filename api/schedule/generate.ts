@@ -1,5 +1,6 @@
+
 import type { VercelRequest, VercelResponse } from "@vercel/node"
-import { createServiceClient } from '../_supabase'
+import { HttpError, requireEmployee } from '../_auth'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
@@ -10,9 +11,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'Missing required fields' })
     }
 
-    const supabase = createServiceClient()
+    const { supabase } = await requireEmployee(req, { admin: true })
 
-    // Fetch all needed data in parallel
     const [
       { data: employees },
       { data: wantToWork },
@@ -50,7 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const availableEmployees = (employees || []).filter((e: any) => !timeOffEmployeeIds.has(e.id))
 
-    const prompt = `You are a medical team scheduler for Remote Area Medicine (RAM), a company providing wildfire medical services.
+    const prompt = `You are a medical team scheduler for Sierra Valley EMS (RAM), a company providing wildfire medical services.
 
 Schedule period: ${start_date} to ${end_date}
 
@@ -118,7 +118,6 @@ Return ONLY a valid JSON array (no explanation, no markdown) in this exact forma
     const aiData = await anthropicRes.json()
     const content = aiData.content?.[0]?.text || ''
 
-    // Extract JSON from response
     const jsonMatch = content.match(/\[[\s\S]*\]/)
     if (!jsonMatch) {
       return res.status(500).json({ error: 'Could not parse schedule from AI response', raw: content })
@@ -127,6 +126,9 @@ Return ONLY a valid JSON array (no explanation, no markdown) in this exact forma
     const schedule = JSON.parse(jsonMatch[0])
     return res.json({ schedule })
   } catch (err: any) {
+    if (err instanceof HttpError) {
+      return res.status(err.status).json({ error: err.message })
+    }
     console.error('Schedule generate error:', err)
     return res.status(500).json({ error: err.message || 'Internal error' })
   }

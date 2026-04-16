@@ -104,6 +104,7 @@ function MARNewFormInner() {
   const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,"0")}-${String(now.getDate()).padStart(2,"0")}`
   const nowTime = now.toTimeString().slice(0, 5)
 
+  const requestId = useRef(crypto.randomUUID())
   const [submitting, setSubmitting] = useState(false)
   const [employees, setEmployees] = useState<Employee[]>([])
   const [unitCrew, setUnitCrew] = useState<Employee[]>([])
@@ -113,16 +114,37 @@ function MARNewFormInner() {
   const loadEncountersForUnit = async (unitName: string) => {
     if (!unitName) { setEncounterOptions([]); return }
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('patient_encounters')
-        .select('id, encounter_id, patient_first_name, patient_last_name, primary_symptom_text, date, unit, provider_of_record, incident:incidents(name)')
+        .select('id, encounter_id, patient_first_name, patient_last_name, primary_symptom_text, date, unit, unit_id, incident_id, provider_of_record')
         .eq('unit', unitName)
+        .not('patient_last_name', 'is', null)
         .order('date', { ascending: false })
-        .limit(20)
+        .limit(50)
+      if (error) {
+        console.error('loadEncountersForUnit error:', error)
+        // Fallback: try from offline cache
+        try {
+          const { getCachedData } = await import('@/lib/offlineStore')
+          const cached = await getCachedData('patient_encounters') as any[]
+          const filtered = cached.filter(e => e.unit === unitName)
+            .sort((a: any, b: any) => (b.date || '').localeCompare(a.date || ''))
+            .slice(0, 50)
+          setEncounterOptions(filtered)
+        } catch { setEncounterOptions([]) }
+        return
+      }
       setEncounterOptions(data || [])
     } catch {
-      // Offline — best effort, encounters not available without store filter
-      setEncounterOptions([])
+      // Offline — try cache
+      try {
+        const { getCachedData } = await import('@/lib/offlineStore')
+        const cached = await getCachedData('patient_encounters') as any[]
+        const filtered = cached.filter(e => e.unit === unitName)
+          .sort((a: any, b: any) => (b.date || '').localeCompare(a.date || ''))
+          .slice(0, 50)
+        setEncounterOptions(filtered)
+      } catch { setEncounterOptions([]) }
     }
   }
 
@@ -440,8 +462,8 @@ function MARNewFormInner() {
     const blob = new Blob([byteArr], { type: 'image/png' })
     const { error } = await supabase.storage.from('signatures').upload(path, blob, { contentType: 'image/png' })
     if (error) return null
-    const { data: urlData } = supabase.storage.from('signatures').getPublicUrl(path)
-    return urlData.publicUrl
+    // Store the storage path — render via signed URL when needed
+    return path
   }
 
   const handleSubmit = async () => {
@@ -539,6 +561,7 @@ function MARNewFormInner() {
         provider_signed_at: providerSignedAt,
         provider_signed_by: providerSignedBy,
         signature_method: providerSignatureUrl ? 'image' : null,
+        client_request_id: requestId.current,
       }
 
       const logResult = await offlineWrite('dispense_admin_log', 'insert', logData)
@@ -628,6 +651,7 @@ function MARNewFormInner() {
         {/* Encounter Picker */}
         {!encounterId && (
           <EncounterPicker
+            unitName={form.med_unit || undefined}
             onSelect={(enc) => {
               const name = [enc.patient_first_name, enc.patient_last_name].filter(Boolean).join(' ')
               setForm(prev => ({ ...prev, patient_name: name || prev.patient_name, encounter_id: enc.encounter_id || '', prescribing_provider: enc.provider_of_record || prev.prescribing_provider, med_unit: enc.unit || prev.med_unit }))
@@ -699,14 +723,14 @@ function MARNewFormInner() {
         <div className="bg-gray-900 rounded-xl p-4 space-y-4">
           {/* Date & Time */}
           <p className={sectionCls}>Administration Details</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="min-w-0">
               <label className={labelCls}>Date *</label>
-              <input type="date" className={inputCls} value={form.date} onChange={e => set('date', e.target.value)} />
+              <input type="date" className={inputCls + ' min-w-0'} value={form.date} onChange={e => set('date', e.target.value)} />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className={labelCls}>Time *</label>
-              <input type="time" className={inputCls} value={form.time} onChange={e => set('time', e.target.value)} />
+              <input type="time" className={inputCls + ' min-w-0'} value={form.time} onChange={e => set('time', e.target.value)} />
             </div>
           </div>
 
@@ -718,7 +742,7 @@ function MARNewFormInner() {
             ) : (
               <select className={inputCls} value={form.med_unit} onChange={e => handleUnitChange(e.target.value)}>
                 <option value="">Select unit</option>
-                {['GRANITE 1', 'GRANITE 2', 'GRANITE MSU', 'GRANITE REMS'].map(u => (
+                {['RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2'].map(u => (
                   <option key={u} value={u}>{u}</option>
                 ))}
               </select>
@@ -773,8 +797,8 @@ function MARNewFormInner() {
               : matchingItems[0]
             const csAutoFilled = isCS && matchingItems.length > 0
             return (
-              <div className="grid grid-cols-2 gap-3">
-                <div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="min-w-0">
                   <label className={labelCls}>Lot Number{csAutoFilled ? ' — select from inventory' : ''}</label>
                   {hasMultipleLots ? (
                     <select
@@ -803,11 +827,11 @@ function MARNewFormInner() {
                     />
                   )}
                 </div>
-                <div>
+                <div className="min-w-0">
                   <label className={labelCls}>Expiration Date{csAutoFilled ? ' (auto-filled)' : ''}</label>
                   <input
                     type="date"
-                    className={`${inputCls} ${csAutoFilled ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    className={`${inputCls} min-w-0 ${csAutoFilled ? 'opacity-70 cursor-not-allowed' : ''}`}
                     value={form.exp_date}
                     onChange={e => !csAutoFilled && set('exp_date', e.target.value)}
                     readOnly={!!csAutoFilled}
@@ -873,10 +897,10 @@ function MARNewFormInner() {
               <input type="text" className={inputCls} value={form.patient_name} onChange={e => set('patient_name', e.target.value)} />
             )}
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="min-w-0">
               <label className={labelCls}>Date of Birth</label>
-              <input type="date" className={inputCls} value={form.dob} onChange={e => set('dob', e.target.value)} />
+              <input type="date" className={inputCls + ' min-w-0'} value={form.dob} onChange={e => set('dob', e.target.value)} />
             </div>
             <div>
               <label className={labelCls}>Encounter ID</label>

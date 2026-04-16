@@ -26,7 +26,7 @@ function AdminDashboardPageInner() {
         ] = await Promise.all([
           supabase.from('employees').select('id', { count: 'exact', head: true }).eq('status', 'Active'),
           supabase.from('incidents').select('id', { count: 'exact', head: true }).eq('status', 'Active'),
-          supabase.from('patient_encounters').select('id', { count: 'exact', head: true }).eq('date', today),
+          supabase.from('patient_encounters').select('id', { count: 'exact', head: true }).eq('date', today).is('deleted_at', null),
           supabase.from('dispense_admin_log').select('id', { count: 'exact', head: true }).eq('requires_cosign', true).is('provider_signature_url', null),
           supabase.from('unit_inventory').select('id', { count: 'exact', head: true }).lte('quantity', 1),
           supabase.from('documents').select('id', { count: 'exact', head: true }).eq('active', true),

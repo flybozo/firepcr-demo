@@ -238,9 +238,9 @@ export default function AdminPayrollPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-x-auto">
           {/* Table header */}
-          <div className="hidden lg:flex items-center px-4 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 bg-gray-800 border-b border-gray-700">
+          <div className="hidden lg:flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 bg-gray-800 border-b border-gray-700 min-w-[700px]">
             <button className="flex-1 min-w-0 text-left flex items-center hover:text-gray-300 transition-colors" onClick={() => toggleSort('employee')}>
               Employee <SortIcon k="employee" />
             </button>
@@ -313,7 +313,7 @@ function DeploymentTableRow({ dep, showIncident }: { dep: DeploymentRow; showInc
   const isActive = dep.status === 'Traveling' || dep.status === 'On Scene'
 
   return (
-    <div className="px-4 py-3 hover:bg-gray-800/30 transition-colors">
+    <div className="px-4 py-2 hover:bg-gray-800/30 transition-colors min-w-[700px]">
       {/* Mobile */}
       <div className="lg:hidden space-y-1">
         <div className="flex items-center justify-between">

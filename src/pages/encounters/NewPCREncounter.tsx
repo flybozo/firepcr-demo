@@ -1,6 +1,6 @@
 
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useRef, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getIsOnline } from '@/lib/syncManager'
 import { loadList } from '@/lib/offlineFirst'
@@ -595,6 +595,7 @@ const CREW_DISPOSITION_OPTIONS = [
 function PCRFormInner() {
   const supabase = createClient()
   const navigate = useNavigate()
+  const requestId = useRef(crypto.randomUUID())
   const [searchParams] = useSearchParams()
   const unitParam = searchParams.get('unitName') || searchParams.get('unit') || ''
   const incidentParam = searchParams.get('incidentId') || ''
@@ -763,7 +764,28 @@ function PCRFormInner() {
   }, [])
 
   const set = (field: keyof FormData, value: string | boolean | string[]) => {
-    setForm(prev => ({ ...prev, [field]: value }))
+    setForm(prev => {
+      const next = { ...prev, [field]: value }
+      // Auto-compute age from DOB
+      if (field === 'dob' && typeof value === 'string' && value) {
+        const birth = new Date(value + 'T00:00:00')
+        const today = new Date()
+        let age = today.getFullYear() - birth.getFullYear()
+        const monthDiff = today.getMonth() - birth.getMonth()
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) age--
+        if (age < 0) age = 0
+        if (age < 2) {
+          // Use months for infants/toddlers
+          const months = (today.getFullYear() - birth.getFullYear()) * 12 + today.getMonth() - birth.getMonth()
+          next.patient_age = String(Math.max(0, months))
+          next.patient_age_units = 'Months'
+        } else {
+          next.patient_age = String(age)
+          next.patient_age_units = 'Years'
+        }
+      }
+      return next
+    })
   }
 
   // NEMSIS real-time quality warnings
@@ -921,23 +943,27 @@ function PCRFormInner() {
       who_used_aed: form.who_used_aed || null,
     }
 
+    const encounterPayload = {
+      ...payload,
+      created_by: currentUser.employee?.name || null,
+      client_request_id: requestId.current,
+    }
+
     if (getIsOnline()) {
-      const { error } = await supabase.from('patient_encounters').insert({
-        ...payload,
-        created_by: currentUser.employee?.name || null,
-      })
+      const { error } = await supabase.from('patient_encounters').insert(encounterPayload)
       setSubmitting(false)
       if (!error) {
+        navigate('/encounters?success=1')
+      } else if (error.code === '23505') {
+        // Duplicate — already saved (offline retry race). Treat as success.
+        console.warn('[PCR] Duplicate client_request_id — already saved:', requestId.current)
         navigate('/encounters?success=1')
       } else {
         alert(`Error saving PCR: ${error.message}`)
       }
     } else {
       // Offline — queue to sync when back online
-      await queueOfflineWrite('patient_encounters', 'insert', {
-        ...payload,
-        created_by: currentUser.employee?.name || null,
-      })
+      await queueOfflineWrite('patient_encounters', 'insert', encounterPayload)
       setSubmitting(false)
       navigate('/encounters?success=1&offline=1')
     }
@@ -960,12 +986,12 @@ function PCRFormInner() {
                 {(unitParam || (!assignment.loading && assignment.unit)) ? (
                   <div className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg border border-gray-700">
                     <span className="text-sm text-white font-medium">{form.unit || assignment.unit?.name}</span>
-                    <span className="text-xs text-gray-500">✓ auto-filled</span>
+                    <span className="text-xs text-gray-500">🔒 locked</span>
                   </div>
                 ) : (
                   <select className={inputCls} value={form.unit} onChange={e => set('unit', e.target.value)}>
                     <option value="">Select unit</option>
-                    {['GRANITE 1','GRANITE 2','GRANITE MSU','GRANITE REMS'].map(u => (
+                    {['RAMBO 1','RAMBO 2','RAMBO 3','RAMBO 4','The Beast','MSU 1','MSU 2','REMS 1','REMS 2'].map(u => (
                       <option key={u} value={u}>{u}</option>
                     ))}
                   </select>
@@ -974,10 +1000,10 @@ function PCRFormInner() {
             </div>
             <div>
               <label className={labelCls}>Incident</label>
-              {(incidentNameParam || form.incident || (!assignment.loading && assignment.incident)) ? (
+              {(incidentParam || incidentNameParam || form.incident || (!assignment.loading && assignment.incident)) ? (
                 <div className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg border border-gray-700">
-                  <span className="text-sm text-white font-medium">{form.incident || assignment.incident?.name}</span>
-                  <span className="text-xs text-gray-500">✓ auto-filled</span>
+                  <span className="text-sm text-white font-medium">{form.incident || assignment.incident?.name || 'Loading...'}</span>
+                  <span className="text-xs text-gray-500">🔒 locked</span>
                 </div>
               ) : (
                 <input type="text" className={inputCls} value={form.incident} onChange={e => set('incident', e.target.value)} placeholder="e.g. Park Fire" />

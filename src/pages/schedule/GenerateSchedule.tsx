@@ -6,6 +6,7 @@ import { useRole } from '@/lib/useRole'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { Link } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
+import { authFetch } from '@/lib/authFetch'
 
 type ScheduleEntry = {
   unit_id: string
@@ -120,9 +121,8 @@ export default function GenerateSchedulePage() {
     setApproved(false)
 
     try {
-      const res = await fetch('/api/schedule/generate', {
+      const res = await authFetch('/api/schedule/generate', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           start_date: startDate,
           end_date: endDate,

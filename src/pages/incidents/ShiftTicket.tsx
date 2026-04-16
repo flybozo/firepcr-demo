@@ -6,6 +6,7 @@ import { useParams } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { Link } from 'react-router-dom'
 import SignatureCanvas from 'react-signature-canvas'
+import { authFetch } from '@/lib/authFetch'
 
 type ShiftRow = {
   date: string
@@ -145,9 +146,8 @@ export default function ShiftTicketPage() {
       }
 
       // Call API route to generate PDF
-      const res = await fetch('/api/shift-ticket', {
+      const res = await authFetch('/api/shift-ticket', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
 

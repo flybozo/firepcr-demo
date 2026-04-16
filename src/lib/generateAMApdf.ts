@@ -1,4 +1,4 @@
-import jsPDF from 'jspdf'
+import type jsPDF from 'jspdf'
 
 export type AMAData = {
   patient_name: string
@@ -13,7 +13,8 @@ export type AMAData = {
   provider_signature_url?: string | null
 }
 
-export function generateAMAPDF(data: AMAData, logoDataUrl?: string | null): jsPDF {
+export async function generateAMAPDF(data: AMAData, logoDataUrl?: string | null): Promise<jsPDF> {
+  const { default: jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
   const W = 612, M = 54
   let y = M
@@ -25,9 +26,9 @@ export function generateAMAPDF(data: AMAData, logoDataUrl?: string | null): jsPD
     try { doc.addImage(logoDataUrl, 'PNG', M, y - 6, 52, 28) } catch {}
   }
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255)
-  doc.text('FirePCR', W / 2, y + 6, { align: 'center' })
+  doc.text('REMOTE AREA MEDICINE', W / 2, y + 6, { align: 'center' })
   doc.setFontSize(8); doc.setFont('helvetica', 'normal')
-  doc.text('Medical Director: James Hartwell, MD', W / 2, y + 20, { align: 'center' })
+  doc.text('Sierra Valley EMS P.C.  |  Medical Director: Aaron Stutz, MD', W / 2, y + 20, { align: 'center' })
   doc.setTextColor(0, 0, 0)
   y += 44
   doc.setFont('helvetica', 'bold'); doc.setFontSize(11)
@@ -67,7 +68,7 @@ export function generateAMAPDF(data: AMAData, logoDataUrl?: string | null): jsPD
   doc.setFont('helvetica', 'bold'); doc.setFontSize(10)
   doc.text('PATIENT STATEMENT & RELEASE', M, y); y += 14
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
-  const stmt = `I, ${data.patient_name}, have been informed of my medical condition, the recommended treatment and/or transport, and the risks of refusal — including serious injury or death. I am voluntarily refusing the emergency medical care described above and release FirePCR EMS, its medical director, and all EMS providers from any liability arising from this refusal. I have been advised to call 911 or seek emergency care immediately if my condition worsens.`
+  const stmt = `I, ${data.patient_name}, have been informed of my medical condition, the recommended treatment and/or transport, and the risks of refusal — including serious injury or death. I am voluntarily refusing the emergency medical care described above and release Sierra Valley EMS (Sierra Valley EMS P.C.), its medical director, and all EMS providers from any liability arising from this refusal. I have been advised to call 911 or seek emergency care immediately if my condition worsens.`
   const lines = doc.splitTextToSize(stmt, W - M * 2)
   doc.text(lines, M, y); y += (lines as string[]).length * 12 + 12
 

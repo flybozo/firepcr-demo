@@ -1,13 +1,12 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { createServiceClient } from './_supabase'
+import { HttpError, requireEmployee } from './_auth'
+import { rateLimit } from './_rateLimit'
 
 // Vercel Pro: max 60s, Enterprise: 900s. Needed for executive tool calls.
 // Vercel serverless
 
 // iMac Codsworth relay — admin users get full context via Tailscale
 const IMAC_GATEWAY_URL = process.env.IMAC_GATEWAY_URL || 'https://aarons-imac-2.tailebc17f.ts.net'
-const ADMIN_ROLES = ['MD', 'DO', 'Admin']
-
 const REQUEST_KEYWORDS = [
   'request', 'can i', 'could i', 'i would like', 'i need approval',
   'i\'d like', 'is it ok', 'is it possible', 'permission', 'approve',
@@ -67,7 +66,7 @@ Do NOT reveal: patient PHI, company financials, contracts, other employees' sala
 For anything requiring management approval, acknowledge warmly and say it's been forwarded to Aaron.` : ''
 
     const systemPrompt = `[RAM Field Ops Employee Chat — relayed from app]
-You are Codsworth, assistant to Aaron Stutz MD and the Remote Area Medicine team. You have full company context.
+You are Codsworth, assistant to Aaron Stutz MD and the Sierra Valley EMS team. You have full company context.
 
 Employee chatting with you: ${employee.name} (${employee.role})
 Authority level: ${authority.toUpperCase()}
@@ -95,7 +94,6 @@ Be concise and practical — this person is in the field. You can draw on everyt
     ]
 
     const gatewayToken = process.env.IMAC_GATEWAY_TOKEN
-    console.log(`[relay] Calling ${IMAC_GATEWAY_URL}/v1/chat/completions with token=${gatewayToken ? gatewayToken.slice(0,8) + '...' : 'MISSING'}`)
 
     const res = await fetch(`${IMAC_GATEWAY_URL}/v1/chat/completions`, {
       method: 'POST',
@@ -130,7 +128,7 @@ function loadCompanyContext(): string {
   try {
     const fs = require('fs')
     const path = require('path')
-    const contextPath = path.join(process.cwd(), 'public', 'employee-chat-context.md')
+    const contextPath = path.join(process.cwd(), 'api', '_employee-chat-context.md')
     return fs.readFileSync(contextPath, 'utf-8')
   } catch (e) {
     console.warn('Could not load company context:', e)
@@ -148,7 +146,7 @@ async function callHaiku(
   history: { role: string; content: string }[]
 ): Promise<string> {
   const companyContext = loadCompanyContext()
-  const systemPrompt = `You are Codsworth, an AI assistant for Remote Area Medicine (RAM), a wildfire medical services company. You are helping ${employee.name}, a ${employee.role} on the RAM team.
+  const systemPrompt = `You are Codsworth, an AI assistant for Sierra Valley EMS (RAM), a wildfire medical services company. You are helping ${employee.name}, a ${employee.role} on the RAM team.
 
 Their current context:
 - Unit: ${unitName}
@@ -221,23 +219,26 @@ Keep responses concise and practical. You know this team works in demanding fiel
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" })
   try {
-    const { message, employee_id } = req.body
+    const rawMessage = req.body?.message
 
-    if (!message || !employee_id) {
-      return res.status(400).json({ error: 'Missing message or employee_id' })
+    if (!rawMessage || typeof rawMessage !== 'string') {
+      return res.status(400).json({ error: 'Missing message' })
     }
 
-    const supabase = createServiceClient()
+    // Sanitize and enforce length limit
+    const message = rawMessage.trim().slice(0, 2000)
+    if (!message) {
+      return res.status(400).json({ error: 'Message cannot be empty' })
+    }
 
-    // Fetch employee context
-    const { data: employee } = await supabase
-      .from('employees')
-      .select('id, name, role, chat_authority')
-      .eq('id', employee_id)
-      .single()
+    const { employee, supabase } = await requireEmployee(req)
+    const employeeId = employee.id
 
-    if (!employee) {
-      return res.status(404).json({ error: 'Employee not found' })
+    // Rate limit: 10 messages per minute per employee
+    const rl = rateLimit(`chat:${employeeId}`, 10, 60_000)
+    if (!rl.ok) {
+      res.setHeader('Retry-After', String(Math.ceil((rl.retryAfterMs || 60000) / 1000)))
+      return res.status(429).json({ error: 'Too many messages. Please wait a moment.' })
     }
 
     // Fetch current unit assignment
@@ -250,7 +251,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           released_at
         )
       `)
-      .eq('employee_id', employee_id)
+      .eq('employee_id', employeeId)
       .is('released_at', null)
       .order('assigned_at', { ascending: false })
       .limit(1)
@@ -275,7 +276,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { data: history } = await supabase
       .from('employee_chats')
       .select('role, content, created_at')
-      .eq('employee_id', employee_id)
+      .eq('employee_id', employeeId)
       .order('created_at', { ascending: false })
       .limit(20)
 
@@ -288,7 +289,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let requestLogged = false
     if (requestType) {
       await supabase.from('chat_requests').insert({
-        employee_id,
+        employee_id: employeeId,
         employee_name: employee.name,
         request_type: requestType,
         content: message,
@@ -297,26 +298,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       requestLogged = true
     }
 
-    // ── Route: admin/executive → async iMac relay; field → sync Haiku ──
-    const authority = (employee as any).chat_authority || 'field'
-    const isAdmin = authority === 'executive' || authority === 'admin' || ADMIN_ROLES.includes(employee.role)
+    // ── Route: all users → sync Haiku (iMac relay disabled — Vercel kills background functions on free plan) ──
+    const authority = employee.chat_authority || 'field'
+    const isAdmin = false
 
     if (isAdmin) {
       // ── ASYNC PATH: return immediately, relay in background ──
 
       // 1. Save user message (status: complete)
       await supabase.from('employee_chats').insert({
-        employee_id,
+        employee_id: employeeId,
         role: 'user',
         content: message,
         status: 'complete',
       })
 
       // 2. Insert placeholder assistant message (status: pending)
-      const { data: placeholder, error: placeholderErr } = await supabase
+      const placeholderResult = await supabase
         .from('employee_chats')
         .insert({
-          employee_id,
+          employee_id: employeeId,
           role: 'assistant',
           content: '...',
           status: 'pending',
@@ -324,12 +325,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .select('id')
         .single()
 
-      if (placeholderErr || !placeholder) {
-        console.error('[async relay] Failed to insert placeholder:', placeholderErr)
-        return res.status(500).json({ error: 'Failed to initialize chat' })
+      if (placeholderResult.error || !placeholderResult.data) {
+        console.error('[async relay] Failed to insert placeholder:', placeholderResult.error)
+        return res.status(500).json({ error: 'Failed to initialize chat', detail: placeholderResult.error?.message })
       }
 
-      const pendingMessageId = placeholder.id
+      const pendingMessageId: string = placeholderResult.data.id as string
 
       // 3. Fire relay in background — runs AFTER response is sent to client
       // Run relay in background (Vercel keeps the function alive)
@@ -375,7 +376,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             })
             .eq('id', pendingMessageId)
         }
-      })
+      })()
 
       // 4. Return immediately — client will poll for the pending message
       return res.json({
@@ -392,14 +393,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Save user message + assistant response
       await supabase.from('employee_chats').insert([
-        { employee_id, role: 'user', content: message, status: 'complete' },
-        { employee_id, role: 'assistant', content: reply, status: 'complete' },
+        { employee_id: employeeId, role: 'user', content: message, status: 'complete' },
+        { employee_id: employeeId, role: 'assistant', content: reply, status: 'complete' },
       ])
 
       return res.json({ reply, requestLogged, routedVia: 'haiku' })
     }
 
   } catch (err: any) {
+    if (err instanceof HttpError) {
+      return res.status(err.status).json({ error: err.message })
+    }
     console.error('employee-chat route error:', err)
     return res.status(500).json({ error: 'Internal server error' })
   }

@@ -253,10 +253,20 @@ export default function UnitDetailPage() {
     load()
   }
 
-  const cycleUnitStatus = async () => {
+  const setUnitStatus = async (next: string) => {
     if (!unit || !isAdmin) return
-    const cycle: Record<string, string> = { 'in_service': 'out_of_service', 'out_of_service': 'archived', 'archived': 'in_service' }
-    const next = cycle[unit.unit_status || 'in_service'] || 'in_service'
+    const current = unit.unit_status || 'in_service'
+    if (next === current) return
+    const isLeavingService = next === 'out_of_service' || next === 'archived'
+    if (isLeavingService && activeIU) {
+      const incidentName = (activeIU as any).incident?.name || 'its current incident'
+      const label = next === 'archived' ? 'Archive' : 'Mark Out of Service'
+      const ok = confirm(`${label} ${unit.name}?\n\nThis will:\n• Release ${unit.name} from ${incidentName}\n• Release all assigned crew\n\nThis cannot be undone automatically.`)
+      if (!ok) return
+      const now = new Date().toISOString()
+      await supabase.from('unit_assignments').update({ released_at: now }).eq('incident_unit_id', activeIU.id).is('released_at', null)
+      await supabase.from('incident_units').update({ released_at: now }).eq('id', activeIU.id)
+    }
     await supabase.from('units').update({ unit_status: next }).eq('id', unit.id)
     await load()
   }
@@ -338,7 +348,14 @@ export default function UnitDetailPage() {
                   const deployed = s === 'in_service' && !!activeIU
                   const label = deployed ? '● Deployed' : s === 'in_service' ? '○ Available' : s === 'out_of_service' ? '⚠ Out of Service' : 'Archived'
                   const cls = deployed ? 'text-green-400' : s === 'out_of_service' ? 'text-yellow-400' : 'text-gray-500'
-                  return <button onClick={isAdmin ? cycleUnitStatus : undefined} title={isAdmin ? 'Click to change status' : undefined} className={`text-xs ${cls} ${isAdmin ? 'hover:underline cursor-pointer' : ''}`}>{label}</button>
+                  return isAdmin ? (
+                    <select value={s} onChange={e => setUnitStatus(e.target.value)}
+                      className={`text-xs bg-transparent border-0 outline-none cursor-pointer appearance-none ${cls}`}>
+                      <option value="in_service">{deployed ? '● Deployed' : '○ Available'}</option>
+                      <option value="out_of_service">⚠ Out of Service</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                  ) : <span className={`text-xs ${cls}`}>{label}</span>
                 })()}
               </div>
             </div>

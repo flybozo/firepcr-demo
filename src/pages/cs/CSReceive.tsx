@@ -1,11 +1,12 @@
 
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { getIsOnline } from '@/lib/syncManager'
 import { useNavigate } from 'react-router-dom'
-import SignatureCanvas from 'react-signature-canvas'
+import { useUserAssignment } from '@/lib/useUserAssignment'
+import PinSignature, { type SignatureRecord } from '@/components/PinSignature'
 
 type Employee = {
   id: string
@@ -19,18 +20,14 @@ const CLINICAL_ROLES = ['MD/DO', 'NP', 'PA', 'Paramedic', 'RN']
 const inputCls = 'w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500'
 const labelCls = 'block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1'
 
-async function sigPadToBlob(ref: React.RefObject<SignatureCanvas | null>): Promise<Blob | null> {
-  if (!ref.current || ref.current.isEmpty()) return null
-  return new Promise(resolve => {
-    ref.current!.getCanvas().toBlob(blob => resolve(blob), 'image/png')
-  })
-}
-
 export default function ReceiveCSPage() {
   const supabase = createClient()
   const navigate = useNavigate()
-  const receiverSigRef = useRef<SignatureCanvas>(null)
-  const witnessSigRef = useRef<SignatureCanvas>(null)
+  const assignment = useUserAssignment()
+  const [showReceiverSig, setShowReceiverSig] = useState(false)
+  const [showWitnessSig, setShowWitnessSig] = useState(false)
+  const [receiverSigRecord, setReceiverSigRecord] = useState<SignatureRecord | null>(null)
+  const [witnessSigRecord, setWitnessSigRecord] = useState<SignatureRecord | null>(null)
 
   const [employees, setEmployees] = useState<Employee[]>([])
   const [submitting, setSubmitting] = useState(false)
@@ -98,37 +95,13 @@ export default function ReceiveCSPage() {
     if (!form.received_by) { setError('Received By is required'); return }
     if (!form.witness) { setError('Witness is required'); return }
     if (form.received_by === form.witness) { setError('Received By and Witness must be different people'); return }
-    if (!receiverSigRef.current || receiverSigRef.current.isEmpty()) { setError('Receiver signature is required'); return }
-    if (!witnessSigRef.current || witnessSigRef.current.isEmpty()) { setError('Witness signature is required'); return }
+    if (!receiverSigRecord) { setError('Receiver signature is required — tap Sign below'); return }
+    if (!witnessSigRecord) { setError('Witness signature is required'); return }
 
     setSubmitting(true)
     try {
-      const ts = Date.now()
-
-      // Upload signatures
-      const receiverBlob = await sigPadToBlob(receiverSigRef)
-      const witnessBlob = await sigPadToBlob(witnessSigRef)
-
-      let receiverUrl = ''
-      let witnessUrl = ''
-
-      if (receiverBlob) {
-        const { data: rData, error: rErr } = await supabase.storage
-          .from('signatures')
-          .upload(`cs-receive/${ts}-receiver.png`, receiverBlob, { contentType: 'image/png' })
-        if (rErr) throw new Error('Failed to upload receiver signature')
-        const { data: urlData } = supabase.storage.from('signatures').getPublicUrl(rData.path)
-        receiverUrl = urlData.publicUrl
-      }
-
-      if (witnessBlob) {
-        const { data: wData, error: wErr } = await supabase.storage
-          .from('signatures')
-          .upload(`cs-receive/${ts}-witness.png`, witnessBlob, { contentType: 'image/png' })
-        if (wErr) throw new Error('Failed to upload witness signature')
-        const { data: urlData } = supabase.storage.from('signatures').getPublicUrl(wData.path)
-        witnessUrl = urlData.publicUrl
-      }
+      const receiverUrl = receiverSigRecord.signatureHash
+      const witnessUrl = witnessSigRecord.signatureHash
 
       // Find warehouse unit ID
       const { data: warehouseUnit } = await supabase
@@ -242,14 +215,14 @@ export default function ReceiveCSPage() {
         )}
 
         {/* Lot + Expiration */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="min-w-0">
             <label className={labelCls}>Lot Number *</label>
-            <input className={inputCls} type="text" value={form.lot_number} onChange={e => set('lot_number', e.target.value)} required />
+            <input className={inputCls + ' min-w-0'} type="text" value={form.lot_number} onChange={e => set('lot_number', e.target.value)} required />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className={labelCls}>Expiration Date *</label>
-            <input className={inputCls} type="date" value={form.expiration_date} onChange={e => set('expiration_date', e.target.value)} required />
+            <input className={inputCls + ' min-w-0'} type="date" value={form.expiration_date} onChange={e => set('expiration_date', e.target.value)} required />
           </div>
         </div>
 
@@ -308,27 +281,39 @@ export default function ReceiveCSPage() {
         {/* Receiver Signature */}
         <div>
           <label className={labelCls}>Receiver Signature{receiverName ? ` — ${receiverName}` : ''} *</label>
-          <div className="rounded-lg overflow-hidden border border-gray-600" style={{ width: 220, height: 80 }}>
-            <SignatureCanvas
-              ref={receiverSigRef}
-              penColor="black"
-              canvasProps={{ width: 220, height: 80, style: { background: 'white' } }}
-            />
-          </div>
-          <button type="button" onClick={() => receiverSigRef.current?.clear()} className="text-xs text-gray-500 hover:text-gray-300 mt-1">Clear</button>
+          {receiverSigRecord ? (
+            <div className="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-3">
+              <div>
+                <p className="text-green-400 text-sm font-medium">✓ Signed</p>
+                <p className="text-gray-400 text-xs">{receiverSigRecord.displayText}</p>
+              </div>
+              <button type="button" onClick={() => setReceiverSigRecord(null)} className="text-gray-500 hover:text-white text-xs">Clear</button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setShowReceiverSig(true)}
+              className="w-full py-3 bg-gray-800 hover:bg-gray-700 border border-dashed border-gray-600 rounded-xl text-sm text-gray-400 transition-colors">
+              Tap to Sign
+            </button>
+          )}
         </div>
 
         {/* Witness Signature */}
         <div>
           <label className={labelCls}>Witness Signature{witnessName ? ` — ${witnessName}` : ''} *</label>
-          <div className="rounded-lg overflow-hidden border border-gray-600" style={{ width: 220, height: 80 }}>
-            <SignatureCanvas
-              ref={witnessSigRef}
-              penColor="black"
-              canvasProps={{ width: 220, height: 80, style: { background: 'white' } }}
-            />
-          </div>
-          <button type="button" onClick={() => witnessSigRef.current?.clear()} className="text-xs text-gray-500 hover:text-gray-300 mt-1">Clear</button>
+          {witnessSigRecord ? (
+            <div className="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-3">
+              <div>
+                <p className="text-green-400 text-sm font-medium">✓ Witnessed</p>
+                <p className="text-gray-400 text-xs">{witnessSigRecord.displayText}</p>
+              </div>
+              <button type="button" onClick={() => setWitnessSigRecord(null)} className="text-gray-500 hover:text-white text-xs">Clear</button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setShowWitnessSig(true)}
+              className="w-full py-3 bg-gray-800 hover:bg-gray-700 border border-dashed border-gray-600 rounded-xl text-sm text-gray-400 transition-colors">
+              Witness — Tap to Sign
+            </button>
+          )}
         </div>
 
         {/* Notes */}
@@ -356,6 +341,20 @@ export default function ReceiveCSPage() {
           </button>
         </div>
       </form>
+
+      {showReceiverSig && (
+        <PinSignature label="Receiver Signature" mode="self"
+          employeeId={assignment.employee?.id} employeeName={assignment.employee?.name}
+          documentContext="cs-receive"
+          onSign={(rec) => { setReceiverSigRecord(rec); setShowReceiverSig(false) }}
+          onCancel={() => setShowReceiverSig(false)} />
+      )}
+      {showWitnessSig && (
+        <PinSignature label="Witness Signature" mode="witness"
+          documentContext="cs-receive"
+          onSign={(rec) => { setWitnessSigRecord(rec); setShowWitnessSig(false) }}
+          onCancel={() => setShowWitnessSig(false)} />
+      )}
     </div>
   )
 }

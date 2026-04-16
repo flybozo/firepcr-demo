@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 
-const UNITS: string[] = []
+const UNITS = ['RAMBO 1','RAMBO 2','RAMBO 3','RAMBO 4','The Beast','MSU 1','MSU 2','REMS 1','REMS 2']
 
 export type PickedEncounter = {
   id: string
@@ -24,40 +24,44 @@ interface Props {
   onSelect: (enc: PickedEncounter) => void
   /** If true, hide the picker (e.g. already linked via URL param) */
   hidden?: boolean
+  /** Unit name to filter encounters — if provided, hides the internal unit selector */
+  unitName?: string
 }
 
-export default function EncounterPicker({ onSelect, hidden }: Props) {
+export default function EncounterPicker({ onSelect, hidden, unitName }: Props) {
   const supabase = createClient()
   const assignment = useUserAssignment()
 
-  const [unit, setUnit] = useState('')
+  // Use provided unitName, fall back to assignment, fall back to internal state
+  const [internalUnit, setInternalUnit] = useState('')
+  const unit = unitName || assignment.unit?.name || internalUnit
+
   const [encounters, setEncounters] = useState<PickedEncounter[]>([])
   const [loading, setLoading] = useState(false)
-
-  // Auto-fill unit from assignment
-  useEffect(() => {
-    if (!assignment.loading && assignment.unit?.name) {
-      setUnit(assignment.unit.name)
-    }
-  }, [assignment.loading, assignment.unit])
 
   // Load encounters when unit changes
   useEffect(() => {
     if (!unit) { setEncounters([]); return }
     setLoading(true)
+    const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     supabase
       .from('patient_encounters')
-      .select('id, encounter_id, patient_first_name, patient_last_name, date_of_birth, primary_symptom_text, date, unit, provider_of_record, incident_id')
+      .select('id, encounter_id, patient_first_name, patient_last_name, patient_dob, primary_symptom_text, date, unit, provider_of_record, incident_id')
       .eq('unit', unit)
+      .gte('date', cutoff)
       .order('date', { ascending: false })
-      .limit(25)
-      .then(({ data }) => {
-        setEncounters((data || []).map((e: any) => ({ ...e, patient_dob: e.date_of_birth })))
+      .limit(10)
+      .then(({ data, error }) => {
+        if (error) console.error('EncounterPicker fetch error:', error)
+        setEncounters((data || []).map((e: any) => ({ ...e })))
         setLoading(false)
       })
   }, [unit])
 
   if (hidden) return null
+
+  // If unit is already known (from prop or assignment), show it locked — no duplicate selector
+  const showUnitSelector = !unitName && !assignment.unit?.name && !assignment.loading
 
   return (
     <div className="bg-gray-900 rounded-xl p-4 border border-blue-900/40 space-y-3">
@@ -68,25 +72,20 @@ export default function EncounterPicker({ onSelect, hidden }: Props) {
         </h2>
       </div>
 
-      {/* Unit selector */}
-      <div>
-        <label className="text-xs text-gray-400 block mb-1">Unit</label>
-        {assignment.unit?.name && !assignment.loading ? (
-          <div className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg">
-            <span className="text-sm text-white font-medium">{assignment.unit.name}</span>
-            <span className="text-xs text-gray-500">(your assigned unit)</span>
-          </div>
-        ) : (
+      {/* Unit selector — only shown when unit is not already known */}
+      {showUnitSelector && (
+        <div>
+          <label className="text-xs text-gray-400 block mb-1">Unit</label>
           <select
-            value={unit}
-            onChange={e => setUnit(e.target.value)}
+            value={internalUnit}
+            onChange={e => setInternalUnit(e.target.value)}
             className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select unit...</option>
             {UNITS.map(u => <option key={u}>{u}</option>)}
           </select>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Encounter selector */}
       {unit && (

@@ -25,7 +25,7 @@ type UnitOption = {
   id: string
   name: string
   unit_type: { name: string } | null
-  incident_units: { id: string; incident: { id: string; name: string; status: string } | null }[]
+  incident_units: { id: string; released_at: string | null; incident: { id: string; name: string; status: string } | null }[]
 }
 
 function NewEncounterInner() {
@@ -38,6 +38,7 @@ function NewEncounterInner() {
 
   const [loading, setLoading] = useState(true)
   const [units, setUnits] = useState<UnitOption[]>([])
+  const [displayedUnits, setDisplayedUnits] = useState<UnitOption[]>([])
   const [incidents, setIncidents] = useState<{ id: string; name: string }[]>([])
   const [submitting, setSubmitting] = useState(false)
 
@@ -64,14 +65,14 @@ function NewEncounterInner() {
       try {
         const { getCachedData } = await import('@/lib/offlineStore')
         const cachedUnits = await getCachedData('units') as any[]
-        if (cachedUnits.length > 0) setUnits(cachedUnits as any)
+        if (cachedUnits.length > 0) { setUnits(cachedUnits as any); setDisplayedUnits(cachedUnits as any) }
         const cachedInc = await getCachedData('incidents') as any[]
         if (cachedInc.length > 0) setIncidents(cachedInc)
       } catch {}
       const [unitResult, incResult] = await Promise.all([
         loadList(
           () => supabase.from('units')
-            .select('id, name, unit_type:unit_types(name), incident_units(id, incident:incidents(id, name, status))')
+            .select('id, name, unit_type:unit_types(name), incident_units(id, released_at, incident:incidents(id, name, status))')
             .eq('active', true)
             .neq('name', 'Warehouse')
             .order('name') as any,
@@ -83,6 +84,7 @@ function NewEncounterInner() {
         ),
       ])
       setUnits(unitResult.data as any)
+      setDisplayedUnits(unitResult.data as any)
       setIncidents(incResult.data)
       setLoading(false)
     }
@@ -95,7 +97,7 @@ function NewEncounterInner() {
       const matchedUnit = units.find(u => u.name === assignment.unit?.name)
       if (matchedUnit) {
         const typeName = (matchedUnit.unit_type as any)?.name || ''
-        const activeIU = matchedUnit.incident_units?.find((iu: any) => iu.incident?.status === 'Active')
+        const activeIU = matchedUnit.incident_units?.find((iu: any) => iu.incident?.status === 'Active' && !iu.released_at)
         set('unit_id', matchedUnit.id)
         set('unit_name', matchedUnit.name)
         set('unit_type', typeName)
@@ -111,11 +113,34 @@ function NewEncounterInner() {
   const handleUnitChange = (unitId: string) => {
     const unit = units.find(u => u.id === unitId)
     const typeName = (unit?.unit_type as any)?.name || ''
-    const activeIU = unit?.incident_units?.find((iu: any) => iu.incident?.status === 'Active')
+    const activeIU = unit?.incident_units?.find((iu: any) => iu.incident?.status === 'Active' && !iu.released_at)
     set('unit_id', unitId)
     set('unit_name', unit?.name || '')
     set('unit_type', typeName)
-    if (activeIU?.incident?.id) set('incident_id', activeIU.incident.id)
+    if (activeIU?.incident?.id) {
+      set('incident_id', activeIU.incident.id)
+      set('incident_name', activeIU.incident.name || '')
+    }
+  }
+
+  const handleIncidentChange = (incidentId: string) => {
+    const inc = incidents.find(i => i.id === incidentId)
+    set('incident_id', incidentId)
+    set('incident_name', inc?.name || '')
+    if (incidentId) {
+      const filtered = units.filter(u =>
+        u.incident_units?.some((iu: any) => !iu.released_at && iu.incident?.id === incidentId)
+      )
+      setDisplayedUnits(filtered)
+      // If current unit is no longer valid for selected incident, clear it
+      if (form.unit_id && !filtered.find(u => u.id === form.unit_id)) {
+        set('unit_id', '')
+        set('unit_name', '')
+        set('unit_type', '')
+      }
+    } else {
+      setDisplayedUnits(units)
+    }
   }
 
   const isLocked = !!assignment.unit && !assignment.loading
@@ -124,7 +149,7 @@ function NewEncounterInner() {
   const handleContinue = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.unit_id) return
-    const isAmbulance = form.unit_type === 'Ambulance' || form.unit_name.startsWith('GRANITE')
+    const isAmbulance = form.unit_type === 'Ambulance' || form.unit_name.startsWith('RAMBO')
     const path = isAmbulance ? 'pcr' : 'simple'
     const params = new URLSearchParams({
       unitId: form.unit_id,
@@ -151,10 +176,10 @@ function NewEncounterInner() {
   )
 
   const selectedUnit = units.find(u => u.id === form.unit_id)
-  const isAmbulance = form.unit_type === 'Ambulance' || form.unit_name.startsWith('GRANITE')
+  const isAmbulance = form.unit_type === 'Ambulance' || form.unit_name.startsWith('RAMBO')
 
   return (
-    <div className="p-6 md:p-8 max-w-lg mx-auto mt-8 md:mt-0 pb-16">
+    <div className="p-4 md:p-8 max-w-lg mx-auto mt-8 md:mt-0 pb-16">
       <h1 className="text-2xl font-bold mb-1">New Patient Encounter</h1>
       <p className="text-gray-400 text-sm mb-6">
         {form.unit_name
@@ -179,7 +204,7 @@ function NewEncounterInner() {
               <select value={form.unit_id} onChange={e => handleUnitChange(e.target.value)} className={inputCls}>
                 <option value="">Select unit...</option>
                 {['Med Unit', 'Ambulance', 'REMS'].map(type => {
-                  const typeUnits = units.filter(u => (u.unit_type as any)?.name === type)
+                  const typeUnits = displayedUnits.filter(u => (u.unit_type as any)?.name === type)
                   if (!typeUnits.length) return null
                   return (
                     <optgroup key={type} label={type}>
@@ -199,11 +224,7 @@ function NewEncounterInner() {
                 <span className="text-xs text-gray-500">🔒</span>
               </div>
             ) : (
-              <select value={form.incident_id} onChange={e => {
-                  set('incident_id', e.target.value)
-                  const inc = incidents.find(i => i.id === e.target.value)
-                  set('incident_name', inc?.name || '')
-                }} className={inputCls}>
+              <select value={form.incident_id} onChange={e => handleIncidentChange(e.target.value)} className={inputCls}>
                 <option value="">Select incident (optional)...</option>
                 {incidents.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
               </select>
@@ -212,17 +233,17 @@ function NewEncounterInner() {
         </div>
 
         {/* Date / Time / Crew */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4 overflow-hidden">
           <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Date, Time & Crew</h2>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="min-w-0">
               <label className={labelCls}>Date *</label>
-              <input type="date" value={form.date} onChange={e => set('date', e.target.value)} className={inputCls} />
+              <input type="date" value={form.date} onChange={e => set('date', e.target.value)} className={inputCls + ' w-full min-w-0'} />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className={labelCls}>Time</label>
-              <input type="time" value={form.time} onChange={e => set('time', e.target.value)} className={inputCls} />
+              <input type="time" value={form.time} onChange={e => set('time', e.target.value)} className={inputCls + ' w-full min-w-0'} />
             </div>
           </div>
 

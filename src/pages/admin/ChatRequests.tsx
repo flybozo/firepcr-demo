@@ -4,6 +4,7 @@ import { FieldGuard } from '@/components/FieldGuard'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
+import { authFetch } from '@/lib/authFetch'
 
 type ChatRequest = {
   id: string
@@ -84,9 +85,8 @@ function ChatRequestsPageInner() {
     // If approving a bug report, notify Codsworth via API
     if (reviewModal.action === 'approved' && reviewModal.request.request_type === 'bug_report') {
       try {
-        await fetch('/api/notify-bug', {
+        await authFetch('/api/notify-bug', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             employee_name: reviewModal.request.employee_name,
             content: reviewModal.request.content,

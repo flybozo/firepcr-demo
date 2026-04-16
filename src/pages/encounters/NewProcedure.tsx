@@ -1,7 +1,7 @@
 
 import EncounterPicker, { type PickedEncounter } from '@/components/EncounterPicker'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useRef, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -49,6 +49,7 @@ type Employee = {
 
 function ProcedureNewInner() {
   const supabase = createClient()
+  const requestId = useRef(crypto.randomUUID())
   const assignment = useUserAssignment()
   const unitParamFromUrl = ''
 
@@ -104,7 +105,7 @@ function ProcedureNewInner() {
             onChange={e => setPickerUnit(e.target.value)}
             className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="">Select unit...</option>
-            {['GRANITE 1','GRANITE 2','GRANITE MSU','GRANITE REMS'].map(u => <option key={u}>{u}</option>)}
+            {['RAMBO 1','RAMBO 2','RAMBO 3','RAMBO 4','The Beast','MSU 1','MSU 2','REMS 1','REMS 2'].map(u => <option key={u}>{u}</option>)}
           </select>
         )}
       </div>
@@ -260,14 +261,23 @@ function ProcedureNewInner() {
         const { error: insertErr } = await supabase.from('encounter_procedures').insert({
           encounter_id: enc.id,
           ...procData,
+          client_request_id: requestId.current,
         })
-        if (insertErr) throw new Error(insertErr.message)
+        if (insertErr) {
+          if (insertErr.code === '23505') {
+            console.warn('[Procedure] Duplicate client_request_id — already saved')
+            navigate(`/encounters/${enc.id}`)
+            return
+          }
+          throw new Error(insertErr.message)
+        }
         navigate(`/encounters/${enc.id}`)
       } else {
         await queueOfflineWrite('encounter_procedures', 'insert', {
           id: crypto.randomUUID(),
           encounter_id: encounterId,
           ...procData,
+          client_request_id: requestId.current,
         })
         alert('Procedure saved offline — will sync when back online.')
         navigate(-1)

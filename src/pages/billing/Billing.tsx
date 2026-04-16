@@ -104,6 +104,7 @@ function BillingPageInner() {
       .from('patient_encounters')
       .select('encounter_id')
       .eq('incident_id', incidentId)
+      .is('deleted_at', null)
 
     const encIds = ((encData as any[]) || []).map((e: any) => e.encounter_id)
 

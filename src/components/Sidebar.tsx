@@ -4,6 +4,7 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import { APP_VERSION } from '@/components/VersionNotifier'
 import { useRole } from '@/lib/useRole'
 import { createClient } from '@/lib/supabase/client'
+import { useUnsignedCounts } from '@/lib/useUnsignedPCRCount'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
 } from '@dnd-kit/core'
@@ -36,7 +37,11 @@ const NAV: NavItem[] = [
     href: '/encounters',
     sub: [
       { label: 'New Encounter', href: '/encounters/new' },
-      { label: 'Unsigned Orders', href: '/unsigned-orders' },
+      { label: 'Unsigned Items', href: '/unsigned-items' },
+      { label: 'Patient Search', href: '/patient-search' },
+      { label: 'MAR', href: '/mar' },
+      { label: 'New MAR Entry', href: '/mar/new' },
+      { label: 'MAR Search', href: '/mar/search' },
     ],
   },
   {
@@ -48,12 +53,7 @@ const NAV: NavItem[] = [
     ],
     adminOnly: false,
   },
-  {
-    icon: '💊',
-    label: 'MAR',
-    href: '/mar',
-    sub: [],
-  },
+
   {
     icon: '📦',
     label: 'Inventory',
@@ -83,7 +83,10 @@ const NAV: NavItem[] = [
     icon: '🚚',
     label: 'Supply Runs',
     href: '/supply-runs',
-    sub: [{ label: 'New Supply Run', href: '/supply-runs/new' }],
+    sub: [
+      { label: 'New Supply Run', href: '/supply-runs/new' },
+      { label: 'Search All', href: '/supply-runs/search' },
+    ],
   },
   {
     icon: '👥',
@@ -141,6 +144,7 @@ const NAV: NavItem[] = [
     href: '/admin',
     sub: [
       { label: 'Announcements', href: '/admin/announcements' },
+      { label: 'Push Notifications', href: '/admin/push-notifications' },
       { label: 'Chat Requests', href: '/admin/chat-requests' },
       { label: 'Company Profile', href: '/admin/company' },
     ],
@@ -148,7 +152,7 @@ const NAV: NavItem[] = [
   },
 ]
 
-const STORAGE_KEY = 'firepcr-sidebar-order'
+const STORAGE_KEY = 'ram-sidebar-order'
 
 function loadOrder(labels: string[]): string[] {
   if (typeof window === 'undefined') return labels
@@ -165,7 +169,7 @@ function loadOrder(labels: string[]): string[] {
 
 // ── Sortable nav item ────────────────────────────────────────────────────────
 function SortableNavItem({
-  item, isAdmin, isField, pathname, expanded, toggle, onNavigate, assignment, roleLoading, getHref,
+  item, isAdmin, isField, pathname, expanded, toggle, onNavigate, assignment, roleLoading, getHref, badges,
 }: {
   item: NavItem & { _disabled?: boolean }
   isAdmin: boolean
@@ -177,7 +181,9 @@ function SortableNavItem({
   assignment: ReturnType<typeof useUserAssignment>
   roleLoading: boolean
   getHref: (item: NavItem) => string
+  badges?: Record<string, { charts: number; notes: number; mar: number; total: number }>
 }) {
+  const [showBadgeDetail, setShowBadgeDetail] = useState(false)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.label })
 
@@ -200,7 +206,6 @@ function SortableNavItem({
         '/inventory/burnrate', '/billing', '/schedule/generate',
       ]
       if (adminSubs.some(a => s.href.startsWith(a))) return false
-      if (s.href === '/unsigned-orders' && !PRESCRIBER_ROLES.includes(assignment.employee?.role || '')) return false
     }
     return true
   })
@@ -237,6 +242,32 @@ function SortableNavItem({
             <div className="flex items-center gap-3">
               <span className="text-base">{item.icon}</span>
               <span>{item.label}</span>
+              {badges && badges[item.label] && badges[item.label].total > 0 && (
+                <span className="relative">
+                  <span
+                    className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold leading-none cursor-default"
+                    onMouseEnter={() => setShowBadgeDetail(true)}
+                    onMouseLeave={() => setShowBadgeDetail(false)}
+                    onClick={(e) => { e.stopPropagation(); setShowBadgeDetail(s => !s) }}
+                  >
+                    {badges[item.label].total > 99 ? '99+' : badges[item.label].total}
+                  </span>
+                  {showBadgeDetail && (
+                    <span className="absolute left-0 top-full mt-1 z-50 bg-gray-900 border border-gray-700 rounded-lg shadow-xl p-2.5 whitespace-nowrap text-xs">
+                      <p className="text-gray-400 font-semibold uppercase tracking-wide text-[10px] mb-1.5">Needs Signature</p>
+                      {badges[item.label].charts > 0 && (
+                        <p className="text-orange-300">📋 {badges[item.label].charts} chart{badges[item.label].charts !== 1 ? 's' : ''}</p>
+                      )}
+                      {badges[item.label].notes > 0 && (
+                        <p className="text-amber-300">📝 {badges[item.label].notes} note{badges[item.label].notes !== 1 ? 's' : ''}</p>
+                      )}
+                      {badges[item.label].mar > 0 && (
+                        <p className="text-red-300">💊 {badges[item.label].mar} MAR entr{badges[item.label].mar !== 1 ? 'ies' : 'y'}</p>
+                      )}
+                    </span>
+                  )}
+                </span>
+              )}
             </div>
             {visibleSub.length > 0 && (
               <span className={`text-xs text-gray-600 transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
@@ -281,6 +312,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = location.pathname
   const { isAdmin, isField, loading: roleLoading } = useRole()
   const assignment = useUserAssignment()
+  const unsignedCounts = useUnsignedCounts()
   const [org, setOrg] = useState<OrgBranding | null>(null)
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true)
 
@@ -373,13 +405,13 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           />
         ) : (
           <img
-            src="https://api.dicebear.com/7.x/shapes/svg?seed=firepcr&backgroundColor=0066ff"
-            alt="FirePCR"
+            src="https://jlqpycxguovxnqtkjhzs.supabase.co/storage/v1/object/public/headshots/ram-logo.png"
+            alt="Sierra Valley EMS"
             className="w-10 h-10 rounded-full object-contain bg-white p-0.5 shrink-0"
           />
         )}
         <div className="min-w-0">
-          <h1 className="text-sm font-bold text-white leading-tight">{org?.dba ?? org?.name ?? 'FirePCR'}</h1>
+          <h1 className="text-sm font-bold text-white leading-tight">{org?.dba ?? org?.name ?? 'Sierra Valley EMS'}</h1>
           <p className="text-xs text-gray-500">Field Ops</p>
         </div>
       </Link>
@@ -400,6 +432,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 assignment={assignment}
                 roleLoading={roleLoading}
                 getHref={getHref}
+                badges={{ 'Patient Encounters': unsignedCounts }}
               />
             ))}
           </SortableContext>

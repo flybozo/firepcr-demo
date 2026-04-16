@@ -20,6 +20,8 @@ import { useRole } from '@/lib/useRole'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import type { SelectOption } from '@/components/SearchableSelect'
 import { useNEMSISWarnings } from '@/hooks/useNEMSISWarnings'
+import PinSignature from '@/components/PinSignature'
+import type { SignatureRecord } from '@/components/PinSignature'
 
 type ConsentForm = {
   id: string
@@ -1033,9 +1035,13 @@ export default function EncounterDetailPage() {
   const [progressNotes, setProgressNotes] = useState<any[]>([])
   const [showNoteForm, setShowNoteForm] = useState(false)
   const [noteDraft, setNoteDraft] = useState('')
-  const [notePin, setNotePin] = useState('')
   const [noteSaving, setNoteSaving] = useState(false)
+  const [showSignModal, setShowSignModal] = useState(false)          // PIN modal for Sign & Lock
+  const [showNotePinModal, setShowNotePinModal] = useState(false)    // PIN modal for new note sign-on-save
+  const [noteToSign, setNoteToSign] = useState<string | null>(null)  // note.id awaiting inline sign PIN
   const [userEmail, setUserEmail] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)  // Delete Draft confirmation
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   // Vitals state
   const [additionalVitals, setAdditionalVitals] = useState<EncounterVitals[]>([])
@@ -1093,7 +1099,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
   // Set card order based on unit type after enc loads (only if no saved user preference)
   useEffect(() => {
     if (enc && !savedPrefRef.current) {
-      const isAmb = enc.unit?.toUpperCase().startsWith('GRANITE')
+      const isAmb = enc.unit?.toUpperCase().startsWith('RAMBO')
       setCardOrder(isAmb ? AMBULANCE_DEFAULT_ORDER : MEDUNIT_DEFAULT_ORDER)
     }
   }, [enc?.id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -1119,16 +1125,53 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
     } else {
       coerced[key] = val === '' ? null : val
     }
-    if (getIsOnline()) {
-      const { error } = await supabase.from('patient_encounters').update(coerced).eq('id', id)
-      if (!error) {
-        setEnc(prev => prev ? { ...prev, [key]: coerced[key] } as Encounter : prev)
+    // Auto-compute age when DOB changes
+    if (key === 'patient_dob' && val) {
+      const birth = new Date(val + 'T00:00:00')
+      const today = new Date()
+      let age = today.getFullYear() - birth.getFullYear()
+      const md = today.getMonth() - birth.getMonth()
+      if (md < 0 || (md === 0 && today.getDate() < birth.getDate())) age--
+      if (age < 0) age = 0
+      if (age < 2) {
+        const months = (today.getFullYear() - birth.getFullYear()) * 12 + today.getMonth() - birth.getMonth()
+        coerced.patient_age = Math.max(0, months)
+        coerced.patient_age_units = 'Months'
       } else {
+        coerced.patient_age = age
+        coerced.patient_age_units = 'Years'
+      }
+    }
+
+    // Track who made the edit
+    const updatedBy = currentUser.employee?.name || 'Unknown'
+    const updatePayload = { ...coerced, updated_by: updatedBy }
+
+    if (getIsOnline()) {
+      const { data, error } = await supabase.from('patient_encounters')
+        .update(updatePayload)
+        .eq('id', id)
+        .select('updated_at')
+      if (!error && data && data.length > 0) {
+        // Update succeeded — refresh our local updated_at from the server response
+        setEnc(prev => prev ? { ...prev, [key]: coerced[key], updated_at: data[0].updated_at } as Encounter : prev)
+        // Write audit log entry (fire and forget)
+        supabase.from('clinical_audit_log').insert({
+          table_name: 'patient_encounters',
+          record_id: id,
+          action: 'field_edit',
+          field_name: key,
+          old_value: enc ? String(enc[key as keyof Encounter] ?? '') : '',
+          new_value: String(coerced[key] ?? ''),
+          performed_by: updatedBy,
+          performed_by_employee_id: currentUser.employee?.id || null,
+        }).then(() => {}, () => {})
+      } else if (error) {
         console.error('saveField error:', error.message)
         alert('Save failed: ' + error.message)
       }
     } else {
-      await queueOfflineWrite('patient_encounters', 'update', { id, ...coerced })
+      await queueOfflineWrite('patient_encounters', 'update', { id, ...updatePayload })
       setEnc(prev => prev ? { ...prev, [key]: coerced[key] } as Encounter : prev)
     }
   }, [id, supabase])
@@ -1163,17 +1206,33 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
     const load = async () => {
       // Show cached data instantly
       try {
-        const cached = await getCachedById('encounters', id) as any
+        let cached = await getCachedById('encounters', id) as any
+        // Also try matching by encounter_id text field in cache
+        if (!cached) {
+          const allCached = await getCachedData('encounters') as any[]
+          cached = allCached.find((e: any) => e.encounter_id === id) || null
+        }
         if (cached) {
           setEnc(cached)
           setLoading(false)
         }
       } catch {}
-      const { data, offline } = await loadSingle(
+      // Try loading by UUID first, then fall back to text encounter_id
+      let { data, offline } = await loadSingle(
         () => supabase.from('patient_encounters').select('*').eq('id', id).single() as any,
         'encounters',
         id
       )
+      // If not found by UUID, try by text encounter_id (e.g. navigating from MAR link)
+      if (!data && !offline) {
+        const fallback = await loadSingle(
+          () => supabase.from('patient_encounters').select('*').eq('encounter_id', id).single() as any,
+          'encounters',
+          id
+        )
+        data = fallback.data
+        offline = fallback.offline
+      }
       if (offline) {
         if (data) {
           setIsOfflineData(true)
@@ -1346,7 +1405,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
 
       // Load progress notes
     if (data?.encounter_id) {
-      const { data: notesData } = await supabase.from('progress_notes').select('*').eq('encounter_id', data.encounter_id).order('note_datetime', { ascending: false })
+      const { data: notesData } = await supabase.from('progress_notes').select('*').eq('encounter_id', data.encounter_id).is('deleted_at', null).order('note_datetime', { ascending: false })
       setProgressNotes(notesData || [])
     }
     setLoading(false)
@@ -1356,17 +1415,17 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
   const loadNotes = async () => {
     const encId = enc?.encounter_id
     if (!encId) return
-    const { data } = await supabase.from('progress_notes').select('*').eq('encounter_id', encId).order('note_datetime', { ascending: false })
+    const { data } = await supabase.from('progress_notes').select('*').eq('encounter_id', encId).is('deleted_at', null).order('note_datetime', { ascending: false })
     setProgressNotes(data || [])
   }
 
-  const saveProgressNote = async () => {
+  // Save note unsigned (draft)
+  const saveProgressNote = async (signedRecord?: SignatureRecord) => {
     if (!noteDraft.trim() || !enc) return
     setNoteSaving(true)
     const myName = currentUser.employee?.name || 'Unknown'
     const myRole = currentUser.employee?.role || ''
     const now = new Date().toISOString()
-    const signedAt = notePin ? now : null
     const notePayload = {
       encounter_id: enc.encounter_id,
       encounter_uuid: enc.id,
@@ -1374,8 +1433,8 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
       author_name: myName,
       author_role: myRole,
       note_datetime: now,
-      signed_at: signedAt,
-      signed_by: signedAt ? myName : null,
+      signed_at: signedRecord ? signedRecord.signedAt : null,
+      signed_by: signedRecord ? signedRecord.employeeName : null,
     }
     if (getIsOnline()) {
       await supabase.from('progress_notes').insert(notePayload)
@@ -1383,7 +1442,6 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
       await queueOfflineWrite('progress_notes', 'insert', notePayload)
     }
     setNoteDraft('')
-    setNotePin('')
     setShowNoteForm(false)
     setNoteSaving(false)
     loadNotes()
@@ -1392,7 +1450,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
   const markComplete = async () => {
     if (!enc) return
     // Block completion if there are NEMSIS errors on ambulance PCRs
-    if (enc.unit?.toUpperCase().startsWith('GRANITE') && nemsisErrorCountRef.current > 0) {
+    if (enc.unit?.toUpperCase().startsWith('RAMBO') && nemsisErrorCountRef.current > 0) {
       const errs = nemsisErrorsRef.current
       const errorList = errs.slice(0, 3).map((e: any) => '• ' + e.message).join('\n')
       const moreMsg = nemsisErrorCountRef.current > 3 ? '\n• ...and ' + (nemsisErrorCountRef.current - 3) + ' more' : ''
@@ -1408,9 +1466,12 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
     setEnc(prev => prev ? { ...prev, pcr_status: 'Complete' } : prev)
 
     // Auto-generate and store NEMSIS XML for ambulance units (online only)
-    if (getIsOnline() && enc.unit?.startsWith('GRANITE')) {
+    if (getIsOnline() && enc.unit?.startsWith('RAMBO')) {
       try {
-        const xmlResp = await fetch(`/api/encounters/${id}/nemsis-export`)
+        const { data: { session } } = await supabase.auth.getSession()
+        const xmlResp = await fetch(`/api/encounters/${id}/nemsis-export`, {
+          headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+        })
         if (xmlResp.ok) {
           const xmlText = await xmlResp.text()
           const blob = new Blob([xmlText], { type: 'application/xml' })
@@ -1448,28 +1509,76 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
     setActionLoading(false)
   }
 
-  const signAndLock = async () => {
+  // Soft-delete a draft encounter
+  const deleteDraft = async () => {
+    if (!enc) return
+    setDeleteLoading(true)
+    const now = new Date().toISOString()
+    const deletedBy = currentUser.employee?.name || 'Unknown'
+    if (getIsOnline()) {
+      const { error } = await supabase.from('patient_encounters').update({
+        deleted_at: now,
+        deleted_by: deletedBy,
+      }).eq('id', id)
+      if (error) {
+        alert('Delete failed: ' + error.message)
+        setDeleteLoading(false)
+        return
+      }
+    } else {
+      await queueOfflineWrite('patient_encounters', 'update', {
+        id,
+        deleted_at: now,
+        deleted_by: deletedBy,
+      })
+    }
+    navigate('/encounters')
+  }
+
+  // Soft-delete an unsigned progress note
+  const deleteNote = async (noteId: string) => {
+    const now = new Date().toISOString()
+    const deletedBy = currentUser.employee?.name || 'Unknown'
+    if (getIsOnline()) {
+      const { error } = await supabase.from('progress_notes').update({
+        deleted_at: now,
+        deleted_by: deletedBy,
+      }).eq('id', noteId)
+      if (error) {
+        alert('Delete failed: ' + error.message)
+        return
+      }
+    } else {
+      await queueOfflineWrite('progress_notes', 'update', {
+        id: noteId,
+        deleted_at: now,
+        deleted_by: deletedBy,
+      })
+    }
+    setProgressNotes(prev => prev.filter(n => n.id !== noteId))
+  }
+
+  const signAndLock = async (record: SignatureRecord) => {
     if (!enc) return
     setActionLoading(true)
-    const now = new Date().toISOString()
-    const signerName = currentUser.employee?.name || userEmail || 'unknown'
     const { error } = await supabase.from('patient_encounters').update({
       pcr_status: 'Signed',
-      signed_at: now,
-      signed_by: signerName,
+      signed_at: record.signedAt,
+      signed_by: record.employeeName,
     }).eq('id', id)
     if (error) {
       await supabase.from('patient_encounters').update({ pcr_status: 'Signed' }).eq('id', id)
       setEnc(prev => prev ? { ...prev, pcr_status: 'Signed' } : prev)
     } else {
-      setEnc(prev => prev ? { ...prev, pcr_status: 'Signed', signed_at: now, signed_by: signerName } : prev)
+      setEnc(prev => prev ? { ...prev, pcr_status: 'Signed', signed_at: record.signedAt, signed_by: record.employeeName } : prev)
     }
+    setShowSignModal(false)
     setActionLoading(false)
   }
 
   // NEMSIS quality warnings — must be called before any early returns (hooks rule)
   const allNemsisWarnings = useNEMSISWarnings(enc ?? {} as Record<string, any>)
-  const isAmbulance = enc?.unit?.toUpperCase().startsWith('GRANITE') ?? false
+  const isAmbulance = enc?.unit?.toUpperCase().startsWith('RAMBO') ?? false
   const nemsisWarnings = isAmbulance ? allNemsisWarnings : []
   const nemsisErrors = nemsisWarnings.filter((w: any) => w.severity === 'error')
   const nemsisWarningCount = nemsisWarnings.filter((w: any) => w.severity === 'warning').length
@@ -1500,6 +1609,12 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
 
   const isSigned = enc.pcr_status === 'Signed'
   const isLocked = enc.pcr_status === 'Complete' || !!enc.signed_at
+
+  // Draft encounters can be soft-deleted by creator or admin
+  const isDraft = !enc.pcr_status || enc.pcr_status === 'Draft'
+  const isCreator = currentUser.employee?.name === enc.created_by ||
+    (currentUser.employee?.id && enc.created_by_employee_id === currentUser.employee.id)
+  const canDeleteDraft = isDraft && !isSigned && (isAdmin || isCreator)
 
   // EMT and Tech roles cannot log medications or procedures (view only)
   const canMedicate = !['EMT', 'Tech'].includes(currentUser.employee?.role || '')
@@ -1609,6 +1724,15 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
             )}
           </div>
           <div className="flex items-center gap-2">
+            {canDeleteDraft && (
+              <button
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={deleteLoading}
+                className="px-3 py-1 text-xs bg-gray-800 hover:bg-red-900 text-gray-400 hover:text-red-300 rounded-lg transition-colors border border-gray-700 hover:border-red-700"
+              >
+                🗑️ Delete
+              </button>
+            )}
             {!isSigned && (
               <Link
                 to={`/encounters/${enc.id}/edit`}
@@ -1627,11 +1751,11 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
               </button>
             ) : enc.pcr_status === 'Complete' ? (
               <button
-                onClick={signAndLock}
+                onClick={() => setShowSignModal(true)}
                 disabled={actionLoading}
                 className="px-3 py-1 text-xs bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg transition-colors font-semibold"
               >
-                Sign & Lock
+                🔐 Sign & Lock
               </button>
             ) : null}
           </div>
@@ -1694,6 +1818,10 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                             <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Chart Actions</p>
                           </div>
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3">
+                            <Link to={`/consent/treat?encounterId=${enc.encounter_id}&unit=${encodeURIComponent(enc.unit||'')}&dob=${encodeURIComponent(enc.patient_dob||'')}&firstName=${encodeURIComponent(enc.patient_first_name||'')}&lastName=${encodeURIComponent(enc.patient_last_name||'')}`}
+                              className="flex items-center gap-2 px-3 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors">
+                              <span>📝</span> Consent to Treat
+                            </Link>
                             <Link to={`/consent/ama?encounterId=${enc.encounter_id}&unit=${encodeURIComponent(enc.unit||'')}&dob=${encodeURIComponent(enc.patient_dob||'')}&firstName=${encodeURIComponent(enc.patient_first_name||'')}&lastName=${encodeURIComponent(enc.patient_last_name||'')}`}
                               className="flex items-center gap-2 px-3 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors">
                               <span>✍️</span> AMA / Refusal
@@ -1714,20 +1842,31 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                               className="flex items-center gap-2 px-3 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors">
                               <span>📋</span> Comp Claim
                             </Link>
-                            {status !== 'Signed' && (
+                            {!isLocked && (
                               <Link to={`/encounters/${enc.id}/edit`}
                                 className="flex items-center gap-2 px-3 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors">
                                 <span>✏️</span> Edit
                               </Link>
                             )}
-                            {enc.unit?.toUpperCase().startsWith('GRANITE') && (
+                            {!isLocked && enc.unit?.toUpperCase().startsWith('RAMBO') && (
                               <>
-                                <a
-                                  href={`/api/encounters/${enc.id}/nemsis-export`}
-                                  download
+                                <button
+                                  onClick={async () => {
+                                    const { data: { session } } = await supabase.auth.getSession()
+                                    const resp = await fetch(`/api/encounters/${enc.id}/nemsis-export`, {
+                                      headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+                                    })
+                                    if (!resp.ok) { alert('XML export failed'); return }
+                                    const blob = await resp.blob()
+                                    const url = URL.createObjectURL(blob)
+                                    const a = document.createElement('a')
+                                    a.href = url; a.download = `${enc.encounter_id || enc.id}-NEMSIS.xml`
+                                    document.body.appendChild(a); a.click(); document.body.removeChild(a)
+                                    URL.revokeObjectURL(url)
+                                  }}
                                   className="flex items-center gap-2 px-3 py-2.5 bg-blue-900 hover:bg-blue-800 rounded-lg text-sm font-medium transition-colors text-blue-200">
                                   <span>📤</span> Re-export XML
-                                </a>
+                                </button>
                                 {(enc as any).nemsis_xml_url && (
                                   <button
                                     onClick={async () => {
@@ -1755,7 +1894,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                               Medications Administered
                               {marEntries.length > 0 && <span className="ml-2 text-gray-600 font-normal normal-case">({marEntries.length})</span>}
                             </h2>
-                            {!isLocked && canMedicate && (
+                            {canMedicate && (
                               <Link to={`/mar/new?encounterId=${enc.encounter_id}&unit=${encodeURIComponent(enc.unit||'')}&patientName=${encodeURIComponent(((enc.patient_first_name||'')+' '+(enc.patient_last_name||'')).trim())}&dob=${encodeURIComponent(enc.patient_dob||'')}`}
                                 className="text-xs px-2.5 py-1 bg-red-600 hover:bg-red-700 rounded-lg text-white font-semibold transition-colors flex items-center gap-1">
                                 <span>+</span> Log Medication
@@ -1901,12 +2040,10 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
                               Photos {photos.length > 0 && <span className="text-gray-600 font-normal normal-case ml-1">({photos.length})</span>}
                             </h2>
-                            {!isLocked && (
-                              <Link to={`/encounters/photos/new?encounterId=${enc.encounter_id}`}
-                                className="text-xs px-2.5 py-1 bg-red-600 hover:bg-red-700 rounded-lg text-white font-semibold transition-colors flex items-center gap-1">
-                                <span>+</span> Add Photo
-                              </Link>
-                            )}
+                            <Link to={`/encounters/photos/new?encounterId=${enc.encounter_id}`}
+                              className="text-xs px-2.5 py-1 bg-red-600 hover:bg-red-700 rounded-lg text-white font-semibold transition-colors flex items-center gap-1">
+                              <span>+</span> Add Photo
+                            </Link>
                           </div>
                           {photos.length === 0 ? (
                             <p className="px-4 py-3 text-sm text-gray-600">No photos yet.</p>
@@ -1943,7 +2080,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
                               Procedures {procedures.length > 0 && <span className="text-gray-600 font-normal normal-case ml-1">({procedures.length})</span>}
                             </h2>
-                            {!isLocked && canMedicate && (
+                            {canMedicate && (
                               <Link to={`/encounters/procedures/new?encounterId=${enc.encounter_id}`}
                                 className="text-xs px-2.5 py-1 bg-red-600 hover:bg-red-700 rounded-lg text-white font-semibold transition-colors flex items-center gap-1">
                                 <span>+</span> Add Procedure
@@ -2155,10 +2292,16 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                               <span className="text-gray-500 text-xs">{showConsentForms ? '▲' : '▼'}</span>
                             </button>
                             {!isLocked && (
-                              <Link to={`/consent/ama?encounterId=${enc.encounter_id}&unit=${encodeURIComponent(enc.unit||'')}&dob=${encodeURIComponent(enc.patient_dob||'')}`}
-                                className="text-xs px-2.5 py-1 bg-red-600 hover:bg-red-700 rounded-lg text-white font-semibold transition-colors flex items-center gap-1">
-                                <span>+</span> New AMA Form
-                              </Link>
+                              <div className="flex gap-1.5">
+                                <Link to={`/consent/treat?encounterId=${enc.encounter_id}&unit=${encodeURIComponent(enc.unit||'')}&dob=${encodeURIComponent(enc.patient_dob||'')}&firstName=${encodeURIComponent(enc.patient_first_name||'')}&lastName=${encodeURIComponent(enc.patient_last_name||'')}`}
+                                  className="text-xs px-2.5 py-1 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-semibold transition-colors flex items-center gap-1">
+                                  <span>+</span> Consent
+                                </Link>
+                                <Link to={`/consent/ama?encounterId=${enc.encounter_id}&unit=${encodeURIComponent(enc.unit||'')}&dob=${encodeURIComponent(enc.patient_dob||'')}`}
+                                  className="text-xs px-2.5 py-1 bg-red-600 hover:bg-red-700 rounded-lg text-white font-semibold transition-colors flex items-center gap-1">
+                                  <span>+</span> AMA
+                                </Link>
+                              </div>
                             )}
                           </div>
                           {showConsentForms && (
@@ -2242,7 +2385,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
             {!showNoteForm && (
               <button onClick={() => setShowNoteForm(true)}
                 className="text-xs px-2.5 py-1 bg-red-600 hover:bg-red-700 rounded-lg text-white font-semibold transition-colors">
-                + Add Note
+                + {isSigned ? 'Add Addendum' : 'Add Note'}
               </button>
             )}
           </div>
@@ -2256,21 +2399,20 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                 className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500 resize-none"
                 autoFocus
               />
-              <div className="flex items-center gap-3 flex-wrap">
-                <div className="flex-1 min-w-0">
-                  <label className="text-xs text-gray-500 block mb-1">PIN to sign now (optional — leave blank to sign later)</label>
-                  <input type="password" value={notePin} onChange={e => setNotePin(e.target.value)}
-                    placeholder="Enter PIN to sign immediately"
-                    className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500" />
-                </div>
-                <div className="flex gap-2 mt-4">
-                  <button onClick={saveProgressNote} disabled={!noteDraft.trim() || noteSaving}
-                    className="px-4 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg">
-                    {noteSaving ? 'Saving...' : notePin ? 'Save & Sign' : 'Save (Unsigned)'}
-                  </button>
-                  <button onClick={() => { setShowNoteForm(false); setNoteDraft(''); setNotePin('') }}
-                    className="px-4 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm rounded-lg">Cancel</button>
-                </div>
+              {isSigned && (
+                <p className="text-xs text-amber-400">📎 This will be added as a signed addendum to the locked chart.</p>
+              )}
+              <div className="flex gap-2">
+                <button onClick={() => setShowNotePinModal(true)} disabled={!noteDraft.trim() || noteSaving}
+                  className="px-4 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-semibold rounded-lg">
+                  {noteSaving ? 'Saving...' : '🔐 Save & Sign'}
+                </button>
+                <button onClick={() => saveProgressNote()} disabled={!noteDraft.trim() || noteSaving}
+                  className="px-4 py-1.5 bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-gray-300 text-sm rounded-lg">
+                  Save Unsigned
+                </button>
+                <button onClick={() => { setShowNoteForm(false); setNoteDraft('') }}
+                  className="px-4 py-1.5 bg-gray-800 hover:bg-gray-700 text-gray-400 text-sm rounded-lg">Cancel</button>
               </div>
             </div>
           )}
@@ -2292,23 +2434,105 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                     )}
                   </div>
                   <p className="text-sm text-white whitespace-pre-wrap">{note.note_text}</p>
-                  {!note.signed_at && note.author_name === currentUser.employee?.name && (
-                    <button
-                      onClick={async () => {
-                        const now = new Date().toISOString()
-                        await supabase.from('progress_notes').update({ signed_at: now, signed_by: currentUser.employee?.name }).eq('id', note.id)
-                        loadNotes()
-                      }}
-                      className="text-xs text-green-400 hover:text-green-300 transition-colors">
-                      ✍️ Sign this note
-                    </button>
-                  )}
+                  <div className="flex gap-3">
+                    {!note.signed_at && note.author_name === currentUser.employee?.name && (
+                      <button
+                        onClick={() => setNoteToSign(note.id)}
+                        className="text-xs text-green-400 hover:text-green-300 transition-colors">
+                        🔐 Sign this note
+                      </button>
+                    )}
+                    {!note.signed_at && (isAdmin || note.author_name === currentUser.employee?.name) && (
+                      <button
+                        onClick={() => {
+                          if (confirm('Delete this unsigned note?')) deleteNote(note.id)
+                        }}
+                        className="text-xs text-gray-500 hover:text-red-400 transition-colors">
+                        🗑️ Delete
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
 
+
+      {/* Delete Draft Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setShowDeleteConfirm(false)}>
+          <div className="bg-gray-900 rounded-2xl border border-gray-700 w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-bold text-white">Delete Draft Encounter?</h3>
+            <p className="text-sm text-gray-400">
+              This will remove the draft encounter <span className="text-white font-medium">{enc.encounter_id}</span> for <span className="text-white font-medium">{patientName}</span>.
+            </p>
+            <p className="text-xs text-gray-500">
+              The record will be soft-deleted and can be recovered by an administrator if needed.
+            </p>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={deleteDraft}
+                disabled={deleteLoading}
+                className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white font-semibold rounded-lg text-sm transition-colors"
+              >
+                {deleteLoading ? 'Deleting...' : '🗑️ Delete Draft'}
+              </button>
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg text-sm transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* PIN modal — Sign & Lock PCR */}
+      {showSignModal && currentUser.employee && (
+        <PinSignature
+          label="Sign & Lock PCR"
+          mode="self"
+          employeeId={currentUser.employee.id}
+          employeeName={currentUser.employee.name}
+          documentContext={enc?.encounter_id || id}
+          onSign={(record) => signAndLock(record)}
+          onCancel={() => setShowSignModal(false)}
+        />
+      )}
+
+      {/* PIN modal — Sign new progress note on save */}
+      {showNotePinModal && currentUser.employee && (
+        <PinSignature
+          label="Sign Progress Note"
+          mode="self"
+          employeeId={currentUser.employee.id}
+          employeeName={currentUser.employee.name}
+          documentContext={`note:${enc?.encounter_id || id}`}
+          onSign={(record) => { setShowNotePinModal(false); saveProgressNote(record) }}
+          onCancel={() => setShowNotePinModal(false)}
+        />
+      )}
+
+      {/* PIN modal — Sign existing unsigned note */}
+      {noteToSign && currentUser.employee && (
+        <PinSignature
+          label="Sign Progress Note"
+          mode="self"
+          employeeId={currentUser.employee.id}
+          employeeName={currentUser.employee.name}
+          documentContext={`note:${noteToSign}`}
+          onSign={async (record) => {
+            await supabase.from('progress_notes')
+              .update({ signed_at: record.signedAt, signed_by: record.employeeName })
+              .eq('id', noteToSign)
+            setNoteToSign(null)
+            loadNotes()
+          }}
+          onCancel={() => setNoteToSign(null)}
+        />
+      )}
 
       {/* Narrative full-screen modal — outside DndContext */}
       {narrativeExpanded && (

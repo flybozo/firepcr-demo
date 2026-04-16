@@ -1,9 +1,10 @@
 
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
+import { useRole } from '@/lib/useRole'
 
 const CATEGORIES = ['Policy', 'Procedure', 'Form', 'Training', 'Reference']
 const EXPIRES_OPTIONS = [
@@ -15,10 +16,16 @@ const EXPIRES_OPTIONS = [
 export default function NewDocumentPage() {
   const supabase = createClient()
   const navigate = useNavigate()
+  const { isAdmin, loading: roleLoading } = useRole()
   const fileRef = useRef<HTMLInputElement>(null)
   const [submitting, setSubmitting] = useState(false)
   const [uploadProgress, setUploadProgress] = useState('')
   const [error, setError] = useState('')
+
+  // Redirect field users — admin only
+  useEffect(() => {
+    if (!roleLoading && !isAdmin) navigate('/documents', { replace: true })
+  }, [roleLoading, isAdmin])
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
   const [form, setForm] = useState({
@@ -55,8 +62,8 @@ export default function NewDocumentPage() {
         .from('documents')
         .upload(path, selectedFile)
       if (upErr) { setError('Upload failed: ' + upErr.message); setSubmitting(false); return }
-      const { data: urlData } = supabase.storage.from('documents').getPublicUrl(data.path)
-      fileUrl = urlData.publicUrl
+      // Store the storage path — resolved via signed URL on read
+      fileUrl = data.path
       fileName = selectedFile.name
       fileSize = selectedFile.size
     }

@@ -1,108 +1,128 @@
+import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-
+import SplitShell from '@/components/SplitShell'
 import AuthGuard from '@/components/AuthGuard'
 import AppLayout from '@/layouts/AppLayout'
 
-// Auth
+// Eagerly loaded (needed immediately / on every page)
 import Login from '@/pages/auth/Login'
 
-// Core pages
-import Dashboard from '@/pages/Dashboard'
+// Lazy-loaded routes
+const Dashboard = lazy(() => import('@/pages/Dashboard'))
 
 // Encounters
-import EncountersList from '@/pages/encounters/EncountersList'
-import NewEncounter from '@/pages/encounters/NewEncounter'
-import NewSimpleEncounter from '@/pages/encounters/NewSimpleEncounter'
-import NewPCREncounter from '@/pages/encounters/NewPCREncounter'
-import EncounterDetail from '@/pages/encounters/EncounterDetail'
-import EncounterEdit from '@/pages/encounters/EncounterEdit'
-import NewPhoto from '@/pages/encounters/NewPhoto'
-import NewProcedure from '@/pages/encounters/NewProcedure'
+const EncountersList = lazy(() => import('@/pages/encounters/EncountersList'))
+const NewEncounter = lazy(() => import('@/pages/encounters/NewEncounter'))
+const NewSimpleEncounter = lazy(() => import('@/pages/encounters/NewSimpleEncounter'))
+const NewPCREncounter = lazy(() => import('@/pages/encounters/NewPCREncounter'))
+const EncounterDetail = lazy(() => import('@/pages/encounters/EncounterDetail'))
+const EncounterEdit = lazy(() => import('@/pages/encounters/EncounterEdit'))
+const NewPhoto = lazy(() => import('@/pages/encounters/NewPhoto'))
+const NewProcedure = lazy(() => import('@/pages/encounters/NewProcedure'))
+const UnsignedPCRs = lazy(() => import('@/pages/encounters/UnsignedPCRs'))
+const UnsignedItems = lazy(() => import('@/pages/unsigned-items/UnsignedItems'))
+const PatientSearch = lazy(() => import('@/pages/encounters/PatientSearch'))
 
 // MAR
-import MARList from '@/pages/mar/MARList'
-import MARNew from '@/pages/mar/MARNew'
-import MARDetail from '@/pages/mar/MARDetail'
+const MARList = lazy(() => import('@/pages/mar/MARList'))
+const MARNew = lazy(() => import('@/pages/mar/MARNew'))
+const MARDetail = lazy(() => import('@/pages/mar/MARDetail'))
+const MARSearch = lazy(() => import('@/pages/mar/MARSearch'))
 
 // Incidents
-import IncidentsList from '@/pages/incidents/IncidentsList'
-import NewIncident from '@/pages/incidents/NewIncident'
-import IncidentDetail from '@/pages/incidents/IncidentDetail'
-import ShiftTicket from '@/pages/incidents/ShiftTicket'
+const IncidentsList = lazy(() => import('@/pages/incidents/IncidentsList'))
+const NewIncident = lazy(() => import('@/pages/incidents/NewIncident'))
+const IncidentDetail = lazy(() => import('@/pages/incidents/IncidentDetail'))
+const ShiftTicket = lazy(() => import('@/pages/incidents/ShiftTicket'))
 
 // Units
-import UnitsList from '@/pages/units/UnitsList'
-import NewUnit from '@/pages/units/NewUnit'
-import UnitDetail from '@/pages/units/UnitDetail'
+const UnitsList = lazy(() => import('@/pages/units/UnitsList'))
+const NewUnit = lazy(() => import('@/pages/units/NewUnit'))
+const UnitDetail = lazy(() => import('@/pages/units/UnitDetail'))
 
 // CS
-import CSOverview from '@/pages/cs/CSOverview'
-import CSReceive from '@/pages/cs/CSReceive'
-import CSTransfer from '@/pages/cs/CSTransfer'
-import CSCount from '@/pages/cs/CSCount'
-import CSAudit from '@/pages/cs/CSAudit'
-import CSChecklist from '@/pages/cs/CSChecklist'
-import CSInventoryCount from '@/pages/cs/CSInventoryCount'
+const CSOverview = lazy(() => import('@/pages/cs/CSOverview'))
+const CSList = lazy(() => import('@/pages/cs/CSList'))
+const CSItemDetail = lazy(() => import('@/pages/cs/CSItemDetail'))
+const CSReceive = lazy(() => import('@/pages/cs/CSReceive'))
+const CSTransfer = lazy(() => import('@/pages/cs/CSTransfer'))
+const CSCount = lazy(() => import('@/pages/cs/CSCount'))
+const CSAudit = lazy(() => import('@/pages/cs/CSAudit'))
+const CSChecklist = lazy(() => import('@/pages/cs/CSChecklist'))
+const CSInventoryCount = lazy(() => import('@/pages/cs/CSInventoryCount'))
 
 // Inventory
-import InventoryList from '@/pages/inventory/InventoryList'
-import InventoryAdd from '@/pages/inventory/InventoryAdd'
-import InventoryDetail from '@/pages/inventory/InventoryDetail'
-import BurnRate from '@/pages/inventory/BurnRate'
-import Reorder from '@/pages/inventory/Reorder'
+const InventoryList = lazy(() => import('@/pages/inventory/InventoryList'))
+const InventoryAdd = lazy(() => import('@/pages/inventory/InventoryAdd'))
+const InventoryDetail = lazy(() => import('@/pages/inventory/InventoryDetail'))
+const BurnRate = lazy(() => import('@/pages/inventory/BurnRate'))
+const Reorder = lazy(() => import('@/pages/inventory/Reorder'))
 
 // Supply Runs
-import SupplyRunsList from '@/pages/supply-runs/SupplyRunsList'
-import NewSupplyRun from '@/pages/supply-runs/NewSupplyRun'
-import SupplyRunDetail from '@/pages/supply-runs/SupplyRunDetail'
+const SupplyRunsList = lazy(() => import('@/pages/supply-runs/SupplyRunsList'))
+const NewSupplyRun = lazy(() => import('@/pages/supply-runs/NewSupplyRun'))
+const SupplyRunDetail = lazy(() => import('@/pages/supply-runs/SupplyRunDetail'))
+const SupplyRunSearch = lazy(() => import('@/pages/supply-runs/SupplyRunSearch'))
 
 // Roster
-import RosterList from '@/pages/roster/RosterList'
-import NewEmployee from '@/pages/roster/NewEmployee'
-import HRCredentials from '@/pages/roster/HRCredentials'
-import EmployeeDetail from '@/pages/roster/EmployeeDetail'
+const RosterList = lazy(() => import('@/pages/roster/RosterList'))
+const NewEmployee = lazy(() => import('@/pages/roster/NewEmployee'))
+const HRCredentials = lazy(() => import('@/pages/roster/HRCredentials'))
+const EmployeeDetail = lazy(() => import('@/pages/roster/EmployeeDetail'))
 
 // Schedule
-import Schedule from '@/pages/schedule/Schedule'
-import ScheduleCalendar from '@/pages/schedule/ScheduleCalendar'
-import GenerateSchedule from '@/pages/schedule/GenerateSchedule'
+const Schedule = lazy(() => import('@/pages/schedule/Schedule'))
+const ScheduleCalendar = lazy(() => import('@/pages/schedule/ScheduleCalendar'))
+const GenerateSchedule = lazy(() => import('@/pages/schedule/GenerateSchedule'))
 
 // ICS 214
-import ICS214List from '@/pages/ics214/ICS214List'
-import NewICS214 from '@/pages/ics214/NewICS214'
-import ICS214Detail from '@/pages/ics214/ICS214Detail'
-import ICS214Activity from '@/pages/ics214/ICS214Activity'
+const ICS214List = lazy(() => import('@/pages/ics214/ICS214List'))
+const NewICS214 = lazy(() => import('@/pages/ics214/NewICS214'))
+const ICS214Detail = lazy(() => import('@/pages/ics214/ICS214Detail'))
+const ICS214Activity = lazy(() => import('@/pages/ics214/ICS214Activity'))
 
 // Other
-import Analytics from '@/pages/analytics/Analytics'
-import Billing from '@/pages/billing/Billing'
-import CompClaimsList from '@/pages/comp-claims/CompClaimsList'
-import NewCompClaim from '@/pages/comp-claims/NewCompClaim'
-import AMAConsent from '@/pages/consent/AMAConsent'
-import Contacts from '@/pages/contacts/Contacts'
-import DocumentsList from '@/pages/documents/DocumentsList'
-import Handbook from '@/pages/documents/Handbook'
-import NewDocument from '@/pages/documents/NewDocument'
-import Formulary from '@/pages/formulary/Formulary'
-import Payroll from '@/pages/payroll/Payroll'
-import MyPayroll from '@/pages/payroll/MyPayroll'
-import Profile from '@/pages/profile/Profile'
-import UnsignedOrders from '@/pages/unsigned-orders/UnsignedOrders'
-import MyUnit from '@/pages/dashboard/MyUnit'
+const Analytics = lazy(() => import('@/pages/analytics/Analytics'))
+const Billing = lazy(() => import('@/pages/billing/Billing'))
+const CompClaimsList = lazy(() => import('@/pages/comp-claims/CompClaimsList'))
+const NewCompClaim = lazy(() => import('@/pages/comp-claims/NewCompClaim'))
+const AMAConsent = lazy(() => import('@/pages/consent/AMAConsent'))
+const ConsentToTreat = lazy(() => import('@/pages/consent/ConsentToTreat'))
+const Contacts = lazy(() => import('@/pages/contacts/Contacts'))
+const DocumentsList = lazy(() => import('@/pages/documents/DocumentsList'))
+const DocumentDetail = lazy(() => import('@/pages/documents/DocumentDetail'))
+const Handbook = lazy(() => import('@/pages/documents/Handbook'))
+const NewDocument = lazy(() => import('@/pages/documents/NewDocument'))
+const Formulary = lazy(() => import('@/pages/formulary/Formulary'))
+const Payroll = lazy(() => import('@/pages/payroll/Payroll'))
+const MyPayroll = lazy(() => import('@/pages/payroll/MyPayroll'))
+const Profile = lazy(() => import('@/pages/profile/Profile'))
+// Legacy — kept for redirect
+const UnsignedOrders = lazy(() => import('@/pages/unsigned-orders/UnsignedOrders'))
+const MyUnit = lazy(() => import('@/pages/dashboard/MyUnit'))
 
 // Admin
-import Admin from '@/pages/admin/Admin'
-import Announcements from '@/pages/admin/Announcements'
-import ChatRequests from '@/pages/admin/ChatRequests'
-import Company from '@/pages/admin/Company'
-import FireDashboard from '@/pages/admin/FireDashboard'
-import FireAdminDashboard from '@/pages/fire-admin/FireAdminDashboard'
+const Admin = lazy(() => import('@/pages/admin/Admin'))
+const Announcements = lazy(() => import('@/pages/admin/Announcements'))
+const ChatRequests = lazy(() => import('@/pages/admin/ChatRequests'))
+const Company = lazy(() => import('@/pages/admin/Company'))
+const FireDashboard = lazy(() => import('@/pages/admin/FireDashboard'))
+const FireAdminDashboard = lazy(() => import('@/pages/fire-admin/FireAdminDashboard'))
+const PushNotifications = lazy(() => import('@/pages/admin/PushNotifications'))
 
+// Shared loading fallback
+function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-gray-950">
+      <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
+}
 
 function App() {
   return (
     <BrowserRouter>
-      <>
+      <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/login" element={<Login />} />
           {/* External fire admin dashboard — no auth required */}
@@ -111,58 +131,70 @@ function App() {
           <Route path="/" element={<AuthGuard><AppLayout /></AuthGuard>}>
             <Route index element={<Dashboard />} />
 
-            {/* Encounters */}
-            <Route path="encounters" element={<EncountersList />} />
+            {/* Encounters — split-pane on desktop */}
             <Route path="encounters/new" element={<NewEncounter />} />
             <Route path="encounters/new/simple" element={<NewSimpleEncounter />} />
             <Route path="encounters/new/pcr" element={<NewPCREncounter />} />
             <Route path="encounters/photos/new" element={<NewPhoto />} />
             <Route path="encounters/procedures/new" element={<NewProcedure />} />
-            <Route path="encounters/:id" element={<EncounterDetail />} />
             <Route path="encounters/:id/edit" element={<EncounterEdit />} />
+            <Route path="encounters" element={<SplitShell basePath="/encounters"><EncountersList /></SplitShell>}>
+              <Route path=":id" element={<EncounterDetail />} />
+            </Route>
 
-            {/* MAR */}
-            <Route path="mar" element={<MARList />} />
+            {/* MAR — split-pane on desktop */}
             <Route path="mar/new" element={<MARNew />} />
-            <Route path="mar/:id" element={<MARDetail />} />
+            <Route path="mar/search" element={<MARSearch />} />
+            <Route path="mar" element={<SplitShell basePath="/mar"><MARList /></SplitShell>}>
+              <Route path=":id" element={<MARDetail />} />
+            </Route>
 
-            {/* Incidents */}
-            <Route path="incidents" element={<IncidentsList />} />
+            {/* Incidents — split-pane on desktop */}
             <Route path="incidents/new" element={<NewIncident />} />
-            <Route path="incidents/:id" element={<IncidentDetail />} />
             <Route path="incidents/:id/shift-ticket" element={<ShiftTicket />} />
+            <Route path="incidents" element={<SplitShell basePath="/incidents"><IncidentsList /></SplitShell>}>
+              <Route path=":id" element={<IncidentDetail />} />
+            </Route>
 
-            {/* Units */}
-            <Route path="units" element={<UnitsList />} />
+            {/* Units — split-pane on desktop */}
             <Route path="units/new" element={<NewUnit />} />
-            <Route path="units/:id" element={<UnitDetail />} />
+            <Route path="units" element={<SplitShell basePath="/units" listWidth="lg:w-1/2"><UnitsList /></SplitShell>}>
+              <Route path=":id" element={<UnitDetail />} />
+            </Route>
 
             {/* CS */}
-            <Route path="cs" element={<CSOverview />} />
+            <Route path="cs/overview" element={<CSOverview />} />
             <Route path="cs/receive" element={<CSReceive />} />
             <Route path="cs/transfer" element={<CSTransfer />} />
             <Route path="cs/count" element={<CSCount />} />
+            <Route path="cs" element={<SplitShell basePath="/cs" detailPattern="/cs/item/:id"><CSList /></SplitShell>}>
+              <Route path="item/:id" element={<CSItemDetail />} />
+            </Route>
             <Route path="cs/audit" element={<CSAudit />} />
             <Route path="cs/checklist" element={<CSChecklist />} />
             <Route path="cs-inventory/count" element={<CSInventoryCount />} />
 
             {/* Inventory */}
-            <Route path="inventory" element={<InventoryList />} />
             <Route path="inventory/add" element={<InventoryAdd />} />
             <Route path="inventory/burnrate" element={<BurnRate />} />
             <Route path="inventory/reorder" element={<Reorder />} />
-            <Route path="inventory/:id" element={<InventoryDetail />} />
+            <Route path="inventory" element={<SplitShell basePath="/inventory"><InventoryList /></SplitShell>}>
+              <Route path=":id" element={<InventoryDetail />} />
+            </Route>
 
-            {/* Supply Runs */}
-            <Route path="supply-runs" element={<SupplyRunsList />} />
+            {/* Supply Runs — split-pane on desktop */}
             <Route path="supply-runs/new" element={<NewSupplyRun />} />
-            <Route path="supply-runs/:id" element={<SupplyRunDetail />} />
+            <Route path="supply-runs/search" element={<SupplyRunSearch />} />
+            <Route path="supply-runs" element={<SplitShell basePath="/supply-runs"><SupplyRunsList /></SplitShell>}>
+              <Route path=":id" element={<SupplyRunDetail />} />
+            </Route>
 
-            {/* Roster */}
-            <Route path="roster" element={<RosterList />} />
+            {/* Roster — split-pane on desktop */}
             <Route path="roster/new" element={<NewEmployee />} />
             <Route path="roster/hr" element={<HRCredentials />} />
-            <Route path="roster/:id" element={<EmployeeDetail />} />
+            <Route path="roster" element={<SplitShell basePath="/roster"><RosterList /></SplitShell>}>
+              <Route path=":id" element={<EmployeeDetail />} />
+            </Route>
 
             {/* Schedule */}
             <Route path="schedule" element={<Schedule />} />
@@ -181,20 +213,28 @@ function App() {
             <Route path="comp-claims" element={<CompClaimsList />} />
             <Route path="comp-claims/new" element={<NewCompClaim />} />
             <Route path="consent/ama" element={<AMAConsent />} />
+            <Route path="consent/treat" element={<ConsentToTreat />} />
             <Route path="contacts" element={<Contacts />} />
-            <Route path="documents" element={<DocumentsList />} />
             <Route path="documents/handbook" element={<Handbook />} />
             <Route path="documents/new" element={<NewDocument />} />
+            <Route path="documents" element={<SplitShell basePath="/documents"><DocumentsList /></SplitShell>}>
+              <Route path=":id" element={<DocumentDetail />} />
+            </Route>
             <Route path="formulary" element={<Formulary />} />
             <Route path="payroll" element={<Payroll />} />
             <Route path="payroll/my" element={<MyPayroll />} />
             <Route path="profile" element={<Profile />} />
-            <Route path="unsigned-orders" element={<UnsignedOrders />} />
+            <Route path="unsigned-items" element={<UnsignedItems />} />
+            {/* Legacy routes redirect to unified page */}
+            <Route path="unsigned-orders" element={<Navigate to="/unsigned-items" replace />} />
+            <Route path="unsigned-pcrs" element={<Navigate to="/unsigned-items" replace />} />
+            <Route path="patient-search" element={<PatientSearch />} />
             <Route path="dashboard/my-unit" element={<MyUnit />} />
 
             {/* Admin */}
             <Route path="admin" element={<Admin />} />
             <Route path="admin/announcements" element={<Announcements />} />
+            <Route path="admin/push-notifications" element={<PushNotifications />} />
             <Route path="admin/chat-requests" element={<ChatRequests />} />
             <Route path="admin/company" element={<Company />} />
             <Route path="admin/fire-dashboard" element={<FireDashboard />} />
@@ -203,7 +243,7 @@ function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
-      </>
+      </Suspense>
     </BrowserRouter>
   )
 }

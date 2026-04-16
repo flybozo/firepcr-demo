@@ -119,7 +119,9 @@ function ClinicalTab() {
   const [loading, setLoading] = useState(true)
 
   // raw encounter rows
-  const [encounters, setEncounters] = useState<{ date: string; primary_symptom_text: string | null; initial_acuity: string | null; patient_disposition: string | null; unit: string | null }[]>([])
+  const [encounters, setEncounters] = useState<{ date: string; primary_symptom_text: string | null; initial_acuity: string | null; patient_disposition: string | null; unit: string | null; incident_id: string | null; incident_name: string | null }[]>([])
+  const [activeIncidents, setActiveIncidents] = useState<{ id: string; name: string }[]>([])
+  const [incidentFilter, setIncidentFilter] = useState<string>('All')
   // medications
   const [meds, setMeds] = useState<{ item_name: string; count: number }[]>([])
 
@@ -128,12 +130,16 @@ function ClinicalTab() {
     try {
       const dateFrom = getDateFilter(range)
 
-      let q = supabase
-        .from('patient_encounters')
-        .select('date, primary_symptom_text, initial_acuity, patient_disposition, unit')
-      if (dateFrom) q = q.gte('date', dateFrom)
-      const { data: enc } = await q
-      setEncounters(enc || [])
+      let q = supabase.from('patient_encounters')
+        .select('date, primary_symptom_text, initial_acuity, patient_disposition, unit, incident_id, incident:incidents(name)')
+        .is('deleted_at', null)
+      if (dateFrom) q = (q as any).gte('date', dateFrom)
+      const [{ data: enc }, { data: incs }] = await Promise.all([
+        q,
+        supabase.from('incidents').select('id, name').eq('status', 'Active').order('name'),
+      ])
+      setEncounters((enc || []).map((e: any) => ({ ...e, incident_name: e.incident?.name || null })))
+      setActiveIncidents(incs || [])
 
       // Medications — all time (no date filter on dispense_admin_log.date text field is tricky; filter by created_at)
       let mq = supabase
@@ -164,26 +170,31 @@ function ClinicalTab() {
 
   useEffect(() => { load() }, [load])
 
+  // ── Incident-filtered encounter slice (client-side, instant) ───────────────
+  const filteredEncounters = incidentFilter === 'All'
+    ? encounters
+    : encounters.filter(e => e.incident_id === incidentFilter)
+
   // ── Derived stats ──────────────────────────────────────────────────────────
   const now = new Date()
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0]
   const weekStart = (() => { const d = new Date(now); d.setDate(d.getDate() - d.getDay()); return d.toISOString().split('T')[0] })()
   const todayStr = now.toISOString().split('T')[0]
 
-  const thisMonth = encounters.filter(e => e.date >= monthStart).length
-  const thisWeek  = encounters.filter(e => e.date >= weekStart).length
-  const today     = encounters.filter(e => e.date === todayStr).length
+  const thisMonth = filteredEncounters.filter(e => e.date >= monthStart).length
+  const thisWeek  = filteredEncounters.filter(e => e.date >= weekStart).length
+  const today     = filteredEncounters.filter(e => e.date === todayStr).length
 
   // ── Daily encounters line chart (last 30 days of the selected range) ───────
   const dailyCounts: Record<string, number> = {}
-  encounters.forEach(e => { if (e.date) dailyCounts[e.date] = (dailyCounts[e.date] || 0) + 1 })
+  filteredEncounters.forEach(e => { if (e.date) dailyCounts[e.date] = (dailyCounts[e.date] || 0) + 1 })
   const dailyData = Object.entries(dailyCounts)
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([date, count]) => ({ date: date.slice(5), count })) // MM-DD
 
   // ── Chief complaints ──────────────────────────────────────────────────────
   const complaintCounts: Record<string, number> = {}
-  encounters.forEach(e => {
+  filteredEncounters.forEach(e => {
     const k = e.primary_symptom_text || null
     if (k) complaintCounts[k] = (complaintCounts[k] || 0) + 1
   })
@@ -194,7 +205,7 @@ function ClinicalTab() {
 
   // ── Acuity breakdown ──────────────────────────────────────────────────────
   const acuityCounts: Record<string, number> = { Immediate: 0, Delayed: 0, Minimal: 0, Expectant: 0 }
-  encounters.forEach(e => { acuityCounts[mapAcuity(e.initial_acuity)]++ })
+  filteredEncounters.forEach(e => { acuityCounts[mapAcuity(e.initial_acuity)]++ })
   const acuityData = Object.entries(acuityCounts)
     .filter(([, v]) => v > 0)
     .map(([name, value]) => ({ name, value }))
@@ -202,14 +213,14 @@ function ClinicalTab() {
 
   // ── Disposition ───────────────────────────────────────────────────────────
   const dispCounts: Record<string, number> = {}
-  encounters.forEach(e => { const k = e.patient_disposition; if (k) dispCounts[k] = (dispCounts[k] || 0) + 1 })
+  filteredEncounters.forEach(e => { const k = e.patient_disposition; if (k) dispCounts[k] = (dispCounts[k] || 0) + 1 })
   const dispData = Object.entries(dispCounts)
     .sort((a, b) => b[1] - a[1])
     .map(([name, count]) => ({ name, count }))
 
   // ── Encounters by unit ────────────────────────────────────────────────────
   const unitCounts: Record<string, number> = {}
-  encounters.forEach(e => { const k = e.unit; if (k) unitCounts[k] = (unitCounts[k] || 0) + 1 })
+  filteredEncounters.forEach(e => { const k = e.unit; if (k) unitCounts[k] = (unitCounts[k] || 0) + 1 })
   const unitData = Object.entries(unitCounts)
     .sort((a, b) => b[1] - a[1])
     .map(([name, count]) => ({ name, count }))
@@ -233,14 +244,36 @@ function ClinicalTab() {
 
   return (
     <div className="space-y-8">
-      {/* Date filter */}
-      <DatePills range={range} setRange={setRange} />
+      {/* Date + Incident filters */}
+      <div className="flex flex-col gap-2">
+        <DatePills range={range} setRange={setRange} />
+        {activeIncidents.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 items-center">
+            <span className="text-xs text-gray-500">Incident:</span>
+            <button
+              onClick={() => setIncidentFilter('All')}
+              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                incidentFilter === 'All' ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              }`}
+            >All</button>
+            {activeIncidents.map(inc => (
+              <button
+                key={inc.id}
+                onClick={() => setIncidentFilter(inc.id)}
+                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
+                  incidentFilter === inc.id ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+                }`}
+              >{inc.name}</button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* ── A: Encounter Volume ── */}
       <section>
         <SectionHeader title="📊 Encounter Volume" />
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-          <StatCard label="Total Encounters" value={loading ? '—' : encounters.length} accent={C.red} />
+          <StatCard label="Total Encounters" value={loading ? '—' : filteredEncounters.length} accent={C.red} />
           <StatCard label="This Month" value={loading ? '—' : thisMonth} accent={C.blue} />
           <StatCard label="This Week" value={loading ? '—' : thisWeek} accent={C.green} />
           <StatCard label="Today" value={loading ? '—' : today} accent={C.amber} />
@@ -265,13 +298,13 @@ function ClinicalTab() {
         <SectionHeader title="🩺 Chief Complaints" sub="Top 15 by frequency" />
         {loading ? <Skeleton h="h-64" /> : complaintData.length === 0 ? <Empty /> : (
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-x-auto">
-            <ResponsiveContainer width="100%" height={Math.max(220, complaintData.length * 28)}>
-              <BarChart data={complaintData} layout="vertical" margin={{ top: 5, right: 30, left: 140, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridStyle.stroke} horizontal={false} />
-                <XAxis type="number" tick={axisStyle} allowDecimals={false} />
-                <YAxis type="category" dataKey="name" tick={{ ...axisStyle, fontSize: 11 }} width={135} />
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={complaintData} margin={{ top: 5, right: 10, left: 10, bottom: 90 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={gridStyle.stroke} />
+                <XAxis dataKey="name" tick={{ ...axisStyle, fontSize: 10 }} angle={-40} textAnchor="end" interval={0} />
+                <YAxis tick={axisStyle} allowDecimals={false} />
                 <Tooltip contentStyle={tooltipStyle} />
-                <Bar dataKey="count" fill={C.red} radius={[0, 4, 4, 0]} name="Count" />
+                <Bar dataKey="count" fill={C.red} radius={[4, 4, 0, 0]} name="Count" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -317,13 +350,13 @@ function ClinicalTab() {
         <SectionHeader title="📋 Disposition Summary" />
         {loading ? <Skeleton h="h-52" /> : dispData.length === 0 ? <Empty /> : (
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-x-auto">
-            <ResponsiveContainer width="100%" height={Math.max(180, dispData.length * 30)}>
-              <BarChart data={dispData} layout="vertical" margin={{ top: 5, right: 30, left: 180, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridStyle.stroke} horizontal={false} />
-                <XAxis type="number" tick={axisStyle} allowDecimals={false} />
-                <YAxis type="category" dataKey="name" tick={{ ...axisStyle, fontSize: 11 }} width={175} />
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={dispData} margin={{ top: 5, right: 10, left: 10, bottom: 80 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={gridStyle.stroke} />
+                <XAxis dataKey="name" tick={{ ...axisStyle, fontSize: 10 }} angle={-35} textAnchor="end" interval={0} />
+                <YAxis tick={axisStyle} allowDecimals={false} />
                 <Tooltip contentStyle={tooltipStyle} />
-                <Bar dataKey="count" fill={C.blue} radius={[0, 4, 4, 0]} name="Count" />
+                <Bar dataKey="count" fill={C.blue} radius={[4, 4, 0, 0]} name="Count" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -335,13 +368,13 @@ function ClinicalTab() {
         <SectionHeader title="💊 Top Medications Administered" sub="Top 10 by frequency" />
         {loading ? <Skeleton h="h-52" /> : meds.length === 0 ? <Empty /> : (
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-x-auto">
-            <ResponsiveContainer width="100%" height={Math.max(200, meds.length * 30)}>
-              <BarChart data={meds} layout="vertical" margin={{ top: 5, right: 30, left: 220, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridStyle.stroke} horizontal={false} />
-                <XAxis type="number" tick={axisStyle} allowDecimals={false} />
-                <YAxis type="category" dataKey="item_name" tick={{ ...axisStyle, fontSize: 11 }} width={215} />
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={meds} margin={{ top: 5, right: 10, left: 10, bottom: 90 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={gridStyle.stroke} />
+                <XAxis dataKey="item_name" tick={{ ...axisStyle, fontSize: 10 }} angle={-40} textAnchor="end" interval={0} />
+                <YAxis tick={axisStyle} allowDecimals={false} />
                 <Tooltip contentStyle={tooltipStyle} />
-                <Bar dataKey="count" fill={C.violet} radius={[0, 4, 4, 0]} name="Count" />
+                <Bar dataKey="count" fill={C.violet} radius={[4, 4, 0, 0]} name="Count" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -387,14 +420,16 @@ function OperationsTab() {
   const [incidents, setIncidents] = useState<IncidentRow[]>([])
   const [encByIncident, setEncByIncident] = useState<{ incident_id: string; count: number }[]>([])
   const [unitsByType, setUnitsByType] = useState<{ name: string; value: number }[]>([])
+  const [supplyItems, setSupplyItems] = useState<{ name: string; qty: number }[]>([])
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [{ data: inc }, { data: enc }, { data: units }] = await Promise.all([
+        const [{ data: inc }, { data: enc }, { data: units }, { data: runItems }] = await Promise.all([
           supabase.from('incidents').select('id, name, status, start_date, closed_at, incident_units(id)'),
           supabase.from('patient_encounters').select('incident_id').not('incident_id', 'is', null),
           supabase.from('units').select('unit_type_id, unit_types!units_unit_type_id_fkey(name)') as unknown as Promise<{ data: { unit_type_id: string; unit_types: { name: string } | null }[] | null; error: unknown }>,
+          supabase.from('supply_run_items').select('item_name, quantity'),
         ])
 
         setIncidents((inc || []) as IncidentRow[])
@@ -414,6 +449,18 @@ function OperationsTab() {
           typeCounts[t] = (typeCounts[t] || 0) + 1
         })
         setUnitsByType(Object.entries(typeCounts).map(([name, value]) => ({ name, value })))
+
+        // supply run items — top 15 by total quantity dispensed
+        const itemQty: Record<string, number> = {}
+        ;(runItems || []).forEach((r: { item_name: string | null; quantity: number | null }) => {
+          if (r.item_name) itemQty[r.item_name] = (itemQty[r.item_name] || 0) + (r.quantity || 0)
+        })
+        setSupplyItems(
+          Object.entries(itemQty)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 15)
+            .map(([name, qty]) => ({ name, qty }))
+        )
       } catch {
         // Offline — analytics require connectivity; show empty state
       }
@@ -539,6 +586,24 @@ function OperationsTab() {
                 <YAxis type="category" dataKey="name" tick={{ ...axisStyle, fontSize: 11 }} width={155} />
                 <Tooltip contentStyle={tooltipStyle} />
                 <Bar dataKey="count" fill={C.amber} radius={[0, 4, 4, 0]} name="Encounters" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </section>
+
+      {/* ── E: Supply Run Items Dispensed ── */}
+      <section>
+        <SectionHeader title="📦 Items Dispensed (Supply Runs)" sub="Top 15 by total quantity" />
+        {loading ? <Skeleton h="h-52" /> : supplyItems.length === 0 ? <Empty /> : (
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-x-auto">
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={supplyItems} margin={{ top: 5, right: 10, left: 10, bottom: 90 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={gridStyle.stroke} />
+                <XAxis dataKey="name" tick={{ ...axisStyle, fontSize: 10 }} angle={-40} textAnchor="end" interval={0} />
+                <YAxis tick={axisStyle} allowDecimals={false} />
+                <Tooltip contentStyle={tooltipStyle} />
+                <Bar dataKey="qty" fill={C.teal} radius={[4, 4, 0, 0]} name="Qty Dispensed" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -768,7 +833,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white pb-16">
-      <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-5">
+      <div className="p-4 md:p-6 space-y-5">
 
         {/* Header */}
         <div className="flex items-center justify-between pt-2">

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { FieldGuard } from '@/components/FieldGuard'
+import { authFetch } from '@/lib/authFetch'
 import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, CartesianGrid,
@@ -92,9 +93,8 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
   const generateCode = async () => {
     setGenerating(true)
     try {
-      const res = await fetch('/api/incident-access', {
+      const res = await authFetch('/api/incident-access', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ incident_id: incidentId, label: label || null }),
       })
       if (res.ok) {
@@ -111,9 +111,8 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
   }
 
   const toggleActive = async (codeId: string, active: boolean) => {
-    const res = await fetch('/api/incident-access', {
+    const res = await authFetch('/api/incident-access', {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code_id: codeId, active }),
     })
     if (res.ok) loadCodes()
@@ -233,7 +232,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
         const [incRes, orgRes, encRes, unitsRes, compRes, icsRes] = await Promise.all([
           supabase.from('incidents').select('id, name, location, incident_number, start_date, end_date, status').eq('id', incidentId).single(),
           supabase.from('organizations').select('name, dba, logo_url').limit(1).single(),
-          supabase.from('patient_encounters').select('id, date, unit, patient_age, patient_age_units, primary_symptom_text, initial_acuity, final_acuity, patient_disposition, created_at').eq('incident_id', incidentId).order('date', { ascending: true }),
+          supabase.from('patient_encounters').select('id, date, unit, patient_age, patient_age_units, primary_symptom_text, initial_acuity, final_acuity, patient_disposition, created_at').eq('incident_id', incidentId).is('deleted_at', null).order('date', { ascending: true }),
           supabase.from('incident_units').select('id, unit_id').eq('incident_id', incidentId),
           supabase.from('comp_claims').select('id, date_of_injury, status, pdf_url, encounter_id, osha_recordable, created_at').eq('incident_id', incidentId).order('created_at', { ascending: true }),
           supabase.from('ics214_headers').select('id, ics214_id, unit_name, leader_name, op_date, status, pdf_url, pdf_file_name, created_by, created_at, closed_at').eq('incident_id', incidentId).order('op_date', { ascending: true }),

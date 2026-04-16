@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
+import { authFetch } from '@/lib/authFetch'
 
-const APP_VERSION = '1.3.0.4'
+const APP_VERSION = '1.6.3'
 
 export default function VersionNotifier() {
   useEffect(() => {
@@ -8,9 +9,8 @@ export default function VersionNotifier() {
     if (lastNotified === APP_VERSION) return // Already notified for this version
 
     // Send notification via API
-    fetch('/api/version-notify', {
+    authFetch('/api/version-notify', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ version: APP_VERSION }),
     }).then(res => {
       if (res.ok) localStorage.setItem('firepcr-version-notified', APP_VERSION)

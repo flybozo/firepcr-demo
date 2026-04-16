@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { Link } from 'react-router-dom'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useMatch } from 'react-router-dom'
 
 type Employee = {
   id: string
@@ -96,12 +96,12 @@ export default function RosterPage() {
   const { isAdmin } = useRole()
   const assignment = useUserAssignment()
   const navigate = useNavigate()
+  const detailMatch = useMatch('/roster/:id')
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [isOfflineData, setIsOfflineData] = useState(false)
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('All')
-  const [statusFilter, setStatusFilter] = useState<'Active' | 'Inactive'>('Active')
 
   useEffect(() => {
     const load = async () => {
@@ -130,19 +130,21 @@ export default function RosterPage() {
 
   const roles = ['All', 'MD', 'NP', 'PA', 'RN', 'Paramedic', 'EMT', 'Tech']
 
-  const filtered = employees.filter(e => {
-    if (e.status !== statusFilter) return false
+  const applyFilters = (e: Employee) => {
     if (roleFilter !== 'All') {
       const match = roleFilter === 'MD' ? ['MD', 'MD/DO'].includes(e.role) : e.role === roleFilter
       if (!match) return false
     }
     if (search && !e.name.toLowerCase().includes(search.toLowerCase())) return false
     return true
-  })
+  }
+  const activeEmployees = employees.filter(e => e.status === 'Active' && applyFilters(e))
+  const inactiveEmployees = employees.filter(e => e.status !== 'Active' && applyFilters(e))
+  const filtered = [...activeEmployees, ...inactiveEmployees]
 
   return (
     <div className="min-h-screen bg-gray-950 text-white pb-16 mt-8 md:mt-0">
-      <div className="p-4 md:p-6 max-w-4xl mx-auto space-y-4">
+      <div className="p-4 md:p-6 space-y-4">
         {isOfflineData && (
           <div className="bg-amber-900/30 border border-amber-700 rounded-lg px-3 py-2 text-amber-300 text-xs">
             📦 Showing cached data — changes will sync when back online
@@ -151,7 +153,7 @@ export default function RosterPage() {
         <div className="flex items-center justify-between pt-2">
           <div>
             <h1 className="text-xl font-bold">Employee Roster</h1>
-            <p className="text-gray-500 text-xs">{filtered.length} of {employees.length} employees</p>
+            <p className="text-gray-500 text-xs">{activeEmployees.length} active · {inactiveEmployees.length} inactive</p>
           </div>
           {isAdmin && (
             <Link to="/roster/new"
@@ -165,23 +167,7 @@ export default function RosterPage() {
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search employees..."
             className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 placeholder-gray-600" />
-          {/* Active / Inactive toggle */}
-          <div className="flex gap-2">
-            <button
-              onClick={() => setStatusFilter('Active')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                statusFilter === 'Active' ? 'bg-green-700 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-              }`}>
-              ✅ Active
-            </button>
-            <button
-              onClick={() => setStatusFilter('Inactive')}
-              className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                statusFilter === 'Inactive' ? 'bg-gray-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-              }`}>
-              Inactive
-            </button>
-          </div>
+
           <div className="flex gap-2 flex-wrap">
             {roles.map(r => (
               <button key={r} onClick={() => setRoleFilter(r)}
@@ -194,9 +180,12 @@ export default function RosterPage() {
 
         {loading ? (
           <p className="text-gray-500">Loading...</p>
-        ) : filtered.length === 0 ? (
-          <p className="text-center text-gray-600 py-8">No employees found.</p>
         ) : (
+          <>
+          {/* ── Active employees ── */}
+          {activeEmployees.length === 0 ? (
+            <p className="text-center text-gray-600 py-8">No active employees found.</p>
+          ) : (
           <div className="bg-gray-900 rounded-xl overflow-hidden border border-gray-800">
             {/* Header */}
             <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700">
@@ -206,13 +195,13 @@ export default function RosterPage() {
               <span className="flex-1 min-w-0 hidden md:block">WF Email</span>
               <span className="flex-none w-56 shrink-0 text-right hidden sm:block">Certs</span>
             </div>
-            {filtered.map(emp => {
+            {activeEmployees.map(emp => {
               const certs = getRoleCerts(emp)
               return (
                 <div
                   key={emp.id}
                   onClick={() => navigate(`/roster/${emp.id}`)}
-                  className="flex items-center px-4 py-2.5 hover:bg-gray-800 cursor-pointer border-b border-gray-800/50 text-sm gap-3"
+                  className={`flex items-center px-4 py-2.5 cursor-pointer border-b border-gray-800/50 text-sm gap-3 ${detailMatch?.params?.id === emp.id ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
                 >
                   {/* Headshot */}
                   <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-gray-700 flex items-center justify-center">
@@ -297,6 +286,47 @@ export default function RosterPage() {
               )
             })}
           </div>
+          )}
+
+          {/* ── Inactive employees ── */}
+          {inactiveEmployees.length > 0 && (
+            <div className="mt-6">
+              <div className="flex items-center gap-2 px-1 mb-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-gray-600">Inactive</span>
+                <span className="text-xs text-gray-700">({inactiveEmployees.length})</span>
+              </div>
+              <div className="bg-gray-900/50 rounded-xl overflow-hidden border border-gray-800/50">
+                {inactiveEmployees.map(emp => {
+                  const certs = getRoleCerts(emp)
+                  return (
+                    <div
+                      key={emp.id}
+                      onClick={() => navigate(`/roster/${emp.id}`)}
+                      className={`flex items-center px-4 py-2.5 cursor-pointer border-b border-gray-800/30 text-sm gap-3 opacity-50 hover:opacity-75 ${detailMatch?.params?.id === emp.id ? 'bg-gray-700 opacity-100' : 'hover:bg-gray-800/50'}`}
+                    >
+                      <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-gray-700 flex items-center justify-center">
+                        {emp.headshot_url ? (
+                          <img src={emp.headshot_url} alt={emp.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-gray-500 text-sm font-bold">{emp.name.charAt(0)}</span>
+                        )}
+                      </div>
+                      <span className="flex-1 min-w-0 font-medium truncate pr-2 text-gray-400">
+                        {emp.name}
+                        <span className="ml-2 text-xs text-gray-600">(Inactive)</span>
+                      </span>
+                      <span className="w-24 shrink-0">
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-800 text-gray-500">
+                          {emp.role}
+                        </span>
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+          </>
         )}
       </div>
     </div>

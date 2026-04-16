@@ -1,6 +1,6 @@
 
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useRef, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -54,8 +54,10 @@ function SimpleEHRInner() {
   const supabase = createClient()
   const navigate = useNavigate()
   const { write: offlineWrite, isOffline } = useOfflineWrite()
+  const requestId = useRef(crypto.randomUUID())
   const [searchParams] = useSearchParams()
   const urlIncidentId = searchParams.get('incidentId')
+  const urlIncidentName = searchParams.get('incidentName') || ''
   const urlUnitId = searchParams.get('unitId') || ''
   const urlUnitName = searchParams.get('unitName') || searchParams.get('unit') || ''
   const urlCRN = searchParams.get('crew_resource_number') || ''
@@ -63,10 +65,17 @@ function SimpleEHRInner() {
   const assignment = useUserAssignment()
   const currentUser = assignment
 
+  type SimpleUnit = {
+    id: string
+    name: string
+    incident_units?: { id: string; released_at: string | null; incident: { id: string; name: string; status: string } | null }[]
+  }
+
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [incidents, setIncidents] = useState<{ id: string; name: string }[]>([])
-  const [units, setUnits] = useState<{ id: string; name: string }[]>([])
+  const [units, setUnits] = useState<SimpleUnit[]>([])
+  const [displayedUnits, setDisplayedUnits] = useState<SimpleUnit[]>([])
 
   const now = new Date()
   const [form, setForm] = useState({
@@ -102,10 +111,10 @@ function SimpleEHRInner() {
     etco2: '',
     // Scene
     scene_type: '',
-    // Assessment & Plan
-    assessment: '',
-    treatment: '',
-    response_to_treatment: '',
+    // SOAP Note
+    subjective: '',
+    objective: '',
+    assessment_plan: '',
     provider_of_record: '',
     // Disposition
     patient_disposition: '',
@@ -148,7 +157,7 @@ function SimpleEHRInner() {
         const cachedInc = await getCachedData('incidents') as any[]
         if (cachedInc.length > 0) setIncidents(cachedInc)
         const cachedUnits = await getCachedData('units') as any[]
-        if (cachedUnits.length > 0) setUnits(cachedUnits)
+        if (cachedUnits.length > 0) { setUnits(cachedUnits); setDisplayedUnits(cachedUnits) }
       } catch {}
       const [empResult, incResult, unitResult] = await Promise.all([
         loadList(
@@ -161,18 +170,67 @@ function SimpleEHRInner() {
           'incidents'
         ),
         loadList(
-          () => supabase.from('units').select('id, name').order('name'),
+          () => supabase.from('units').select('id, name, incident_units(id, released_at, incident:incidents(id, name, status))').eq('active', true).eq('is_storage', false).order('name'),
           'units'
         ),
       ])
       setProviders(empResult.data as any)
       setIncidents(incResult.data as any)
       setUnits(unitResult.data as any)
+      setDisplayedUnits(unitResult.data as any)
     }
     load()
   }, [])
 
-  const set = (key: string, val: string) => setForm(p => ({ ...p, [key]: val }))
+  const set = (key: string, val: string) => setForm(p => {
+    const next = { ...p, [key]: val }
+    // Auto-compute age from DOB
+    if (key === 'patient_dob' && val) {
+      const birth = new Date(val + 'T00:00:00')
+      const today = new Date()
+      let age = today.getFullYear() - birth.getFullYear()
+      const md = today.getMonth() - birth.getMonth()
+      if (md < 0 || (md === 0 && today.getDate() < birth.getDate())) age--
+      if (age < 0) age = 0
+      if (age < 2) {
+        const months = (today.getFullYear() - birth.getFullYear()) * 12 + today.getMonth() - birth.getMonth()
+        next.patient_age = String(Math.max(0, months))
+        next.patient_age_units = 'Months'
+      } else {
+        next.patient_age = String(age)
+        next.patient_age_units = 'Years'
+      }
+    }
+    return next
+  })
+
+  const handleUnitChange = (unitId: string) => {
+    const u = units.find(x => x.id === unitId)
+    set('unit_id', unitId)
+    set('unit', u?.name || '')
+    // Auto-fill incident from active non-released incident_unit
+    const activeIU = u?.incident_units?.find(iu => !iu.released_at && iu.incident?.status === 'Active')
+    if (activeIU?.incident?.id) {
+      set('incident_id', activeIU.incident.id)
+    }
+  }
+
+  const handleIncidentChange = (incidentId: string) => {
+    set('incident_id', incidentId)
+    if (incidentId) {
+      const filtered = units.filter(u =>
+        u.incident_units?.some(iu => !iu.released_at && iu.incident?.id === incidentId)
+      )
+      setDisplayedUnits(filtered)
+      // If current unit is no longer valid for selected incident, clear it
+      if (form.unit_id && !filtered.find(u => u.id === form.unit_id)) {
+        set('unit_id', '')
+        set('unit', '')
+      }
+    } else {
+      setDisplayedUnits(units)
+    }
+  }
 
   const hasAssignment = !assignment.loading && !!assignment.unit
 
@@ -219,8 +277,12 @@ function SimpleEHRInner() {
         pupils: form.pupils || null,
         etco2: form.etco2 ? Number(form.etco2) : null,
         scene_type: form.scene_type || null,
-        response_to_treatment: form.response_to_treatment || null,
-        notes: [form.assessment, form.treatment, form.notes].filter(Boolean).join('\n\n'),
+        notes: [
+          form.subjective ? `SUBJECTIVE:\n${form.subjective}` : '',
+          form.objective ? `OBJECTIVE:\n${form.objective}` : '',
+          form.assessment_plan ? `ASSESSMENT/PLAN:\n${form.assessment_plan}` : '',
+          form.notes || '',
+        ].filter(Boolean).join('\n\n'),
         provider_of_record: form.provider_of_record,
         patient_disposition: form.patient_disposition,
         pcr_status: 'Draft',
@@ -228,7 +290,10 @@ function SimpleEHRInner() {
 
       // Remove local-id before sending to server (it will get a real UUID)
       const { id: _localId, ...serverData } = encounterData
-      const result = await offlineWrite('patient_encounters', 'insert', serverData)
+      const result = await offlineWrite('patient_encounters', 'insert', {
+        ...serverData,
+        client_request_id: requestId.current,
+      })
       if (!result.success) throw new Error(result.error || 'Save failed')
       navigate(`/encounters?success=1`)
     } catch (err: unknown) {
@@ -269,41 +334,37 @@ function SimpleEHRInner() {
           {/* Unit & Time */}
           <div className={sectionClass}>
             <h2 className="font-bold text-sm uppercase tracking-wide text-gray-400">Unit & Time</h2>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="min-w-0">
                 <label className={labelClass}>Date</label>
-                <input type="date" value={form.date} onChange={e => set('date', e.target.value)} className={inputClass} />
+                <input type="date" value={form.date} onChange={e => set('date', e.target.value)} className={inputClass + ' w-full'} />
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className={labelClass}>Time</label>
-                <input type="time" value={form.time} onChange={e => set('time', e.target.value)} className={inputClass} />
+                <input type="time" value={form.time} onChange={e => set('time', e.target.value)} className={inputClass + ' w-full'} />
               </div>
             </div>
 
-            {/* Unit */}
+            {/* Unit — locked when coming from step 1 (urlUnitName) or when user has an assignment */}
             <div>
               <label className={labelClass}>Unit</label>
-              {hasAssignment ? (
-                <div className={readonlyClass}>{form.unit}</div>
+              {(hasAssignment || urlUnitName) ? (
+                <div className={readonlyClass}>{form.unit || urlUnitName} <span className="text-gray-500 text-xs ml-1">🔒</span></div>
               ) : (
-                <select value={form.unit_id} onChange={e => {
-                  const u = units.find(x => x.id === e.target.value)
-                  set('unit_id', e.target.value)
-                  set('unit', u?.name || '')
-                }} className={inputClass}>
+                <select value={form.unit_id} onChange={e => handleUnitChange(e.target.value)} className={inputClass}>
                   <option value="">Select unit...</option>
-                  {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                  {displayedUnits.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
               )}
             </div>
 
-            {/* Incident */}
+            {/* Incident — locked when coming from step 1 (urlIncidentId) or when user has an assignment with incident */}
             <div>
               <label className={labelClass}>Incident</label>
-              {hasAssignment && assignment.incident ? (
-                <div className={readonlyClass}>{assignment.incident.name}</div>
+              {(hasAssignment && assignment.incident) || urlIncidentId ? (
+                <div className={readonlyClass}>{urlIncidentName || assignment.incident?.name || 'Loading...'} <span className="text-gray-500 text-xs ml-1">🔒</span></div>
               ) : (
-                <select value={form.incident_id} onChange={e => set('incident_id', e.target.value)} className={inputClass}>
+                <select value={form.incident_id} onChange={e => handleIncidentChange(e.target.value)} className={inputClass}>
                   <option value="">Select incident...</option>
                   {incidents.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
                 </select>
@@ -330,10 +391,10 @@ function SimpleEHRInner() {
                 <input value={form.patient_last_name} onChange={e => set('patient_last_name', e.target.value)} className={inputClass} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="min-w-0">
                 <label className={labelClass}>Date of Birth</label>
-                <input type="date" value={form.patient_dob} onChange={e => set('patient_dob', e.target.value)} className={inputClass} style={{ maxWidth: '180px' }} />
+                <input type="date" value={form.patient_dob} onChange={e => set('patient_dob', e.target.value)} className={inputClass + ' min-w-0'} />
               </div>
               <div />
             </div>
@@ -465,25 +526,25 @@ function SimpleEHRInner() {
             </div>
           </div>
 
-          {/* Assessment & Treatment */}
+          {/* Narrative (SOAP) */}
           <div className={sectionClass}>
-            <h2 className="font-bold text-sm uppercase tracking-wide text-gray-400">Assessment & Plan</h2>
+            <h2 className="font-bold text-sm uppercase tracking-wide text-gray-400">Narrative</h2>
             <div>
-              <label className={labelClass}>Assessment / Findings</label>
-              <textarea value={form.assessment} onChange={e => set('assessment', e.target.value)}
-                rows={3} placeholder="Physical exam findings, clinical impression..."
+              <label className={labelClass}>Subjective</label>
+              <textarea value={form.subjective} onChange={e => set('subjective', e.target.value)}
+                rows={3} placeholder="Chief complaint, history of present illness, patient's account..."
                 className={inputClass + " resize-none"} />
             </div>
             <div>
-              <label className={labelClass}>Treatment Provided</label>
-              <textarea value={form.treatment} onChange={e => set('treatment', e.target.value)}
-                rows={3} placeholder="Interventions, medications given, wound care..."
+              <label className={labelClass}>Objective</label>
+              <textarea value={form.objective} onChange={e => set('objective', e.target.value)}
+                rows={3} placeholder="Physical exam findings, vital signs, observations..."
                 className={inputClass + " resize-none"} />
             </div>
             <div>
-              <label className={labelClass}>Response to Treatment</label>
-              <textarea value={form.response_to_treatment} onChange={e => set('response_to_treatment', e.target.value)}
-                rows={2} placeholder="How did the patient respond to treatment?"
+              <label className={labelClass}>Assessment / Plan</label>
+              <textarea value={form.assessment_plan} onChange={e => set('assessment_plan', e.target.value)}
+                rows={3} placeholder="Clinical impression, treatment provided, disposition plan..."
                 className={inputClass + " resize-none"} />
             </div>
           </div>

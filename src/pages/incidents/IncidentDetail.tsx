@@ -630,6 +630,7 @@ export default function IncidentDetailPage() {
           .from('patient_encounters')
           .select('id, date, patient_last_name, patient_first_name, unit, initial_acuity', { count: 'exact' })
           .eq('incident_id', activeIncidentId)
+          .is('deleted_at', null)
           .order('date', { ascending: false })
           .limit(5)
         if (r1.count && r1.count > 0) return r1
@@ -639,6 +640,7 @@ export default function IncidentDetailPage() {
             .from('patient_encounters')
             .select('id, date, patient_last_name, patient_first_name, unit, initial_acuity', { count: 'exact' })
             .ilike('incident', `%${(inc as any).name}%`)
+            .is('deleted_at', null)
             .order('date', { ascending: false })
             .limit(5)
         }
@@ -651,9 +653,10 @@ export default function IncidentDetailPage() {
           .from('patient_encounters')
           .select('encounter_id')
           .eq('incident_id', activeIncidentId)
+          .is('deleted_at', null)
         // Fallback: name-based match
         if (!encIds?.length && (inc as any)?.name) {
-          const r2 = await supabaseClient.from('patient_encounters').select('encounter_id').ilike('incident', `%${(inc as any).name}%`)
+          const r2 = await supabaseClient.from('patient_encounters').select('encounter_id').ilike('incident', `%${(inc as any).name}%`).is('deleted_at', null)
           encIds = r2.data
         }
         const ids = (encIds || []).map((e: { encounter_id: string }) => e.encounter_id)
@@ -736,6 +739,7 @@ export default function IncidentDetailPage() {
           .from('patient_encounters')
           .select('encounter_id')
           .eq('incident_id', activeIncidentId)
+          .is('deleted_at', null)
         const ids = ((encIds as any[]) || []).map((e: any) => e.encounter_id)
         let marTotal = 0
         if (ids.length > 0) {
@@ -836,12 +840,11 @@ export default function IncidentDetailPage() {
     const path = `contracts/${activeIncidentId}/${file.name}`
     const { data, error } = await supabase.storage.from('documents').upload(path, file, { upsert: true })
     if (error) { alert('Upload failed: ' + error.message); setUploadingContract(false); return }
-    const { data: urlData } = supabase.storage.from('documents').getPublicUrl(data.path)
     await supabase.from('incidents').update({
-      contract_url: urlData.publicUrl,
+      contract_url: data.path,
       contract_file_name: file.name,
     }).eq('id', activeIncidentId)
-    setIncident((prev: any) => prev ? { ...prev, contract_url: urlData.publicUrl, contract_file_name: file.name } : prev)
+    setIncident((prev: any) => prev ? { ...prev, contract_url: data.path, contract_file_name: file.name } : prev)
     setUploadingContract(false)
   }
 

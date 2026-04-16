@@ -48,17 +48,17 @@ import {
   MED_AUTH_MAP,
   STATE_ANSI,
   CA_COUNTY_FIPS,
-} from './codeMaps';
+} from './codeMaps.js';
 
 // ─── Agency Constants ────────────────────────────────────────────────────────
 
-const AGENCY_NUMBER = 'S65-52014';
-const AGENCY_STATE_ID = 'S65-52014';
+const AGENCY_NUMBER = 'S00-00000';
+const AGENCY_STATE_ID = 'S00-00000';
 const STATE_CODE = '06';
 const AGENCY_NAME = 'Sierra Valley EMS';
-const SOFTWARE_NAME = 'FirePCR';
+const SOFTWARE_NAME = 'RAM Field Operations';
 const SOFTWARE_VERSION = '1.0';
-const SOFTWARE_CREATOR = 'FirePCR';
+const SOFTWARE_CREATOR = 'Sierra Valley EMS PC';
 // NEMSIS_VERSION constant kept for reference
 // const NEMSIS_VERSION = '3.5.1.240301CP1';
 
@@ -360,7 +360,7 @@ export function buildPcrXml(
     return vals.map(v => `<${elemName}>${mapDelay(v, kind)}</${elemName}>`).join('\n      ');
   }
 
-  const unit = String(enc.unit ?? 'GRANITE 1');
+  const unit = String(enc.unit ?? 'RAMBO 1');
 
   // ─── eArrest ───
   let arrestVal = enc.cardiac_arrest ?? 'No';

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
+import { authFetch } from '@/lib/authFetch'
 
 type MessageStatus = 'complete' | 'pending' | 'error'
 
@@ -272,12 +273,10 @@ export default function ChatBubble() {
     setLoading(true)
 
     try {
-      const res = await fetch('/api/employee-chat', {
+      const res = await authFetch('/api/employee-chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: text,
-          employee_id: assignment.employee!.id,
         }),
       })
 
@@ -428,7 +427,7 @@ export default function ChatBubble() {
               </div>
               <div>
                 <h1 className="text-sm font-semibold text-white">Codsworth</h1>
-                <p className="text-xs text-gray-500">FirePCR Assistant · always on</p>
+                <p className="text-xs text-gray-500">RAM AI Assistant · always on</p>
               </div>
             </div>
             <button
@@ -480,7 +479,7 @@ export default function ChatBubble() {
                 Hey {assignment.employee.name?.split(' ')[0]}!
               </p>
               <p className="text-gray-400 text-sm mt-1 max-w-xs">
-                I&apos;m your FirePCR assistant. Ask me about protocols, app features, or anything else I can help with.
+                I&apos;m Codsworth, your RAM assistant. Ask me about protocols, credentials, the app, or anything else I can help with.
               </p>
             </div>
           )}

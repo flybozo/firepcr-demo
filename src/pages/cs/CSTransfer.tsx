@@ -1,12 +1,13 @@
 
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { getIsOnline } from '@/lib/syncManager'
 import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
-import SignatureCanvas from 'react-signature-canvas'
+import { useUserAssignment } from '@/lib/useUserAssignment'
+import PinSignature, { type SignatureRecord } from '@/components/PinSignature'
 
 const CS_DRUGS = ['Morphine Sulfate', 'Fentanyl', 'Midazolam (Versed)', 'Ketamine']
 
@@ -26,8 +27,11 @@ type UnitOption = {
 export default function CSTransferPage() {
   const supabase = createClient()
   const navigate = useNavigate()
-  const transferSigRef = useRef<SignatureCanvas>(null)
-  const witnessSigRef = useRef<SignatureCanvas>(null)
+  const assignment = useUserAssignment()
+  const [showTransferSig, setShowTransferSig] = useState(false)
+  const [showWitnessSig, setShowWitnessSig] = useState(false)
+  const [transferSigRecord, setTransferSigRecord] = useState<SignatureRecord | null>(null)
+  const [witnessSigRecord, setWitnessSigRecord] = useState<SignatureRecord | null>(null)
 
   const [units, setUnits] = useState<UnitOption[]>([])
   const [employees, setEmployees] = useState<{ id: string; name: string }[]>([])
@@ -148,14 +152,6 @@ export default function CSTransferPage() {
     set('lot_number', lotNum)
   }
 
-  const uploadSig = async (ref: React.RefObject<SignatureCanvas | null>, path: string) => {
-    if (!ref.current || ref.current.isEmpty()) return null
-    const blob = await (await fetch(ref.current.getTrimmedCanvas().toDataURL('image/png'))).blob()
-    const { data, error } = await supabase.storage.from('signatures').upload(path, blob, { contentType: 'image/png' })
-    if (error) return null
-    return supabase.storage.from('signatures').getPublicUrl(data.path).data.publicUrl
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!getIsOnline()) {
@@ -168,6 +164,8 @@ export default function CSTransferPage() {
     if (!form.quantity || parseFloat(form.quantity) <= 0) { setError('Enter quantity'); return }
     if (!form.transferred_by || !form.witness) { setError('Transferred By and Witness are required'); return }
     if (form.transferred_by === form.witness) { setError('Transferred By and Witness must be different people'); return }
+    if (!transferSigRecord) { setError('Transfer signature required — tap Sign below'); return }
+    if (!witnessSigRecord) { setError('Witness signature required'); return }
     if (!selectedLot) { setError('Invalid lot selection'); return }
 
     const qty = parseFloat(form.quantity)
@@ -178,11 +176,8 @@ export default function CSTransferPage() {
 
     setSubmitting(true); setError('')
     try {
-      const ts = Date.now()
-      const [transferSigUrl, witnessSigUrl] = await Promise.all([
-        uploadSig(transferSigRef, `cs-transfer/${ts}-transfer.png`),
-        uploadSig(witnessSigRef, `cs-transfer/${ts}-witness.png`),
-      ])
+      const transferSigUrl = transferSigRecord?.signatureHash || null
+      const witnessSigUrl = witnessSigRecord?.signatureHash || null
 
       const fromUnit = units.find(u => u.id === form.from_unit_id)
       const toUnit = units.find(u => u.id === form.to_unit_id)
@@ -408,21 +403,37 @@ export default function CSTransferPage() {
           <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Signatures</h2>
           <div>
             <label className={labelCls}>Transferred By Signature</label>
-            <div className="bg-white rounded-lg overflow-hidden">
-              <SignatureCanvas ref={transferSigRef} canvasProps={{ className: 'w-full', height: 80 }}
-                backgroundColor="white" penColor="black" />
-            </div>
-            <button type="button" onClick={() => transferSigRef.current?.clear()}
-              className="text-xs text-gray-500 underline mt-1">Clear</button>
+            {transferSigRecord ? (
+              <div className="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-3 mt-1">
+                <div>
+                  <p className="text-green-400 text-sm font-medium">✓ Signed</p>
+                  <p className="text-gray-400 text-xs">{transferSigRecord.displayText}</p>
+                </div>
+                <button type="button" onClick={() => setTransferSigRecord(null)} className="text-gray-500 hover:text-white text-xs">Clear</button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setShowTransferSig(true)}
+                className="w-full mt-1 py-3 bg-gray-800 hover:bg-gray-700 border border-dashed border-gray-600 rounded-xl text-sm text-gray-400 transition-colors">
+                Tap to Sign
+              </button>
+            )}
           </div>
           <div>
             <label className={labelCls}>Witness Signature</label>
-            <div className="bg-white rounded-lg overflow-hidden">
-              <SignatureCanvas ref={witnessSigRef} canvasProps={{ className: 'w-full', height: 80 }}
-                backgroundColor="white" penColor="black" />
-            </div>
-            <button type="button" onClick={() => witnessSigRef.current?.clear()}
-              className="text-xs text-gray-500 underline mt-1">Clear</button>
+            {witnessSigRecord ? (
+              <div className="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-3 mt-1">
+                <div>
+                  <p className="text-green-400 text-sm font-medium">✓ Witnessed</p>
+                  <p className="text-gray-400 text-xs">{witnessSigRecord.displayText}</p>
+                </div>
+                <button type="button" onClick={() => setWitnessSigRecord(null)} className="text-gray-500 hover:text-white text-xs">Clear</button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setShowWitnessSig(true)}
+                className="w-full mt-1 py-3 bg-gray-800 hover:bg-gray-700 border border-dashed border-gray-600 rounded-xl text-sm text-gray-400 transition-colors">
+                Witness — Tap to Sign
+              </button>
+            )}
           </div>
         </div>
 
@@ -435,6 +446,27 @@ export default function CSTransferPage() {
           {submitting ? 'Processing Transfer...' : 'Complete Transfer'}
         </button>
       </form>
+
+      {showTransferSig && (
+        <PinSignature
+          label="Transfer Signature"
+          mode="self"
+          employeeId={assignment.employee?.id}
+          employeeName={assignment.employee?.name}
+          documentContext="cs-transfer"
+          onSign={(rec) => { setTransferSigRecord(rec); setShowTransferSig(false) }}
+          onCancel={() => setShowTransferSig(false)}
+        />
+      )}
+      {showWitnessSig && (
+        <PinSignature
+          label="Witness Signature"
+          mode="witness"
+          documentContext="cs-transfer"
+          onSign={(rec) => { setWitnessSigRecord(rec); setShowWitnessSig(false) }}
+          onCancel={() => setShowWitnessSig(false)}
+        />
+      )}
     </div>
   )
 }

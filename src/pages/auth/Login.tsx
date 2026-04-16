@@ -33,12 +33,12 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <img
-            src="/icons/icon-512.png"
-            alt="FirePCR"
-            className="w-24 h-24 mx-auto mb-4 rounded-2xl shadow-[0_0_32px_#0066ff60]"
+            src="https://jlqpycxguovxnqtkjhzs.supabase.co/storage/v1/object/public/headshots/ram-logo.png"
+            alt="Sierra Valley EMS"
+            className="w-24 h-24 mx-auto mb-4 rounded-full object-contain bg-white p-1"
           />
-          <h1 className="text-2xl font-bold text-white">FirePCR</h1>
-          <p className="text-gray-400 text-sm mt-1">Field Operations Platform</p>
+          <h1 className="text-2xl font-bold text-white">RAM Field Ops</h1>
+          <p className="text-gray-400 text-sm mt-1">Sierra Valley EMS</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">

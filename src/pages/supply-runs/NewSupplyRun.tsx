@@ -1,6 +1,6 @@
 
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useRef, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { getIsOnline } from '@/lib/syncManager'
@@ -38,6 +38,7 @@ const labelCls = 'block text-xs font-bold uppercase tracking-wide text-gray-400 
 function SupplyRunNewInner() {
   const supabase = createClient()
   const navigate = useNavigate()
+  const requestId = useRef(crypto.randomUUID())
   const [searchParams] = useSearchParams()
   const presetIncidentId = searchParams.get('incidentId') ?? ''
 
@@ -111,7 +112,7 @@ function SupplyRunNewInner() {
       .from('incident_units')
       .select('id, incident_id, unit:units(id, name)')
       .eq('incident_id', incidentId)
-      
+      .is('released_at', null)
       .order('id')
     setIncidentUnits((data as unknown as IncidentUnit[]) || [])
   }
@@ -240,7 +241,7 @@ function SupplyRunNewInner() {
           .from('incident_units')
           .select('id, incident_id, unit:units(id, name)')
           .eq('incident_id', presetIncidentId)
-          
+          .is('released_at', null)
           .order('id')
         setIncidentUnits((iuData as unknown as IncidentUnit[]) || [])
         setForm(prev => ({ ...prev, incident_id: presetIncidentId }))
@@ -266,6 +267,7 @@ function SupplyRunNewInner() {
       resource_number: form.resource_number || null,
       dispensed_by: form.dispensed_by || null,
       notes: form.notes || null,
+      client_request_id: requestId.current,
     }
     if (getIsOnline()) {
       try {
@@ -274,7 +276,15 @@ function SupplyRunNewInner() {
           .insert(payload)
           .select('id')
           .single()
-        if (error) throw new Error(error.message)
+        if (error) {
+          if (error.code === '23505') {
+            // Duplicate — already saved
+            console.warn('[SupplyRun] Duplicate client_request_id — already saved')
+            navigate('/supply-runs?success=1')
+            return
+          }
+          throw new Error(error.message)
+        }
         navigate(`/supply-runs/${data.id}`)
       } catch (err: unknown) {
         setSubmitting(false)
@@ -364,14 +374,14 @@ function SupplyRunNewInner() {
           </div>
 
           {/* Date & Time */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="min-w-0">
               <label className={labelCls}>Date *</label>
-              <input type="date" className={inputCls} value={form.run_date} onChange={e => set('run_date', e.target.value)} />
+              <input type="date" className={inputCls + ' min-w-0'} value={form.run_date} onChange={e => set('run_date', e.target.value)} />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className={labelCls}>Time</label>
-              <input type="time" className={inputCls} value={form.time} onChange={e => set('time', e.target.value)} />
+              <input type="time" className={inputCls + ' min-w-0'} value={form.time} onChange={e => set('time', e.target.value)} />
             </div>
           </div>
 

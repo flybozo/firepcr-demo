@@ -57,7 +57,7 @@ function AddInventoryInner() {
         .from('units')
         .select('id, name, unit_type:unit_types(name)')
         .eq('active', true)
-        .neq('name', 'Warehouse')
+        .eq('is_storage', false)
         .order('name')
       setUnits((unitsData as any) || [])
 
@@ -277,13 +277,7 @@ function AddInventoryInner() {
                 ))}
               </select>
             ) : (
-              <input
-                type="text"
-                className={inputCls}
-                value={form.item_name}
-                onChange={e => set('item_name', e.target.value)}
-                placeholder="Type item name (or select unit to load formulary)"
-              />
+              <p className="text-gray-500 text-sm px-3 py-2 bg-gray-800 rounded-lg">Select a unit above to load available items</p>
             )}
           </div>
 
@@ -313,17 +307,17 @@ function AddInventoryInner() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="min-w-0">
               <label className={labelCls}>Lot Number</label>
-              <input type="text" className={inputCls} value={form.lot_number} onChange={e => set('lot_number', e.target.value)} />
+              <input type="text" className={inputCls + ' min-w-0'} value={form.lot_number} onChange={e => set('lot_number', e.target.value)} />
             </div>
-            <div>
+            <div className="min-w-0">
               <label className={labelCls}>
                 Expiration Date
                 {isRxOrCS && <span className="text-orange-400 ml-1">*</span>}
               </label>
-              <input type="date" className={inputCls} value={form.expiration_date} onChange={e => set('expiration_date', e.target.value)} />
+              <input type="date" className={inputCls + ' min-w-0'} value={form.expiration_date} onChange={e => set('expiration_date', e.target.value)} />
             </div>
           </div>
 

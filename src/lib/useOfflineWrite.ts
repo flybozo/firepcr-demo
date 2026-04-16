@@ -66,7 +66,13 @@ export function useOfflineWrite(): UseOfflineWriteResult {
           }
 
           if (error) {
-            // Online write failed — queue offline
+            // 23505 = unique_violation — record already exists (idempotent duplicate / offline retry race)
+            const idempotentTables = ['dispense_admin_log', 'patient_encounters', 'supply_runs', 'encounter_procedures']
+            if (error.code === '23505' && idempotentTables.includes(table)) {
+              console.warn(`[OfflineWrite] Duplicate ${table} entry — treating as success (client_request_id collision)`)
+              return { success: true, offline: false }
+            }
+            // Other online write failure — queue offline
             await queueOfflineWrite(table, operation, data)
             await refreshPending()
             return { success: true, offline: true, error: error.message }

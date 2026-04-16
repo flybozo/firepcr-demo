@@ -190,6 +190,21 @@
 /* Input text */
 input, textarea, select { color: var(--theme-text, #ffffff) !important; }
 
+/* Native date/time inputs overflow on mobile because WebKit gives them an intrinsic min-width.
+   Fix: appearance:none removes the native chrome that enforces the minimum size,
+   then we reconstruct just the visual style. */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+  display: block !important;
+}
+
 /* Preserve explicit color utility classes (don't let theme overrides stomp them) */
 .text-blue-400 { color: #60a5fa !important; }
 .text-red-400 { color: var(--theme-primary, #f87171) !important; }

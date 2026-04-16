@@ -16,6 +16,17 @@ const C = {
 const ACUITY_COLORS: Record<string, string> = {
   'Immediate': C.red, 'Delayed': C.amber, 'Minimal': C.green, 'Expectant': C.gray,
 }
+// Tailwind acuity pill classes matching the rest of the app
+const ACUITY_PILL: Record<string, string> = {
+  'Immediate': 'bg-red-900/60 text-red-300 border border-red-700/40',
+  'Red': 'bg-red-900/60 text-red-300 border border-red-700/40',
+  'Delayed': 'bg-yellow-900/60 text-yellow-300 border border-yellow-700/40',
+  'Yellow': 'bg-yellow-900/60 text-yellow-300 border border-yellow-700/40',
+  'Minimal': 'bg-green-900/60 text-green-300 border border-green-700/40',
+  'Green': 'bg-green-900/60 text-green-300 border border-green-700/40',
+  'Expectant': 'bg-gray-800 text-gray-400 border border-gray-700',
+  'Black': 'bg-gray-900 text-gray-500 border border-gray-700',
+}
 const PIE_COLORS = [C.red, C.blue, C.green, C.amber, C.violet, C.teal, C.orange, C.gray]
 
 const axisStyle = { fill: '#9ca3af', fontSize: 11 }
@@ -42,9 +53,10 @@ type DashboardData = {
   encounters: {
     id: string; seq_id: string; date: string | null; unit: string | null
     age: string | null; chief_complaint: string | null; acuity: string; disposition: string | null
+    has_comp_claim: boolean; has_ama: boolean
   }[]
   comp_claims: {
-    id: string; claim_number: string; date: string | null; status: string | null
+    id: string; seq_id: string; date_of_injury: string | null; status: string | null
     has_pdf: boolean; patient_seq_id: string | null; osha_recordable: boolean | null
   }[]
   ics214s: {
@@ -53,6 +65,7 @@ type DashboardData = {
     closed_at: string | null
   }[]
   code_label: string | null
+  codeLabel?: string | null  // backward compat
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -114,13 +127,14 @@ function OverviewTab({ data }: { data: DashboardData }) {
         <h3 className="text-sm font-semibold text-white mb-3">🩺 Chief Complaints (Top 10)</h3>
         {analytics.chief_complaints.length === 0 ? <Empty /> : (
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-x-auto">
-            <ResponsiveContainer width="100%" height={Math.max(200, analytics.chief_complaints.length * 30)}>
-              <BarChart data={analytics.chief_complaints} layout="vertical" margin={{ top: 5, right: 30, left: 155, bottom: 5 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke={gridStyle.stroke} horizontal={false} />
-                <XAxis type="number" tick={axisStyle} allowDecimals={false} />
-                <YAxis type="category" dataKey="name" tick={{ ...axisStyle, fontSize: 11 }} width={150} />
+            {/* Vertical bar chart — works better on mobile */}
+            <ResponsiveContainer width="100%" height={280}>
+              <BarChart data={analytics.chief_complaints} margin={{ top: 5, right: 10, left: -20, bottom: 60 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={gridStyle.stroke} />
+                <XAxis dataKey="name" tick={{ ...axisStyle, fontSize: 9 }} interval={0} angle={-45} textAnchor="end" height={80} />
+                <YAxis tick={axisStyle} allowDecimals={false} />
                 <Tooltip contentStyle={tooltipStyle} />
-                <Bar dataKey="count" fill={C.red} radius={[0, 4, 4, 0]} name="Count" />
+                <Bar dataKey="count" fill={C.red} radius={[4, 4, 0, 0]} name="Count" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -221,12 +235,18 @@ function PatientLogTab({ data, code }: { data: DashboardData; code: string }) {
           <div className="divide-y divide-gray-800/50">
             {encs.map(enc => (
               <button key={enc.id} onClick={() => setSelected(enc)}
-                className="w-full text-left grid grid-cols-[72px_72px_60px_1fr_90px] gap-2 px-4 py-2.5 text-sm hover:bg-gray-800/50 transition-colors items-center">
+                className="w-full text-left grid grid-cols-[68px_68px_52px_1fr_80px_52px] gap-2 px-4 py-2.5 text-sm hover:bg-gray-800/50 transition-colors items-center">
                 <span className="font-mono text-blue-400 text-xs font-semibold">{enc.seq_id}</span>
                 <span className="text-gray-400 text-xs">{enc.date ? new Date(enc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
                 <span className="text-gray-400 text-xs">{enc.age || '—'}</span>
                 <span className="text-white text-xs truncate">{enc.chief_complaint || <span className="text-gray-600 italic">Not recorded</span>}</span>
-                <Badge color={ACUITY_COLORS[enc.acuity] ?? C.gray} label={enc.acuity} />
+                <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${ACUITY_PILL[enc.acuity] ?? 'bg-gray-800 text-gray-400 border border-gray-700'}`}>
+                  {enc.acuity?.split(' ')[0] || '—'}
+                </span>
+                <span className="flex gap-1 justify-end">
+                  {enc.has_comp_claim && <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1 py-0.5 rounded">WC</span>}
+                  {enc.has_ama && <span className="text-xs bg-orange-900/50 text-orange-300 border border-orange-700/40 px-1 py-0.5 rounded">AMA</span>}
+                </span>
               </button>
             ))}
           </div>
@@ -249,8 +269,17 @@ function PatientLogTab({ data, code }: { data: DashboardData; code: string }) {
               <div className="flex justify-between"><span className="text-gray-500">Date</span><span>{selected.date ? new Date(selected.date + 'T00:00:00').toLocaleDateString() : '—'}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Age</span><span>{selected.age || '—'}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Chief Complaint</span><span className="text-right max-w-[200px]">{selected.chief_complaint || '—'}</span></div>
-              <div className="flex justify-between items-center"><span className="text-gray-500">Acuity</span><Badge color={ACUITY_COLORS[selected.acuity] ?? C.gray} label={selected.acuity} /></div>
+              <div className="flex justify-between items-center"><span className="text-gray-500">Acuity</span><span className={`text-xs px-2 py-0.5 rounded font-medium ${ACUITY_PILL[selected.acuity] ?? 'bg-gray-800 text-gray-400 border border-gray-700'}`}>{selected.acuity}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Disposition</span><span>{selected.disposition || '—'}</span></div>
+              {(selected.has_comp_claim || selected.has_ama) && (
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500">Forms Filed</span>
+                  <span className="flex gap-1">
+                    {selected.has_comp_claim && <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded">Workers' Comp</span>}
+                    {selected.has_ama && <span className="text-xs bg-orange-900/50 text-orange-300 border border-orange-700/40 px-1.5 py-0.5 rounded">AMA / Refusal</span>}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -283,22 +312,18 @@ function CompClaimsTab({ data, code }: { data: DashboardData; code: string }) {
 
       {data.comp_claims.length === 0 ? <Empty text="No comp claims on file for this incident" /> : (
         <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-          <div className="grid grid-cols-[80px_80px_72px_1fr_100px_100px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
+          <div className="grid grid-cols-[80px_80px_52px_100px_100px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
             <span>Claim #</span>
             <span>Date</span>
-            <span>Patient ID</span>
-            <span>Status</span>
+            <span>Patient</span>
             <span className="hidden md:block">OSHA</span>
             <span className="text-right">PDF</span>
           </div>
           {data.comp_claims.map(cc => (
-            <div key={cc.id} className="grid grid-cols-[80px_80px_72px_1fr_100px_100px] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 transition-colors items-center">
-              <span className="font-mono text-gray-300 text-xs font-semibold">{cc.claim_number}</span>
-              <span className="text-gray-400 text-xs">{cc.date ? new Date(cc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
-              <span className="font-mono text-xs text-gray-400">{cc.patient_seq_id || '—'}</span>
-              <span>
-                <Badge color={STATUS_COLOR[cc.status || ''] ?? C.gray} label={cc.status || 'Unknown'} />
-              </span>
+            <div key={cc.id} className="grid grid-cols-[80px_80px_52px_100px_100px] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 transition-colors items-center">
+              <span className="font-mono text-gray-300 text-xs font-semibold">{cc.seq_id}</span>
+              <span className="text-gray-400 text-xs">{cc.date_of_injury ? new Date(cc.date_of_injury + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
+              <span className="font-mono text-xs text-white font-semibold">{(cc as any).patient_initials || '—'}</span>
               <span className="hidden md:block">
                 {cc.osha_recordable === true
                   ? <Badge color={C.red} label="Recordable" />

@@ -6,7 +6,7 @@ import { useRole } from '@/lib/useRole'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, useMatch } from 'react-router-dom'
 import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
 import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
 import { getCachedData, cacheData } from '@/lib/offlineStore'
@@ -56,7 +56,7 @@ function statusColor(status: string | null) {
 
 function getUnitType(unitName: string): string {
   if (!unitName) return ''
-  if (unitName.startsWith('GRANITE')) return 'Ambulance'
+  if (unitName.startsWith('RAMBO')) return 'Ambulance'
   if (unitName.startsWith('MSU') || unitName === 'The Beast') return 'Med Unit'
   if (unitName.startsWith('REMS')) return 'REMS'
   if (unitName === 'Warehouse') return 'Warehouse'
@@ -64,7 +64,7 @@ function getUnitType(unitName: string): string {
 }
 
 // All known unit names in canonical sort order
-const ALL_UNIT_NAMES = ['GRANITE 1', 'GRANITE 2', 'GRANITE MSU', 'GRANITE REMS']
+const ALL_UNIT_NAMES = ['RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
 
 const sortedUnitNames = [...ALL_UNIT_NAMES].sort((a, b) => {
   const aOrder = UNIT_TYPE_ORDER[getUnitType(a)] ?? 99
@@ -79,14 +79,13 @@ function EncountersInner() {
   const assignment = useUserAssignment()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const detailMatch = useMatch('/encounters/:id')
   const incidentId = searchParams.get('incidentId')
   const success = searchParams.get('success')
 
   const [encounters, setEncounters] = useState<Encounter[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
   const [unitFilter, setUnitFilter] = useState('All')
   const [incidentFilter, setIncidentFilter] = useState('All')
   const [activeIncidents, setActiveIncidents] = useState<{id: string; name: string}[]>([])
@@ -94,8 +93,9 @@ function EncountersInner() {
   const [dateRange, setDateRange] = useState('7d')
   const [isOffline, setIsOffline] = useState(false)
 
-  const dateFilter = dateRange === 'All' ? null :
-    new Date(Date.now() - (dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90) * 86400000).toISOString().split('T')[0]
+  const DATE_RANGES = ['2d', '7d', '14d', '30d'] as const
+  const dateRangeDays: Record<string, number> = { '2d': 2, '7d': 7, '14d': 14, '30d': 30 }
+  const dateFilter = new Date(Date.now() - (dateRangeDays[dateRange] ?? 7) * 86400000).toISOString().split('T')[0]
 
   // Track connection state
   useEffect(() => {
@@ -110,32 +110,32 @@ function EncountersInner() {
       .then(({ data }) => { if (data) setActiveIncidents(data) })
   }, [isField, roleLoading])
 
+  // ── Phase 1: render cache instantly, no role/assignment gate ──
   useEffect(() => {
-    // Wait for assignment to finish loading before querying, so field filters are applied
-    if (roleLoading || assignment.loading) return
-    const load = async () => {
-      // Show cached data instantly while network loads
+    const preload = async () => {
       try {
         const cached = await getCachedData('encounters') as any[]
         if (cached.length > 0) {
           const mapped = cached.map((e: any) => ({ ...e, incident_name: e.incident?.name || e.incident_name || null }))
           mapped.sort((a: any, b: any) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''))
-          let filtered = mapped
-          // Apply all active filters to cached data
-          const fieldIncidentId = incidentId || (isField ? assignment.incidentUnit?.incident_id : null)
-          if (fieldIncidentId) filtered = filtered.filter((e: any) => e.incident_id === fieldIncidentId)
-          else if (!isField && incidentFilter !== 'All') filtered = filtered.filter((e: any) => e.incident_id === incidentFilter)
-          if (isField && assignment.unit?.name) filtered = filtered.filter((e: any) => e.unit === assignment.unit!.name)
-          if (dateFilter) filtered = filtered.filter((e: any) => (e.date || '') >= dateFilter)
-          setEncounters(filtered)
+          setEncounters(mapped)
           setLoading(false)
         }
       } catch {}
-      // Fetch fresh data from network (background refresh)
+    }
+    preload()
+  }, [])
+
+  useEffect(() => {
+    // Wait for assignment to finish loading before querying, so field filters are applied
+    if (roleLoading || assignment.loading) return
+    const load = async () => {
+      // Fetch fresh data from network (phase 1 already showed cache)
       try {
         let query = supabase
           .from('patient_encounters')
           .select('id, encounter_id, date, unit, patient_first_name, patient_last_name, patient_dob, primary_symptom_text, initial_acuity, patient_disposition, pcr_status, provider_of_record, incident:incidents(name)')
+          .is('deleted_at', null)
           .order('date', { ascending: false })
           .order('created_at', { ascending: false })
 
@@ -164,7 +164,7 @@ function EncountersInner() {
   // Reset page when filters change
   useEffect(() => { setPage(1) }, [unitFilter, search, dateRange])
 
-  const filtered = encounters.filter(e => {
+    const filtered = encounters.filter(e => {
     if (unitFilter !== 'All' && e.unit !== unitFilter) return false
     if (!search) return true
     const s = search.toLowerCase()
@@ -182,7 +182,7 @@ function EncountersInner() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white pb-16">
-      <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-4">
+      <div className="p-4 md:p-6 space-y-4">
         <div className="flex items-center justify-between pt-2">
           <div>
             <h1 className="text-xl font-bold">Patient Encounters</h1>
@@ -265,47 +265,38 @@ function EncountersInner() {
           </>
         )}
 
-        {/* Date range filter pills */}
-        <div className="hidden md:flex gap-1.5">
-          {(['7d', '30d', '90d', 'All'] as const).map(range => (
+        {/* Date range pills */}
+        <div className="hidden md:flex gap-1.5 items-center">
+          {DATE_RANGES.map(range => (
             <button key={range} onClick={() => { setDateRange(range); setPage(1) }}
               className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
                 dateRange === range ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
               }`}>
-              {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : range === '90d' ? '90 Days' : 'All Time'}
+              {range === '2d' ? '2 Days' : range === '7d' ? '7 Days' : range === '14d' ? '14 Days' : '30 Days'}
             </button>
           ))}
+          <Link to="/patient-search" className="ml-auto text-xs text-blue-400 hover:text-blue-300 transition-colors">
+            🔍 Search all history →
+          </Link>
         </div>
-        {/* Mobile: date range dropdown */}
         <select
           value={dateRange}
           onChange={e => { setDateRange(e.target.value); setPage(1) }}
           className="md:hidden w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
         >
+          <option value="2d">2 Days</option>
           <option value="7d">7 Days</option>
+          <option value="14d">14 Days</option>
           <option value="30d">30 Days</option>
-          <option value="90d">90 Days</option>
-          <option value="All">All Time</option>
         </select>
 
+        {/* Quick filter on current window */}
         <input
           value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Search by name, unit, complaint..."
+          onChange={e => { setSearch(e.target.value); setPage(1) }}
+          placeholder="Filter by name, unit, complaint…"
           className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 placeholder-gray-600"
         />
-        <div className="flex gap-2 items-center flex-wrap">
-          <span className="text-xs text-gray-500">Date:</span>
-          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-            className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-red-500" />
-          <span className="text-xs text-gray-500">to</span>
-          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-            className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-red-500" />
-          {(dateFrom || dateTo) && (
-            <button onClick={() => { setDateFrom(''); setDateTo('') }}
-              className="text-xs text-gray-500 hover:text-gray-300">✕ Clear</button>
-          )}
-        </div>
 
         {loading ? (
           <div className="text-center text-gray-500 py-12">Loading...</div>
@@ -332,7 +323,7 @@ function EncountersInner() {
                 <div
                   key={enc.id}
                   onClick={() => navigate(`/encounters/${enc.id}`)}
-                  className="flex items-center px-4 py-2.5 hover:bg-gray-800 cursor-pointer border-b border-gray-800/50 text-sm"
+                  className={`flex items-center px-4 py-2.5 cursor-pointer border-b border-gray-800/50 text-sm ${detailMatch?.params?.id === enc.id ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
                 >
                   <span className="w-24 shrink-0 text-gray-400 text-xs">{enc.date || '—'}</span>
                   <span className="w-20 shrink-0 font-medium truncate pr-2">

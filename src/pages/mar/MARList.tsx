@@ -6,7 +6,7 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams, useMatch } from 'react-router-dom'
 import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
 import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
 import { getCachedData, cacheData } from '@/lib/offlineStore'
@@ -97,6 +97,7 @@ function MARListInner() {
   const { isField, loading: roleLoading } = useRole()
   const assignment = useUserAssignment()
   const navigate = useNavigate()
+  const detailMatch = useMatch('/mar/:id')
   const [searchParams] = useSearchParams()
   const unitParam = searchParams.get('unit')
   const success = searchParams.get('success')
@@ -104,41 +105,55 @@ function MARListInner() {
   const [entries, setEntries] = useState<MAREntry[]>([])
   const [loading, setLoading] = useState(true)
   const [isOffline, setIsOffline] = useState(false)
-  const [search, setSearch] = useState('')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
   const [unitFilter, setUnitFilter] = useState('All')
   const [incidentFilter, setIncidentFilter] = useState('All')
   const [activeIncidents, setActiveIncidents] = useState<{id: string; name: string}[]>([])
   const [dateRange, setDateRange] = useState('7d')
 
-  const dateFilter = dateRange === 'All' ? null :
-    new Date(Date.now() - (dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90) * 86400000).toISOString().split('T')[0]
+  const DATE_RANGES = ['2d', '7d', '14d', '30d'] as const
+  const dateRangeDays: Record<string, number> = { '2d': 2, '7d': 7, '14d': 14, '30d': 30 }
+  const dateFilter = new Date(Date.now() - (dateRangeDays[dateRange] ?? 7) * 86400000).toISOString().split('T')[0]
 
   useEffect(() => {
     setIsOffline(!getIsOnline())
     return onConnectionChange((online) => setIsOffline(!online))
   }, [])
 
+  // ── Phase 1: render cache instantly ──
+  // Only show unfiltered cache for admins. Field users must wait for role+assignment
+  // to load so we can apply the unit filter — never show other units' MAR data.
   useEffect(() => {
-    if (roleLoading || assignment.loading) return
-    const load = async () => {
-      // Show cached data instantly
+    if (roleLoading || assignment.loading) return // wait until we know who this is
+    const preload = async () => {
       try {
         const cached = await getCachedData('mar_entries') as any[]
         if (cached.length > 0) {
-          const sorted = [...cached].sort((a: any, b: any) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''))
+          // Apply unit filter to cache for field users
+          const effectiveUnit = unitParam || (isField ? assignment.unit?.name : null)
+          const filtered = effectiveUnit
+            ? cached.filter((e: any) => e.med_unit === effectiveUnit)
+            : cached
+          const sorted = [...filtered].sort((a: any, b: any) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''))
           setEntries(sorted as any[])
           setLoading(false)
         }
       } catch {}
+    }
+    preload()
+  }, [roleLoading, assignment.loading, isField, assignment.unit?.name, unitParam])
+
+  useEffect(() => {
+    if (roleLoading || assignment.loading) return
+    const load = async () => {
       // Load incidents for filter
+      let localIncidents: {id: string; name: string}[] = activeIncidents
       if (!isField) {
         const incResult = await loadList(
           async () => supabase.from('incidents').select('id, name').eq('status', 'Active').order('name'),
           'incidents'
         )
-        setActiveIncidents(incResult.data as any[])
+        localIncidents = incResult.data as any[]
+        setActiveIncidents(localIncidents)
       }
       // Load MAR entries
       const { data, offline } = await loadList(
@@ -149,14 +164,18 @@ function MARListInner() {
             .order('date', { ascending: false })
           const effectiveUnit = unitParam || (isField ? assignment.unit?.name : null)
           if (effectiveUnit) query = query.eq('med_unit', effectiveUnit)
+          // incidentFilter holds incident ID; incident column stores the incident name
+          if (incidentFilter !== 'All') {
+            const incidentName = localIncidents.find(i => i.id === incidentFilter)?.name
+            if (incidentName) query = query.eq('incident', incidentName)
+          }
           if (dateFilter) query = query.gte('date', dateFilter)
           return query.limit(200)
         },
         'mar_entries'
       )
       const sorted = [...data].sort((a: any, b: any) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''))
-      const dateFiltered = dateFilter ? sorted.filter((e: any) => (e.date || '') >= dateFilter) : sorted
-      setEntries(dateFiltered as MAREntry[])
+      setEntries(sorted as MAREntry[])
       if (offline) setIsOffline(true)
       setLoading(false)
     }
@@ -175,18 +194,12 @@ function MARListInner() {
 
   const filtered = entries.filter(e => {
     if (unitFilter !== 'All' && e.med_unit !== unitFilter) return false
-    if (!search) return true
-    const s = search.toLowerCase()
-    return (
-      e.patient_name?.toLowerCase().includes(s) ||
-      e.item_name?.toLowerCase().includes(s) ||
-      e.dispensed_by?.toLowerCase().includes(s)
-    )
+    return true
   })
 
   return (
     <div className="min-h-screen bg-gray-950 text-white pb-16">
-      <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-4">
+      <div className="p-4 md:p-6 space-y-4">
         <div className="flex items-center justify-between pt-2">
           <div>
             <h1 className="text-xl font-bold">💊 MAR</h1>
@@ -200,7 +213,7 @@ function MARListInner() {
 
         {isOffline && (
           <div className="bg-red-950/60 border border-red-800 rounded-xl px-4 py-3 text-red-300 text-sm flex items-center gap-2">
-            📶 <span>Offline — showing cached data. New entries will sync when you reconnect.</span>
+            📶 <span>Offline - showing cached data. New entries will sync when you reconnect.</span>
           </div>
         )}
 
@@ -210,51 +223,27 @@ function MARListInner() {
           </div>
         )}
 
-        {/* Date range filter pills */}
+        {/* Date range pills */}
         <div className="hidden md:flex gap-1.5">
-          {(['7d', '30d', '90d', 'All'] as const).map(range => (
+          {DATE_RANGES.map(range => (
             <button key={range} onClick={() => setDateRange(range)}
               className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
                 dateRange === range ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
               }`}>
-              {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : range === '90d' ? '90 Days' : 'All Time'}
+              {range === '2d' ? '2 Days' : range === '7d' ? '7 Days' : range === '14d' ? '14 Days' : '30 Days'}
             </button>
           ))}
         </div>
-        {/* Mobile: date range dropdown */}
-        <select
-          value={dateRange}
-          onChange={e => setDateRange(e.target.value)}
-          className="md:hidden w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
-        >
+        <select value={dateRange} onChange={e => setDateRange(e.target.value)}
+          className="md:hidden w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500">
+          <option value="2d">2 Days</option>
           <option value="7d">7 Days</option>
+          <option value="14d">14 Days</option>
           <option value="30d">30 Days</option>
-          <option value="90d">90 Days</option>
-          <option value="All">All Time</option>
         </select>
 
-        <input
-          type="text"
-          placeholder="Search patient or medication..."
-          className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 placeholder-gray-600"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-        <div className="flex gap-2 items-center flex-wrap">
-          <span className="text-xs text-gray-500">Date:</span>
-          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-            className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-red-500" />
-          <span className="text-xs text-gray-500">to</span>
-          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-            className="bg-gray-900 border border-gray-800 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-red-500" />
-          {(dateFrom || dateTo) && (
-            <button onClick={() => { setDateFrom(''); setDateTo('') }}
-              className="text-xs text-gray-500 hover:text-gray-300">✕ Clear</button>
-          )}
-        </div>
-
-        {/* Unit filter buttons — hidden/locked for field users */}
-        {/* Incident filter pills — admin only */}
+        {/* Unit filter buttons - hidden/locked for field users */}
+        {/* Incident filter pills - admin only */}
         {!isField && activeIncidents.length > 0 && (
           <>
             {/* Desktop: incident pills */}
@@ -331,62 +320,66 @@ function MARListInner() {
           <div className="text-center py-12 text-gray-500">Loading...</div>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12 text-gray-500">
-            {search ? 'No results found.' : 'No entries recorded yet.'}
+            No entries recorded yet.
           </div>
         ) : (
-          <div className="bg-gray-900 rounded-xl overflow-hidden border border-gray-800">
-            {/* Header */}
-            <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700">
-              <span className="w-24 shrink-0">Date</span>
-              <span className="w-16 shrink-0">Patient</span>
-              <span className="w-20 shrink-0 hidden sm:block">DOB</span>
-              <span className="flex-1 min-w-0">Medication · Route</span>
-              <span className="w-16 shrink-0 text-center">Qty</span>
-              <span className="w-32 shrink-0 hidden md:block">Incident</span>
-              <span className="w-20 shrink-0 hidden sm:block">Unit</span>
-              <span className="w-16 shrink-0 hidden md:block">Type</span>
-              <span className="w-32 shrink-0 text-right">Status</span>
-            </div>
-            {filtered.map(entry => (
-              <div
-                key={entry.id}
-                onClick={() => navigate(`/mar/${entry.id}`)}
-                className="flex items-center px-4 py-2.5 hover:bg-gray-800 cursor-pointer border-b border-gray-800/50 text-sm"
-              >
-                <span className="w-24 shrink-0 text-gray-400 text-xs">{entry.date || '—'}</span>
-                <span className="w-16 shrink-0 font-medium pr-1">
-                  {entry.patient_name
-                    ? entry.patient_name.split(/[, ]+/).filter(Boolean).map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
-                    : '—'}
-                </span>
-                <span className="w-20 shrink-0 hidden sm:block text-gray-400 text-xs pr-2">{(entry as any).dob || '—'}</span>
-                <div className="flex-1 min-w-0 pr-2">
-                  <span className="text-gray-300 text-xs">
-                    {entry.item_name || '—'}
-                    {entry.medication_route && (
-                      <span className="text-gray-500"> — {getRouteAbbr(entry.medication_route)}</span>
-                    )}
-                  </span>
+          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+            {/* Horizontally scrollable on mobile - each row stays single-line */}
+            <div className="overflow-x-auto">
+              <div className="min-w-[740px]">
+                {/* Header */}
+                <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-slate-800/90">
+                  <span className="w-20 shrink-0">Date</span>
+                  <span className="w-20 shrink-0">Patient</span>
+                  <span className="flex-1 min-w-[120px]">Medication</span>
+                  <span className="w-14 shrink-0">Route</span>
+                  <span className="w-20 shrink-0">Qty</span>
+                  <span className="w-20 shrink-0">Unit</span>
+                  <span className="w-20 shrink-0">Incident</span>
+                  <span className="w-14 shrink-0">Type</span>
+                  <span className="w-28 shrink-0 text-right">Status</span>
                 </div>
-                <span className="w-16 shrink-0 text-center font-mono text-white text-xs">
-                  {entry.qty_used !== null
-                    ? `×${entry.qty_used}${entry.dosage_units ? ' ' + entry.dosage_units : ''}`
-                    : '—'}
-                </span>
-                <span className="w-32 shrink-0 text-gray-400 text-xs truncate hidden md:block">{entry.incident || '—'}</span>
-                <span className="w-20 shrink-0 text-gray-400 text-xs truncate hidden sm:block">{entry.med_unit || '—'}</span>
-                <span className="w-16 shrink-0 hidden md:block">
-                  {entry.item_type ? (
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${TYPE_COLORS[entry.item_type] || 'bg-gray-700 text-gray-300'}`}>
-                      {entry.item_type}
+                {filtered.map(entry => (
+                  <div
+                    key={entry.id}
+                    onClick={() => navigate(`/mar/${entry.id}`)}
+                    className={`flex items-center px-4 py-2.5 cursor-pointer border-b border-gray-800/50 ${detailMatch?.params?.id === entry.id ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
+                  >
+                    <span className="w-20 shrink-0 text-gray-400 text-xs">{entry.date || '-'}</span>
+                    <span className="w-20 shrink-0 text-white text-xs font-medium truncate pr-1">
+                      {entry.patient_name
+                        ? entry.patient_name.split(/[, ]+/).filter(Boolean).slice(0, 2).map((n: string, i: number) =>
+                            i === 0 ? n : n[0] + '.'
+                          ).join(', ')
+                        : '-'}
                     </span>
-                  ) : <span className="text-gray-600">—</span>}
-                </span>
-                <span className="w-32 shrink-0 text-right">
-                  {getStatusBadge(entry)}
-                </span>
+                    <span className="flex-1 min-w-[120px] text-gray-200 text-xs truncate pr-2">
+                      {entry.item_name || '—'}
+                    </span>
+                    <span className="w-14 shrink-0 text-gray-400 text-xs">
+                      {getRouteAbbr(entry.medication_route) || '—'}
+                    </span>
+                    <span className="w-20 shrink-0 font-mono text-white text-xs">
+                      {entry.qty_used !== null
+                        ? `×${entry.qty_used}${entry.dosage_units ? ' ' + entry.dosage_units : ''}`
+                        : '—'}
+                    </span>
+                    <span className="w-20 shrink-0 text-gray-400 text-xs truncate">{entry.med_unit || '—'}</span>
+                    <span className="w-20 shrink-0 text-gray-400 text-xs truncate">{entry.incident || '—'}</span>
+                    <span className="w-14 shrink-0">
+                      {entry.item_type ? (
+                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${TYPE_COLORS[entry.item_type] || 'bg-gray-700 text-gray-300'}`}>
+                          {entry.item_type}
+                        </span>
+                      ) : <span className="text-gray-600">-</span>}
+                    </span>
+                    <span className="w-28 shrink-0 text-right">
+                      {getStatusBadge(entry)}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
         )}
 

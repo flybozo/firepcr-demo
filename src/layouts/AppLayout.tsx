@@ -6,6 +6,8 @@ import ChatBubble from '@/components/ChatBubble'
 import ConnectionStatus from '@/components/ConnectionStatus'
 import CacheStatusBar from '@/components/CacheStatusBar'
 import VersionNotifier from '@/components/VersionNotifier'
+import InactivityLock from '@/components/InactivityLock'
+import UpdateBanner from '@/components/UpdateBanner'
 import { ThemeProvider } from '@/components/ThemeProvider'
 
 export default function AppLayout() {
@@ -15,17 +17,19 @@ export default function AppLayout() {
         <ConnectionStatus />
         <CacheStatusBar />
         <Ticker />
+        <UpdateBanner />
         <div className="flex flex-1 overflow-hidden">
           <div className="hidden md:flex md:w-56 md:flex-shrink-0 h-full">
             <Sidebar />
           </div>
           <MobileNav />
-          <main className="flex-1 overflow-y-auto">
+          <main className="flex-1 overflow-y-auto flex flex-col">
             <Outlet />
           </main>
         </div>
         <ChatBubble />
         <VersionNotifier />
+        <InactivityLock />
       </div>
     </ThemeProvider>
   )

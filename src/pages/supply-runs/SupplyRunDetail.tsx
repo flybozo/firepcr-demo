@@ -1,6 +1,6 @@
 
 
-import { useEffect, useState, useRef, useCallback } from 'react'
+import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadSingle } from '@/lib/offlineFirst'
 import { Link } from 'react-router-dom'
@@ -68,6 +68,19 @@ export default function SupplyRunDetailPage() {
   const id = params.id as string
 
   const [run, setRun] = useState<SupplyRun | null>(null)
+
+  // Field users can edit their own unit's supply runs created within the last 24 hours
+  const canEdit = useMemo(() => {
+    if (isAdmin) return true
+    if (!run || assignment.loading) return false
+    const runUnit = run.incident_unit?.unit?.name
+    const myUnit = assignment.unit?.name
+    if (!runUnit || !myUnit || runUnit !== myUnit) return false
+    const runDate = new Date(`${run.run_date}${run.time ? 'T' + run.time : 'T00:00:00'}`)
+    const ageHours = (Date.now() - runDate.getTime()) / 3600000
+    return ageHours < 24
+  }, [isAdmin, run, assignment.loading, assignment.unit?.name])
+
   const [items, setItems] = useState<SupplyRunItem[]>([])
   const [formulary, setFormulary] = useState<FormularyTemplate[]>([])
   const [loading, setLoading] = useState(true)
@@ -89,8 +102,8 @@ export default function SupplyRunDetailPage() {
     item_name: '',
     category: '',
     quantity: '',
-    unit_cost: '',
   })
+  const [itemSearch, setItemSearch] = useState('')
 
   const loadData = useCallback(async () => {
     // Show cached data instantly
@@ -127,21 +140,30 @@ export default function SupplyRunDetailPage() {
       return
     }
     let itemData: any[] | null = null
-    let formularyData: any[] | null = null
+    let inventoryData: any[] | null = null
     try {
-    const [{ data: _items }, { data: _formulary }] = await Promise.all([
+    // Load supply run items + this unit's current inventory (for the add-item dropdown)
+    const unitId = (runData as any)?.incident_unit?.unit?.id || null
+    const [{ data: _items }, invResult] = await Promise.all([
       supabase
         .from('supply_run_items')
         .select('*')
         .eq('supply_run_id', id)
+        .is('deleted_at', null)
         .order('item_name'),
-      supabase
-        .from('formulary_templates')
-        .select('id, item_name, category, unit_of_measure, barcode, upc, unit_type_id, unit_type:unit_types(name)')
-        .in('category', ['OTC', 'Supply'])
-        .order('item_name'),
+      // Get inventory items with qty > 0, only OTC + Supply categories
+      unitId
+        ? supabase
+            .from('unit_inventory')
+            .select('id, item_name, category, quantity, lot_number, barcode, upc, incident_unit_id')
+            .eq('unit_id', unitId)
+            .gt('quantity', 0)
+            .in('category', ['OTC', 'Supply'])
+            .order('item_name')
+        : Promise.resolve({ data: [] as any[] }),
     ])
-    itemData = _items; formularyData = _formulary
+    itemData = _items
+    inventoryData = (invResult as any).data || []
     } catch {
       // Offline — try to get items from the cached supply run itself
       if (runData && (runData as any).supply_run_items) {
@@ -150,14 +172,14 @@ export default function SupplyRunDetailPage() {
     }
     setRun(runData as unknown as SupplyRun)
     setItems(itemData || [])
-    // Filter formulary to match this unit's type (ambulance/med unit/rems)
-    const runUnit = (runData as any)?.incident_unit?.unit?.name || ''
-    const unitType = runUnit.startsWith('GRANITE') ? 'Ambulance' : 
-                     (runUnit.startsWith('REMS') ? 'REMS' : 'Med Unit')
-    const filteredFormulary = (formularyData || []).filter((f: any) => 
-      !f.unit_type?.name || f.unit_type.name === unitType
-    )
-    setFormulary(filteredFormulary)
+    // Deduplicate inventory items by name (may have multiple incident_unit rows)
+    const seen = new Set<string>()
+    const deduped = (inventoryData || []).filter((inv: any) => {
+      if (seen.has(inv.item_name)) return false
+      seen.add(inv.item_name)
+      return true
+    })
+    setFormulary(deduped)
     setLoading(false)
   }, [id, supabase])
 
@@ -205,7 +227,6 @@ export default function SupplyRunDetailPage() {
             item_name: match.item_name,
             category: 'Supply',
             quantity: 1,
-            unit_cost: 0,
             barcode: code,
           })
           if (itemErr) throw new Error(itemErr.message)
@@ -236,7 +257,6 @@ export default function SupplyRunDetailPage() {
             item_name: formularyMatch.item_name,
             category: formularyMatch.category || 'Supply',
             quantity: 1,
-            unit_cost: 0,
             barcode: code,
           })
           if (itemErr) throw new Error(itemErr.message)
@@ -281,15 +301,12 @@ export default function SupplyRunDetailPage() {
     setAddingItem(true)
     try {
       const qty = parseFloat(newItem.quantity) || 0
-      const unitCost = parseFloat(newItem.unit_cost) || 0
-      const totalCost = qty * unitCost
 
       const { error: itemErr } = await supabase.from('supply_run_items').insert({
         supply_run_id: id,
         item_name: newItem.item_name,
         category: newItem.category || 'OTC',
         quantity: qty,
-        unit_cost: unitCost || null,
       })
       if (itemErr) throw new Error(itemErr.message)
 
@@ -326,7 +343,8 @@ export default function SupplyRunDetailPage() {
       const newItemCount = items.length + 1
       await supabase.from('supply_runs').update({ item_count: newItemCount }).eq('id', id)
 
-      setNewItem({ item_name: '', category: '', quantity: '', unit_cost: '' })
+      setNewItem({ item_name: '', category: '', quantity: '' })
+      setItemSearch('')
       setShowAddForm(false)
       await loadData()
     } catch (err: unknown) {
@@ -343,7 +361,8 @@ export default function SupplyRunDetailPage() {
     setDeletingId(itemId)
     try {
       const deletedItem = items.find(i => i.id === itemId)
-      await supabase.from('supply_run_items').delete().eq('id', itemId)
+      // Soft delete — mark as deleted, don't actually remove
+      await supabase.from('supply_run_items').update({ deleted_at: new Date().toISOString() }).eq('id', itemId)
 
       // Add quantity BACK using unit_id pattern (mirrors the deduction logic)
       if (deletedItem) {
@@ -482,22 +501,24 @@ export default function SupplyRunDetailPage() {
                 </span>
               )}
             </div>
-            <button
-              onClick={() => {
-                setScanMode(v => {
-                  const next = !v
-                  if (next) setTimeout(() => barcodeRef.current?.focus(), 50)
-                  return next
-                })
-              }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                scanMode
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                  : 'bg-gray-700 hover:bg-gray-600 text-white'
-              }`}
-            >
-              🔍 Scan Mode {scanMode ? 'ON' : 'OFF'}
-            </button>
+            {canEdit && (
+              <button
+                onClick={() => {
+                  setScanMode(v => {
+                    const next = !v
+                    if (next) setTimeout(() => barcodeRef.current?.focus(), 50)
+                    return next
+                  })
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                  scanMode
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                    : 'bg-gray-700 hover:bg-gray-600 text-white'
+                }`}
+              >
+                🔍 Scan Mode {scanMode ? 'ON' : 'OFF'}
+              </button>
+            )}
           </div>
 
           {scanMode && (
@@ -563,63 +584,67 @@ export default function SupplyRunDetailPage() {
                 </span>
               )}
             </h2>
-            <button
-              onClick={() => setShowAddForm(prev => !prev)}
-              className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-xs font-semibold transition-colors"
-            >
-              {showAddForm ? '✕ Cancel' : '+ Add Item'}
-            </button>
+            {canEdit && (
+              <button
+                onClick={() => setShowAddForm(prev => !prev)}
+                className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-xs font-semibold transition-colors"
+              >
+                {showAddForm ? '✕ Cancel' : '+ Add Item'}
+              </button>
+            )}
           </div>
 
           {/* Manual Add Item Form */}
           {showAddForm && (
             <div className="p-4 border-b border-gray-800 bg-gray-800/50 space-y-3">
-              <p className="text-xs font-semibold text-gray-300 uppercase tracking-wide">New Item (Manual)</p>
+              <p className="text-xs font-semibold text-gray-300 uppercase tracking-wide">Add Item from Formulary</p>
               <div>
-                <label className={labelCls}>Item Name</label>
+                <label className={labelCls}>Item</label>
                 <input
                   type="text"
                   className={inputCls}
-                  value={newItem.item_name}
-                  onChange={e => {
-                    setNew('item_name', e.target.value)
-                    const match = formulary.find(f => f.item_name.toLowerCase() === e.target.value.toLowerCase())
-                    if (match) setNew('category', match.category)
-                  }}
-                  list="formulary-list"
-                  placeholder="Type or select from formulary"
+                  value={itemSearch}
+                  onChange={e => { setItemSearch(e.target.value); if (newItem.item_name) { setNew('item_name', ''); setNew('category', '') } }}
+                  placeholder="Search formulary..."
                 />
-                <datalist id="formulary-list">
-                  {formulary.map(f => (
-                    <option key={f.id} value={f.item_name} />
-                  ))}
-                </datalist>
+                {itemSearch && !newItem.item_name && (
+                  <div className="mt-1 max-h-40 overflow-y-auto bg-gray-800 border border-gray-700 rounded-lg">
+                    {formulary
+                      .filter(f => f.item_name.toLowerCase().includes(itemSearch.toLowerCase()))
+                      .slice(0, 15)
+                      .map(f => (
+                        <button
+                          key={f.id}
+                          type="button"
+                          onClick={() => {
+                            setNew('item_name', f.item_name)
+                            setNew('category', f.category)
+                            setItemSearch(f.item_name)
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-700 transition-colors flex justify-between"
+                        >
+                          <span className="text-white">{f.item_name}</span>
+                          <span className="text-gray-500 text-xs">{f.category}</span>
+                        </button>
+                      ))}
+                    {formulary.filter(f => f.item_name.toLowerCase().includes(itemSearch.toLowerCase())).length === 0 && (
+                      <p className="px-3 py-2 text-gray-500 text-xs">No matching items in formulary</p>
+                    )}
+                  </div>
+                )}
+                {newItem.item_name && (
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="text-xs text-green-400">✓ {newItem.item_name}</span>
+                    <span className="text-xs text-gray-500">({newItem.category})</span>
+                    <button type="button" onClick={() => { setNew('item_name', ''); setNew('category', ''); setItemSearch('') }}
+                      className="text-xs text-gray-500 hover:text-red-400">✕ change</button>
+                  </div>
+                )}
               </div>
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className={labelCls}>Category</label>
-                  <select className={inputCls} value={newItem.category} onChange={e => setNew('category', e.target.value)}>
-                    <option value="">Select</option>
-                    <option value="Rx">Rx</option>
-                    <option value="OTC">OTC</option>
-                    <option value="CS">CS</option>
-                    <option value="Supply">Supply</option>
-                  </select>
-                </div>
-                <div>
-                  <label className={labelCls}>Qty</label>
-                  <input type="number" className={inputCls} value={newItem.quantity} onChange={e => setNew('quantity', e.target.value)} min="0" step="1" />
-                </div>
-                <div>
-                  <label className={labelCls}>Unit Cost $</label>
-                  <input type="number" className={inputCls} value={newItem.unit_cost} onChange={e => setNew('unit_cost', e.target.value)} min="0" step="0.01" />
-                </div>
+              <div>
+                <label className={labelCls}>Qty</label>
+                <input type="number" className={inputCls} value={newItem.quantity} onChange={e => setNew('quantity', e.target.value)} min="0" step="1" />
               </div>
-              {newItem.quantity && newItem.unit_cost && (
-                <p className="text-xs text-green-400">
-                  Total: ${(parseFloat(newItem.quantity) * parseFloat(newItem.unit_cost)).toFixed(2)}
-                </p>
-              )}
               <button
                 onClick={handleAddItem}
                 disabled={addingItem}
@@ -634,15 +659,17 @@ export default function SupplyRunDetailPage() {
           {items.length === 0 ? (
             <div className="text-center text-gray-600 py-8">
               <p>No items yet.</p>
-              <div className="flex justify-center gap-3 mt-3">
-                <button onClick={() => setScanMode(true)} className="text-blue-400 text-sm">
-                  🔍 Start scanning
-                </button>
-                <span className="text-gray-700">or</span>
-                <button onClick={() => setShowAddForm(true)} className="text-red-400 text-sm">
-                  + Add manually
-                </button>
-              </div>
+              {canEdit && (
+                <div className="flex justify-center gap-3 mt-3">
+                  <button onClick={() => setScanMode(true)} className="text-blue-400 text-sm">
+                    🔍 Start scanning
+                  </button>
+                  <span className="text-gray-700">or</span>
+                  <button onClick={() => setShowAddForm(true)} className="text-red-400 text-sm">
+                    + Add manually
+                  </button>
+                </div>
+              )}
             </div>
           ) : (
             <>
@@ -650,8 +677,6 @@ export default function SupplyRunDetailPage() {
                 <span className="flex-1 min-w-0">Item</span>
                 <span className="w-20 shrink-0 hidden sm:block">Category</span>
                 <span className="w-20 shrink-0 text-center">Qty</span>
-                <span className="w-24 shrink-0 text-right hidden sm:block">Unit $</span>
-                <span className="w-24 shrink-0 text-right">Total</span>
                 <span className="w-16 shrink-0"></span>
               </div>
               {items.map(item => (
@@ -668,7 +693,7 @@ export default function SupplyRunDetailPage() {
                     </span>
                   </span>
                   <span className="w-20 shrink-0 text-center text-gray-300">
-                    {editingQtyId === item.id ? (
+                    {canEdit && editingQtyId === item.id ? (
                       <input
                         type="number"
                         min="0"
@@ -682,7 +707,7 @@ export default function SupplyRunDetailPage() {
                           if (e.key === 'Escape') setEditingQtyId(null)
                         }}
                       />
-                    ) : (
+                    ) : canEdit ? (
                       <button
                         onClick={() => { setEditingQtyId(item.id); setEditingQtyValue(String(item.quantity)) }}
                         className="hover:text-white transition-colors"
@@ -690,21 +715,21 @@ export default function SupplyRunDetailPage() {
                       >
                         {item.quantity}
                       </button>
+                    ) : (
+                      <span>{item.quantity}</span>
                     )}
                   </span>
-                  <span className="w-24 shrink-0 text-right text-gray-400 text-xs hidden sm:block">
-                    ${Number(item.unit_cost).toFixed(2)}
-                  </span>
-                  <span className="w-24 shrink-0 text-right text-green-400 text-xs font-mono">
-                  </span>
+
                   <span className="w-16 shrink-0 text-right">
-                    <button
-                      onClick={() => handleDeleteItem(item.id)}
-                      disabled={deletingId === item.id}
-                      className="text-xs text-red-500 hover:text-red-400 disabled:opacity-50 transition-colors"
-                    >
-                      {deletingId === item.id ? '...' : 'Delete'}
-                    </button>
+                    {canEdit && (
+                      <button
+                        onClick={() => handleDeleteItem(item.id)}
+                        disabled={deletingId === item.id}
+                        className="text-xs text-red-500 hover:text-red-400 disabled:opacity-50 transition-colors"
+                      >
+                        {deletingId === item.id ? '...' : 'Delete'}
+                      </button>
+                    )}
                   </span>
                 </div>
               ))}

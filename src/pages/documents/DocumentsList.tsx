@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate, useMatch } from 'react-router-dom'
 
 const DocThumbnail = React.lazy(() => import('@/components/DocThumbnail'))
 import { useUserAssignment } from '@/lib/useUserAssignment'
@@ -34,6 +34,8 @@ export default function DocumentsPage() {
   const supabase = createClient()
   const assignment = useUserAssignment()
   const { isAdmin } = useRole()
+  const navigate = useNavigate()
+  const detailMatch = useMatch('/documents/:id')
   const [docs, setDocs] = useState<Doc[]>([])
   const [loading, setLoading] = useState(true)
   const [isOfflineData, setIsOfflineData] = useState(false)
@@ -78,7 +80,7 @@ export default function DocumentsPage() {
   }
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl mt-8 md:mt-0">
+    <div className="p-4 md:p-6 mt-8 md:mt-0">
       {isOfflineData && (
         <div className="bg-amber-900/30 border border-amber-700 rounded-lg px-3 py-2 text-amber-300 text-xs mb-4 flex items-center gap-2">
           📶 Documents require a connection to load. Reconnect to view.
@@ -122,12 +124,18 @@ export default function DocumentsPage() {
       ) : (
         <div className="space-y-2">
           {filtered.map(doc => (
-            <div key={doc.id} className="bg-gray-900 rounded-xl border border-gray-800 p-4 flex items-start gap-4 hover:border-gray-600 transition-colors">
+            <div key={doc.id}
+              onClick={() => doc.file_url && navigate(`/documents/${doc.id}`)}
+              className={`bg-gray-900 rounded-xl border p-4 flex items-start gap-4 transition-colors ${
+                detailMatch?.params?.id === doc.id
+                  ? 'border-red-600 bg-gray-800'
+                  : doc.file_url ? 'border-gray-800 hover:border-gray-600 cursor-pointer' : 'border-gray-800'
+              }`}>
               {/* Thumbnail */}
               {doc.file_url && (
-                <a href={doc.file_url} target="_blank" rel="noopener noreferrer" className="shrink-0 hover:opacity-80 transition-opacity">
+                <div className="shrink-0">
                   <DocThumbnail url={doc.file_url} fileName={doc.file_name} width={80} />
-                </a>
+                </div>
               )}
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -144,13 +152,8 @@ export default function DocumentsPage() {
                   Uploaded {new Date(doc.uploaded_at).toLocaleDateString()} · {doc.uploaded_by}
                 </p>
               </div>
-              <div className="flex gap-2 shrink-0 flex-col items-end">
-                {doc.file_url ? (
-                  <a href={doc.file_url} target="_blank" rel="noopener noreferrer"
-                    className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs font-medium transition-colors">
-                    📥 Open
-                  </a>
-                ) : (
+              <div className="flex gap-2 shrink-0 flex-col items-end" onClick={e => e.stopPropagation()}>
+                {!doc.file_url && (
                   <span className="px-3 py-1.5 bg-gray-800 rounded-lg text-xs text-gray-500">No file</span>
                 )}
                 {doc.file_name === 'RAM-Employee-Handbook-2026-CA.pdf' && (

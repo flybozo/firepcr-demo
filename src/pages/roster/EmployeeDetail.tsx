@@ -84,10 +84,11 @@ function CredRow({ label, value }: { label: string; value: string | null | undef
 }
 
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
+  const isEmail = value && value.includes('@')
   return (
-    <div>
+    <div className="min-w-0">
       <dt className="text-xs text-gray-500 uppercase tracking-wide">{label}</dt>
-      <dd className="mt-0.5 text-sm text-white">
+      <dd className={`mt-0.5 text-sm text-white ${isEmail ? 'break-all' : 'break-words'}`}>
         {value ? value : <span className="text-gray-600">—</span>}
       </dd>
     </div>
@@ -107,6 +108,31 @@ export default function RosterDetailPage() {
   const [isOfflineData, setIsOfflineData] = useState(false)
   const [generatingQr, setGeneratingQr] = useState(false)
   const [qrUrl, setQrUrl] = useState<string | null>(null)
+  const [togglingStatus, setTogglingStatus] = useState(false)
+
+  const toggleStatus = async () => {
+    if (!emp || !isAdmin) return
+    const newStatus = emp.status === 'Active' ? 'Inactive' : 'Active'
+    const confirmed = confirm(
+      newStatus === 'Inactive'
+        ? `Inactivate ${emp.name}? This will ban their app login and release all unit assignments.`
+        : `Reactivate ${emp.name}? This will restore their app login access.`
+    )
+    if (!confirmed) return
+    setTogglingStatus(true)
+    try {
+      const res = await fetch('/api/employee-status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}` },
+        body: JSON.stringify({ employeeId: emp.id, status: newStatus }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      setEmp(e => e ? { ...e, status: newStatus } : e)
+    } catch (err: any) {
+      alert('Failed to update status: ' + (err?.message || err))
+    }
+    setTogglingStatus(false)
+  }
 
   useEffect(() => {
     const load = async () => {
@@ -195,6 +221,19 @@ export default function RosterDetailPage() {
                 {emp.status === 'Inactive' && (
                   <span className="text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-400">Inactive</span>
                 )}
+                {isAdmin && (
+                  <button
+                    onClick={toggleStatus}
+                    disabled={togglingStatus}
+                    className={`text-xs px-2 py-0.5 rounded-full transition-colors disabled:opacity-50 ${
+                      emp.status === 'Active'
+                        ? 'bg-red-900/40 text-red-400 hover:bg-red-900/70'
+                        : 'bg-green-900/40 text-green-400 hover:bg-green-900/70'
+                    }`}
+                  >
+                    {togglingStatus ? '…' : emp.status === 'Active' ? 'Inactivate' : 'Reactivate'}
+                  </button>
+                )}
               </div>
             </div>
             <div className="flex flex-col gap-2 items-end shrink-0">
@@ -217,13 +256,18 @@ export default function RosterDetailPage() {
         {/* Personal info */}
         <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Personal</h2>
-          <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            <Field label="Email" value={emp.email} />
-            <Field label="WF Email" value={emp.wf_email} />
-            <Field label="Phone" value={emp.phone} />
-            <Field label="DOB" value={emp.dob} />
-            <Field label="Address" value={emp.address} />
-            <Field label="Emergency Contact" value={emp.emergency_contact} />
+          <dl className="grid grid-cols-1 gap-3">
+            {/* Emails full-width — too long to share a row on mobile */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <Field label="Personal Email" value={emp.email} />
+              <Field label="WF Email" value={emp.wf_email} />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <Field label="Phone" value={emp.phone} />
+              <Field label="DOB" value={emp.dob} />
+              <Field label="Address" value={emp.address} />
+              <Field label="Emergency Contact" value={emp.emergency_contact} />
+            </div>
           </dl>
         </div>
 

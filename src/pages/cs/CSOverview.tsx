@@ -38,13 +38,13 @@ type UnitData = {
 
 const CS_UNIT_TYPE: Record<string, string> = {
   'Warehouse': 'Warehouse',
-  'GRANITE 1': 'Ambulance', 'GRANITE 2': 'Ambulance',
+  'RAMBO 1': 'Ambulance', 'RAMBO 2': 'Ambulance', 'RAMBO 3': 'Ambulance', 'RAMBO 4': 'Ambulance',
   'MSU 1': 'Med Unit', 'MSU 2': 'Med Unit', 'The Beast': 'Med Unit',
   'REMS 1': 'REMS', 'REMS 1 Trailer': 'REMS', 'REMS 2': 'REMS',
   'Truck 1': 'REMS', 'Truck 2': 'REMS', 'Truck 3': 'REMS', 'UTV 1': 'REMS', 'UTV 2': 'REMS',
 }
 
-const UNITS = ['Warehouse', 'GRANITE 1', 'GRANITE 2', 'GRANITE MSU', 'GRANITE REMS']
+const UNITS = ['Warehouse', 'RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
 
 const TYPE_COLORS: Record<string, string> = {
   Receive: 'text-green-400',
@@ -77,39 +77,46 @@ function CSOverviewPageInner() {
   const [selectedUnit, setSelectedUnit] = useState<string>('All')
   const [isOfflineData, setIsOfflineData] = useState(false)
 
+  // Phase 1: render from cache immediately, no role gate
+  useEffect(() => {
+    const preload = async () => {
+      try {
+        const cached = await getCachedData('inventory') as any[]
+        const csItems = cached.filter((i: any) => i.category === 'CS')
+        if (csItems.length > 0) {
+          const grouped: Record<string, UnitInventoryItem[]> = {}
+          for (const item of csItems) {
+            const key = (item as any).unit_id || 'unknown'
+            if (!grouped[key]) grouped[key] = []
+            grouped[key].push(item)
+          }
+          const offlineUnits: UnitData[] = Object.entries(grouped).map(([iuid, items]) => ({
+            unitName: UNITS.find(n => n) || 'Unit',
+            incidentUnitId: iuid,
+            items,
+          }))
+          if (offlineUnits.length > 0) {
+            setUnits(offlineUnits)
+            setLoading(false)  // show cache immediately
+          }
+        }
+      } catch {}
+    }
+    preload()
+  }, [])
+
+  // Phase 2: network fetch (runs after role resolves, refreshes over cache)
   useEffect(() => {
     if (roleLoading || assignment.loading) return
     loadData()
   }, [isField, assignment.loading, assignment.unit?.name])
 
   async function loadData() {
-    // Show cached CS inventory instantly
-    try {
-      const cached = await getCachedData('inventory') as any[]
-      const csItems = cached.filter((i: any) => i.category === 'CS')
-      if (csItems.length > 0) {
-        const grouped: Record<string, UnitInventoryItem[]> = {}
-        for (const item of csItems) {
-          const key = (item as any).unit_id || 'unknown'
-          if (!grouped[key]) grouped[key] = []
-          grouped[key].push(item)
-        }
-        const offlineUnits: UnitData[] = Object.entries(grouped).map(([iuid, items]) => ({
-          unitName: UNITS.find(n => n) || 'Unit',
-          incidentUnitId: iuid,
-          items,
-        }))
-        if (offlineUnits.length > 0) {
-          setUnits(offlineUnits)
-          setLoading(false)
-        }
-      }
-    } catch {}
-    setLoading(true)
+    // Phase 2 network fetch — don't reset loading to true if cache already rendered
     try {
       // Load units for name lookup
       const unitsResult = await loadList(
-        () => supabase.from('units').select('id, name') as any,
+        () => supabase.from('units').select('id, name').eq('active', true).eq('is_storage', false).order('name') as any,
         'units'
       )
       const unitIdToName: Record<string, string> = {}
@@ -217,7 +224,7 @@ function CSOverviewPageInner() {
     : fieldUnits
 
   return (
-    <div className="p-4 md:p-8 max-w-4xl mt-8 md:mt-0">
+    <div className="p-4 md:p-6 mt-8 md:mt-0">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>

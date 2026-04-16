@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { getCachedData } from '@/lib/offlineStore'
-import { Link } from 'react-router-dom'
+import { Link, useMatch } from 'react-router-dom'
 import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
 
 type InventoryItem = {
@@ -38,6 +38,7 @@ function InventoryPageInner() {
   const supabase = createClient()
   const { isField, loading: roleLoading } = useRole()
   const assignment = useUserAssignment()
+  const detailMatch = useMatch('/inventory/:id')
   const [items, setItems] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [unitFilter, setUnitFilter] = useState('All')
@@ -62,35 +63,118 @@ function InventoryPageInner() {
         const cached = await getCachedData('inventory') as any[]
         if (cached.length > 0) { setItems(cached); setLoading(false) }
       } catch {}
-      const { data, offline } = await loadList(
-        () => supabase
+
+      // Load inventory + formulary templates + units in parallel
+      const [invResult, formularyResult, unitsResult] = await Promise.all([
+        supabase
           .from('unit_inventory')
           .select('id, item_name, category, quantity, par_qty, lot_number, expiration_date, unit_id')
           .order('item_name')
           .limit(2000),
-        'inventory'
-      )
-      // If offline data is missing unit joins, reconstruct from incident_units cache
-      let enrichedData = data as any[]
-      // Enrich items missing unit name — lookup from cached units by unit_id
-      // Always enrich with unit names from cache (faster than JOIN)
-      if (enrichedData.length > 0) {
-        try {
-          const { getCachedData } = await import('@/lib/offlineStore')
-          const cachedUnits = await getCachedData('units')
-          const unitMap: Record<string, any> = {}
-          cachedUnits.forEach((u: any) => { if (u.id) unitMap[u.id] = u })
-          enrichedData = enrichedData.map((item: any) => {
-            if (item.unit?.name) return item
-            if (item.unit_id && unitMap[item.unit_id]) {
-              return { ...item, unit: unitMap[item.unit_id] }
-            }
-            return item
-          })
-        } catch {}
-      }
-      setItems(enrichedData)
-      if (offline) setIsOfflineData(true)
+        supabase
+          .from('formulary_templates')
+          .select('id, item_name, category, default_par_qty, unit_type_id, is_als')
+          .order('category, item_name'),
+        supabase
+          .from('units')
+          .select('id, name, unit_type_id, unit_type:unit_types(name)')
+          .eq('active', true),
+      ])
+
+      const invData = invResult.data || []
+      const formularyData = formularyResult.data || []
+      const unitsData = (unitsResult.data || []) as any[]
+
+      // Build unit lookup maps
+      const unitMap: Record<string, any> = {}
+      const unitTypeByUnitId: Record<string, string> = {}
+      unitsData.forEach((u: any) => {
+        unitMap[u.id] = u
+        if (u.unit_type_id) unitTypeByUnitId[u.id] = u.unit_type_id
+      })
+
+      // Group formulary by unit_type_id
+      const formularyByType: Record<string, any[]> = {}
+      formularyData.forEach((f: any) => {
+        if (!f.unit_type_id) return
+        if (!formularyByType[f.unit_type_id]) formularyByType[f.unit_type_id] = []
+        formularyByType[f.unit_type_id].push(f)
+      })
+
+      // Build inventory index: for non-CS items, (unit_id, item_name) -> single row
+      // For CS items, (unit_id, item_name) -> array of rows (one per lot number)
+      const invByUnit: Record<string, Record<string, any[]>> = {}
+      invData.forEach((inv: any) => {
+        const uid = inv.unit_id || ''
+        if (!invByUnit[uid]) invByUnit[uid] = {}
+        if (!invByUnit[uid][inv.item_name]) invByUnit[uid][inv.item_name] = []
+        invByUnit[uid][inv.item_name].push(inv)
+      })
+
+      // For each unit, merge formulary template with actual inventory
+      const mergedItems: any[] = []
+      unitsData.forEach((unit: any) => {
+        const typeId = unit.unit_type_id
+        const templateItems = formularyByType[typeId] || []
+        const unitInv = invByUnit[unit.id] || {}
+
+        templateItems.forEach((tmpl: any) => {
+          const invRows = unitInv[tmpl.item_name] || []
+
+          if (tmpl.category === 'CS' && invRows.length > 0) {
+            // CS items: one row per lot number in inventory
+            invRows.forEach((inv: any) => {
+              mergedItems.push({
+                id: inv.id,
+                item_name: tmpl.item_name,
+                category: tmpl.category,
+                quantity: inv.quantity ?? 0,
+                par_qty: inv.par_qty ?? tmpl.default_par_qty ?? 0,
+                lot_number: inv.lot_number || null,
+                expiration_date: inv.expiration_date || null,
+                unit_id: unit.id,
+                unit: unit,
+                is_als: tmpl.is_als || false,
+              })
+            })
+          } else if (tmpl.category === 'CS' && invRows.length === 0) {
+            // CS item with no inventory yet — show one row at qty 0
+            mergedItems.push({
+              id: `tmpl-${unit.id}-${tmpl.id}`,
+              item_name: tmpl.item_name,
+              category: tmpl.category,
+              quantity: 0,
+              par_qty: tmpl.default_par_qty ?? 0,
+              lot_number: null,
+              expiration_date: null,
+              unit_id: unit.id,
+              unit: unit,
+              is_als: tmpl.is_als || false,
+            })
+          } else {
+            // Non-CS: one row per template item, merge with first inventory match
+            const inv = invRows[0] || null
+            mergedItems.push({
+              id: inv?.id || `tmpl-${unit.id}-${tmpl.id}`,
+              item_name: tmpl.item_name,
+              category: tmpl.category,
+              quantity: inv?.quantity ?? 0,
+              par_qty: inv?.par_qty ?? tmpl.default_par_qty ?? 0,
+              lot_number: inv?.lot_number || null,
+              expiration_date: inv?.expiration_date || null,
+              unit_id: unit.id,
+              unit: unit,
+              is_als: tmpl.is_als || false,
+            })
+          }
+        })
+      })
+
+      // No orphaned rows — formulary is the sole source of truth for item types.
+      // Any inventory rows not matching a template are ignored.
+
+      setItems(mergedItems)
+      if (invResult.error) setIsOfflineData(true)
       setLoading(false)
     }
     load()
@@ -130,7 +214,7 @@ const units = ['All', ...Array.from(new Set(
   const lowCount = items.filter(i => i.quantity <= i.par_qty).length
 
   return (
-    <div className="p-4 md:p-6 max-w-5xl">
+    <div className="p-4 md:p-6">
       {isOfflineData && (
         <div className="bg-amber-900/30 border border-amber-700 rounded-lg px-3 py-2 text-amber-300 text-xs mb-3">
           📦 Showing cached data — changes will sync when back online
@@ -249,7 +333,7 @@ const units = ['All', ...Array.from(new Set(
                 const unitName = (item as any)?.unit?.name
                 return (
                   <Link key={item.id} to={`/inventory/${item.id}`}
-                    className={`flex items-center px-3 py-1.5 hover:bg-gray-800 transition-colors cursor-pointer ${low ? 'bg-red-950/10' : ''}`}>
+                    className={`flex items-center px-3 py-1.5 transition-colors cursor-pointer ${detailMatch?.params?.id === item.id ? 'bg-gray-700' : low ? 'bg-red-950/10 hover:bg-gray-800' : 'hover:bg-gray-800'}`}>
                     <span className={`flex-1 min-w-0 text-xs truncate ${low ? 'text-red-300' : 'text-white'}`}>
                       {item.item_name}
                       {low && <span className="ml-1 text-red-500 text-xs">↓</span>}

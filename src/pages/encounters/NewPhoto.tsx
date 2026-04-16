@@ -63,7 +63,7 @@ function PhotoUploadInner() {
             onChange={e => setPickerUnit(e.target.value)}
             className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="">Select unit...</option>
-            {['GRANITE 1','GRANITE 2','GRANITE MSU','GRANITE REMS'].map(u => <option key={u}>{u}</option>)}
+            {['RAMBO 1','RAMBO 2','RAMBO 3','RAMBO 4','The Beast','MSU 1','MSU 2','REMS 1','REMS 2'].map(u => <option key={u}>{u}</option>)}
           </select>
         )}
       </div>

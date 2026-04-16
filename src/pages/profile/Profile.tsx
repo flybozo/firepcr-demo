@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { authFetch } from '@/lib/authFetch'
 import { loadSingle } from '@/lib/offlineFirst'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useTheme, THEME_PRESETS, THEME_FONTS } from '@/components/ThemeProvider'
@@ -37,6 +38,9 @@ export default function ProfilePage() {
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
 
+  const [pushEnabled, setPushEnabled] = useState(false)
+  const [pushLoading, setPushLoading] = useState(false)
+
   const [form, setForm] = useState({
     name: '',
     date_of_birth: '',
@@ -48,6 +52,13 @@ export default function ProfilePage() {
     emergency_contact_phone: '',
     emergency_contact_relationship: '',
   })
+
+  // Check push subscription status
+  useEffect(() => {
+    import('@/lib/pushNotifications').then(async ({ isPushSubscribed }) => {
+      setPushEnabled(await isPushSubscribed())
+    }).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!assignment.loading && assignment.employee?.id) {
@@ -284,6 +295,42 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      {/* Push Notifications */}
+      <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Push Notifications</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Receive alerts for CS counts, admin announcements, and more</p>
+          </div>
+          <button
+            onClick={async () => {
+              setPushLoading(true)
+              try {
+                if (pushEnabled) {
+                  const { unsubscribeFromPush } = await import('@/lib/pushNotifications')
+                  await unsubscribeFromPush()
+                  setPushEnabled(false)
+                } else {
+                  const { subscribeToPush } = await import('@/lib/pushNotifications')
+                  const ok = await subscribeToPush(employee?.id)
+                  setPushEnabled(ok)
+                  if (!ok) setError('Push notifications blocked. Check browser permissions.')
+                }
+              } catch { setError('Failed to update push settings') }
+              setPushLoading(false)
+            }}
+            disabled={pushLoading}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+              pushEnabled
+                ? 'bg-green-600 hover:bg-green-700 text-white'
+                : 'bg-gray-700 hover:bg-gray-600 text-gray-300'
+            }`}
+          >
+            {pushLoading ? '...' : pushEnabled ? '🔔 Enabled' : '🔕 Enable'}
+          </button>
+        </div>
+      </div>
+
       {/* Credential Wallet */}
       <div className="bg-gray-900 rounded-xl border border-gray-800 mb-4 overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
@@ -319,15 +366,30 @@ export default function ProfilePage() {
                     <p className="text-xs text-gray-500 truncate">{c.file_name}{expStr}</p>
                   </div>
                   <div className="flex gap-1.5 shrink-0">
-                    {url && (
+                    {url ? (
                       <>
                         <a href={url} target="_blank" rel="noopener noreferrer"
-                          className="text-xs px-2 py-1 bg-blue-900/60 hover:bg-blue-800 text-blue-300 rounded transition-colors"
-                          title="View">👁️</a>
-                        <a href={url} download={c.file_name}
-                          className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
-                          title="Download">⬇️</a>
+                          className="text-xs px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
+                          title="View">View</a>
+                        <button
+                          onClick={async () => {
+                            try {
+                              const res = await fetch(url)
+                              const blob = await res.blob()
+                              const a = document.createElement('a')
+                              a.href = URL.createObjectURL(blob)
+                              a.download = c.file_name || 'credential'
+                              a.click()
+                              URL.revokeObjectURL(a.href)
+                            } catch {
+                              window.open(url, '_blank')
+                            }
+                          }}
+                          className="text-xs px-2.5 py-1.5 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors font-medium"
+                          title="Download">⬇ Save</button>
                       </>
+                    ) : (
+                      <span className="text-xs text-gray-600">Loading...</span>
                     )}
                   </div>
                 </div>
@@ -389,6 +451,9 @@ export default function ProfilePage() {
         className="w-full py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 text-white font-bold rounded-xl transition-colors">
         {saving ? 'Saving...' : 'Save Profile'}
       </button>
+
+      {/* Signing PIN Section */}
+      <PinSetupSection employeeId={assignment.employee?.id} />
 
       {/* Appearance / Theme Section */}
       <AppearanceSection />
@@ -478,6 +543,91 @@ function AppearanceSection() {
             Reset to Default
           </button>
         )}
+      </div>
+    </div>
+  )
+}
+
+// ── Signing PIN Setup ─────────────────────────────────────────────────────────
+function PinSetupSection({ employeeId }: { employeeId: string | undefined }) {
+  const supabase = createClient()
+  const [pin, setPin] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+  const [hasPin, setHasPin] = useState<boolean | null>(null)
+
+  useEffect(() => {
+    if (!employeeId) return
+    supabase.from('employees').select('signing_pin_hash').eq('id', employeeId).single()
+      .then(({ data }) => setHasPin(!!data?.signing_pin_hash))
+  }, [employeeId])
+
+  const handleSave = async () => {
+    setError(''); setSuccess('')
+    if (pin.length < 4) { setError('PIN must be at least 4 digits'); return }
+    if (pin !== confirm) { setError('PINs do not match'); return }
+    if (!/^\d+$/.test(pin)) { setError('PIN must contain digits only'); return }
+    if (!employeeId) { setError('No employee record'); return }
+    setSaving(true)
+    try {
+      // Server-side PIN hashing (bcrypt)
+      const setRes = await authFetch('/api/pin/set', {
+        method: 'POST',
+        body: JSON.stringify({ pin }),
+      })
+      const setData = await setRes.json()
+      if (!setRes.ok) throw new Error(setData.error || 'Failed to set PIN')
+      setSuccess('Signing PIN saved successfully.')
+      setHasPin(true)
+      setPin(''); setConfirm('')
+    } catch (e: any) {
+      setError(e.message || 'Failed to save PIN')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5 space-y-4 mt-2">
+      <div>
+        <h2 className="font-bold text-sm uppercase tracking-wide text-gray-400">Signing PIN</h2>
+        <p className="text-xs text-gray-500 mt-1">
+          {hasPin ? 'You have a signing PIN set. Enter a new one below to change it.' : 'Set a PIN to digitally sign CS transfers, daily counts, MAR co-signatures, and other actions.'}
+        </p>
+      </div>
+      <div className="space-y-3">
+        <div>
+          <label className="text-xs text-gray-400">New PIN (4–8 digits)</label>
+          <input
+            type="password"
+            inputMode="numeric"
+            maxLength={8}
+            value={pin}
+            onChange={e => setPin(e.target.value.replace(/\D/g, ''))}
+            placeholder="● ● ● ●"
+            className="w-full mt-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-center text-xl tracking-widest focus:outline-none focus:border-red-500"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-gray-400">Confirm PIN</label>
+          <input
+            type="password"
+            inputMode="numeric"
+            maxLength={8}
+            value={confirm}
+            onChange={e => setConfirm(e.target.value.replace(/\D/g, ''))}
+            placeholder="● ● ● ●"
+            className="w-full mt-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-white text-center text-xl tracking-widest focus:outline-none focus:border-red-500"
+          />
+        </div>
+        {error && <p className="text-red-400 text-xs">{error}</p>}
+        {success && <p className="text-green-400 text-xs">{success}</p>}
+        <button onClick={handleSave} disabled={saving || pin.length < 4}
+          className="w-full py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 disabled:text-gray-500 text-white font-bold rounded-xl text-sm transition-colors">
+          {saving ? 'Saving...' : hasPin ? 'Update Signing PIN' : 'Set Signing PIN'}
+        </button>
       </div>
     </div>
   )

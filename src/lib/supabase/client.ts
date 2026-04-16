@@ -1,4 +1,4 @@
-import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { createClient as createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js'
 
 // When offline, return a proper error response that Supabase SDK will propagate
 // as { data: null, error: { message: 'offline' } }
@@ -18,14 +18,23 @@ const offlineAwareFetch: typeof fetch = async (input, init) => {
   return fetch(input, init)
 }
 
+// Singleton — one client for the entire app lifetime.
+// Calling createClient() 79 times was creating 79 separate auth instances,
+// GoTrue listeners, and connection pools → memory leak → browser crash.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _client: SupabaseClient<any> | null = null
+
 export function createClient() {
-  return createSupabaseClient(
-    import.meta.env.VITE_SUPABASE_URL!,
-    import.meta.env.VITE_SUPABASE_ANON_KEY!,
-    {
-      global: {
-        fetch: offlineAwareFetch,
-      },
-    }
-  )
+  if (!_client) {
+    _client = createSupabaseClient(
+      import.meta.env.VITE_SUPABASE_URL!,
+      import.meta.env.VITE_SUPABASE_ANON_KEY!,
+      {
+        global: {
+          fetch: offlineAwareFetch,
+        },
+      }
+    )
+  }
+  return _client
 }

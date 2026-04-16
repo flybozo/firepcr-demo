@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { useRole } from '@/lib/useRole'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useMatch } from 'react-router-dom'
 import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
 import { loadList } from '@/lib/offlineFirst'
 
@@ -54,19 +54,14 @@ const TYPE_ORDER: Record<string, number> = {
 function UnitsPageInner() {
   const supabase = createClient()
   const navigate = useNavigate()
+  const detailMatch = useMatch('/units/:id')
   const { isAdmin } = useRole()
   const [units, setUnits] = useState<Unit[]>([])
   const [loading, setLoading] = useState(true)
   const [isOffline, setIsOffline] = useState(false)
   const [statusFilter, setStatusFilter] = useState<'all' | 'in_service' | 'out_of_service' | 'archived'>('all')
   const [cyclingStatus, setCyclingStatus] = useState<string | null>(null)
-  const [allEmployees, setAllEmployees] = useState<{id: string; name: string; role: string}[]>([])
-  const [editingCrew, setEditingCrew] = useState<{iuId: string; slotIndex: number; assignmentId?: string} | null>(null)
-  const [savingCrew, setSavingCrew] = useState(false)
-  const [moveConfirm, setMoveConfirm] = useState<{
-    iuId: string; assignmentId?: string; employeeId: string;
-    employeeName: string; fromUnit: string; toUnit: string;
-  } | null>(null)
+
 
   const load = async () => {
     // Show cached data instantly
@@ -86,28 +81,22 @@ function UnitsPageInner() {
         setLoading(false)
       }
     } catch {}
-    const [unitResult, empResult] = await Promise.all([
-      loadList<Unit>(
-        () => supabase
-          .from('units')
-          .select(`
-            id, name, active, unit_status, vin, license_plate, plate_state, make, model, year,
-            unit_type:unit_types(name),
-            incident_units(
-              id, released_at,
-              incident:incidents(name, status),
-              unit_assignments(id, released_at, employee:employees(id, name, role))
-            )
-          `)
-          .eq('active', true)
-          .order('name') as any,
-        'units'
-      ),
-      loadList<{id: string; name: string; role: string}>(
-        () => supabase.from('employees').select('id, name, role').eq('status', 'Active').order('name'),
-        'employees'
-      ),
-    ])
+    const unitResult = await loadList<Unit>(
+      () => supabase
+        .from('units')
+        .select(`
+          id, name, active, unit_status, vin, license_plate, plate_state, make, model, year,
+          unit_type:unit_types(name),
+          incident_units(
+            id, released_at,
+            incident:incidents(name, status),
+            unit_assignments(id, released_at, employee:employees(id, name, role))
+          )
+        `)
+        .eq('active', true)
+        .order('name') as any,
+      'units'
+    )
     const sorted = unitResult.data.sort((a, b) => {
       const aType = (a.unit_type as any)?.name || 'REMS'
       const bType = (b.unit_type as any)?.name || 'REMS'
@@ -116,75 +105,10 @@ function UnitsPageInner() {
       return a.name.localeCompare(b.name)
     })
     setUnits(sorted)
-    setAllEmployees(empResult.data)
     setLoading(false)
   }
 
-  const assignCrewMember = async (iuId: string, assignmentId: string | undefined, employeeId: string) => {
-    if (!employeeId) {
-      // Removing — just do it
-      setSavingCrew(true)
-      if (assignmentId) await supabase.from('unit_assignments').delete().eq('id', assignmentId)
-      setEditingCrew(null)
-      setSavingCrew(false)
-      await load()
-      return
-    }
-    // Check if employee is already assigned to another active unit
-    const existing = units.flatMap(u => {
-      const active = activeIncidentUnit(u)
-      if (!active) return []
-      return (active.unit_assignments || []).filter(ua => (ua.employee as any)?.id === employeeId)
-        .map(ua => ({ iuId: active.id, unitName: u.name, assignmentId: ua.id }))
-    })
-    const otherAssignment = existing.find(e => e.iuId !== iuId)
-    if (otherAssignment) {
-      const emp = allEmployees.find(e => e.id === employeeId)
-      const toUnit = units.find(u => activeIncidentUnit(u)?.id === iuId)?.name || 'this unit'
-      setEditingCrew(null)
-      setMoveConfirm({
-        iuId, assignmentId, employeeId,
-        employeeName: emp?.name || 'This employee',
-        fromUnit: otherAssignment.unitName,
-        toUnit,
-      })
-      return
-    }
-    setSavingCrew(true)
-    if (assignmentId) {
-      await supabase.from('unit_assignments').update({ employee_id: employeeId }).eq('id', assignmentId)
-    } else {
-      await supabase.from('unit_assignments').insert({ incident_unit_id: iuId, employee_id: employeeId, role_on_unit: '' })
-    }
-    setEditingCrew(null)
-    setSavingCrew(false)
-    await load()
-  }
-
-  const confirmMove = async () => {
-    if (!moveConfirm) return
-    setSavingCrew(true)
-    // Remove from old unit
-    const existing = units.flatMap(u => {
-      const active = activeIncidentUnit(u)
-      if (!active) return []
-      return (active.unit_assignments || []).filter(ua => (ua.employee as any)?.id === moveConfirm.employeeId)
-        .filter(ua => activeIncidentUnit(u)?.id !== moveConfirm.iuId)
-        .map(ua => ua.id)
-    })
-    for (const id of existing) await supabase.from('unit_assignments').delete().eq('id', id)
-    // Assign to new unit
-    if (moveConfirm.assignmentId) {
-      await supabase.from('unit_assignments').update({ employee_id: moveConfirm.employeeId }).eq('id', moveConfirm.assignmentId)
-    } else {
-      await supabase.from('unit_assignments').insert({ incident_unit_id: moveConfirm.iuId, employee_id: moveConfirm.employeeId, role_on_unit: '' })
-    }
-    setMoveConfirm(null)
-    setSavingCrew(false)
-    await load()
-  }
-
-  useEffect(() => {
+    useEffect(() => {
     setIsOffline(!getIsOnline())
     return onConnectionChange((online) => { setIsOffline(!online); if (online) load() })
   }, [])
@@ -204,33 +128,36 @@ function UnitsPageInner() {
     return { label: '—', cls: 'text-gray-600' }
   }
 
-  const cycleUnitStatus = async (e: React.MouseEvent, unitId: string, currentStatus: string | null) => {
+  const setUnitStatus = async (e: React.ChangeEvent<HTMLSelectElement>, unitId: string, currentStatus: string | null) => {
     e.stopPropagation()
     if (!isAdmin) return
-    const cycle: Record<string, string> = {
-      'in_service': 'out_of_service',
-      'out_of_service': 'archived',
-      'archived': 'in_service',
-    }
-    const next = cycle[currentStatus || 'in_service'] || 'in_service'
+    const next = e.target.value
+    if (next === currentStatus) return
 
-    // Confirm + release crew when taking a unit out of active service
-    const needsRelease = (currentStatus === 'in_service' || currentStatus === 'out_of_service') && next !== 'in_service'
-    if (needsRelease) {
-      const unit = units.find(u => u.id === unitId)
-      const unitName = unit?.name || 'this unit'
-      const label = next === 'archived' ? 'Archived' : 'Out of Service'
-      const ok = confirm(`Change ${unitName} to ${label}? This will release all crew assignments.`)
+    const unit = units.find(u => u.id === unitId)
+    const unitName = unit?.name || 'this unit'
+    const activeIU = unit ? activeIncidentUnit(unit) : null
+    const isLeavingService = next === 'out_of_service' || next === 'archived'
+
+    // If unit is currently deployed, confirm and fully release from incident
+    if (isLeavingService && activeIU) {
+      const incidentName = (activeIU as any).incident?.name || 'its current incident'
+      const label = next === 'archived' ? 'Archive' : 'Mark Out of Service'
+      const ok = confirm(`${label} ${unitName}?\n\nThis will:\n• Release ${unitName} from ${incidentName}\n• Release all assigned crew\n\nThis cannot be undone automatically.`)
       if (!ok) return
-      // Release all active crew assignments for this unit
-      const active = unit ? activeIncidentUnit(unit) : null
-      if (active) {
-        await supabase
-          .from('unit_assignments')
-          .update({ released_at: new Date().toISOString() })
-          .eq('incident_unit_id', active.id)
-          .is('released_at', null)
-      }
+
+      const now = new Date().toISOString()
+      // 1. Release all crew assignments under this incident_unit
+      await supabase
+        .from('unit_assignments')
+        .update({ released_at: now })
+        .eq('incident_unit_id', activeIU.id)
+        .is('released_at', null)
+      // 2. Release the incident_unit itself — removes unit from the incident
+      await supabase
+        .from('incident_units')
+        .update({ released_at: now })
+        .eq('id', activeIU.id)
     }
 
     setCyclingStatus(unitId)
@@ -290,15 +217,15 @@ function UnitsPageInner() {
       ) : filteredUnits.length === 0 ? (
         <p className="text-center text-gray-600 py-8">No units found.</p>
       ) : (
-        <div className="bg-gray-900 rounded-xl overflow-hidden border border-gray-800">
+        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-x-auto">
           {/* Header */}
-          <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800">
+          <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800 min-w-[760px]">
             <span className="w-32 shrink-0">Unit</span>
             <span className="w-24 shrink-0 hidden sm:block">Type</span>
             <span className="w-36 shrink-0 hidden lg:block font-mono">VIN</span>
             <span className="w-28 shrink-0 hidden lg:block">Plate</span>
             <span className="w-32 shrink-0 hidden md:block">Incident</span>
-            <span className="flex-1 min-w-0">Crew</span>
+            <span className="w-48 shrink-0">Crew</span>
             <span className="w-24 shrink-0 text-right">Status</span>
           </div>
 
@@ -311,7 +238,7 @@ function UnitsPageInner() {
 
             return (
               <div key={unit.id} onClick={() => navigate(`/units/${unit.id}`)}
-                className="flex items-start px-4 py-2.5 hover:bg-gray-800 cursor-pointer border-b border-gray-800/50 text-sm">
+                className={`flex items-center px-4 py-2 cursor-pointer border-b border-gray-800/50 text-sm min-w-[760px] ${detailMatch?.params?.id === unit.id ? 'bg-gray-700' : 'hover:bg-gray-800'}`}>
 
                 {/* Unit name + emoji */}
                 <span className="w-32 shrink-0 font-medium truncate pr-2 flex items-center gap-1.5">
@@ -335,85 +262,48 @@ function UnitsPageInner() {
                   {active ? (active.incident as any)?.name : '—'}
                 </span>
 
-                {/* Crew — up to 4 inline-editable slots */}
-                <span className="flex-1 min-w-0 text-xs" onClick={e => e.stopPropagation()}>
-                  <span className="flex flex-wrap gap-1">
-                    {Array.from({ length: 4 }).map((_, slotIdx) => {
-                      const ua = crew[slotIdx]
-                      const isEditing = editingCrew?.iuId === active?.id && editingCrew?.slotIndex === slotIdx
-                      if (isEditing && isAdmin) return (
-                        <select key={slotIdx} autoFocus
-                          className="bg-gray-700 text-white text-xs rounded px-1 py-0.5 max-w-[140px]"
-                          defaultValue={(ua?.employee as any)?.id || ''}
-                          onChange={e => assignCrewMember(active!.id, ua?.id, e.target.value)}
-                          onBlur={() => setEditingCrew(null)}>
-                          <option value="">— Remove —</option>
-                          {allEmployees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.role})</option>)}
-                        </select>
-                      )
-                      return (
-                        <button key={slotIdx} type="button"
-                          onClick={() => isAdmin && active && setEditingCrew({ iuId: active.id, slotIndex: slotIdx, assignmentId: ua?.id })}
-                          className={`text-xs px-1.5 py-0.5 rounded transition-colors ${isAdmin ? 'cursor-pointer' : 'cursor-default'} ${ua?.employee ? 'text-gray-200 hover:bg-gray-700' : isAdmin ? 'text-gray-600 hover:text-gray-400 border border-dashed border-gray-700 hover:border-gray-500' : 'text-gray-600 border border-dashed border-gray-800'}`}
-                        >
-                          {ua?.employee ? (ua.employee as any).name.split(' ').slice(-1)[0] : '+ Crew'}
-                        </button>
-                      )
-                    })}
-                  </span>
+                {/* Crew — read-only, assign via detail pane */}
+                <span className="w-48 shrink-0 text-xs text-gray-300 truncate pr-2"
+                  title={crew.map((ua: any) => ua.employee?.name).filter(Boolean).join(', ')}>
+                  {crew.length > 0
+                    ? crew.map((ua: any) =>
+                        (ua.employee?.name || '').split(' ').filter(Boolean).slice(-1)[0]
+                      ).filter(Boolean).join(', ')
+                    : <span className="text-gray-600">—</span>
+                  }
                 </span>
 
                                 {/* Status */}
-                <span className="w-24 shrink-0 text-right" onClick={e => e.stopPropagation()}>
-                  {(() => {
-                    const badge = getStatusBadge(unit)
-                    return (
-                      <button
-                        type="button"
-                        onClick={e => isAdmin ? cycleUnitStatus(e, unit.id, unit.unit_status) : e.stopPropagation()}
-                        className={`text-xs px-2 py-0.5 rounded-full font-medium transition-all ${isAdmin ? 'cursor-pointer hover:ring-1 hover:ring-white/30' : 'cursor-default'} ${
-                          badge.label.includes('Deployed') ? 'bg-green-900/60 text-green-400' :
-                          badge.label.includes('Available') ? 'bg-gray-800 text-gray-400' :
-                          badge.label.includes('Out') ? 'bg-yellow-900/60 text-yellow-400' :
-                          'bg-gray-800/40 text-gray-600'
-                        }`}
-                        title={isAdmin ? 'Click to change status' : undefined}
-                      >
-                        {cyclingStatus === unit.id ? '⟳ ...' : badge.label}
-                      </button>
-                    )
-                  })()}
+                <span className="w-32 shrink-0 text-right" onClick={e => e.stopPropagation()}>
+                  {isAdmin ? (
+                    <select
+                      value={unit.unit_status || 'in_service'}
+                      onChange={e => setUnitStatus(e, unit.id, unit.unit_status)}
+                      disabled={cyclingStatus === unit.id}
+                      onClick={e => e.stopPropagation()}
+                      className={`text-xs px-2 py-0.5 rounded-full font-medium bg-transparent border-0 outline-none cursor-pointer appearance-none text-right ${
+                        activeIncidentUnit(unit) && (unit.unit_status || 'in_service') === 'in_service' ? 'text-green-400' :
+                        (unit.unit_status || 'in_service') === 'out_of_service' ? 'text-yellow-400' :
+                        unit.unit_status === 'archived' ? 'text-gray-600' :
+                        'text-gray-400'
+                      }`}
+                    >
+                      <option value="in_service">{activeIncidentUnit(unit) ? '● Deployed' : '○ Available'}</option>
+                      <option value="out_of_service">⚠ Out of Service</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                  ) : (
+                    <span className={`text-xs font-medium ${
+                      getStatusBadge(unit).cls
+                    }`}>{getStatusBadge(unit).label}</span>
+                  )}
                 </span>
               </div>
             )
           })}
         </div>
       )}
-      {/* Move confirmation dialog */}
-      {moveConfirm && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-sm w-full space-y-4">
-            <h2 className="text-white font-bold text-lg">Move Employee?</h2>
-            <p className="text-gray-300 text-sm">
-              <strong>{moveConfirm.employeeName}</strong> is currently assigned to <strong>{moveConfirm.fromUnit}</strong>.
-              Move them to <strong>{moveConfirm.toUnit}</strong>?
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setMoveConfirm(null)}
-                className="flex-1 py-2 rounded-xl bg-gray-700 hover:bg-gray-600 text-white text-sm font-semibold transition-colors">
-                Cancel
-              </button>
-              <button
-                onClick={confirmMove}
-                disabled={savingCrew}
-                className="flex-1 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-semibold transition-colors">
-                {savingCrew ? 'Moving...' : 'Yes, Move'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import jsPDF from 'jspdf'
+import type jsPDF from 'jspdf'
 
 export type Header214 = {
   ics214_id: string
@@ -25,11 +25,12 @@ export type Personnel214 = {
   home_agency: string
 }
 
-export function generate214PDF(
+export async function generate214PDF(
   header: Header214,
   personnel: Personnel214[],
   activities: Activity214[]
-): jsPDF {
+): Promise<jsPDF> {
+  const { default: jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
   const W = 612, margin = 36, colW = W - margin * 2
   let y = margin

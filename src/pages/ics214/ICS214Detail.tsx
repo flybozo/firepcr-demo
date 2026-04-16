@@ -320,9 +320,8 @@ export default function ICS214DetailPage() {
 
     // 2. Upload signature if drawn
     let sigStoragePath: string | null = null
-    let capturedSigDataUrl: string | null = null
     if (closeoutSigRef.current && !closeoutSigRef.current.isEmpty()) {
-      capturedSigDataUrl = closeoutSigRef.current.getTrimmedCanvas().toDataURL('image/png')
+      const capturedSigDataUrl = closeoutSigRef.current.getTrimmedCanvas().toDataURL('image/png')
       const sigBlob = await (await fetch(capturedSigDataUrl)).blob()
       const sigPath = `ics214/${ics214IdParam}-leader-sig.png`
       const { error: sigErr } = await supabase.storage.from('signatures').upload(sigPath, sigBlob, { contentType: 'image/png', upsert: true })
@@ -343,8 +342,8 @@ export default function ICS214DetailPage() {
     // Reload then generate PDF
     await load()
 
-    // Trigger PDF generation — pass sigDataUrl directly so it doesn't need to re-fetch from storage
-    setTimeout(() => generateAndUploadPDF(capturedSigDataUrl), 500)
+    // Trigger PDF generation
+    setTimeout(() => generateAndUploadPDF(null), 500)
   }
 
   const generateAndUploadPDF = async (directSigDataUrl?: string | null) => {
@@ -375,7 +374,7 @@ export default function ICS214DetailPage() {
         } catch {}
       }
 
-      const doc = generate214PDF(
+      const doc = await generate214PDF(
         {
           ics214_id: header.ics214_id,
           incident_name: header.incident_name,

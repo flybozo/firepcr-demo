@@ -1,18 +1,18 @@
 
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
-import SignatureCanvas from 'react-signature-canvas'
+import PinSignature, { type SignatureRecord } from '@/components/PinSignature'
 import { Link } from 'react-router-dom'
 
 const HANDBOOK_VERSION = '2026'
-const HANDBOOK_URL = 'https://kfkpvazkikpuwatthtow.supabase.co/storage/v1/object/public/documents/RAM-Employee-Handbook-2026-CA.pdf'
+const HANDBOOK_URL = 'https://jlqpycxguovxnqtkjhzs.supabase.co/storage/v1/object/public/documents/RAM-Employee-Handbook-2026-CA.pdf'
 
 export default function HandbookAcknowledgmentPage() {
   const supabase = createClient()
   const assignment = useUserAssignment()
-  const sigRef = useRef<SignatureCanvas>(null)
+  const [showPinSig, setShowPinSig] = useState(false)
 
   const [existing, setExisting] = useState<{ signed_at: string; drive_file_url: string | null } | null>(null)
   const [loading, setLoading] = useState(true)
@@ -38,44 +38,20 @@ export default function HandbookAcknowledgmentPage() {
     check()
   }, [assignment.loading, assignment.employee])
 
-  const clearSig = () => sigRef.current?.clear()
-
-  const handleSign = async () => {
-    if (!confirmed) { setError('Please confirm you have read the handbook before signing.'); return }
-    if (!sigRef.current || sigRef.current.isEmpty()) { setError('Please draw your signature before submitting.'); return }
+  const handleSign = async (rec: SignatureRecord) => {
     if (!assignment.employee?.id) { setError('No employee record found.'); return }
-
     setSaving(true)
     setError('')
-
     try {
-      // Upload signature image to Supabase storage
-      const dataUrl = sigRef.current.getTrimmedCanvas().toDataURL('image/png')
-      const base64 = dataUrl.split(',')[1]
-      const blob = await (await fetch(dataUrl)).blob()
-      const sigPath = `${assignment.employee.id}/handbook-sig-${HANDBOOK_VERSION}-${Date.now()}.png`
-
-      const { error: uploadErr } = await supabase.storage
-        .from('signatures')
-        .upload(sigPath, blob, { contentType: 'image/png', upsert: true })
-
-      if (uploadErr) throw new Error(uploadErr.message)
-
-      const { data: { publicUrl } } = supabase.storage.from('signatures').getPublicUrl(sigPath)
-
-      // Save acknowledgment record
       const { error: dbErr } = await supabase.from('handbook_acknowledgments').insert({
         employee_id: assignment.employee.id,
         handbook_version: HANDBOOK_VERSION,
-        signature_url: publicUrl,
-        signed_at: new Date().toISOString(),
+        signature_url: rec.signatureHash,
+        signed_at: rec.signedAt,
       })
       if (dbErr) throw new Error(dbErr.message)
-
-      // Trigger Drive upload via API route (server-side gog upload)
-      // For now, record without Drive link — admin can batch-upload periodically
       setDone(true)
-      setExisting({ signed_at: new Date().toISOString(), drive_file_url: null })
+      setExisting({ signed_at: rec.signedAt, drive_file_url: null })
     } catch (e: any) {
       setError(e.message || 'Error saving signature')
     } finally {
@@ -95,7 +71,7 @@ export default function HandbookAcknowledgmentPage() {
         <div>
           <Link to="/documents" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">← Policies & Procedures</Link>
           <h1 className="text-xl font-bold mt-2">Employee Handbook Acknowledgment</h1>
-          <p className="text-xs text-gray-500 mt-1">2026 Edition — FirePCR Field Operations</p>
+          <p className="text-xs text-gray-500 mt-1">2026 Edition — Sierra Valley EMS P.C. dba Sierra Valley EMS</p>
         </div>
 
         {/* Already signed banner */}
@@ -143,7 +119,7 @@ export default function HandbookAcknowledgmentPage() {
               I, <strong>{assignment.employee?.name}</strong>, acknowledge that I have received, read, and
               understand the Sierra Valley EMS Employee Handbook (2026 Edition). I agree to comply with
               the policies, rules, and standards described in this Handbook as a condition of my employment
-              with Sierra Valley EMS.
+              with Sierra Valley EMS P.C. dba Sierra Valley EMS.
             </p>
             <p>
               I understand that this Handbook does not constitute a contract of employment and that my
@@ -168,36 +144,15 @@ export default function HandbookAcknowledgmentPage() {
           </label>
         </div>
 
-        {/* Signature pad */}
+        {/* Step 3 — PIN Sign */}
         <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-gray-400">Step 3 — Sign</h2>
-            <button onClick={clearSig} className="text-xs text-gray-500 hover:text-gray-300 transition-colors">
-              Clear
-            </button>
-          </div>
-          <p className="text-xs text-gray-500">Draw your signature in the box below using your mouse or finger.</p>
-          <div className="rounded-xl overflow-hidden border border-gray-600 bg-white">
-            <SignatureCanvas
-              ref={sigRef}
-              canvasProps={{
-                width: 560,
-                height: 180,
-                className: 'w-full touch-none',
-                style: { background: 'white' }
-              }}
-              penColor="#1a1a2e"
-              minWidth={1.5}
-              maxWidth={3}
-            />
-          </div>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-gray-400">Step 3 — Sign</h2>
+          <p className="text-xs text-gray-500">Confirm your identity with your signing PIN to complete the acknowledgment.</p>
           <div className="flex items-center gap-2 text-xs text-gray-500">
             <span>Signing as:</span>
             <span className="text-white font-medium">{assignment.employee?.name}</span>
             <span>·</span>
             <span>{assignment.employee?.role}</span>
-            <span>·</span>
-            <span>{new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</span>
           </div>
         </div>
 
@@ -208,15 +163,27 @@ export default function HandbookAcknowledgmentPage() {
         {/* Submit */}
         {!done && (
           <button
-            onClick={handleSign}
+            onClick={() => { if (!confirmed) { setError('Please confirm you have read the handbook before signing.'); return } setShowPinSig(true) }}
             disabled={saving}
             className="w-full py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 disabled:text-gray-500 text-white font-bold rounded-xl transition-colors text-sm"
           >
-            {saving ? 'Saving signature...' : '✍️ Submit Signed Acknowledgment'}
+            {saving ? 'Saving...' : 'Sign Acknowledgment'}
           </button>
         )}
 
       </div>
+
+      {showPinSig && (
+        <PinSignature
+          label="Handbook Acknowledgment"
+          mode="self"
+          employeeId={assignment.employee?.id}
+          employeeName={assignment.employee?.name}
+          documentContext={`handbook-${HANDBOOK_VERSION}`}
+          onSign={(rec) => { setShowPinSig(false); handleSign(rec) }}
+          onCancel={() => setShowPinSig(false)}
+        />
+      )}
     </div>
   )
 }

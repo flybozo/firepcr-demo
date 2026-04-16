@@ -9,7 +9,7 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import { generateAMAPDF } from '@/lib/generateAMApdf'
 
 const PROVIDERS = [
-  'James Hartwell, MD',
+  'Aaron Stutz, MD',
   'Rodney Look, MD',
   'Robert K. Evans, MD',
   'Paul Bailey, NP',
@@ -23,7 +23,7 @@ const PROVIDERS = [
   'Jenn Shealy, NP',
 ]
 
-const UNITS = ['GRANITE 1', 'GRANITE 2', 'GRANITE MSU', 'GRANITE REMS']
+const UNITS = ['RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'The Beast', 'MSU 1', 'MSU 2', 'REMS 1', 'REMS 2']
 
 function AMAFormInner() {
   const supabase = createClient()
@@ -82,7 +82,7 @@ function AMAFormInner() {
             onChange={e => setPickerUnit(e.target.value)}
             className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="">Select unit...</option>
-            {['GRANITE 1','GRANITE 2','GRANITE MSU','GRANITE REMS'].map(u => <option key={u}>{u}</option>)}
+            {['RAMBO 1','RAMBO 2','RAMBO 3','RAMBO 4','The Beast','MSU 1','MSU 2','REMS 1','REMS 2'].map(u => <option key={u}>{u}</option>)}
           </select>
         )}
       </div>
@@ -337,9 +337,9 @@ function AMAFormInner() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [showPreview, setShowPreview] = useState(false)
 
-  const handlePreviewPDF = () => {
+  const handlePreviewPDF = async () => {
     if (!lastConsentData || !lastConsentId) return
-    const doc = generateAMAPDF({
+    const doc = await generateAMAPDF({
       ...lastConsentData,
       consent_id: lastConsentId,
     }, logoDataUrl)
@@ -353,7 +353,7 @@ function AMAFormInner() {
     if (!lastConsentData || !lastConsentId) return
     setPdfGenerating(true)
     try {
-      const doc = generateAMAPDF({
+      const doc = await generateAMAPDF({
         ...lastConsentData,
         consent_id: lastConsentId,
       }, logoDataUrl)
@@ -524,8 +524,8 @@ function AMAFormInner() {
         {/* Header */}
         <div className="text-center pt-4">
           <h1 className="text-xl font-bold text-red-500">REMOTE AREA MEDICINE</h1>
-          <p className="text-sm text-gray-400">FirePCR EMS | DBA Sierra Valley EMS</p>
-          <p className="text-xs text-gray-500">Medical Director: James Hartwell, MD</p>
+          <p className="text-sm text-gray-400">Sierra Valley EMS P.C. | DBA Sierra Valley EMS</p>
+          <p className="text-xs text-gray-500">Medical Director: Aaron Stutz, MD</p>
           <p className="text-sm font-semibold mt-2">REFUSAL OF EMERGENCY MEDICAL CARE / AMA</p>
           <p className="text-xs text-gray-400 mt-1">{formDate} — {formTime}</p>
         </div>
@@ -602,7 +602,7 @@ function AMAFormInner() {
           <section className="bg-gray-900 rounded-xl p-4">
             <h2 className="font-bold text-sm uppercase tracking-wide text-gray-300 mb-2">Patient Statement & Release</h2>
             <p className="text-xs text-gray-400 leading-relaxed">
-              I, <span className="text-white font-medium">{patientName}</span>, have been informed of my medical condition, the recommended treatment and/or transport, and the risks of refusal — including serious injury or death. I am voluntarily refusing the emergency medical care described above and release Sierra Valley EMS, its medical director, and all EMS providers from any liability arising from this refusal. I have been advised to call 911 or seek emergency care immediately if my condition worsens.
+              I, <span className="text-white font-medium">{patientName}</span>, have been informed of my medical condition, the recommended treatment and/or transport, and the risks of refusal — including serious injury or death. I am voluntarily refusing the emergency medical care described above and release Sierra Valley EMS (Sierra Valley EMS P.C.), its medical director, and all EMS providers from any liability arising from this refusal. I have been advised to call 911 or seek emergency care immediately if my condition worsens.
             </p>
           </section>
 

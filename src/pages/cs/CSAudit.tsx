@@ -22,7 +22,7 @@ type CSTransaction = {
 
 const CS_DRUGS = ['Morphine Sulfate', 'Fentanyl', 'Midazolam (Versed)', 'Ketamine']
 const TRANSFER_TYPES = ['Receive', 'Transfer', 'Administer', 'Waste', 'Return', 'Audit']
-const ALL_UNITS = ['Warehouse', 'GRANITE 1', 'GRANITE 2', 'GRANITE MSU', 'GRANITE REMS']
+const ALL_UNITS = ['Warehouse', 'RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
 
 const TYPE_COLORS: Record<string, string> = {
   Receive: 'bg-green-900/40 text-green-300 border border-green-700',
@@ -164,7 +164,7 @@ function AuditLogInner() {
 
       {/* Filters */}
       <div className="bg-gray-900 rounded-xl border border-gray-700 p-4 mb-4">
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
             <label className="block text-xs text-gray-500 mb-1">Unit</label>
             <select className={inputCls + ' w-full'} value={filters.unit} onChange={e => setFilter('unit', e.target.value)}>

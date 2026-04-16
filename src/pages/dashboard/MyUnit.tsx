@@ -114,6 +114,7 @@ export default function MyUnitDashboard() {
             .select('id, date, patient_last_name, patient_first_name, unit, primary_symptom_text, initial_acuity')
             .eq('incident_id', incidentId)
             .eq('unit', unitName ?? '')
+            .is('deleted_at', null)
             .order('date', { ascending: false })
             .limit(8),
 

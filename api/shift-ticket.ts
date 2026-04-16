@@ -1,9 +1,13 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { jsPDF } from 'jspdf'
+import { HttpError, requireAuthUser } from './_auth'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
-  const body = req.body
+
+  try {
+    await requireAuthUser(req)
+    const body = req.body
   const {
     incident, unit, ticketType, measureType, transportRetained,
     shiftRows, personnelRows, remarks,
@@ -48,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const rowH = 9
   const labels = [
     ['1. Agreement Number', incident?.agreement_number],
-    ['2. Contractor / Agency Name', 'Remote Area Medicine'],
+    ['2. Contractor / Agency Name', 'Sierra Valley EMS'],
     ['3. Resource Order Number', incident?.resource_order_number],
   ]
   labels.forEach(([label, val], i) => {
@@ -209,10 +213,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   doc.text('OPTIONAL FORM 297 (REV. 5/2024) — USDA/USDI', W - margin, y, { align: 'right' })
 
   const pdfBuffer = Buffer.from(doc.output('arraybuffer'))
-  return res.send(pdfBuffer, {
-    headers: {
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="OF297-${incident?.name?.replace(/\s+/g,'-') || 'Shift'}.pdf"`,
-    },
-  })
+  res.setHeader('Content-Type', 'application/pdf')
+  res.setHeader('Content-Disposition', `attachment; filename="OF297-${incident?.name?.replace(/\s+/g,'-') || 'Shift'}.pdf"`)
+  return res.send(pdfBuffer)
+  } catch (err: any) {
+    if (err instanceof HttpError) {
+      return res.status(err.status).json({ error: err.message })
+    }
+    return res.status(500).json({ error: err.message || 'Internal error' })
+  }
 }

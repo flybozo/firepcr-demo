@@ -1,9 +1,10 @@
 
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
+import { useRole } from '@/lib/useRole'
 
 const UNIT_TYPES = ['Ambulance', 'Med Unit', 'REMS']
 const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
@@ -11,8 +12,14 @@ const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','
 export default function NewUnitPage() {
   const supabase = createClient()
   const navigate = useNavigate()
+  const { isAdmin, loading: roleLoading } = useRole()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+
+  // Redirect field users — admin only
+  useEffect(() => {
+    if (!roleLoading && !isAdmin) navigate('/units', { replace: true })
+  }, [roleLoading, isAdmin])
 
   const [form, setForm] = useState({
     name: '',
@@ -107,7 +114,7 @@ export default function NewUnitPage() {
           <div>
             <label className={labelClass}>Unit Name *</label>
             <input value={form.name} onChange={e => set('name', e.target.value)}
-              placeholder="e.g. GRANITE 3, MSU 2" className={inputClass} />
+              placeholder="e.g. RAMBO 5, MSU 3, REMS 3" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Unit Type *</label>

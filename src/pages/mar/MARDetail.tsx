@@ -1,11 +1,11 @@
 
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadSingle } from '@/lib/offlineFirst'
 import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
-import SignatureCanvas from 'react-signature-canvas'
+import PinSignature, { type SignatureRecord } from '@/components/PinSignature'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 
 type MAREntry = {
@@ -70,7 +70,98 @@ export default function MARDetailPage() {
   const [savingQty, setSavingQty] = useState(false)
   const [showSignPad, setShowSignPad] = useState(false)
   const [signing, setSigning] = useState(false)
-  const sigRef = useRef<SignatureCanvas>(null)
+  const [showVoidForm, setShowVoidForm] = useState(false)
+  const [voidReason, setVoidReason] = useState('')
+  const [voiding, setVoiding] = useState(false)
+  const [showVoidPin, setShowVoidPin] = useState(false)
+
+  const isVoided = !!(entry as any)?.is_void || !!(entry as any)?.voided_at
+
+  const handleVoid = async (sigRecord: SignatureRecord) => {
+    setVoiding(true)
+    try {
+      // 1. Mark the MAR entry as voided
+      await supabase.from('dispense_admin_log').update({
+        is_void: true,
+        voided_at: new Date().toISOString(),
+        voided_by: sigRecord.employeeName,
+        void_reason: voidReason.trim(),
+      }).eq('id', id)
+
+      // 2. Reverse inventory — return qty to the unit it came from
+      const qtyToReturn = Number(entry?.qty_used) || 0
+      const unitName = entry?.med_unit || entry?.unit || null
+      const itemName = entry?.item_name || null
+      const lotNumber = (entry as any)?.lot_number || null
+      const itemType = (entry as any)?.item_type || null
+
+      if (qtyToReturn > 0 && unitName && itemName) {
+        // Return to general unit_inventory
+        try {
+          const { data: unitRow } = await supabase.from('units').select('id').eq('name', unitName).single()
+          if (unitRow) {
+            const { data: iuRows } = await supabase.from('incident_units').select('id').eq('unit_id', unitRow.id)
+            if (iuRows?.length) {
+              const iuIds = iuRows.map((r: any) => r.id)
+              // Match by item name (and lot number if available)
+              let invQuery = supabase.from('unit_inventory')
+                .select('id, quantity')
+                .in('incident_unit_id', iuIds)
+                .eq('item_name', itemName)
+                .limit(1)
+              if (lotNumber) invQuery = invQuery.eq('lot_number', lotNumber)
+              const { data: invRows } = await invQuery
+              if (invRows?.length) {
+                await supabase.from('unit_inventory')
+                  .update({ quantity: (invRows[0].quantity || 0) + qtyToReturn })
+                  .eq('id', invRows[0].id)
+              }
+            }
+          }
+        } catch { /* inventory reversal is best-effort */ }
+
+        // For controlled substances, log void/reversal in CS transaction log
+        // (inventory already returned to unit_inventory above — single source of truth)
+        if (itemType === 'CS') {
+          // Log void/reversal in CS transaction log
+          try {
+            await supabase.from('cs_transactions').insert({
+              transfer_type: 'Void/Reversal',
+              transaction_type: 'Void/Reversal',
+              drug_name: itemName,
+              lot_number: lotNumber,
+              to_unit: unitName,
+              quantity: qtyToReturn,
+              date: new Date().toISOString(),
+              performed_by: sigRecord.employeeName,
+              notes: `VOID: ${voidReason.trim()} — Reversed administration of ${qtyToReturn} ${itemName}${lotNumber ? ` (Lot ${lotNumber})` : ''} back to ${unitName}`,
+            })
+          } catch { /* CS transaction log is best-effort */ }
+        }
+      }
+
+      // 3. Write audit log entry
+      try {
+        await supabase.from('clinical_audit_log').insert({
+          table_name: 'dispense_admin_log',
+          record_id: id,
+          action: 'void',
+          field_name: 'is_void',
+          old_value: 'false',
+          new_value: 'true',
+          performed_by: sigRecord.employeeName,
+          metadata: { void_reason: voidReason.trim(), qty_returned: qtyToReturn, unit: unitName, item: itemName, lot: lotNumber, item_type: itemType },
+        })
+      } catch { /* audit is best-effort */ }
+
+      setEntry(prev => prev ? { ...prev, is_void: true, voided_at: new Date().toISOString(), voided_by: sigRecord.employeeName, void_reason: voidReason } as any : prev)
+      setShowVoidPin(false)
+      setShowVoidForm(false)
+    } catch (err) {
+      alert('Failed to void entry')
+    }
+    setVoiding(false)
+  }
 
   const loadEntry = async () => {
     // Show cached data instantly
@@ -144,33 +235,15 @@ export default function MARDetailPage() {
     setSavingQty(false)
   }
 
-  const handleSign = async () => {
-    if (!sigRef.current || sigRef.current.isEmpty()) {
-      alert('Please draw your signature.')
-      return
-    }
+  const handleSign = async (rec: SignatureRecord) => {
     setSigning(true)
     try {
-      const dataUrl = sigRef.current.toDataURL('image/png')
-      const base64 = dataUrl.split(',')[1]
-      const byteChars = atob(base64)
-      const byteArr = new Uint8Array(byteChars.length)
-      for (let i = 0; i < byteChars.length; i++) byteArr[i] = byteChars.charCodeAt(i)
-      const blob = new Blob([byteArr], { type: 'image/png' })
-      const path = `mar-orders/${Date.now()}-provider.png`
-
-      const { error: uploadErr } = await supabase.storage.from('signatures').upload(path, blob, { contentType: 'image/png' })
-      if (uploadErr) throw new Error(uploadErr.message)
-
-      const { data: urlData } = supabase.storage.from('signatures').getPublicUrl(path)
-      const signatureUrl = urlData.publicUrl
-
       const { error: updateErr } = await supabase
         .from('dispense_admin_log')
         .update({
-          provider_signature_url: signatureUrl,
-          provider_signed_at: new Date().toISOString(),
-          provider_signed_by: assignment.user?.email || 'unknown',
+          provider_signature_url: rec.signatureHash,
+          provider_signed_at: rec.signedAt,
+          provider_signed_by: rec.displayText,
           requires_cosign: false,
         })
         .eq('id', id)
@@ -358,53 +431,23 @@ export default function MARDetailPage() {
               <p className="text-orange-400 text-xs">
                 Prescribing provider: <strong>{entry.prescribing_provider || '—'}</strong>
               </p>
-              {!showSignPad ? (
-                <button
-                  type="button"
-                  onClick={() => setShowSignPad(true)}
-                  className="bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
-                >
-                  ✍️ Sign Now
-                </button>
-              ) : (
-                <div className="space-y-2">
-                  <p className="text-xs text-gray-400">Draw your signature:</p>
-                  <div className="bg-white rounded-lg overflow-hidden" style={{ width: 300, height: 80 }}>
-                    <SignatureCanvas
-                      ref={sigRef}
-                      penColor="black"
-                      canvasProps={{
-                        width: 300,
-                        height: 80,
-                        style: { touchAction: 'none', display: 'block' }
-                      }}
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={handleSign}
-                      disabled={signing}
-                      className="bg-orange-600 hover:bg-orange-700 disabled:bg-gray-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
-                    >
-                      {signing ? 'Saving...' : 'Submit Signature'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => { sigRef.current?.clear() }}
-                      className="bg-gray-700 hover:bg-gray-600 text-white text-sm px-3 py-2 rounded-lg transition-colors"
-                    >
-                      Clear
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setShowSignPad(false)}
-                      className="text-gray-500 hover:text-gray-300 text-sm px-3 py-2"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </div>
+              <button
+                type="button"
+                onClick={() => setShowSignPad(true)}
+                className="bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+              >
+                Sign Now
+              </button>
+              {showSignPad && (
+                <PinSignature
+                  label="Provider Co-Signature"
+                  mode="self"
+                  employeeId={assignment.employee?.id}
+                  employeeName={assignment.employee?.name}
+                  documentContext={`mar-cosign-${id}`}
+                  onSign={(rec) => { setShowSignPad(false); handleSign(rec) }}
+                  onCancel={() => setShowSignPad(false)}
+                />
               )}
             </div>
           ) : (
@@ -428,6 +471,69 @@ export default function MARDetailPage() {
           <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-2">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Notes</h2>
             <p className="text-sm text-white whitespace-pre-wrap">{entry.notes}</p>
+          </div>
+        )}
+
+        {/* Void banner (if already voided) */}
+        {isVoided && (
+          <div className="bg-red-950 border border-red-800 rounded-xl px-4 py-3 space-y-1">
+            <p className="text-sm font-bold text-red-300">⛔ VOIDED</p>
+            <p className="text-xs text-red-400">Voided by {(entry as any).voided_by} on {new Date((entry as any).voided_at).toLocaleString()}</p>
+            {(entry as any).void_reason && <p className="text-xs text-red-400/80">Reason: {(entry as any).void_reason}</p>}
+          </div>
+        )}
+
+        {/* Void Entry button (not shown if already voided) */}
+        {!isVoided && (
+          <div className="pt-2">
+            {!showVoidForm ? (
+              <button
+                onClick={() => setShowVoidForm(true)}
+                className="w-full py-2.5 bg-red-900/50 hover:bg-red-900 border border-red-800 text-red-300 font-semibold rounded-xl text-sm transition-colors"
+              >
+                ⛔ Void This Entry
+              </button>
+            ) : showVoidPin ? (
+              <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+                <PinSignature
+                  label={`Void ${isCS ? 'Controlled Substance' : 'MAR'} Entry`}
+                  mode="self"
+                  employeeId={assignment.employee?.id}
+                  employeeName={assignment.employee?.name}
+                  documentContext={`void-mar:${id}`}
+                  onSign={handleVoid}
+                  onCancel={() => { setShowVoidPin(false); setShowVoidForm(false) }}
+                />
+              </div>
+            ) : (
+              <div className="bg-gray-900 rounded-xl border border-red-800 p-4 space-y-3">
+                <p className="text-sm font-semibold text-red-300">⛔ Void MAR Entry</p>
+                <p className="text-xs text-gray-400">
+                  This will mark the entry as voided. It will remain in the record for audit purposes{isCS ? ' (required for controlled substances)' : ''} but will not count toward clinical totals.
+                </p>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Reason for voiding *</label>
+                  <textarea
+                    value={voidReason}
+                    onChange={e => setVoidReason(e.target.value)}
+                    placeholder="e.g. Duplicate entry, incorrect dosage recorded, wrong patient..."
+                    rows={2}
+                    className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setShowVoidForm(false); setVoidReason('') }}
+                    className="flex-1 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm text-gray-400 transition-colors"
+                  >Cancel</button>
+                  <button
+                    disabled={!voidReason.trim() || voiding}
+                    onClick={() => setShowVoidPin(true)}
+                    className="flex-1 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-sm font-bold text-white transition-colors"
+                  >Continue — PIN Required</button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

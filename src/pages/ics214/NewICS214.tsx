@@ -73,6 +73,7 @@ export default function NewICS214Page() {
   const [initialActivity, setInitialActivity] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
+  const [isAdminOverride, setIsAdminOverride] = useState(false)
 
   // Load units + incidents
   useEffect(() => {
@@ -185,6 +186,7 @@ export default function NewICS214Page() {
       setUnitType(typeName)
       setLeaderPosition(getLeaderPosition(typeName))
     }
+    if (isAdmin) setIsAdminOverride(true)
     // Auto-fill incident from active incident_unit
     if (id) {
       const { data: iuData } = await supabase
@@ -202,10 +204,29 @@ export default function NewICS214Page() {
     }
   }
 
-  const handleIncidentChange = (id: string) => {
+  const handleIncidentChange = async (id: string) => {
     setIncidentId(id)
     const inc = incidents.find(i => i.id === id)
     if (inc) setIncidentName(inc.name)
+    // Admin: suggest a unit currently assigned to this incident (can be overridden — dropdown stays unrestricted)
+    if (isAdmin && id) {
+      setIsAdminOverride(true)
+      const { data: iuData } = await supabase
+        .from('incident_units')
+        .select('unit_id, unit:units(id, name, unit_type:unit_types(name))')
+        .eq('incident_id', id)
+        .is('released_at', null)
+        .order('assigned_at', { ascending: false })
+        .limit(1)
+      const iu = (iuData as any)?.[0]
+      if (iu?.unit) {
+        setUnitId(iu.unit.id)
+        setUnitName(iu.unit.name)
+        const typeName = (iu.unit as any).unit_type?.name ?? ''
+        setUnitType(typeName)
+        setLeaderPosition(getLeaderPosition(typeName))
+      }
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -326,7 +347,14 @@ export default function NewICS214Page() {
             <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
               Unit <span className="text-red-500">*</span>
             </label>
-            {isAdmin ? (
+{/* Everyone gets the unit dropdown — field users pre-filled from assignment but can change if not yet assigned */}
+            {unitId && !isAdmin ? (
+              <div className="w-full bg-gray-800/50 text-white rounded-lg px-3 py-2.5 text-sm border border-gray-700 flex items-center justify-between">
+                <span>{unitName}</span>
+                <button type="button" onClick={() => { setUnitId(''); setUnitName(''); setUnitType('') }}
+                  className="text-xs text-gray-500 hover:text-gray-300 ml-2">× change</button>
+              </div>
+            ) : (
               <select
                 value={unitId}
                 onChange={e => handleUnitChange(e.target.value)}
@@ -338,10 +366,6 @@ export default function NewICS214Page() {
                   <option key={u.id} value={u.id}>{u.name}</option>
                 ))}
               </select>
-            ) : (
-              <div className="w-full bg-gray-800/50 text-white rounded-lg px-3 py-2.5 text-sm border border-gray-700">
-                {unitName || <span className="text-gray-500 italic">No unit assigned</span>}
-              </div>
             )}
           </div>
 
@@ -350,7 +374,14 @@ export default function NewICS214Page() {
             <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
               Incident <span className="text-red-500">*</span>
             </label>
-            {isAdmin ? (
+{/* Everyone gets the incident dropdown — field users pre-filled from assignment but can change if not yet assigned */}
+            {incidentId && !isAdmin ? (
+              <div className="w-full bg-gray-800/50 text-white rounded-lg px-3 py-2.5 text-sm border border-gray-700 flex items-center justify-between">
+                <span>{incidentName}</span>
+                <button type="button" onClick={() => { setIncidentId(''); setIncidentName('') }}
+                  className="text-xs text-gray-500 hover:text-gray-300 ml-2">× change</button>
+              </div>
+            ) : (
               <select
                 value={incidentId}
                 onChange={e => handleIncidentChange(e.target.value)}
@@ -362,12 +393,15 @@ export default function NewICS214Page() {
                   <option key={i.id} value={i.id}>{i.name}</option>
                 ))}
               </select>
-            ) : (
-              <div className="w-full bg-gray-800/50 text-white rounded-lg px-3 py-2.5 text-sm border border-gray-700">
-                {incidentName || <span className="text-gray-500 italic">No active incident</span>}
-              </div>
             )}
           </div>
+
+          {/* Admin override notice */}
+          {isAdmin && isAdminOverride && (
+            <div className="bg-amber-950/60 border border-amber-700 rounded-lg px-3 py-2 text-amber-400 text-xs">
+              ⚠️ Admin override — for backdated 214s. Unit and incident auto-suggested but can be changed freely.
+            </div>
+          )}
 
           {/* Op Date */}
           <div>
@@ -403,23 +437,23 @@ export default function NewICS214Page() {
                 </button>
               ))}
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="min-w-0">
                 <label className="block text-xs text-gray-500 mb-1">Start Time</label>
                 <input
                   type="time"
                   value={opStart}
                   onChange={e => setOpStart(e.target.value)}
-                  className="w-full bg-gray-800 text-white rounded-lg px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className="w-full min-w-0 bg-gray-800 text-white rounded-lg px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500"
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="block text-xs text-gray-500 mb-1">End Time</label>
                 <input
                   type="time"
                   value={opEnd}
                   onChange={e => setOpEnd(e.target.value)}
-                  className="w-full bg-gray-800 text-white rounded-lg px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className="w-full min-w-0 bg-gray-800 text-white rounded-lg px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500"
                 />
               </div>
             </div>

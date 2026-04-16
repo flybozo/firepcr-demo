@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { createServiceClient } from '../_supabase'
+import { HttpError, requireAuthUser } from '../_auth'
 
 // GET /api/incident-access/download?code=XXXX&type=comp_claim&id=YYYY
 // Validates the access code, confirms the document belongs to the incident, returns signed URL.
@@ -14,6 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Missing parameters' })
   }
 
+  // Access code based auth — no JWT required (external fire admin users)
   const supabase = createServiceClient()
 
   // Validate the access code
@@ -66,35 +68,54 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(404).json({ error: 'No PDF available for this record' })
   }
 
-  // Extract storage path from the URL and create a signed URL (60 minutes)
-  // pdfUrl format: https://xxx.supabase.co/storage/v1/object/public/BUCKET/PATH
-  // or: https://xxx.supabase.co/storage/v1/object/sign/BUCKET/PATH
+  // Generate a signed URL for the PDF.
+  // pdfUrl can be:
+  //   - A storage path like "comp-claims/883d2338.pdf" or "ics214/ICS214-xxx.pdf"
+  //   - A full Supabase storage URL
   try {
-    const url = new URL(pdfUrl)
-    const pathParts = url.pathname.split('/')
-    // Find bucket and object path
-    // e.g. /storage/v1/object/public/comp-claims/file.pdf
-    const storageIdx = pathParts.findIndex(p => p === 'public' || p === 'sign')
-    if (storageIdx === -1) {
-      // Just return the URL directly if it's not a Supabase storage URL
-      return res.json({ url: pdfUrl })
-    }
+    let bucket: string
+    let objectPath: string
 
-    const bucket = pathParts[storageIdx + 1]
-    const objectPath = pathParts.slice(storageIdx + 2).join('/')
+    if (pdfUrl.startsWith('http')) {
+      // Full URL — parse out bucket and path
+      const url = new URL(pdfUrl)
+      const pathParts = url.pathname.split('/')
+      const storageIdx = pathParts.findIndex(p => p === 'public' || p === 'sign')
+      if (storageIdx === -1) {
+        return res.json({ url: pdfUrl })
+      }
+      bucket = pathParts[storageIdx + 1]
+      objectPath = pathParts.slice(storageIdx + 2).join('/')
+    } else {
+      // Storage path — extract bucket from the first path segment
+      // e.g. "comp-claims/883d2338.pdf" → bucket="comp-claims", path="883d2338.pdf"
+      // e.g. "ics214/ICS214-xxx.pdf" → bucket="documents", path="ics214/ICS214-xxx.pdf"
+      const firstSlash = pdfUrl.indexOf('/')
+      if (firstSlash === -1) {
+        return res.status(404).json({ error: 'Invalid PDF path' })
+      }
+      const prefix = pdfUrl.slice(0, firstSlash)
+      // Known bucket prefixes
+      if (prefix === 'comp-claims') {
+        bucket = 'comp-claims'
+        objectPath = pdfUrl.slice(firstSlash + 1)
+      } else {
+        // Default: treat as documents bucket with full path
+        bucket = 'documents'
+        objectPath = pdfUrl
+      }
+    }
 
     const { data: signedData, error: signErr } = await supabase.storage
       .from(bucket)
       .createSignedUrl(objectPath, 3600) // 60 minutes
 
     if (signErr || !signedData?.signedUrl) {
-      // Fall back to returning the original URL
-      return res.json({ url: pdfUrl })
+      return res.status(500).json({ error: 'Failed to generate download URL' })
     }
 
     return res.json({ url: signedData.signedUrl })
-  } catch {
-    // Fall back to returning original URL on parse error
-    return res.json({ url: pdfUrl })
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to process PDF URL' })
   }
 }

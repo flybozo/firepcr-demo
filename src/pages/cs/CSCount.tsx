@@ -1,11 +1,12 @@
 
 
-import { useEffect, useRef, useState, Suspense } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import SignatureCanvas from 'react-signature-canvas'
 import { useOfflineWrite } from '@/lib/useOfflineWrite'
+import { useUserAssignment } from '@/lib/useUserAssignment'
+import PinSignature, { type SignatureRecord } from '@/components/PinSignature'
 
 type Employee = {
   id: string
@@ -28,26 +29,23 @@ type CountEntry = {
   discrepancyNote: string
 }
 
-const ALL_UNITS = ['Warehouse', 'GRANITE 1', 'GRANITE 2', 'GRANITE MSU', 'GRANITE REMS']
+const ALL_UNITS = ['Warehouse', 'RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
 const CLINICAL_ROLES = ['MD/DO', 'NP', 'PA', 'Paramedic', 'RN']
 
 const inputCls = 'w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500'
 const labelCls = 'block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1'
 
-async function sigPadToBlob(ref: React.RefObject<SignatureCanvas | null>): Promise<Blob | null> {
-  if (!ref.current || ref.current.isEmpty()) return null
-  return new Promise(resolve => {
-    ref.current!.getCanvas().toBlob(blob => resolve(blob), 'image/png')
-  })
-}
 
 function DailyCountInner() {
   const supabase = createClient()
   const navigate = useNavigate()
   const { write: offlineWrite, isOffline } = useOfflineWrite()
   const [searchParams] = useSearchParams()
-  const counterSigRef = useRef<SignatureCanvas>(null)
-  const witnessSigRef = useRef<SignatureCanvas>(null)
+  const assignment = useUserAssignment()
+  const [showCounterSig, setShowCounterSig] = useState(false)
+  const [showWitnessSig, setShowWitnessSig] = useState(false)
+  const [counterSigRecord, setCounterSigRecord] = useState<SignatureRecord | null>(null)
+  const [witnessSigRecord, setWitnessSigRecord] = useState<SignatureRecord | null>(null)
 
   const [employees, setEmployees] = useState<Employee[]>([])
   const [csItems, setCSItems] = useState<CSItem[]>([])
@@ -134,8 +132,8 @@ function DailyCountInner() {
     if (!form.performed_by) { setError('Counter is required'); return }
     if (!form.witness) { setError('Witness is required'); return }
     if (form.performed_by === form.witness) { setError('Counter and Witness must be different people'); return }
-    if (!counterSigRef.current || counterSigRef.current.isEmpty()) { setError('Counter signature is required'); return }
-    if (!witnessSigRef.current || witnessSigRef.current.isEmpty()) { setError('Witness signature is required'); return }
+    if (!counterSigRecord) { setError('Counter signature is required — tap Sign below'); return }
+    if (!witnessSigRecord) { setError('Witness signature is required'); return }
 
     // Check all discrepancies have notes
     for (const entry of entries) {
@@ -147,21 +145,8 @@ function DailyCountInner() {
 
     setSubmitting(true)
     try {
-      const ts = Date.now()
-
-      const counterBlob = await sigPadToBlob(counterSigRef)
-      const witnessBlob = await sigPadToBlob(witnessSigRef)
-      let counterSigUrl = ''
-      let witnessSigUrl = ''
-
-      if (counterBlob) {
-        const { data } = await supabase.storage.from('signatures').upload(`cs-count/${ts}-counter.png`, counterBlob, { contentType: 'image/png' })
-        if (data) counterSigUrl = supabase.storage.from('signatures').getPublicUrl(data.path).data.publicUrl
-      }
-      if (witnessBlob) {
-        const { data } = await supabase.storage.from('signatures').upload(`cs-count/${ts}-witness.png`, witnessBlob, { contentType: 'image/png' })
-        if (data) witnessSigUrl = supabase.storage.from('signatures').getPublicUrl(data.path).data.publicUrl
-      }
+      const counterSigUrl = counterSigRecord?.signatureHash || ''
+      const witnessSigUrl = witnessSigRecord?.signatureHash || ''
 
       const counterName = employees.find(e => e.id === form.performed_by)?.name || form.performed_by
       const witnessName = employees.find(e => e.id === form.witness)?.name || form.witness
@@ -205,6 +190,22 @@ function DailyCountInner() {
         counter_signature_url: counterSigUrl || null,
         witness_signature_url: witnessSigUrl || null,
       })
+
+      // Alert admins if discrepancies found
+      if (discrepancySummary.length > 0) {
+        try {
+          const { authFetch } = await import('@/lib/authFetch')
+          await authFetch('/api/push/cs-discrepancy-alert', {
+            method: 'POST',
+            body: JSON.stringify({
+              unit: selectedUnit,
+              counter: counterName,
+              witness: witnessName,
+              discrepancies: discrepancySummary,
+            }),
+          })
+        } catch { /* alert is best-effort */ }
+      }
 
       setSuccess(true)
       setTimeout(() => navigate('/cs'), 2000)
@@ -340,19 +341,39 @@ function DailyCountInner() {
         {/* Counter Signature */}
         <div>
           <label className={labelCls}>Counter Signature{counterName ? ` — ${counterName}` : ''} *</label>
-          <div className="rounded-lg overflow-hidden border border-gray-600" style={{ width: 220, height: 80 }}>
-            <SignatureCanvas ref={counterSigRef} penColor="black" canvasProps={{ width: 220, height: 80, style: { background: 'white' } }} />
-          </div>
-          <button type="button" onClick={() => counterSigRef.current?.clear()} className="text-xs text-gray-500 hover:text-gray-300 mt-1">Clear</button>
+          {counterSigRecord ? (
+            <div className="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-3">
+              <div>
+                <p className="text-green-400 text-sm font-medium">✓ Signed</p>
+                <p className="text-gray-400 text-xs">{counterSigRecord.displayText}</p>
+              </div>
+              <button type="button" onClick={() => setCounterSigRecord(null)} className="text-gray-500 hover:text-white text-xs">Clear</button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setShowCounterSig(true)}
+              className="w-full py-3 bg-gray-800 hover:bg-gray-700 border border-dashed border-gray-600 rounded-xl text-sm text-gray-400 transition-colors">
+              Tap to Sign
+            </button>
+          )}
         </div>
 
         {/* Witness Signature */}
         <div>
           <label className={labelCls}>Witness Signature{witnessName ? ` — ${witnessName}` : ''} *</label>
-          <div className="rounded-lg overflow-hidden border border-gray-600" style={{ width: 220, height: 80 }}>
-            <SignatureCanvas ref={witnessSigRef} penColor="black" canvasProps={{ width: 220, height: 80, style: { background: 'white' } }} />
-          </div>
-          <button type="button" onClick={() => witnessSigRef.current?.clear()} className="text-xs text-gray-500 hover:text-gray-300 mt-1">Clear</button>
+          {witnessSigRecord ? (
+            <div className="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-3">
+              <div>
+                <p className="text-green-400 text-sm font-medium">✓ Witnessed</p>
+                <p className="text-gray-400 text-xs">{witnessSigRecord.displayText}</p>
+              </div>
+              <button type="button" onClick={() => setWitnessSigRecord(null)} className="text-gray-500 hover:text-white text-xs">Clear</button>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setShowWitnessSig(true)}
+              className="w-full py-3 bg-gray-800 hover:bg-gray-700 border border-dashed border-gray-600 rounded-xl text-sm text-gray-400 transition-colors">
+              Witness — Tap to Sign
+            </button>
+          )}
         </div>
 
         {discrepancyCount > 0 && (
@@ -371,6 +392,20 @@ function DailyCountInner() {
           </button>
         </div>
       </form>
+
+      {showCounterSig && (
+        <PinSignature label="Counter Signature" mode="self"
+          employeeId={assignment.employee?.id} employeeName={assignment.employee?.name}
+          documentContext="cs-count"
+          onSign={(rec) => { setCounterSigRecord(rec); setShowCounterSig(false) }}
+          onCancel={() => setShowCounterSig(false)} />
+      )}
+      {showWitnessSig && (
+        <PinSignature label="Witness Signature" mode="witness"
+          documentContext="cs-count"
+          onSign={(rec) => { setWitnessSigRecord(rec); setShowWitnessSig(false) }}
+          onCancel={() => setShowWitnessSig(false)} />
+      )}
     </div>
   )
 }

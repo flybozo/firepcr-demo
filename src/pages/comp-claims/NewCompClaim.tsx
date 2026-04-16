@@ -99,7 +99,7 @@ function NewCompClaimInner() {
             onChange={e => setPickerUnit(e.target.value)}
             className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="">Select unit...</option>
-            {['GRANITE 1','GRANITE 2','GRANITE MSU','GRANITE REMS'].map(u => <option key={u}>{u}</option>)}
+            {['RAMBO 1','RAMBO 2','RAMBO 3','RAMBO 4','The Beast','MSU 1','MSU 2','REMS 1','REMS 2'].map(u => <option key={u}>{u}</option>)}
           </select>
         )}
       </div>
@@ -450,7 +450,7 @@ function NewCompClaimInner() {
       // Auto-generate and upload PDF
       try {
         const claimIdStr = ((insertedClaim as any)?.id || Date.now()).toString().slice(-8)
-        const doc2 = generateCompClaimsPDF({
+        const doc2 = await generateCompClaimsPDF({
           patient_name: form.patient_name,
           employee_agency: form.employee_agency || '',
           employee_crew: form.employee_crew_assignment,
@@ -496,11 +496,11 @@ function NewCompClaimInner() {
     }
   }
 
-  const handleDownloadOSHA = () => {
+  const handleDownloadOSHA = async () => {
     if (!lastClaimData) return
     setPdfGenerating(true)
     try {
-      const doc = generateCompClaimsPDF({
+      const doc = await generateCompClaimsPDF({
         patient_name: lastClaimData.patient_name,
         employee_agency: lastClaimData.employee_agency || '',
         employee_crew: lastClaimData.employee_crew_assignment,
@@ -633,7 +633,7 @@ function NewCompClaimInner() {
           </div>
           <div>
             <label className={labelCls}>Unit</label>
-            <input type="text" className={inputCls} value={form.unit} onChange={e => set('unit', e.target.value)} placeholder="e.g. GRANITE 1" />
+            <input type="text" className={inputCls} value={form.unit} onChange={e => set('unit', e.target.value)} placeholder="e.g. RAMBO 2" />
           </div>
           <div>
             <label className={labelCls}>Time Employee Began Work</label>

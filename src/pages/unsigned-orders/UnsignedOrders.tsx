@@ -41,15 +41,15 @@ export default function UnsignedOrdersPage() {
       const [{ data: chartData }, { data: provCharts }, { data: noteData }] = await Promise.all([
         supabase.from('patient_encounters')
           .select('id, encounter_id, date, unit, incident, patient_first_name, patient_last_name, created_by, pcr_status, signed_at')
-          .eq('created_by', myName).is('signed_at', null)
+          .eq('created_by', myName).is('signed_at', null).is('deleted_at', null)
           .order('date', { ascending: false }).limit(100),
         supabase.from('patient_encounters')
           .select('id, encounter_id, date, unit, incident, patient_first_name, patient_last_name, created_by, pcr_status, signed_at')
-          .eq('provider_of_record', myName).is('signed_at', null)
+          .eq('provider_of_record', myName).is('signed_at', null).is('deleted_at', null)
           .order('date', { ascending: false }).limit(100),
         supabase.from('progress_notes')
           .select('id, encounter_id, note_datetime, author_name, note_text')
-          .eq('author_name', myName).is('signed_at', null)
+          .eq('author_name', myName).is('signed_at', null).is('deleted_at', null)
           .order('note_datetime', { ascending: false }).limit(50),
       ])
       const all = [...(chartData || []), ...(provCharts || [])]
