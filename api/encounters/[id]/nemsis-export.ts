@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { requireEmployee, HttpError } from '../../_auth.js'
 import { createServiceClient } from '../../_supabase.js'
-import { buildPcrXml } from '../../../src/lib/nemsis/buildPcrXml'
-import { rateLimit } from '../../_rateLimit'
+import { buildPcrXml } from '../../../src/lib/nemsis/buildPcrXml.js'
+import { rateLimit } from '../../_rateLimit.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' })

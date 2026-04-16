@@ -3,7 +3,7 @@
  * No external deps — keeps the bundle small.
  */
 
-import { HttpError } from './_auth'
+import { HttpError } from './_auth.js'
 
 type Rule = {
   field: string

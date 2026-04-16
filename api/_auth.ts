@@ -1,6 +1,6 @@
 
 import type { VercelRequest } from '@vercel/node'
-import { createServiceClient } from './_supabase'
+import { createServiceClient } from './_supabase.js'
 
 export class HttpError extends Error {
   status: number

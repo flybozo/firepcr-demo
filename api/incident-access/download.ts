@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
-import { createServiceClient } from '../_supabase'
-import { HttpError, requireAuthUser } from '../_auth'
+import { createServiceClient } from '../_supabase.js'
+import { HttpError, requireAuthUser } from '../_auth.js'
 
 // GET /api/incident-access/download?code=XXXX&type=comp_claim&id=YYYY
 // Validates the access code, confirms the document belongs to the incident, returns signed URL.

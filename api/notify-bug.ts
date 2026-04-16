@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { HttpError, requireEmployee } from './_auth'
-import { sanitize } from './_validate'
-import { rateLimit } from './_rateLimit'
+import { HttpError, requireEmployee } from './_auth.js'
+import { sanitize } from './_validate.js'
+import { rateLimit } from './_rateLimit.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })

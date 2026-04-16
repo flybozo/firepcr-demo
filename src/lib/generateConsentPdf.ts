@@ -15,7 +15,7 @@ export type ConsentToTreatData = {
 
 export async function generateConsentToTreatPDF(data: ConsentToTreatData, logoDataUrl?: string | null): Promise<jsPDF> {
   const jspdfModule = await import('jspdf')
-  const JsPDF = (jspdfModule.default as any)?.default ?? jspdfModule.default
+  const JsPDF = (jspdfModule as any).jsPDF ?? (jspdfModule.default as any)?.jsPDF ?? (jspdfModule.default as any)?.default ?? jspdfModule.default
   const doc = new JsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
   const W = 612, M = 54
   let y = M

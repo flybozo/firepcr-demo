@@ -1,8 +1,8 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { createServiceClient } from '../_supabase'
-import { HttpError, requireEmployee } from '../_auth'
-import { rateLimit } from '../_rateLimit'
+import { createServiceClient } from '../_supabase.js'
+import { HttpError, requireEmployee } from '../_auth.js'
+import { rateLimit } from '../_rateLimit.js'
 
 function setCors(req: VercelRequest, res: VercelResponse) {
   const allowedOrigins = new Set([
