@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { createClient } from '@/lib/supabase/client'
 import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, CartesianGrid,
@@ -67,6 +66,7 @@ type DashboardData = {
   }[]
   code_label: string | null
   codeLabel?: string | null  // backward compat
+  supply_aggregated?: { item_name: string; total_qty: number; unit: string; category: string }[]
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -313,15 +313,15 @@ function CompClaimsTab({ data, code }: { data: DashboardData; code: string }) {
 
       {data.comp_claims.length === 0 ? <Empty text="No comp claims on file for this incident" /> : (
         <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-          <div className="grid grid-cols-[80px_80px_52px_100px_100px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
+          <div className="grid grid-cols-[80px_80px_52px_1fr_90px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
             <span>Claim #</span>
             <span>Date</span>
             <span>Patient</span>
-            <span className="hidden md:block">OSHA</span>
+            <span className="hidden md:block">OSHA Status</span>
             <span className="text-right">PDF</span>
           </div>
           {data.comp_claims.map(cc => (
-            <div key={cc.id} className="grid grid-cols-[80px_80px_52px_100px_100px] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 transition-colors items-center">
+            <div key={cc.id} className="grid grid-cols-[80px_80px_52px_1fr_90px] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 transition-colors items-center">
               <span className="font-mono text-gray-300 text-xs font-semibold">{cc.seq_id}</span>
               <span className="text-gray-400 text-xs">{cc.date_of_injury ? new Date(cc.date_of_injury + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
               <span className="font-mono text-xs text-white font-semibold">{(cc as any).patient_initials || '—'}</span>
@@ -429,40 +429,8 @@ function ICS214Tab({ data, code }: { data: DashboardData; code: string }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 // ── Tab 5: Supply ────────────────────────────────────────────────────────────
-function SupplyTab({ code, incidentId }: { code: string; incidentId: string }) {
-  const [items, setItems] = useState<{ item_name: string; total_qty: number; unit: string }[]>([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const supabase = createClient()
-    const load = async () => {
-      try {
-        const { data: runs } = await supabase
-          .from('supply_runs')
-          .select('id')
-          .eq('incident_id', incidentId)
-        const runIds = (runs || []).map((r: { id: string }) => r.id)
-        if (runIds.length === 0) { setItems([]); return }
-        const { data: runItems } = await supabase
-          .from('supply_run_items')
-          .select('item_name, quantity, unit_of_measure')
-          .in('supply_run_id', runIds)
-        const totals: Record<string, { qty: number; unit: string }> = {}
-        ;(runItems || []).forEach((i: { item_name: string; quantity: number | null; unit_of_measure: string | null }) => {
-          if (!totals[i.item_name]) totals[i.item_name] = { qty: 0, unit: i.unit_of_measure || '' }
-          totals[i.item_name].qty += i.quantity || 0
-        })
-        setItems(
-          Object.entries(totals)
-            .map(([item_name, { qty, unit }]) => ({ item_name, total_qty: qty, unit }))
-            .sort((a, b) => b.total_qty - a.total_qty)
-        )
-      } catch { setItems([]) } finally { setLoading(false) }
-    }
-    load()
-  }, [incidentId])
-
-  if (loading) return <Skeleton h="h-48" />
+function SupplyTab({ data }: { data: DashboardData }) {
+  const items = data.supply_aggregated || []
   if (items.length === 0) return <Empty text="No supply run data for this incident" />
 
   const BAR_COLORS = [C.blue, C.teal, C.violet, C.orange, C.red, C.green, C.amber]
@@ -641,7 +609,7 @@ export default function FireAdminPage() {
         {tab === 'patients' && <PatientLogTab data={{ ...data, encounters: applyDateFilter(data.encounters) }} code={code} />}
         {tab === 'comp' && <CompClaimsTab data={{ ...data, comp_claims: applyDateFilter(data.comp_claims as any) }} code={code} />}
         {tab === 'ics214' && <ICS214Tab data={data} code={code} />}
-        {tab === 'supply' && <SupplyTab code={code} incidentId={data.incident.id} />}
+        {tab === 'supply' && <SupplyTab data={data} />}
 
         {/* ── Footer ── */}
         <footer className="pt-4 border-t border-gray-800 text-center">

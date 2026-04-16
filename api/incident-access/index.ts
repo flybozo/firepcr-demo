@@ -51,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const [incR, orgR, encR, iuR, compR, ics214R, amaR] = await Promise.all([
         supabase.from('incidents').select('*').eq('id', incidentId).single(),
         supabase.from('organizations').select('name, dba, logo_url').limit(1).single(),
-        supabase.from('patient_encounters').select('id, date, unit, patient_age, patient_age_units, primary_symptom_text, initial_acuity, final_acuity, patient_disposition, created_at').eq('incident_id', incidentId).order('date', { ascending: false }),
+        supabase.from('patient_encounters').select('id, encounter_id, date, unit, patient_age, patient_age_units, primary_symptom_text, initial_acuity, final_acuity, patient_disposition, created_at').eq('incident_id', incidentId).order('date', { ascending: false }),
         supabase.from('incident_units').select('id, unit:units(name)').eq('incident_id', incidentId),
         supabase.from('comp_claims').select('id, date_of_injury, status, pdf_url, osha_recordable, created_at, encounter_id, patient_name').eq('incident_id', incidentId).order('created_at', { ascending: false }),
         supabase.from('ics214_headers').select('id, ics214_id, unit_name, op_date, status, pdf_url, created_at, created_by').eq('incident_id', incidentId).order('op_date', { ascending: false }),
@@ -59,6 +59,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ])
       if (!incR.data) return res.status(404).json({ error: 'Incident not found' })
 
+      // comp_claims.encounter_id stores the text encounter_id (e.g. 'ENC-123') — match on both UUID and text
       const compClaimEncounterIds = new Set((compR.data || []).map((c: any) => c.encounter_id).filter(Boolean))
       const amaEncounterIds = new Set((amaR.data || []).map((a: any) => a.encounter_id).filter(Boolean))
 
@@ -77,8 +78,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         age: enc.patient_age ? `${enc.patient_age} ${enc.patient_age_units || 'yrs'}` : null,
         chief_complaint: enc.primary_symptom_text, acuity: mapAcuity(enc.initial_acuity),
         disposition: enc.patient_disposition, created_at: enc.created_at,
-        has_comp_claim: compClaimEncounterIds.has(enc.id),
-        has_ama: amaEncounterIds.has(enc.id),
+        has_comp_claim: compClaimEncounterIds.has(enc.id) || compClaimEncounterIds.has(enc.encounter_id),
+        has_ama: amaEncounterIds.has(enc.id) || amaEncounterIds.has(enc.encounter_id),
       }))
 
       const dailyCounts: Record<string, number> = {}
@@ -88,9 +89,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const acCounts: Record<string, number> = {}
       encounters.forEach((e: any) => { if (e.acuity) acCounts[e.acuity] = (acCounts[e.acuity] || 0) + 1 })
 
+      // Fetch supply runs + aggregate items
+      const { data: supplyRunsData } = await supabase
+        .from('supply_runs')
+        .select('id')
+        .eq('incident_id', incidentId)
+      const runIds = (supplyRunsData || []).map((r: any) => r.id)
+      let supplyAggregated: { item_name: string; total_qty: number; unit: string; category: string }[] = []
+      if (runIds.length > 0) {
+        const { data: supplyItems } = await supabase
+          .from('supply_run_items')
+          .select('item_name, quantity, unit_of_measure, category')
+          .in('supply_run_id', runIds)
+          .is('deleted_at', null)
+        const totals: Record<string, { qty: number; unit: string; category: string }> = {}
+        ;(supplyItems || []).forEach((i: any) => {
+          if (!i.item_name) return
+          if (!totals[i.item_name]) totals[i.item_name] = { qty: 0, unit: i.unit_of_measure || '', category: i.category || '' }
+          totals[i.item_name].qty += Number(i.quantity) || 0
+        })
+        supplyAggregated = Object.entries(totals)
+          .map(([item_name, { qty, unit, category }]) => ({ item_name, total_qty: qty, unit, category }))
+          .sort((a, b) => b.total_qty - a.total_qty)
+      }
+
       return res.json({
         incident: incR.data, org: orgR.data || null,
-        stats: { total_patients: encounters.length, total_encounters: encounters.length, units_deployed: (iuR.data || []).length, unique_units: [...new Set(encounters.map((e: any) => e.unit).filter(Boolean))], comp_claims_count: (compR.data || []).length, ics214_count: (ics214R.data || []).length },
+        stats: { total_patients: encounters.length, total_encounters: encounters.length, units_deployed: (iuR.data || []).length, unique_units: [...new Set(encounters.map((e: any) => e.unit).filter(Boolean))], comp_claims_count: (compR.data || []).length, ics214_count: (ics214R.data || []).length, supply_runs_count: runIds.length },
         encounters,
         encountersByDay: Object.entries(dailyCounts).sort(([a], [b]) => a.localeCompare(b)).map(([date, count]) => ({ date, count })),
         analytics: {
@@ -98,8 +123,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           acuity_breakdown: Object.entries(acCounts).map(([name, value]) => ({ name, value })),
           encounters_by_day: Object.entries(dailyCounts).sort(([a], [b]) => a.localeCompare(b)).map(([date, count]) => ({ date, count })),
         },
+        supply_aggregated: supplyAggregated,
         comp_claims: (compR.data || []).map((c: any, i: number) => {
-          // Generate patient initials from patient_name (de-identified)
           const name = c.patient_name || ''
           const parts = name.trim().split(/\s+/)
           const initials = parts.length >= 2
