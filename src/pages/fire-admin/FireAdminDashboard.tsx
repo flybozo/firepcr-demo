@@ -54,7 +54,7 @@ type DashboardData = {
   encounters: {
     id: string; seq_id: string; date: string | null; unit: string | null
     age: string | null; chief_complaint: string | null; acuity: string; disposition: string | null
-    has_comp_claim: boolean; has_ama: boolean
+    has_comp_claim: boolean; has_ama: boolean; created_at?: string | null
   }[]
   comp_claims: {
     id: string; seq_id: string; date_of_injury: string | null; status: string | null
@@ -534,11 +534,12 @@ export default function FireAdminPage() {
     { id: 'supply', label: 'Supply', icon: '🧰' },
   ]
 
-  const applyDateFilter = <T extends { created_at?: string | null }>(items: T[]): T[] => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const applyDateFilter = (items: any[]): any[] => {
     if (dateFilter === 'all') return items
     const now = Date.now()
     const ms = dateFilter === '24h' ? 86400000 : dateFilter === '48h' ? 172800000 : 604800000
-    return items.filter(i => i.created_at && now - new Date(i.created_at).getTime() <= ms)
+    return items.filter((i: { created_at?: string | null }) => i.created_at && now - new Date(i.created_at).getTime() <= ms)
   }
 
   // ── Loading ──────────────────────────────────────────────────────────────
