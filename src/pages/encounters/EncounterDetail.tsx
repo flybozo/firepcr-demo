@@ -1029,6 +1029,7 @@ export default function EncounterDetailPage() {
   const [enc, setEnc] = useState<Encounter | null>(null)
   const [loading, setLoading] = useState(true)
   const [isOfflineData, setIsOfflineData] = useState(false)
+  const [incidentName, setIncidentName] = useState<string | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const { isAdmin, isField } = useRole()
   const currentUser = useUserAssignment()
@@ -1252,6 +1253,20 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
         setUserEmail(user?.email || null)
       } catch {}
       setEnc(data)
+
+      // Load incident name if incident_id is set
+      if ((data as any)?.incident_id) {
+        try {
+          const cachedInc = await getCachedData('incidents') as any[]
+          const found = cachedInc?.find((i: any) => i.id === (data as any).incident_id)
+          if (found) {
+            setIncidentName(found.name)
+          } else {
+            const { data: incData } = await supabase.from('incidents').select('name').eq('id', (data as any).incident_id).single()
+            if (incData) setIncidentName(incData.name)
+          }
+        } catch {}
+      }
 
       // Load serial vitals
       const { data: vitals } = await supabase
@@ -1791,6 +1806,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
               </div>
               <p className="text-gray-500 text-xs mt-1">
                 {enc.encounter_id} · {enc.date} · {enc.unit}
+                {incidentName && <span className="text-orange-400"> · 🔥 {incidentName}</span>}
               </p>
             </div>
             <div className="flex flex-col items-end gap-1 shrink-0">
