@@ -421,6 +421,7 @@ function OperationsTab() {
   const [encByIncident, setEncByIncident] = useState<{ incident_id: string; count: number }[]>([])
   const [unitsByType, setUnitsByType] = useState<{ name: string; value: number }[]>([])
   const [supplyItems, setSupplyItems] = useState<{ name: string; qty: number; category: string; incident_id?: string | null }[]>([])
+  const [supplyIncidentFilter, setSupplyIncidentFilter] = useState<string>('All')
 
   useEffect(() => {
     const load = async () => {
@@ -595,16 +596,23 @@ function OperationsTab() {
 
       {/* ── E: Supply Run Items Dispensed ── */}
       <section>
-        <SectionHeader title="🧰 Consumables Used" sub={incidentFilter === 'All' ? 'All incidents — top 20 by quantity' : 'Filtered by selected incident'} />
+        <div className="flex items-center justify-between mb-3">
+          <SectionHeader title="🧰 Consumables Used" sub={supplyIncidentFilter === 'All' ? 'All incidents — top 20 by quantity' : 'Filtered by selected incident'} />
+          <select value={supplyIncidentFilter} onChange={e => setSupplyIncidentFilter(e.target.value)}
+            className="bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded-lg px-2 py-1 focus:outline-none ml-3 shrink-0">
+            <option value="All">All incidents</option>
+            {incidents.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+          </select>
+        </div>
         {loading ? <Skeleton h="h-52" /> : (() => {
-          const BAR_COLORS = [C.blue, C.teal, C.violet, C.orange, C.red, C.green, C.amber, C.gray]
+          const BAR_COLORS = [C.blue, C.teal, C.violet, C.pink, C.red, C.green, C.amber, C.gray]
           const CATEGORY_COLORS: Record<string, string> = {
             'CS': C.red, 'Medication': C.violet, 'IV': C.blue,
-            'Airway': C.teal, 'Wound Care': C.orange, 'OTC': C.green, 'Supply': C.amber,
+            'Airway': C.teal, 'Wound Care': C.pink, 'OTC': C.green, 'Supply': C.amber,
           }
-          const filteredSupply = (incidentFilter === 'All'
+          const filteredSupply = (supplyIncidentFilter === 'All'
             ? supplyItems
-            : supplyItems.filter(i => i.incident_id === incidentFilter)
+            : supplyItems.filter(i => i.incident_id === supplyIncidentFilter)
           ).slice(0, 20)
           if (filteredSupply.length === 0) return <Empty />
           return (
@@ -614,7 +622,7 @@ function OperationsTab() {
                   <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke={gridStyle.stroke} />
                   <XAxis type="number" tick={axisStyle} allowDecimals={false} />
                   <YAxis type="category" dataKey="name" tick={{ ...axisStyle, fontSize: 10 }} width={150} />
-                  <Tooltip contentStyle={tooltipStyle} formatter={(v: unknown) => [v, 'Qty']} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v: unknown) => [v, 'Qty'] as [unknown, string]} />
                   <Bar dataKey="qty" radius={[0, 4, 4, 0]} name="Qty Used">
                     {filteredSupply.map((item, i) => (
                       <Cell key={item.name} fill={CATEGORY_COLORS[item.category] || BAR_COLORS[i % BAR_COLORS.length]} />
@@ -622,7 +630,6 @@ function OperationsTab() {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-              {/* Legend */}
               <div className="flex flex-wrap gap-3 mt-3 px-1">
                 {Object.entries(CATEGORY_COLORS).filter(([cat]) =>
                   filteredSupply.some(i => i.category === cat)
