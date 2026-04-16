@@ -30,8 +30,9 @@ export async function generate214PDF(
   personnel: Personnel214[],
   activities: Activity214[]
 ): Promise<jsPDF> {
-  const { default: jsPDF } = await import('jspdf')
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
+  const jspdfModule = await import('jspdf')
+  const JsPDF = (jspdfModule.default as any)?.default ?? jspdfModule.default
+  const doc = new JsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
   const W = 612, margin = 36, colW = W - margin * 2
   let y = margin
 

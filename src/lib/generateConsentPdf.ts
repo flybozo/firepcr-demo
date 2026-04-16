@@ -10,11 +10,13 @@ export type ConsentToTreatData = {
   form_time: string
   consent_id: string
   patient_signature_url?: string | null
+  agency_name?: string
 }
 
 export async function generateConsentToTreatPDF(data: ConsentToTreatData, logoDataUrl?: string | null): Promise<jsPDF> {
-  const { default: jsPDF } = await import('jspdf')
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
+  const jspdfModule = await import('jspdf')
+  const JsPDF = (jspdfModule.default as any)?.default ?? jspdfModule.default
+  const doc = new JsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
   const W = 612, M = 54
   let y = M
 
@@ -25,9 +27,9 @@ export async function generateConsentToTreatPDF(data: ConsentToTreatData, logoDa
     try { doc.addImage(logoDataUrl, 'PNG', M, y - 6, 52, 28) } catch {}
   }
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255)
-  doc.text('REMOTE AREA MEDICINE', W / 2, y + 6, { align: 'center' })
+  doc.text('RIDGELINE EMS', W / 2, y + 6, { align: 'center' })
   doc.setFontSize(8); doc.setFont('helvetica', 'normal')
-  doc.text('Ridgeline EMS P.C.  |  Medical Director: Aaron Stutz, MD', W / 2, y + 20, { align: 'center' })
+  doc.text(`${data.agency_name || 'Ridgeline EMS'}  |  Medical Director: ${data.provider_name || 'Provider of Record'}`, W / 2, y + 20, { align: 'center' })
   doc.setTextColor(0, 0, 0)
   y += 44
 
@@ -52,7 +54,7 @@ export async function generateConsentToTreatPDF(data: ConsentToTreatData, logoDa
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
 
   const paragraphs = [
-    `I, ${data.patient_name}, hereby consent to emergency medical treatment and care provided by Ridgeline EMS (Ridgeline EMS P.C.) personnel, including physicians, physician assistants, nurse practitioners, registered nurses, EMTs, and paramedics.`,
+    `I, ${data.patient_name}, hereby consent to emergency medical treatment and care provided by Ridgeline EMS personnel, including physicians, physician assistants, nurse practitioners, registered nurses, EMTs, and paramedics.`,
     '',
     'I understand and acknowledge the following:',
     '',
@@ -70,7 +72,7 @@ export async function generateConsentToTreatPDF(data: ConsentToTreatData, logoDa
     '',
     '7. TRANSPORT: If transport to a medical facility is recommended, I consent to transport by the most appropriate means available, as determined by the treating provider.',
     '',
-    '8. ARTIFICIAL INTELLIGENCE: Ridgeline EMS utilizes AI-assisted technology to support clinical documentation, medical record management, and administrative coordination of my care. AI tools do not make clinical decisions — all medical decisions are made by licensed healthcare providers. My health information processed by AI systems is subject to the same privacy protections as all other medical records.',
+    '8. ARTIFICIAL INTELLIGENCE: This agency utilizes AI-assisted technology to support clinical documentation, medical record management, and administrative coordination of my care. AI tools do not make clinical decisions — all medical decisions are made by licensed healthcare providers. My health information processed by AI systems is subject to the same privacy protections as all other medical records.',
     '',
     'I have read or had read to me the above consent. I understand its contents and voluntarily consent to the described treatment. I have had the opportunity to ask questions and my questions have been answered to my satisfaction.',
   ]
@@ -112,7 +114,7 @@ export async function generateConsentToTreatPDF(data: ConsentToTreatData, logoDa
 
   // Footer
   doc.setFontSize(7); doc.setTextColor(128, 128, 128)
-  doc.text('Ridgeline EMS  •  Ridgeline EMS P.C.  •  Consent to Treat Form', W / 2, 770, { align: 'center' })
+  doc.text('Ridgeline EMS  •  Consent to Treat Form', W / 2, 770, { align: 'center' })
   doc.text(`Generated: ${new Date().toISOString()} | ${data.consent_id}`, W / 2, 780, { align: 'center' })
 
   return doc

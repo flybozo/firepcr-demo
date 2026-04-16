@@ -42,8 +42,9 @@ export type CompClaimsData = {
 }
 
 export async function generateCompClaimsPDF(d: CompClaimsData): Promise<jsPDF> {
-  const { default: jsPDF } = await import('jspdf')
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
+  const jspdfModule = await import('jspdf')
+  const JsPDF = (jspdfModule.default as any)?.default ?? jspdfModule.default
+  const doc = new JsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
   const W = 612, ML = 36, MR = 36, colW = W - ML - MR
   let y = 36
 
