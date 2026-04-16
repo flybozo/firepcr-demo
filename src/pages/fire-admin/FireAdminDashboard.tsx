@@ -201,10 +201,25 @@ function OverviewTab({ data }: { data: DashboardData }) {
 function PatientLogTab({ data, code }: { data: DashboardData; code: string }) {
   const [unitFilter, setUnitFilter] = useState('All')
   const [selected, setSelected] = useState<typeof data.encounters[0] | null>(null)
+  const [downloading, setDownloading] = useState<string | null>(null)
 
-  // Get unique units
+  // Build lookup: encounter seq_id → comp_claim
+  const claimBySeqId = Object.fromEntries(
+    data.comp_claims.map(cc => [cc.patient_seq_id, cc]).filter(([k]) => k)
+  )
+
+  const handleDownload = async (claimId: string) => {
+    setDownloading(claimId)
+    try {
+      const res = await fetch(`/api/incident-access/download?code=${code}&type=comp_claim&id=${claimId}`)
+      const { url } = await res.json()
+      if (url) window.open(url, '_blank')
+    } finally {
+      setDownloading(null)
+    }
+  }
+
   const units = ['All', ...Array.from(new Set(data.encounters.map(e => e.unit).filter(Boolean))).sort()]
-
   const filtered = unitFilter === 'All' ? data.encounters : data.encounters.filter(e => e.unit === unitFilter)
   const byUnit: Record<string, typeof data.encounters> = {}
   filtered.forEach(e => {
@@ -216,8 +231,7 @@ function PatientLogTab({ data, code }: { data: DashboardData; code: string }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="text-xs text-gray-500 flex-1">{filtered.length} encounters · de-identified · tap to view chart</p>
-        {/* Unit filter */}
+        <p className="text-xs text-gray-500 flex-1">{filtered.length} encounters · de-identified · tap to view</p>
         <div className="flex gap-1.5 flex-wrap">
           {units.map(u => (
             <button key={u} onClick={() => setUnitFilter(u)}
@@ -234,22 +248,48 @@ function PatientLogTab({ data, code }: { data: DashboardData; code: string }) {
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">🚑 {unitName} — {encs.length} patient{encs.length !== 1 ? 's' : ''}</h3>
           </div>
           <div className="divide-y divide-gray-800/50">
-            {encs.map(enc => (
-              <button key={enc.id} onClick={() => setSelected(enc)}
-                className="w-full text-left grid grid-cols-[68px_68px_52px_1fr_80px_52px] gap-2 px-4 py-2.5 text-sm hover:bg-gray-800/50 transition-colors items-center">
-                <span className="font-mono text-blue-400 text-xs font-semibold">{enc.seq_id}</span>
-                <span className="text-gray-400 text-xs">{enc.date ? new Date(enc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
-                <span className="text-gray-400 text-xs">{enc.age || '—'}</span>
-                <span className="text-white text-xs truncate">{enc.chief_complaint || <span className="text-gray-600 italic">Not recorded</span>}</span>
-                <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${ACUITY_PILL[enc.acuity] ?? 'bg-gray-800 text-gray-400 border border-gray-700'}`}>
-                  {enc.acuity?.split(' ')[0] || '—'}
-                </span>
-                <span className="flex gap-1 justify-end">
-                  {enc.has_comp_claim && <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1 py-0.5 rounded">WC</span>}
-                  {enc.has_ama && <span className="text-xs bg-orange-900/50 text-orange-300 border border-orange-700/40 px-1 py-0.5 rounded">AMA</span>}
-                </span>
-              </button>
-            ))}
+            {encs.map(enc => {
+              const claim = claimBySeqId[enc.seq_id]
+              return (
+                <div key={enc.id} className="px-4 py-2.5 hover:bg-gray-800/30 transition-colors">
+                  {/* Main row — tappable to expand */}
+                  <button onClick={() => setSelected(enc === selected ? null : enc)}
+                    className="w-full text-left grid grid-cols-[68px_68px_52px_1fr_80px] gap-2 text-sm items-center">
+                    <span className="font-mono text-blue-400 text-xs font-semibold">{enc.seq_id}</span>
+                    <span className="text-gray-400 text-xs">{enc.date ? new Date(enc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
+                    <span className="text-gray-400 text-xs">{enc.age || '—'}</span>
+                    <span className="text-white text-xs truncate">{enc.chief_complaint || <span className="text-gray-600 italic">Not recorded</span>}</span>
+                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium text-center ${ACUITY_PILL[enc.acuity] ?? 'bg-gray-800 text-gray-400 border border-gray-700'}`}>
+                      {enc.acuity?.split(' ')[0] || '—'}
+                    </span>
+                  </button>
+                  {/* Inline flags row */}
+                  {(enc.has_comp_claim || enc.has_ama) && (
+                    <div className="flex flex-wrap items-center gap-2 mt-1.5 pl-0">
+                      {enc.has_comp_claim && claim && (
+                        <>
+                          {/* OSHA status */}
+                          {claim.osha_recordable === true && <span className="text-xs bg-red-900/50 text-red-300 border border-red-700/40 px-1.5 py-0.5 rounded font-medium">🔴 OSHA Recordable</span>}
+                          {claim.osha_recordable === false && <span className="text-xs bg-green-900/50 text-green-300 border border-green-700/40 px-1.5 py-0.5 rounded font-medium">✅ Not Recordable</span>}
+                          {claim.osha_recordable == null && <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded">📋 WC Filed</span>}
+                          {/* PDF download */}
+                          {claim.has_pdf && (
+                            <button
+                              onClick={e => { e.stopPropagation(); handleDownload(claim.id) }}
+                              disabled={downloading === claim.id}
+                              className="text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-2 py-0.5 rounded transition-colors"
+                            >
+                              {downloading === claim.id ? '...' : '⬇ WC PDF'}
+                            </button>
+                          )}
+                        </>
+                      )}
+                      {enc.has_ama && <span className="text-xs bg-orange-900/50 text-orange-300 border border-orange-700/40 px-1.5 py-0.5 rounded">⚠️ AMA / Refusal</span>}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       ))}
@@ -272,82 +312,8 @@ function PatientLogTab({ data, code }: { data: DashboardData; code: string }) {
               <div className="flex justify-between"><span className="text-gray-500">Chief Complaint</span><span className="text-right max-w-[200px]">{selected.chief_complaint || '—'}</span></div>
               <div className="flex justify-between items-center"><span className="text-gray-500">Acuity</span><span className={`text-xs px-2 py-0.5 rounded font-medium ${ACUITY_PILL[selected.acuity] ?? 'bg-gray-800 text-gray-400 border border-gray-700'}`}>{selected.acuity}</span></div>
               <div className="flex justify-between"><span className="text-gray-500">Disposition</span><span>{selected.disposition || '—'}</span></div>
-              {(selected.has_comp_claim || selected.has_ama) && (
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-500">Forms Filed</span>
-                  <span className="flex gap-1">
-                    {selected.has_comp_claim && <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded">Workers' Comp</span>}
-                    {selected.has_ama && <span className="text-xs bg-orange-900/50 text-orange-300 border border-orange-700/40 px-1.5 py-0.5 rounded">AMA / Refusal</span>}
-                  </span>
-                </div>
-              )}
             </div>
           </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── Tab 3: Comp Claims ────────────────────────────────────────────────────────
-function CompClaimsTab({ data, code }: { data: DashboardData; code: string }) {
-  const [downloading, setDownloading] = useState<string | null>(null)
-
-  const handleDownload = async (claimId: string) => {
-    setDownloading(claimId)
-    try {
-      const res = await fetch(`/api/incident-access/download?code=${code}&type=comp_claim&id=${claimId}`)
-      const { url } = await res.json()
-      if (url) window.open(url, '_blank')
-    } finally {
-      setDownloading(null)
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <p className="text-xs text-gray-500">
-        {data.comp_claims.length} workers' compensation claims for this incident.
-        Patient information is de-identified below.
-      </p>
-
-      {data.comp_claims.length === 0 ? <Empty text="No comp claims on file for this incident" /> : (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-          <div className="grid grid-cols-[80px_80px_52px_1fr_90px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
-            <span>Claim #</span>
-            <span>Date</span>
-            <span>Patient</span>
-            <span className="hidden md:block">OSHA Status</span>
-            <span className="text-right">PDF</span>
-          </div>
-          {data.comp_claims.map(cc => (
-            <div key={cc.id} className="grid grid-cols-[80px_80px_52px_1fr_90px] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 transition-colors items-center">
-              <span className="font-mono text-gray-300 text-xs font-semibold">{cc.seq_id}</span>
-              <span className="text-gray-400 text-xs">{cc.date_of_injury ? new Date(cc.date_of_injury + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
-              <span className="font-mono text-xs text-white font-semibold">{(cc as any).patient_initials || '—'}</span>
-              <span className="hidden md:block">
-                {cc.osha_recordable === true
-                  ? <Badge color={C.red} label="Recordable" />
-                  : cc.osha_recordable === false
-                  ? <Badge color={C.green} label="Not Recordable" />
-                  : <span className="text-gray-600 text-xs">—</span>
-                }
-              </span>
-              <div className="flex justify-end">
-                {cc.has_pdf ? (
-                  <button
-                    onClick={() => handleDownload(cc.id)}
-                    disabled={downloading === cc.id}
-                    className="text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-2 py-1 rounded-lg transition-colors flex items-center gap-1"
-                  >
-                    {downloading === cc.id ? '...' : '⬇ PDF'}
-                  </button>
-                ) : (
-                  <span className="text-xs text-gray-700">No PDF</span>
-                )}
-              </div>
-            </div>
-          ))}
         </div>
       )}
     </div>
@@ -470,7 +436,7 @@ function SupplyTab({ data }: { data: DashboardData }) {
   )
 }
 
-type Tab = 'overview' | 'patients' | 'comp' | 'ics214' | 'supply'
+type Tab = 'overview' | 'patients' | 'ics214' | 'supply'
 type DateFilter = 'all' | '24h' | '48h' | '7d'
 
 export default function FireAdminPage() {
@@ -497,7 +463,6 @@ export default function FireAdminPage() {
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: '📊' },
     { id: 'patients', label: 'Patient Log', icon: '📋' },
-    { id: 'comp', label: 'Comp Claims', icon: '📄' },
     { id: 'ics214', label: 'ICS 214s', icon: '📝' },
     { id: 'supply', label: 'Supply', icon: '🧰' },
   ]
@@ -607,7 +572,6 @@ export default function FireAdminPage() {
         {/* ── Tab content ── */}
         {tab === 'overview' && <OverviewTab data={data} />}
         {tab === 'patients' && <PatientLogTab data={{ ...data, encounters: applyDateFilter(data.encounters) }} code={code} />}
-        {tab === 'comp' && <CompClaimsTab data={{ ...data, comp_claims: applyDateFilter(data.comp_claims as any) }} code={code} />}
         {tab === 'ics214' && <ICS214Tab data={data} code={code} />}
         {tab === 'supply' && <SupplyTab data={data} />}
 
