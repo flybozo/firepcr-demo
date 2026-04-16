@@ -79,7 +79,7 @@ export async function syncDataFromServer(): Promise<void> {
       supabase.from('incidents').select('*, incident_units(id, released_at)'),  // ALL incidents with unit counts
       supabase.from('units').select('*, unit_type:unit_types(name), incident_units(id, released_at, incident:incidents(name, status), unit_assignments(id, released_at, employee:employees(id, name, role)))'),  // ALL units with assignments
       supabase.from('employees_sync').select('*'),  // Safe view — strips signing_pin_hash, DOB, home_address, emergency_contact, personal_email, personal_phone, daily_rate
-      supabase.from('formulary').select('id, item_name, category, unit_type, barcode, upc, controlled, route, concentration, unit_of_measure, default_dose, max_dose, notes, active'),  // ALL formulary items
+      supabase.from('formulary_templates').select('id, item_name, category, unit_type, barcode, upc, controlled, route, concentration, unit_of_measure, default_dose, max_dose, notes, active'),  // ALL formulary items
       supabase.from('incident_units').select('id, incident_id, released_at, unit:units(id, name, unit_type:unit_types(name))'),  // For CS/unit mapping
     ])
 
@@ -93,7 +93,7 @@ export async function syncDataFromServer(): Promise<void> {
 
     // Phase 2: Patient data (larger, but critical)
     const [encounters, mar, vitals] = await Promise.all([
-      supabase.from('patient_encounters').select('id, encounter_id, created_by, created_by_employee_id, date, time, unit, unit_id, incident, incident_id, patient_first_name, patient_last_name, patient_dob, patient_age, patient_age_units, patient_gender, chief_complaint, primary_symptom_text, primary_impression, secondary_impression, initial_acuity, final_acuity, initial_hr, initial_rr, initial_spo2, initial_bp_systolic, initial_bp_diastolic, initial_temp_f, initial_gcs_total, initial_gcs_eye, initial_gcs_verbal, initial_gcs_motor, initial_pain_scale, initial_blood_glucose, initial_skin, cardiac_rhythm, pupils, etco2, possible_injury, transport_disposition, transport_method, transport_destination, patient_disposition, refusal_signed, provider_of_record, pcr_notes, pcr_status, notes, crew_resource_number, pcr_number, scene_address, scene_city, scene_county, scene_state, scene_zip, scene_gps, dispatch_reason, scene_type, response_number, incident_number, agency_number, type_of_service, transport_capability, dispatch_datetime, en_route_datetime, arrive_scene_datetime, patient_contact_datetime, depart_scene_datetime, arrive_destination_datetime, available_datetime, signed_at, signed_by, num_patients_at_scene, first_ems_unit_on_scene, destination_name, destination_address, destination_type, no_transport_reason, hospital_capability, cardiac_arrest, created_at, updated_at').is('deleted_at', null).order('created_at', { ascending: false }).limit(500),
+      supabase.from('patient_encounters').select('*').order('created_at', { ascending: false }).limit(500),
       supabase.from('dispense_admin_log').select('id, date, time, patient_name, item_name, qty_used, qty_wasted, med_unit, dispensed_by, category, route, medication_route, indication, dose_mg, concentration, lot_number, expiration_date, exp_date, witness_name, witness_signature_url, encounter_id, unit, incident, notes, prescribing_provider, entry_type, provider_signature_url, provider_signed_at, provider_signed_by, requires_cosign, cosigned_at, cosigned_by, cosign_signature_url, dosage_units, item_type, created_at').order('created_at', { ascending: false }).limit(500),
       supabase.from('encounter_vitals').select('id, encounter_id, recorded_at, recorded_by, hr, rr, spo2, bp_systolic, bp_diastolic, gcs_eye, gcs_verbal, gcs_motor, gcs_total, pain_scale, blood_glucose, temp_f, skin, cardiac_rhythm, etco2, pupils').order('recorded_at', { ascending: false }).limit(1000),
     ])
@@ -124,7 +124,7 @@ export async function syncDataFromServer(): Promise<void> {
 
     // Phase 4: Progress notes + procedures (for encounter detail views)
     const [progressNotes, procedures] = await Promise.all([
-      supabase.from('progress_notes').select('id, encounter_id, encounter_uuid, note_text, author_name, author_employee_id, author_role, note_datetime, signed_at, signed_by, signature_url').is('deleted_at', null).order('note_datetime', { ascending: false }).limit(500),
+      supabase.from('progress_notes').select('*').order('note_datetime', { ascending: false }).limit(500),
       supabase.from('encounter_procedures').select('id, encounter_id, procedure_name, performed_at, performed_by, body_site, outcome, complications, notes').order('performed_at', { ascending: false }).limit(500),
     ])
 
