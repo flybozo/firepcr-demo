@@ -97,9 +97,22 @@ export function generateCompClaimsPDF(d: CompClaimsData): jsPDF {
     let cx = x + 2
     for (const opt of options) {
       const checked = value?.toLowerCase() === opt.toLowerCase()
-      doc.text(checked ? '☑' : '☐', cx, y + 22)
-      doc.text(opt, cx + 12, y + 22)
-      cx += 12 + doc.getTextWidth(opt) + 12
+      // Draw a small square box, filled if checked
+      if (checked) {
+        doc.setFillColor(30, 58, 95)
+        doc.rect(cx, y + 14, 8, 8, 'F')
+        doc.setTextColor(255, 255, 255)
+        doc.setFontSize(7)
+        doc.text('X', cx + 1.5, y + 20.5)
+        doc.setTextColor(...BLACK)
+        doc.setFontSize(9)
+      } else {
+        doc.setDrawColor(120, 120, 120)
+        doc.rect(cx, y + 14, 8, 8)
+        doc.setDrawColor(0, 0, 0)
+      }
+      doc.text(opt, cx + 11, y + 22)
+      cx += 11 + doc.getTextWidth(opt) + 10
     }
   }
 
