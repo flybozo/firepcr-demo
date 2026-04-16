@@ -75,11 +75,18 @@ export function generateCompClaimsPDF(d: CompClaimsData): jsPDF {
 
   function rowFields(fields: { label: string; value: string; w: number; h?: number }[]) {
     const maxH = Math.max(...fields.map(f => (f.h || 20)))
+    const gapCount = fields.length - 1
+    const totalRequested = fields.reduce((s, f) => s + f.w, 0)
+    // Normalize widths so they always fill colW exactly (no ragged right edge)
+    const scale = (colW - gapCount * 4) / totalRequested
+    const normalizedWidths = fields.map(f => f.w * scale)
     let x = ML
-    for (const field of fields) {
-      labelField(field.label, field.value, x, field.w, field.h || 20)
-      x += field.w + 4
-    }
+    fields.forEach((field, i) => {
+      // Last field gets any rounding remainder so right edge is flush
+      const w = i === fields.length - 1 ? (ML + colW - x) : normalizedWidths[i]
+      labelField(field.label, field.value, x, w, field.h || 20)
+      x += w + 4
+    })
     y += maxH + 13
   }
 

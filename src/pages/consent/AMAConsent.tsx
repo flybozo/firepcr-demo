@@ -313,8 +313,7 @@ function AMAFormInner() {
           .update({ refusal_signed: true })
           .eq('encounter_id', encounterIdText)
       }
-      setLastConsentId(consentId)
-      setLastConsentData({
+      const amaData = {
         patient_name: `${form.patient_first_name} ${form.patient_last_name}`.trim(),
         patient_dob: form.dob || '',
         unit: form.unit,
@@ -322,10 +321,28 @@ function AMAFormInner() {
         provider_name: form.provider_of_record,
         form_date: formDate,
         form_time: formTime,
-        // Pass base64 data URLs so PDF generator can embed actual signature images
         patient_signature_url: patientSigDataUrl || patientSigUrl,
         provider_signature_url: providerSigDataUrl || providerSigUrl,
-      })
+      }
+      setLastConsentId(consentId)
+      setLastConsentData(amaData)
+
+      // Auto-save PDF to storage on submit
+      try {
+        const doc = generateAMAPDF({ ...amaData, consent_id: consentId }, logoDataUrl)
+        const pdfBlob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' })
+        const storagePath = `ama/${consentId}.pdf`
+        const { error: uploadErr } = await supabase.storage.from('documents').upload(storagePath, pdfBlob, { contentType: 'application/pdf', upsert: true })
+        if (!uploadErr) {
+          const { data: signed } = await supabase.storage.from('documents').createSignedUrl(storagePath, 3600 * 24 * 365)
+          const url = signed?.signedUrl || storagePath
+          setPdfUrl(url)
+          await supabase.from('consent_forms').update({ pdf_url: storagePath }).eq('consent_id', consentId)
+        }
+      } catch (pdfErr) {
+        console.error('Auto-save PDF error:', pdfErr)
+      }
+
       setSubmitted(true)
     } catch (err: any) {
       setError(err.message || 'Submission failed. Please try again.')
@@ -524,7 +541,7 @@ function AMAFormInner() {
         {/* Header */}
         <div className="text-center pt-4">
           <h1 className="text-xl font-bold text-red-500">REMOTE AREA MEDICINE</h1>
-          <p className="text-sm text-gray-400">Ridgeline EMS | DBA Ridgeline EMS</p>
+          <p className="text-sm text-gray-400">Mossbrae Medical Group P.C. | DBA Remote Area Medicine</p>
           <p className="text-xs text-gray-500">Medical Director: Aaron Stutz, MD</p>
           <p className="text-sm font-semibold mt-2">REFUSAL OF EMERGENCY MEDICAL CARE / AMA</p>
           <p className="text-xs text-gray-400 mt-1">{formDate} — {formTime}</p>
@@ -602,7 +619,7 @@ function AMAFormInner() {
           <section className="bg-gray-900 rounded-xl p-4">
             <h2 className="font-bold text-sm uppercase tracking-wide text-gray-300 mb-2">Patient Statement & Release</h2>
             <p className="text-xs text-gray-400 leading-relaxed">
-              I, <span className="text-white font-medium">{patientName}</span>, have been informed of my medical condition, the recommended treatment and/or transport, and the risks of refusal — including serious injury or death. I am voluntarily refusing the emergency medical care described above and release Ridgeline EMS (Ridgeline EMS), its medical director, and all EMS providers from any liability arising from this refusal. I have been advised to call 911 or seek emergency care immediately if my condition worsens.
+              I, <span className="text-white font-medium">{patientName}</span>, have been informed of my medical condition, the recommended treatment and/or transport, and the risks of refusal — including serious injury or death. I am voluntarily refusing the emergency medical care described above and release Remote Area Medicine (Mossbrae Medical Group P.C.), its medical director, and all EMS providers from any liability arising from this refusal. I have been advised to call 911 or seek emergency care immediately if my condition worsens.
             </p>
           </section>
 

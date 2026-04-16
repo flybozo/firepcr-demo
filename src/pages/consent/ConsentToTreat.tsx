@@ -182,8 +182,7 @@ function ConsentToTreatInner() {
 
       if (insertError) throw insertError
 
-      setLastConsentId(consentId)
-      setLastConsentData({
+      const consentData = {
         patient_name: `${form.patient_first_name} ${form.patient_last_name}`.trim(),
         patient_dob: form.dob || '',
         unit: form.unit,
@@ -192,7 +191,26 @@ function ConsentToTreatInner() {
         form_date: formDate,
         form_time: formTime,
         patient_signature_url: patientSigResult.dataUrl || patientSigResult.url,
-      })
+      }
+      setLastConsentId(consentId)
+      setLastConsentData(consentData)
+
+      // Auto-save PDF to storage on submit
+      try {
+        const doc = generateConsentToTreatPDF({ ...consentData, consent_id: consentId }, logoDataUrl)
+        const pdfBlob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' })
+        const storagePath = `consent-to-treat/${consentId}.pdf`
+        const { error: uploadErr } = await supabase.storage.from('documents').upload(storagePath, pdfBlob, { contentType: 'application/pdf', upsert: true })
+        if (!uploadErr) {
+          const { data: signed } = await supabase.storage.from('documents').createSignedUrl(storagePath, 3600 * 24 * 365)
+          const url = signed?.signedUrl || storagePath
+          setPdfUrl(url)
+          await supabase.from('consent_forms').update({ pdf_url: storagePath }).eq('consent_id', consentId)
+        }
+      } catch (pdfErr) {
+        console.error('Auto-save PDF error:', pdfErr)
+      }
+
       setSubmitted(true)
     } catch (err: any) {
       setError(err.message || 'Submission failed.')
@@ -261,9 +279,10 @@ function ConsentToTreatInner() {
               {pdfGenerating ? 'Generating...' : '📄 Download & Save PDF'}
             </button>
             {pdfUrl && (
-              <div className="bg-green-900/30 border border-green-700 rounded-xl px-4 py-3 text-green-300 text-sm text-center">
-                ✅ PDF saved to patient record
-              </div>
+              <a href={pdfUrl} target="_blank" rel="noopener noreferrer"
+                className="block bg-green-900/30 border border-green-700 rounded-xl px-4 py-3 text-green-300 text-sm text-center hover:bg-green-900/50 transition-colors">
+                ✅ PDF saved — tap to open
+              </a>
             )}
           </div>
 
@@ -339,7 +358,7 @@ function ConsentToTreatInner() {
             <div className="text-xs text-gray-300 space-y-2 leading-relaxed max-h-48 overflow-y-auto pr-2">
               <p>
                 I, <span className="text-white font-medium">{patientName}</span>, hereby consent to emergency medical
-                treatment and care provided by Ridgeline EMS (Ridgeline EMS) personnel, including
+                treatment and care provided by Remote Area Medicine (Mossbrae Medical Group P.C.) personnel, including
                 physicians, physician assistants, nurse practitioners, registered nurses, EMTs, and paramedics.
               </p>
               <p className="font-semibold text-gray-200">I understand and acknowledge:</p>
@@ -351,7 +370,7 @@ function ConsentToTreatInner() {
                 <li>I consent to clinical photographs for medical documentation</li>
                 <li>My medical information will be kept confidential per HIPAA</li>
                 <li>If transport is recommended, I consent to transport by the most appropriate means available</li>
-                <li><span className="text-gray-200 font-medium">Artificial Intelligence:</span> Ridgeline EMS utilizes AI-assisted technology to support clinical documentation, medical record management, and administrative coordination of my care. AI tools do not make clinical decisions — all medical decisions are made by licensed healthcare providers. My health information processed by AI systems is subject to the same privacy protections as all other medical records.</li>
+                <li><span className="text-gray-200 font-medium">Artificial Intelligence:</span> Remote Area Medicine utilizes AI-assisted technology to support clinical documentation, medical record management, and administrative coordination of my care. AI tools do not make clinical decisions — all medical decisions are made by licensed healthcare providers. My health information processed by AI systems is subject to the same privacy protections as all other medical records.</li>
               </ul>
               <p>
                 I have read or had read to me the above consent. I understand its contents and voluntarily consent
