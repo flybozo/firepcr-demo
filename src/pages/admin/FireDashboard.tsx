@@ -1,5 +1,4 @@
 
-
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { FieldGuard } from '@/components/FieldGuard'
@@ -29,9 +28,10 @@ type DashboardData = {
   incident: { id: string; name: string; location: string | null; incident_number: string | null; start_date: string | null; end_date: string | null; status: string }
   stats: { total_patients: number; total_encounters: number; units_deployed: number; unique_units: string[]; comp_claims_count: number; ics214_count: number }
   analytics: { chief_complaints: { name: string; count: number }[]; acuity_breakdown: { name: string; value: number }[]; encounters_by_day: { date: string; count: number }[] }
-  encounters: { id: string; seq_id: string; date: string | null; unit: string | null; age: string | null; chief_complaint: string | null; acuity: string; disposition: string | null }[]
-  comp_claims: { id: string; claim_number: string; date: string | null; status: string | null; has_pdf: boolean; patient_seq_id: string | null; osha_recordable: boolean | null }[]
+  encounters: { id: string; seq_id: string; date: string | null; unit: string | null; age: string | null; chief_complaint: string | null; acuity: string; disposition: string | null; created_at: string | null }[]
+  comp_claims: { id: string; claim_number: string; date: string | null; status: string | null; has_pdf: boolean; pdf_url: string | null; patient_seq_id: string | null; osha_recordable: boolean | null; created_at: string | null }[]
   ics214s: { id: string; ics214_id: string; unit: string | null; prepared_by: string | null; date: string | null; status: string | null; has_pdf: boolean; pdf_file_name: string | null }[]
+  supply_aggregated: { item_name: string; total_qty: number; unit: string }[]
   code_label: string | null
 }
 
@@ -60,7 +60,7 @@ const STATUS_COLOR: Record<string, string> = {
   'Denied': C.red, 'Under Review': C.violet,
 }
 
-const BASE_URL = import.meta.env.VITE_SITE_URL || 'https://demo.firepcr.com'
+const BASE_URL = import.meta.env.VITE_SITE_URL || 'https://ram-field-ops.vercel.app'
 
 // ── Access Codes Panel ────────────────────────────────────────────────────────
 function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; incidentName: string }) {
@@ -212,20 +212,20 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
   )
 }
 
-// ── Dashboard tabs (same as external but with admin context) ──────────────────
-type DashTab = 'overview' | 'patients' | 'comp' | 'ics214' | 'access-log' | 'access-log'
+// ── Dashboard tabs ────────────────────────────────────────────────────────────
+type DashTab = 'overview' | 'patients' | 'comp' | 'ics214' | 'access-log' | 'supply'
 
 function IncidentDashboard({ incidentId }: { incidentId: string }) {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<DashTab>('overview')
+  const [dateFilter, setDateFilter] = useState<'all' | '24h' | '48h' | '7d'>('all')
 
   useEffect(() => {
     if (!incidentId) return
     setLoading(true)
     setError(null)
-    // Admin uses authed client — fetch directly
     const supabase = createClient()
     const load = async () => {
       try {
@@ -257,15 +257,19 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
           chief_complaint: enc.primary_symptom_text,
           acuity: mapAcuity(enc.initial_acuity),
           disposition: enc.patient_disposition,
+          created_at: enc.created_at ?? null,
         }))
         const encIdToSeq: Record<string, string> = {}
         encounters.forEach(e => { encIdToSeq[e.id] = e.seq_id })
 
         const compClaims = (compRes.data || []).map((cc, idx) => ({
           id: cc.id, claim_number: `WC-${String(idx + 1).padStart(3, '0')}`,
-          date: cc.date_of_injury, status: cc.status, has_pdf: !!cc.pdf_url,
+          date: cc.date_of_injury, status: cc.status,
+          has_pdf: !!cc.pdf_url, pdf_url: cc.pdf_url ?? null,
           patient_seq_id: cc.encounter_id ? encIdToSeq[cc.encounter_id] || null : null,
           osha_recordable: cc.osha_recordable,
+          created_at: cc.created_at ?? null,
+          encounter_id: cc.encounter_id ?? null,
         }))
 
         const ics214s = (icsRes.data || []).map(form => ({
@@ -274,6 +278,28 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
           status: form.status, has_pdf: !!form.pdf_url, pdf_file_name: form.pdf_file_name,
           closed_at: form.closed_at,
         }))
+
+        // ── Supply runs fetch ──
+        const supplyRunsRes = await supabase
+          .from('supply_runs')
+          .select('id, run_date, unit, created_at')
+          .eq('incident_id', incidentId)
+        const runIds = (supplyRunsRes.data || []).map((r: { id: string }) => r.id)
+        let supplyAggregated: { item_name: string; total_qty: number; unit: string }[] = []
+        if (runIds.length > 0) {
+          const supplyItemsRes = await supabase
+            .from('supply_run_items')
+            .select('item_name, quantity, unit')
+            .in('supply_run_id', runIds)
+          const itemTotals: Record<string, { total_qty: number; unit: string }> = {}
+          ;(supplyItemsRes.data || []).forEach((item: { item_name: string; quantity: number | null; unit: string | null }) => {
+            if (!itemTotals[item.item_name]) itemTotals[item.item_name] = { total_qty: 0, unit: item.unit || '' }
+            itemTotals[item.item_name].total_qty += item.quantity || 0
+          })
+          supplyAggregated = Object.entries(itemTotals)
+            .sort((a, b) => b[1].total_qty - a[1].total_qty)
+            .map(([item_name, d]) => ({ item_name, ...d }))
+        }
 
         const complaintCounts: Record<string, number> = {}
         encounters.forEach(e => { if (e.chief_complaint) complaintCounts[e.chief_complaint] = (complaintCounts[e.chief_complaint] || 0) + 1 })
@@ -300,6 +326,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
           encounters,
           comp_claims: compClaims,
           ics214s,
+          supply_aggregated: supplyAggregated,
           code_label: null,
         })
       } catch (e) {
@@ -316,6 +343,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
     { id: 'patients', label: 'Patient Log', icon: '📋' },
     { id: 'comp', label: 'Comp Claims', icon: '📄' },
     { id: 'ics214', label: 'ICS 214s', icon: '📝' },
+    { id: 'supply', label: 'Supply', icon: '🧰' },
     { id: 'access-log', label: 'Access Log', icon: '👀' },
   ]
 
@@ -335,6 +363,53 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
     return <text x={cx + r * Math.cos(-midAngle * RADIAN)} y={cy + r * Math.sin(-midAngle * RADIAN)} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={600}>{`${(percent * 100).toFixed(0)}%`}</text>
   }
 
+  // ── Date filter helper ─────────────────────────────────────────────────────
+  const passesDateFilter = (createdAt: string | null): boolean => {
+    if (dateFilter === 'all' || !createdAt) return true
+    const now = Date.now()
+    const t = new Date(createdAt).getTime()
+    if (dateFilter === '24h') return now - t <= 24 * 60 * 60 * 1000
+    if (dateFilter === '48h') return now - t <= 48 * 60 * 60 * 1000
+    if (dateFilter === '7d') return now - t <= 7 * 24 * 60 * 60 * 1000
+    return true
+  }
+  const filteredEncounters = data.encounters.filter(enc => passesDateFilter(enc.created_at))
+  const filteredCompClaims = data.comp_claims.filter(cc => passesDateFilter(cc.created_at))
+
+  // ── WC encounter ID set ────────────────────────────────────────────────────
+  const wcEncounterIds = new Set(
+    data.comp_claims
+      .map(cc => (cc as typeof cc & { encounter_id?: string | null }).encounter_id)
+      .filter((id): id is string => !!id)
+  )
+
+  // ── PDF signed URL opener ──────────────────────────────────────────────────
+  const openPdf = async (pdfUrl: string) => {
+    const supabase = createClient()
+    const { data: signedData } = await supabase.storage
+      .from('documents')
+      .createSignedUrl(pdfUrl, 3600)
+    if (signedData?.signedUrl) {
+      window.open(signedData.signedUrl, '_blank')
+    } else {
+      alert('Could not generate PDF link. The file may have been removed.')
+    }
+  }
+
+  // ── Date range filter dropdown ─────────────────────────────────────────────
+  const DateFilterDropdown = () => (
+    <select
+      value={dateFilter}
+      onChange={e => setDateFilter(e.target.value as typeof dateFilter)}
+      className="bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded-lg px-3 py-1.5 focus:border-red-500 outline-none cursor-pointer"
+    >
+      <option value="all">All time</option>
+      <option value="24h">Last 24h</option>
+      <option value="48h">Last 48h</option>
+      <option value="7d">Last 7 days</option>
+    </select>
+  )
+
   return (
     <div className="space-y-6">
       {/* Tabs */}
@@ -347,13 +422,21 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
         ))}
       </div>
 
+      {/* Date range filter (shown on all data tabs) */}
+      {(tab === 'patients' || tab === 'comp' || tab === 'overview') && (
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-500">Date range:</span>
+          <DateFilterDropdown />
+        </div>
+      )}
+
       {/* ── Overview ── */}
       {tab === 'overview' && (
         <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <StatCard label="Total Encounters" value={stats.total_encounters} accent={C.red} />
+            <StatCard label="Total Encounters" value={filteredEncounters.length} accent={C.red} />
             <StatCard label="Units Deployed" value={stats.units_deployed} accent={C.green} sub={stats.unique_units.slice(0, 2).join(', ')} />
-            <StatCard label="Comp Claims" value={stats.comp_claims_count} accent={C.amber} />
+            <StatCard label="Comp Claims" value={filteredCompClaims.length} accent={C.amber} />
             <StatCard label="ICS 214s" value={stats.ics214_count} accent={C.violet} />
             <StatCard label="Status" value={data.incident.status || '—'} accent={STATUS_COLOR[data.incident.status] ?? C.gray} />
           </div>
@@ -421,19 +504,24 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
       {/* ── Patient Log ── */}
       {tab === 'patients' && (
         <div className="space-y-3">
-          <p className="text-xs text-gray-500">{data.encounters.length} encounters — de-identified</p>
-          {data.encounters.length === 0 ? <Empty text="No encounters for this incident" /> : (
+          <p className="text-xs text-gray-500">{filteredEncounters.length} encounters — de-identified</p>
+          {filteredEncounters.length === 0 ? <Empty text="No encounters for this period" /> : (
             <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="grid grid-cols-[72px_80px_60px_1fr_80px_1fr] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
-                <span>ID</span><span>Date</span><span>Age</span><span>Chief Complaint</span><span>Acuity</span><span className="hidden md:block">Disposition</span>
+              <div className="grid grid-cols-[72px_80px_60px_1fr_80px_50px_1fr] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
+                <span>ID</span><span>Date</span><span>Age</span><span>Chief Complaint</span><span>Acuity</span><span>WC</span><span className="hidden md:block">Disposition</span>
               </div>
-              {data.encounters.map(enc => (
-                <div key={enc.id} className="grid grid-cols-[72px_80px_60px_1fr_80px_1fr] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 transition-colors items-center">
+              {filteredEncounters.map(enc => (
+                <div key={enc.id} className="grid grid-cols-[72px_80px_60px_1fr_80px_50px_1fr] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 transition-colors items-center">
                   <span className="font-mono text-xs text-gray-300">{enc.seq_id}</span>
                   <span className="text-xs text-gray-400">{enc.date ? new Date(enc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
                   <span className="text-xs text-gray-400">{enc.age || '—'}</span>
                   <span className="text-xs text-white truncate">{enc.chief_complaint || '—'}</span>
                   <span><Badge color={ACUITY_COLORS[enc.acuity] ?? C.gray} label={enc.acuity} /></span>
+                  <span>
+                    {wcEncounterIds.has(enc.id) && (
+                      <span className="text-xs px-1.5 py-0.5 rounded font-bold" style={{ backgroundColor: C.amber + '30', color: C.amber }}>WC</span>
+                    )}
+                  </span>
                   <span className="hidden md:block text-xs text-gray-400 truncate">{enc.disposition || '—'}</span>
                 </div>
               ))}
@@ -445,19 +533,37 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
       {/* ── Comp Claims ── */}
       {tab === 'comp' && (
         <div className="space-y-3">
-          <p className="text-xs text-gray-500">{data.comp_claims.length} comp claims</p>
-          {data.comp_claims.length === 0 ? <Empty text="No comp claims for this incident" /> : (
+          <p className="text-xs text-gray-500">{filteredCompClaims.length} comp claims</p>
+          {filteredCompClaims.length === 0 ? <Empty text="No comp claims for this period" /> : (
             <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="grid grid-cols-[80px_80px_72px_1fr_80px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
-                <span>Claim #</span><span>Date</span><span>Patient</span><span>Status</span><span>PDF</span>
+              <div className="grid grid-cols-[80px_80px_72px_1fr_110px_80px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
+                <span>Claim #</span><span>Date</span><span>Patient</span><span>Status</span><span>OSHA</span><span>PDF</span>
               </div>
-              {data.comp_claims.map(cc => (
-                <div key={cc.id} className="grid grid-cols-[80px_80px_72px_1fr_80px] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 items-center">
+              {filteredCompClaims.map(cc => (
+                <div key={cc.id} className="grid grid-cols-[80px_80px_72px_1fr_110px_80px] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 items-center">
                   <span className="font-mono text-xs text-gray-300">{cc.claim_number}</span>
                   <span className="text-xs text-gray-400">{cc.date ? new Date(cc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
                   <span className="font-mono text-xs text-gray-400">{cc.patient_seq_id || '—'}</span>
                   <span><Badge color={STATUS_COLOR[cc.status || ''] ?? C.gray} label={cc.status || 'Unknown'} /></span>
-                  <span className="text-xs text-gray-600">{cc.has_pdf ? '✅' : '—'}</span>
+                  <span className="text-xs">
+                    {cc.osha_recordable === true && <span style={{ color: C.red }}>🔴 Recordable</span>}
+                    {cc.osha_recordable === false && <span style={{ color: C.green }}>✅ Not Recordable</span>}
+                    {cc.osha_recordable === null && <span style={{ color: C.gray }}>—</span>}
+                  </span>
+                  <span className="text-xs">
+                    {cc.has_pdf && cc.pdf_url ? (
+                      <button
+                        onClick={() => openPdf(cc.pdf_url!)}
+                        className="text-blue-400 hover:text-blue-300 underline cursor-pointer transition-colors"
+                      >
+                        📄 PDF
+                      </button>
+                    ) : cc.has_pdf ? (
+                      <span className="text-green-400">✅</span>
+                    ) : (
+                      <span className="text-gray-600">—</span>
+                    )}
+                  </span>
                 </div>
               ))}
             </div>
@@ -483,6 +589,53 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
                 </div>
               ))}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Supply Tab ── */}
+      {tab === 'supply' && (
+        <div className="space-y-6">
+          <h3 className="text-sm font-semibold text-white">🧰 Consumables Used — All Units Combined</h3>
+          {data.supply_aggregated.length === 0 ? (
+            <Empty text="No supply run data for this incident" />
+          ) : (
+            <>
+              {/* Horizontal bar chart */}
+              <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-x-auto">
+                <ResponsiveContainer width="100%" height={Math.max(200, data.supply_aggregated.length * 32)}>
+                  <BarChart
+                    data={data.supply_aggregated.map(d => ({ name: d.item_name, qty: d.total_qty }))}
+                    layout="vertical"
+                    margin={{ top: 5, right: 30, left: 160, bottom: 5 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke={gridStyle.stroke} horizontal={false} />
+                    <XAxis type="number" tick={axisStyle} allowDecimals={false} />
+                    <YAxis type="category" dataKey="name" tick={{ ...axisStyle, fontSize: 11 }} width={155} />
+                    <Tooltip contentStyle={tooltipStyle} />
+                    <Bar dataKey="qty" radius={[0, 4, 4, 0]} name="Total Qty">
+                      {data.supply_aggregated.map((_, i) => (
+                        <Cell key={i} fill={i % 2 === 0 ? C.blue : C.teal} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Summary table */}
+              <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+                <div className="grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
+                  <span>Item</span><span>Total Qty</span><span>Unit</span>
+                </div>
+                {data.supply_aggregated.map((item, idx) => (
+                  <div key={idx} className="grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 items-center">
+                    <span className="text-xs text-white truncate">{item.item_name}</span>
+                    <span className="text-xs font-bold text-blue-400">{item.total_qty}</span>
+                    <span className="text-xs text-gray-400">{item.unit || '—'}</span>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       )}
