@@ -9,7 +9,7 @@ function setCors(req: VercelRequest, res: VercelResponse) {
     process.env.APP_BASE_URL,
     process.env.VITE_APP_BASE_URL,
     process.env.NEXT_PUBLIC_APP_BASE_URL,
-    'https://demo.firepcr.com',
+    'https://ram-field-ops.vercel.app',
     'https://firepcr-demo.vercel.app',
     'http://localhost:3000',
     'http://localhost:5173',
@@ -62,10 +62,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const compClaimEncounterIds = new Set((compR.data || []).map((c: any) => c.encounter_id).filter(Boolean))
       const amaEncounterIds = new Set((amaR.data || []).map((a: any) => a.encounter_id).filter(Boolean))
 
+      const mapAcuity = (raw: string | null): string => {
+        if (!raw) return 'Unknown'
+        const v = raw.toLowerCase()
+        if (v.includes('immediate') || v.includes('critical') || v.includes('red') || v.startsWith('1')) return 'Immediate'
+        if (v.includes('delayed') || v.includes('yellow') || v.includes('emergent') || v.startsWith('2')) return 'Delayed'
+        if (v.includes('minimal') || v.includes('minor') || v.includes('green') || v.includes('routine') || v.startsWith('3')) return 'Minimal'
+        if (v.includes('expectant') || v.includes('black') || v.startsWith('4')) return 'Expectant'
+        return raw
+      }
+
       const encounters = (encR.data || []).map((enc: any, i: number) => ({
         id: enc.id, seq_id: `PT-${String(i + 1).padStart(3, '0')}`, date: enc.date, unit: enc.unit,
         age: enc.patient_age ? `${enc.patient_age} ${enc.patient_age_units || 'yrs'}` : null,
-        chief_complaint: enc.primary_symptom_text, acuity: enc.initial_acuity || 'Unknown',
+        chief_complaint: enc.primary_symptom_text, acuity: mapAcuity(enc.initial_acuity),
         disposition: enc.patient_disposition, created_at: enc.created_at,
         has_comp_claim: compClaimEncounterIds.has(enc.id),
         has_ama: amaEncounterIds.has(enc.id),

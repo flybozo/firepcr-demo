@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { createClient } from '@/lib/supabase/client'
 import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, CartesianGrid,
@@ -57,7 +58,7 @@ type DashboardData = {
   }[]
   comp_claims: {
     id: string; seq_id: string; date_of_injury: string | null; status: string | null
-    has_pdf: boolean; patient_seq_id: string | null; osha_recordable: boolean | null
+    has_pdf: boolean; patient_seq_id: string | null; osha_recordable: boolean | null; created_at?: string | null
   }[]
   ics214s: {
     id: string; ics214_id: string; unit: string | null; prepared_by: string | null
@@ -328,7 +329,7 @@ function CompClaimsTab({ data, code }: { data: DashboardData; code: string }) {
                 {cc.osha_recordable === true
                   ? <Badge color={C.red} label="Recordable" />
                   : cc.osha_recordable === false
-                  ? <Badge color={C.gray} label="Not Recordable" />
+                  ? <Badge color={C.green} label="Not Recordable" />
                   : <span className="text-gray-600 text-xs">—</span>
                 }
               </span>
@@ -427,7 +428,82 @@ function ICS214Tab({ data, code }: { data: DashboardData; code: string }) {
 }
 
 // ── Main page ─────────────────────────────────────────────────────────────────
-type Tab = 'overview' | 'patients' | 'comp' | 'ics214'
+// ── Tab 5: Supply ────────────────────────────────────────────────────────────
+function SupplyTab({ code, incidentId }: { code: string; incidentId: string }) {
+  const [items, setItems] = useState<{ item_name: string; total_qty: number; unit: string }[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const supabase = createClient()
+    const load = async () => {
+      try {
+        const { data: runs } = await supabase
+          .from('supply_runs')
+          .select('id')
+          .eq('incident_id', incidentId)
+        const runIds = (runs || []).map((r: { id: string }) => r.id)
+        if (runIds.length === 0) { setItems([]); return }
+        const { data: runItems } = await supabase
+          .from('supply_run_items')
+          .select('item_name, quantity, unit_of_measure')
+          .in('supply_run_id', runIds)
+        const totals: Record<string, { qty: number; unit: string }> = {}
+        ;(runItems || []).forEach((i: { item_name: string; quantity: number | null; unit_of_measure: string | null }) => {
+          if (!totals[i.item_name]) totals[i.item_name] = { qty: 0, unit: i.unit_of_measure || '' }
+          totals[i.item_name].qty += i.quantity || 0
+        })
+        setItems(
+          Object.entries(totals)
+            .map(([item_name, { qty, unit }]) => ({ item_name, total_qty: qty, unit }))
+            .sort((a, b) => b.total_qty - a.total_qty)
+        )
+      } catch { setItems([]) } finally { setLoading(false) }
+    }
+    load()
+  }, [incidentId])
+
+  if (loading) return <Skeleton h="h-48" />
+  if (items.length === 0) return <Empty text="No supply run data for this incident" />
+
+  const BAR_COLORS = [C.blue, C.teal, C.violet, C.orange, C.red, C.green, C.amber]
+  const chartItems = items.slice(0, 20)
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+        <h3 className="text-sm font-bold text-white mb-4">🧰 Consumables Used — All Units Combined</h3>
+        <ResponsiveContainer width="100%" height={Math.max(200, chartItems.length * 28)}>
+          <BarChart data={chartItems} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
+            <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#1f2937" />
+            <XAxis type="number" tick={axisStyle} />
+            <YAxis type="category" dataKey="item_name" tick={{ ...axisStyle, fontSize: 10 }} width={140} />
+            <Tooltip contentStyle={tooltipStyle} formatter={(v: unknown, _: unknown, entry: { payload?: { unit?: string } }) => [`${v} ${entry.payload?.unit || ''}`.trim(), 'Qty']} />
+            <Bar dataKey="total_qty" radius={[0, 4, 4, 0]}>
+              {chartItems.map((_, i) => (
+                <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+        <div className="grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
+          <span>Item</span><span className="text-right">Total Qty</span><span className="text-right">Unit</span>
+        </div>
+        {items.map(item => (
+          <div key={item.item_name} className="grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-2 border-b border-gray-800/50 text-sm items-center hover:bg-gray-800/30">
+            <span className="text-xs text-white truncate">{item.item_name}</span>
+            <span className="text-right text-xs font-mono text-blue-300">{item.total_qty}</span>
+            <span className="text-right text-xs text-gray-400">{item.unit || '—'}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+type Tab = 'overview' | 'patients' | 'comp' | 'ics214' | 'supply'
+type DateFilter = 'all' | '24h' | '48h' | '7d'
 
 export default function FireAdminPage() {
   const params = useParams()
@@ -436,6 +512,7 @@ export default function FireAdminPage() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('overview')
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all')
 
   useEffect(() => {
     if (!code) return
@@ -454,7 +531,15 @@ export default function FireAdminPage() {
     { id: 'patients', label: 'Patient Log', icon: '📋' },
     { id: 'comp', label: 'Comp Claims', icon: '📄' },
     { id: 'ics214', label: 'ICS 214s', icon: '📝' },
+    { id: 'supply', label: 'Supply', icon: '🧰' },
   ]
+
+  const applyDateFilter = <T extends { created_at?: string | null }>(items: T[]): T[] => {
+    if (dateFilter === 'all') return items
+    const now = Date.now()
+    const ms = dateFilter === '24h' ? 86400000 : dateFilter === '48h' ? 172800000 : 604800000
+    return items.filter(i => i.created_at && now - new Date(i.created_at).getTime() <= ms)
+  }
 
   // ── Loading ──────────────────────────────────────────────────────────────
   if (loading) {
@@ -483,7 +568,7 @@ export default function FireAdminPage() {
   }
 
   const org = data.org
-  const orgName = org?.dba || org?.name || 'Ridgeline EMS'
+  const orgName = org?.dba || org?.name || 'Remote Area Medicine'
   const inc = data.incident
 
   return (
@@ -531,8 +616,8 @@ export default function FireAdminPage() {
           </div>
         </div>
 
-        {/* ── Tab pills ── */}
-        <div className="flex gap-2 flex-wrap">
+        {/* ── Tab pills + date filter ── */}
+        <div className="flex flex-wrap items-center gap-2">
           {tabs.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
@@ -541,13 +626,21 @@ export default function FireAdminPage() {
               {t.icon} {t.label}
             </button>
           ))}
+          <select value={dateFilter} onChange={e => setDateFilter(e.target.value as DateFilter)}
+            className="ml-auto bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-red-500">
+            <option value="all">All time</option>
+            <option value="24h">Last 24h</option>
+            <option value="48h">Last 48h</option>
+            <option value="7d">Last 7 days</option>
+          </select>
         </div>
 
         {/* ── Tab content ── */}
         {tab === 'overview' && <OverviewTab data={data} />}
-        {tab === 'patients' && <PatientLogTab data={data} code={code} />}
-        {tab === 'comp' && <CompClaimsTab data={data} code={code} />}
+        {tab === 'patients' && <PatientLogTab data={{ ...data, encounters: applyDateFilter(data.encounters) }} code={code} />}
+        {tab === 'comp' && <CompClaimsTab data={{ ...data, comp_claims: applyDateFilter(data.comp_claims as any) }} code={code} />}
         {tab === 'ics214' && <ICS214Tab data={data} code={code} />}
+        {tab === 'supply' && <SupplyTab code={code} incidentId={data.incident.id} />}
 
         {/* ── Footer ── */}
         <footer className="pt-4 border-t border-gray-800 text-center">
