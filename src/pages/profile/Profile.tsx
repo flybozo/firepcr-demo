@@ -106,14 +106,30 @@ export default function ProfilePage() {
     setCreds(data || [])
     // Generate signed URLs for storage-hosted files (not Drive links)
     const urlMap: Record<string, string> = {}
+
+    // Get employee's Drive folder as fallback
+    const { data: empRow } = await supabase.from('employees').select('drive_folder_id').eq('id', empId).single()
+    const driveFolderUrl = (empRow as any)?.drive_folder_id
+      ? `https://drive.google.com/drive/folders/${(empRow as any).drive_folder_id}`
+      : null
+
     await Promise.all((data || []).map(async (c: any) => {
-      if (!c.file_url) return
+      if (!c.file_url) {
+        // No file recorded — link to Drive folder if available
+        if (driveFolderUrl) urlMap[c.id] = driveFolderUrl
+        return
+      }
       if (c.file_url.includes('drive.google.com') || c.file_url.startsWith('http')) {
-        urlMap[c.id] = c.file_url  // Drive links work directly
+        urlMap[c.id] = c.file_url  // Drive/external links work directly
       } else {
-        // Supabase storage path
-        const { data: signed } = await supabase.storage.from('credentials').createSignedUrl(c.file_url.replace(/.*\/credentials\//, ''), 3600)
-        if (signed?.signedUrl) urlMap[c.id] = signed.signedUrl
+        // Supabase storage path — try signed URL, fall back to Drive folder
+        const storagePath = c.file_url.replace(/.*\/credentials\//, '')
+        const { data: signed } = await supabase.storage.from('credentials').createSignedUrl(storagePath, 3600)
+        if (signed?.signedUrl) {
+          urlMap[c.id] = signed.signedUrl
+        } else if (driveFolderUrl) {
+          urlMap[c.id] = driveFolderUrl  // Fall back to employee's Drive folder
+        }
       }
     }))
     setCredSignedUrls(urlMap)
@@ -389,7 +405,7 @@ export default function ProfilePage() {
                           title="Download">⬇ Save</button>
                       </>
                     ) : (
-                      <span className="text-xs text-gray-600">Loading...</span>
+                      <span className="text-xs text-gray-500 italic">File in Drive — contact admin</span>
                     )}
                   </div>
                 </div>
