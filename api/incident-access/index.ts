@@ -74,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
 
       const encounters = (encR.data || []).map((enc: any, i: number) => ({
-        id: enc.id, seq_id: `PT-${String(i + 1).padStart(3, '0')}`, date: enc.date, unit: enc.unit,
+        id: enc.id, encounter_id: enc.encounter_id, seq_id: `PT-${String(i + 1).padStart(3, '0')}`, date: enc.date, unit: enc.unit,
         age: enc.patient_age ? `${enc.patient_age} ${enc.patient_age_units || 'yrs'}` : null,
         chief_complaint: enc.primary_symptom_text, acuity: mapAcuity(enc.initial_acuity),
         disposition: enc.patient_disposition, created_at: enc.created_at,

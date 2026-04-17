@@ -51,7 +51,7 @@ type DashboardData = {
     encounters_by_day: { date: string; count: number }[]
   }
   encounters: {
-    id: string; seq_id: string; date: string | null; unit: string | null
+    id: string; encounter_id?: string | null; seq_id: string; date: string | null; unit: string | null
     age: string | null; chief_complaint: string | null; acuity: string; disposition: string | null
     has_comp_claim: boolean; has_ama: boolean; created_at?: string | null
   }[]
