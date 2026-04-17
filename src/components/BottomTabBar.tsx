@@ -1,4 +1,5 @@
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { createClient } from '@/lib/supabase/client'
 import { useState } from 'react'
 import { useRole } from '@/lib/useRole'
 import { useUnsignedCounts } from '@/lib/useUnsignedPCRCount'
@@ -91,6 +92,7 @@ export default function BottomTabBar() {
   const { isField } = useRole()
   const unsignedCounts = useUnsignedCounts()
   const [sheetTab, setSheetTab] = useState<string | null>(null)
+  const navigate = useNavigate()
 
   const visibleTabs = TABS.filter(tab => {
     if (tab.adminOnly && isField) return false
@@ -150,6 +152,20 @@ export default function BottomTabBar() {
                 <span>{sub.label}</span>
               </Link>
             ))}
+            {activeSheet.label === 'More' && (
+              <button
+                onClick={async () => {
+                  setSheetTab(null)
+                  const supabase = createClient()
+                  await supabase.auth.signOut()
+                  navigate('/login')
+                }}
+                className="flex items-center gap-3 px-5 py-3 text-sm text-red-400 hover:bg-gray-800/60 transition-colors w-full border-t border-gray-800 mt-1"
+              >
+                <span>🚪</span>
+                <span>Sign Out</span>
+              </button>
+            )}
           </div>
         </div>
       )}
