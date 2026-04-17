@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { authFetch } from '@/lib/authFetch'
 import { loadSingle } from '@/lib/offlineFirst'
 import { useUserAssignment } from '@/lib/useUserAssignment'
+import { useRole } from '@/lib/useRole'
 import { useTheme, THEME_PRESETS, THEME_FONTS } from '@/components/ThemeProvider'
 import type { Theme } from '@/components/ThemeProvider'
 
@@ -27,8 +28,10 @@ export default function ProfilePage() {
   const location = useLocation()
   const headshotRef = useRef<HTMLInputElement>(null)
   const credRef = useRef<HTMLInputElement>(null)
+  const { isField } = useRole()
   const isUnassigned = !assignment.loading && assignment.employee && !assignment.unit
   const wasRedirected = (location.state as any)?.unassigned || (location.state as any)?.accessDenied
+  const showUnassignedBanner = isField && isUnassigned
 
   const [employee, setEmployee] = useState<any>(null)
   const [saving, setSaving] = useState(false)
@@ -255,19 +258,25 @@ export default function ProfilePage() {
   return (
     <div className="p-6 md:p-8 max-w-lg mt-8 md:mt-0 pb-20">
 
-      {/* Unassigned / redirected banner */}
-      {(wasRedirected || isUnassigned) && (
+      {/* Unassigned banner — only shown to field users with no active unit assignment */}
+      {showUnassignedBanner && (
         <div className="mb-5 bg-amber-900/30 border border-amber-700 rounded-xl px-4 py-3">
           <p className="text-amber-300 text-sm font-semibold mb-1">📢 Not yet assigned to a unit</p>
           <p className="text-amber-200/70 text-xs">
             You’ll have full access to incidents, encounters, CS, and inventory once you’re assigned to an active unit.
             In the meantime you can update your profile, view the roster, and submit schedule requests below.
           </p>
+        </div>
+      )}
+
+      {/* Schedule Request link — always visible for field users */}
+      {isField && (
+        <div className="mb-5">
           <Link
             to="/schedule/request"
-            className="inline-block mt-2 px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-white text-sm font-medium rounded-xl transition-colors"
           >
-            📅 Submit Schedule Request
+            📅 Schedule Request
           </Link>
         </div>
       )}
