@@ -33,20 +33,7 @@ export default function MobileNav() {
 
   return (
     <>
-      {/* Hamburger button — hidden when drawer is open */}
-      {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          className="fixed left-3 z-[60] p-2.5 bg-gray-900/95 backdrop-blur border border-gray-700 rounded-xl md:hidden shadow-xl"
-          style={{ top: 'max(env(safe-area-inset-top, 0px) + 8px, 12px)' }}
-        >
-          <div className="space-y-1.5">
-            <div className="w-5 h-0.5 bg-white" />
-            <div className="w-5 h-0.5 bg-white" />
-            <div className="w-5 h-0.5 bg-white" />
-          </div>
-        </button>
-      )}
+      {/* Hamburger hidden on mobile — bottom tab bar handles nav there */}
 
       {/* Overlay — closes the drawer */}
       {open && (

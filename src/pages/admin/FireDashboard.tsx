@@ -544,13 +544,14 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
           <p className="text-xs text-gray-500">{filteredEncounters.length} encounters — de-identified</p>
           {filteredEncounters.length === 0 ? <Empty text="No encounters for this period" /> : (
             <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="grid grid-cols-[72px_72px_52px_1fr_140px_80px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
+              <div className="overflow-x-auto">
+              <div className="grid grid-cols-[72px_72px_52px_1fr_140px_80px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60 min-w-[560px]">
                 <span>ID</span><span>Date</span><span>Age</span><span>Chief Complaint</span><span>CC / OSHA</span><span>Acuity</span>
               </div>
               {filteredEncounters.map(enc => {
                 const claim = claimByEncId[enc.id]
                 return (
-                  <div key={enc.id} className="grid grid-cols-[72px_72px_52px_1fr_140px_80px] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 transition-colors items-center">
+                  <div key={enc.id} className="grid grid-cols-[72px_72px_52px_1fr_140px_80px] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 transition-colors items-center min-w-[560px]">
                     <span className="font-mono text-xs text-blue-400 font-semibold">{enc.seq_id}</span>
                     <span className="text-xs text-gray-400">{enc.date ? new Date(enc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
                     <span className="text-xs text-gray-400">{enc.age || '—'}</span>
@@ -577,6 +578,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
                   </div>
                 )
               })}
+              </div>{/* end overflow-x-auto */}
             </div>
           )}
         </div>
@@ -587,11 +589,12 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
         <div className="space-y-3">
           {data.ics214s.length === 0 ? <Empty text="No ICS 214s for this incident" /> : (
             <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="grid grid-cols-[90px_1fr_1fr_80px_60px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
+              <div className="overflow-x-auto">
+              <div className="grid grid-cols-[90px_1fr_1fr_80px_60px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60 min-w-[420px]">
                 <span>Date</span><span>Unit</span><span>Leader</span><span>Status</span><span>PDF</span>
               </div>
               {data.ics214s.map(form => (
-                <div key={form.id} className="grid grid-cols-[90px_1fr_1fr_80px_60px] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 items-center">
+                <div key={form.id} className="grid grid-cols-[90px_1fr_1fr_80px_60px] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 items-center min-w-[420px]">
                   <span className="text-xs text-gray-400">{form.date ? new Date(form.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
                   <span className="text-xs text-white truncate">{form.unit || '—'}</span>
                   <span className="text-xs text-gray-400 truncate">{form.prepared_by || '—'}</span>
@@ -599,6 +602,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
                   <span className="text-xs text-gray-600">{form.has_pdf ? '✅' : '—'}</span>
                 </div>
               ))}
+              </div>{/* end overflow-x-auto */}
             </div>
           )}
         </div>

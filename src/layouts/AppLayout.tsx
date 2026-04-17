@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import Sidebar from '@/components/Sidebar'
 import MobileNav from '@/components/MobileNav'
+import BottomTabBar from '@/components/BottomTabBar'
 import Ticker from '@/components/Ticker'
 import ChatBubble from '@/components/ChatBubble'
 import ConnectionStatus from '@/components/ConnectionStatus'
@@ -23,10 +24,11 @@ export default function AppLayout() {
             <Sidebar />
           </div>
           <MobileNav />
-          <main className="flex-1 overflow-y-auto flex flex-col">
+          <main className="flex-1 overflow-y-auto flex flex-col pb-[calc(56px+env(safe-area-inset-bottom,0px))] md:pb-0">
             <Outlet />
           </main>
         </div>
+        <BottomTabBar />
         <ChatBubble />
         <VersionNotifier />
         <InactivityLock />

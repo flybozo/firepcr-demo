@@ -283,11 +283,12 @@ function PatientLogTab({ data, code, logEvent }: { data: DashboardData; code: st
           <div className="px-4 py-2.5 border-b border-gray-800 bg-gray-800/40">
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">🚑 {unitName} — {encs.length} patient{encs.length !== 1 ? 's' : ''}</h3>
           </div>
+          <div className="overflow-x-auto">
           {/* Column headers: ID | Date | Age | Chief Complaint | Disposition | CC/OSHA | Supervisor | Acuity */}
-          <div className="grid grid-cols-[60px_60px_44px_1fr_100px_110px_110px_72px] gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
+          <div className="grid grid-cols-[60px_60px_44px_1fr_100px_110px_110px_72px] gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60 min-w-[640px]">
             <span>ID</span><span>Date</span><span>Age</span><span>Chief Complaint</span><span>Disposition</span><span>CC / OSHA</span><span>Supervisor</span><span>Acuity</span>
           </div>
-          <div className="divide-y divide-gray-800/50">
+          <div className="divide-y divide-gray-800/50 min-w-[640px]">
             {encs.map(enc => {
               const claim = claimBySeqId[enc.seq_id]
               return (
@@ -326,6 +327,7 @@ function PatientLogTab({ data, code, logEvent }: { data: DashboardData; code: st
               )
             })}
           </div>
+          </div>{/* end overflow-x-auto */}
         </div>
       ))}
 
