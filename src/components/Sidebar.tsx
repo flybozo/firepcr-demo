@@ -119,8 +119,7 @@ const NAV: NavItem[] = [
     href: '/admin',
     directLink: true,
     sub: [
-      { label: 'Announcements', href: '/admin/announcements' },
-      { label: 'Push Notifications', href: '/admin/push-notifications' },
+      { label: 'Announcements & Push', href: '/admin/announcements' },
       { label: 'Chat Requests', href: '/admin/chat-requests' },
       { label: 'Company Profile', href: '/admin/company' },
       { label: 'Analytics', href: '/analytics' },
