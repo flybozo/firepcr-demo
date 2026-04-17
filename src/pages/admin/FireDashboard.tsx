@@ -28,7 +28,7 @@ type DashboardData = {
   incident: { id: string; name: string; location: string | null; incident_number: string | null; start_date: string | null; end_date: string | null; status: string }
   stats: { total_patients: number; total_encounters: number; units_deployed: number; unique_units: string[]; comp_claims_count: number; ics214_count: number }
   analytics: { chief_complaints: { name: string; count: number }[]; acuity_breakdown: { name: string; value: number }[]; encounters_by_day: { date: string; count: number }[] }
-  encounters: { id: string; seq_id: string; date: string | null; unit: string | null; age: string | null; chief_complaint: string | null; acuity: string; disposition: string | null; created_at: string | null }[]
+  encounters: { id: string; seq_id: string; date: string | null; unit: string | null; patient_agency: string | null; age: string | null; chief_complaint: string | null; acuity: string; disposition: string | null; created_at: string | null }[]
   comp_claims: { id: string; claim_number: string; date: string | null; status: string | null; has_pdf: boolean; pdf_url: string | null; patient_seq_id: string | null; osha_recordable: boolean | null; created_at: string | null }[]
   ics214s: { id: string; ics214_id: string; unit: string | null; prepared_by: string | null; date: string | null; status: string | null; has_pdf: boolean; pdf_file_name: string | null }[]
   supply_aggregated: { item_name: string; total_qty: number; unit: string; category?: string }[]
@@ -68,9 +68,12 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
   const [label, setLabel] = useState('')
+  const [expiryDays, setExpiryDays] = useState('7')
   const [showForm, setShowForm] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
   const [collapsed, setCollapsed] = useState(false)
+  const [editingExpiry, setEditingExpiry] = useState<string | null>(null)
+  const [newExpiry, setNewExpiry] = useState('')
 
   const loadCodes = useCallback(async () => {
     setLoading(true)
@@ -93,9 +96,12 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
   const generateCode = async () => {
     setGenerating(true)
     try {
+      const expires_at = expiryDays !== '0'
+        ? new Date(Date.now() + parseInt(expiryDays) * 86400000).toISOString()
+        : null
       const res = await authFetch('/api/incident-access', {
         method: 'POST',
-        body: JSON.stringify({ incident_id: incidentId, label: label || null }),
+        body: JSON.stringify({ incident_id: incidentId, label: label || null, expires_at }),
       })
       if (res.ok) {
         setLabel('')
@@ -116,6 +122,24 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
       body: JSON.stringify({ code_id: codeId, active }),
     })
     if (res.ok) loadCodes()
+  }
+
+  const deleteCode = async (codeId: string, codeStr: string) => {
+    if (!confirm(`Delete access code ${codeStr}? This cannot be undone.`)) return
+    const res = await authFetch('/api/incident-access', {
+      method: 'DELETE',
+      body: JSON.stringify({ code_id: codeId }),
+    })
+    if (res.ok || res.status === 204) loadCodes()
+  }
+
+  const saveExpiry = async (codeId: string) => {
+    const expires_at = newExpiry ? new Date(newExpiry).toISOString() : null
+    const res = await authFetch('/api/incident-access', {
+      method: 'PATCH',
+      body: JSON.stringify({ code_id: codeId, expires_at }),
+    })
+    if (res.ok) { setEditingExpiry(null); loadCodes() }
   }
 
   const copyToClipboard = async (code: string) => {
@@ -157,6 +181,18 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
                   placeholder="Label (optional)"
                   className="w-full bg-gray-700 text-white text-sm px-3 py-2 rounded-lg border border-gray-600 focus:border-red-500 outline-none"
                 />
+                <div>
+                  <label className="text-xs text-gray-400">Expires after</label>
+                  <select value={expiryDays} onChange={e => setExpiryDays(e.target.value)}
+                    className="ml-2 bg-gray-700 text-white text-xs px-2 py-1 rounded border border-gray-600 focus:border-red-500 outline-none">
+                    <option value="1">1 day</option>
+                    <option value="3">3 days</option>
+                    <option value="7">7 days</option>
+                    <option value="14">14 days</option>
+                    <option value="30">30 days</option>
+                    <option value="0">Never</option>
+                  </select>
+                </div>
                 <div className="flex gap-2">
                   <button onClick={generateCode} disabled={generating}
                     className="bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm px-4 py-1.5 rounded-lg transition-colors">
@@ -191,15 +227,34 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
                       <p className="text-xs text-gray-600 mt-1 truncate">{fullUrl}</p>
                       <p className="text-xs text-gray-700 mt-0.5">Created {new Date(code.created_at).toLocaleDateString()}{code.created_by ? ` by ${code.created_by}` : ''}</p>
                     </div>
-                    <div className="flex gap-2 shrink-0">
-                      <button onClick={() => copyToClipboard(code.access_code)}
-                        className="text-xs bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded-lg transition-colors">
-                        {copied === code.access_code ? '✓ Copied!' : '📋 Copy URL'}
-                      </button>
-                      <button onClick={() => toggleActive(code.id, !code.active)}
-                        className={`text-xs px-2 py-1 rounded-lg transition-colors ${code.active ? 'bg-red-900/50 text-red-400 hover:bg-red-900' : 'bg-green-900/50 text-green-400 hover:bg-green-900'}`}>
-                        {code.active ? 'Deactivate' : 'Activate'}
-                      </button>
+                    <div className="flex flex-col gap-1 shrink-0 items-end">
+                      <div className="flex gap-1">
+                        <button onClick={() => copyToClipboard(code.access_code)}
+                          className="text-xs bg-gray-700 hover:bg-gray-600 text-white px-2 py-1 rounded-lg transition-colors">
+                          {copied === code.access_code ? '✓ Copied!' : '📋 Copy'}
+                        </button>
+                        <button onClick={() => toggleActive(code.id, !code.active)}
+                          className={`text-xs px-2 py-1 rounded-lg transition-colors ${code.active ? 'bg-yellow-900/50 text-yellow-400 hover:bg-yellow-900' : 'bg-green-900/50 text-green-400 hover:bg-green-900'}`}>
+                          {code.active ? 'Deactivate' : 'Activate'}
+                        </button>
+                        <button onClick={() => deleteCode(code.id, code.access_code)}
+                          className="text-xs bg-red-900/50 text-red-400 hover:bg-red-900 px-2 py-1 rounded-lg transition-colors">
+                          🗑 Delete
+                        </button>
+                      </div>
+                      {editingExpiry === code.id ? (
+                        <div className="flex gap-1 items-center mt-1">
+                          <input type="date" value={newExpiry} onChange={e => setNewExpiry(e.target.value)}
+                            className="text-xs bg-gray-700 text-white px-2 py-1 rounded border border-gray-600 outline-none" />
+                          <button onClick={() => saveExpiry(code.id)} className="text-xs bg-blue-700 hover:bg-blue-600 text-white px-2 py-1 rounded transition-colors">Save</button>
+                          <button onClick={() => setEditingExpiry(null)} className="text-xs text-gray-500 hover:text-gray-300 px-1">✕</button>
+                        </div>
+                      ) : (
+                        <button onClick={() => { setEditingExpiry(code.id); setNewExpiry(code.expires_at ? code.expires_at.slice(0,10) : '') }}
+                          className="text-xs text-gray-600 hover:text-gray-400 transition-colors">
+                          {code.expires_at ? `Expires ${new Date(code.expires_at).toLocaleDateString()}` : 'Set expiry'}
+                        </button>
+                      )}
                     </div>
                   </div>
                 )
@@ -232,7 +287,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
         const [incRes, orgRes, encRes, unitsRes, compRes, icsRes] = await Promise.all([
           supabase.from('incidents').select('id, name, location, incident_number, start_date, end_date, status').eq('id', incidentId).single(),
           supabase.from('organizations').select('name, dba, logo_url').limit(1).single(),
-          supabase.from('patient_encounters').select('id, encounter_id, date, unit, patient_age, patient_age_units, primary_symptom_text, initial_acuity, final_acuity, patient_disposition, created_at').eq('incident_id', incidentId).is('deleted_at', null).order('date', { ascending: true }),
+          supabase.from('patient_encounters').select('id, encounter_id, date, unit, patient_agency, patient_age, patient_age_units, primary_symptom_text, initial_acuity, final_acuity, patient_disposition, created_at').eq('incident_id', incidentId).is('deleted_at', null).order('date', { ascending: true }),
           supabase.from('incident_units').select('id, unit_id').eq('incident_id', incidentId),
           supabase.from('comp_claims').select('id, date_of_injury, status, pdf_url, encounter_id, osha_recordable, created_at').eq('incident_id', incidentId).order('created_at', { ascending: true }),
           supabase.from('ics214_headers').select('id, ics214_id, unit_name, leader_name, op_date, status, pdf_url, pdf_file_name, created_by, created_at, closed_at').eq('incident_id', incidentId).order('op_date', { ascending: true }),
@@ -253,6 +308,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
         const encounters = encountersRaw.map((enc, idx) => ({
           id: enc.id, seq_id: `PT-${String(idx + 1).padStart(3, '0')}`,
           date: enc.date, unit: enc.unit,
+          patient_agency: (enc as any).patient_agency || null,
           age: enc.patient_age ? `${enc.patient_age}${enc.patient_age_units ? ' ' + enc.patient_age_units : ''}` : null,
           chief_complaint: enc.primary_symptom_text,
           acuity: mapAcuity(enc.initial_acuity),
@@ -545,16 +601,17 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
           {filteredEncounters.length === 0 ? <Empty text="No encounters for this period" /> : (
             <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
               <div className="overflow-x-auto">
-              <div className="grid grid-cols-[72px_72px_52px_1fr_140px_80px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60 min-w-[560px]">
-                <span>ID</span><span>Date</span><span>Age</span><span>Chief Complaint</span><span>CC / OSHA</span><span>Acuity</span>
+              <div className="grid grid-cols-[72px_72px_52px_100px_1fr_140px_80px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60 min-w-[640px]">
+                <span>ID</span><span>Date</span><span>Age</span><span>Agency</span><span>Chief Complaint</span><span>CC / OSHA</span><span>Acuity</span>
               </div>
               {filteredEncounters.map(enc => {
                 const claim = claimByEncId[enc.id]
                 return (
-                  <div key={enc.id} className="grid grid-cols-[72px_72px_52px_1fr_140px_80px] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 transition-colors items-center min-w-[560px]">
+                  <div key={enc.id} className="grid grid-cols-[72px_72px_52px_100px_1fr_140px_80px] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 transition-colors items-center min-w-[640px]">
                     <span className="font-mono text-xs text-blue-400 font-semibold">{enc.seq_id}</span>
                     <span className="text-xs text-gray-400">{enc.date ? new Date(enc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
                     <span className="text-xs text-gray-400">{enc.age || '—'}</span>
+                    <span className="text-xs text-gray-300 truncate">{enc.patient_agency || <span className="text-gray-600">—</span>}</span>
                     <span className="text-xs text-white truncate">{enc.chief_complaint || '—'}</span>
                     <span className="flex flex-col gap-1">
                       {wcEncounterIds.has(enc.id) && claim ? (

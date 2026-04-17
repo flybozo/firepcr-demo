@@ -21,7 +21,7 @@ function setCors(req: VercelRequest, res: VercelResponse) {
   }
   res.setHeader('Vary', 'Origin')
   res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type')
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,OPTIONS')
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS')
 }
 
 function generateCode(): string {
@@ -51,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const [incR, orgR, encR, iuR, compR, ics214R, amaR] = await Promise.all([
         supabase.from('incidents').select('*').eq('id', incidentId).single(),
         supabase.from('organizations').select('name, dba, logo_url').limit(1).single(),
-        supabase.from('patient_encounters').select('id, encounter_id, date, unit, patient_age, patient_age_units, primary_symptom_text, initial_acuity, final_acuity, patient_disposition, created_at').eq('incident_id', incidentId).order('date', { ascending: false }),
+        supabase.from('patient_encounters').select('id, encounter_id, date, unit, patient_agency, patient_age, patient_age_units, primary_symptom_text, initial_acuity, final_acuity, patient_disposition, created_at').eq('incident_id', incidentId).order('date', { ascending: false }),
         supabase.from('incident_units').select('id, unit:units(name)').eq('incident_id', incidentId),
         supabase.from('comp_claims').select('id, date_of_injury, status, pdf_url, osha_recordable, created_at, encounter_id, patient_name, employee_supervisor_name').eq('incident_id', incidentId).order('created_at', { ascending: false }),
         supabase.from('ics214_headers').select('id, ics214_id, unit_name, op_date, status, pdf_url, created_at, created_by').eq('incident_id', incidentId).order('op_date', { ascending: false }),
@@ -75,6 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const encounters = (encR.data || []).map((enc: any, i: number) => ({
         id: enc.id, encounter_id: enc.encounter_id, seq_id: `PT-${String(i + 1).padStart(3, '0')}`, date: enc.date, unit: enc.unit,
+        patient_agency: enc.patient_agency || null,
         age: enc.patient_age ? `${enc.patient_age} ${enc.patient_age_units || 'yrs'}` : null,
         chief_complaint: enc.primary_symptom_text, acuity: mapAcuity(enc.initial_acuity),
         disposition: enc.patient_disposition, created_at: enc.created_at,
@@ -142,7 +143,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'POST') {
-      const { incident_id, label } = req.body as { incident_id?: string; label?: string }
+      const { incident_id, label, expires_at } = req.body as { incident_id?: string; label?: string; expires_at?: string | null }
       if (!incident_id || typeof incident_id !== 'string') return res.status(400).json({ error: 'incident_id required' })
       const { employee, supabase } = await requireEmployee(req, { admin: true })
       // Rate limit code generation
@@ -154,21 +155,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const { data: ex } = await supabase.from('incident_access_codes').select('id').eq('access_code', code).single()
         if (!ex) break
       }
-      const { data, error } = await supabase.from('incident_access_codes').insert({ incident_id, access_code: code, label: label || null, created_by: employee.name, active: true }).select().single()
+      const { data, error } = await supabase.from('incident_access_codes').insert({ incident_id, access_code: code, label: label || null, created_by: employee.name, active: true, expires_at: expires_at || null }).select().single()
       if (error) return res.status(500).json({ error: error.message })
       return res.status(201).json({ code: data })
     }
 
     if (req.method === 'PATCH') {
-      const { code_id, active } = req.body as { code_id?: string; active?: boolean }
-      if (!code_id || typeof active !== 'boolean') return res.status(400).json({ error: 'code_id and active required' })
+      const { code_id, active, expires_at } = req.body as { code_id?: string; active?: boolean; expires_at?: string | null }
+      if (!code_id) return res.status(400).json({ error: 'code_id required' })
       const { supabase } = await requireEmployee(req, { admin: true })
-      const { data, error } = await supabase.from('incident_access_codes').update({ active }).eq('id', code_id).select().single()
+      const updates: Record<string, unknown> = {}
+      if (typeof active === 'boolean') updates.active = active
+      if (expires_at !== undefined) updates.expires_at = expires_at
+      if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'Nothing to update' })
+      const { data, error } = await supabase.from('incident_access_codes').update(updates).eq('id', code_id).select().single()
       if (error) return res.status(500).json({ error: error.message })
       return res.json({ code: data })
     }
 
-    return res.status(405).json({ error: 'Method not allowed' })
+    if (req.method === 'DELETE') {
+      const { code_id } = req.body as { code_id?: string }
+      if (!code_id) return res.status(400).json({ error: 'code_id required' })
+      const { supabase } = await requireEmployee(req, { admin: true })
+      const { error } = await supabase.from('incident_access_codes').delete().eq('id', code_id)
+      if (error) return res.status(500).json({ error: error.message })
+      return res.status(204).end()
+    }
+
+    return res.status(405).json({ error: 'Method not allowed' }
   } catch (err: any) {
     if (err instanceof HttpError) {
       return res.status(err.status).json({ error: err.message })

@@ -327,6 +327,7 @@ type FormData = {
   pcr_number: string
   agency_number: string
   type_of_service: string
+  patient_agency: string
   transport_capability: string
   dispatch_datetime: string
   en_route_datetime: string
@@ -624,6 +625,7 @@ function PCRFormInner() {
     pcr_number: `PCR-${Date.now()}`,
     agency_number: 'USFS',
     type_of_service: 'Standby',
+    patient_agency: ''
     transport_capability: 'Ground Transport (ALS Equipped)',
     dispatch_datetime: '',
     en_route_datetime: '',
@@ -860,6 +862,7 @@ function PCRFormInner() {
       hospital_capability: form.hospital_capability || null,
       destination_address: form.destination_address || null,
       type_of_service: form.type_of_service || null,
+      patient_agency: form.patient_agency || null,
       transport_capability: form.transport_capability || null,
       dispatch_datetime: form.dispatch_datetime || null,
       en_route_datetime: form.en_route_datetime || null,
@@ -1025,6 +1028,22 @@ function PCRFormInner() {
             <div>
               <label className={labelCls}>PCR Number</label>
               <input type="text" className={inputCls} value={form.pcr_number} onChange={e => set('pcr_number', e.target.value)} placeholder="Patient care report #" />
+            </div>
+            <div>
+              <label className={labelCls}>Patient Agency</label>
+              <select className={inputCls} value={form.patient_agency} onChange={e => set('patient_agency', e.target.value)}>
+                <option value="">Select or type below...</option>
+                <option>Cal Fire</option>
+                <option>USFS</option>
+                <option>BLM</option>
+                <option>NPS</option>
+                <option>CHP</option>
+                <option>County Fire</option>
+                <option>Municipal Fire</option>
+                <option>OES / CAL OES</option>
+                <option>Private Contractor</option>
+                <option>Other</option>
+              </select>
             </div>
             <div>
               <label className={labelCls}>Type of Service</label>

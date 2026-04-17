@@ -52,6 +52,7 @@ type DashboardData = {
   }
   encounters: {
     id: string; encounter_id?: string | null; seq_id: string; date: string | null; unit: string | null
+    patient_agency: string | null
     age: string | null; chief_complaint: string | null; acuity: string; disposition: string | null
     has_comp_claim: boolean; has_ama: boolean; created_at?: string | null
   }[]
@@ -284,19 +285,20 @@ function PatientLogTab({ data, code, logEvent }: { data: DashboardData; code: st
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">🚑 {unitName} — {encs.length} patient{encs.length !== 1 ? 's' : ''}</h3>
           </div>
           <div className="overflow-x-auto">
-          {/* Column headers: ID | Date | Age | Chief Complaint | Disposition | CC/OSHA | Supervisor | Acuity */}
-          <div className="grid grid-cols-[60px_60px_44px_1fr_100px_110px_110px_72px] gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60 min-w-[640px]">
-            <span>ID</span><span>Date</span><span>Age</span><span>Chief Complaint</span><span>Disposition</span><span>CC / OSHA</span><span>Supervisor</span><span>Acuity</span>
+          {/* Column headers: ID | Date | Age | Agency | Chief Complaint | Disposition | CC/OSHA | Supervisor | Acuity */}
+          <div className="grid grid-cols-[60px_60px_44px_90px_1fr_100px_110px_110px_72px] gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60 min-w-[760px]">
+            <span>ID</span><span>Date</span><span>Age</span><span>Agency</span><span>Chief Complaint</span><span>Disposition</span><span>CC / OSHA</span><span>Supervisor</span><span>Acuity</span>
           </div>
-          <div className="divide-y divide-gray-800/50 min-w-[640px]">
+          <div className="divide-y divide-gray-800/50 min-w-[760px]">
             {encs.map(enc => {
               const claim = claimBySeqId[enc.seq_id]
               return (
                 <button key={enc.id} onClick={() => setSelected(enc === selected ? null : enc)}
-                  className="w-full text-left grid grid-cols-[60px_60px_44px_1fr_100px_110px_110px_72px] gap-2 px-4 py-2.5 text-sm hover:bg-gray-800/50 transition-colors items-center">
+                  className="w-full text-left grid grid-cols-[60px_60px_44px_90px_1fr_100px_110px_110px_72px] gap-2 px-4 py-2.5 text-sm hover:bg-gray-800/50 transition-colors items-center">
                   <span className="font-mono text-blue-400 text-xs font-semibold">{enc.seq_id}</span>
                   <span className="text-gray-400 text-xs">{enc.date ? new Date(enc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
                   <span className="text-gray-400 text-xs">{enc.age || '—'}</span>
+                  <span className="text-gray-300 text-xs truncate">{enc.patient_agency || <span className="text-gray-600">—</span>}</span>
                   <span className="text-white text-xs truncate">{enc.chief_complaint || <span className="text-gray-600 italic">Not recorded</span>}</span>
                   {/* Disposition */}
                   <span className="text-xs text-gray-300 truncate">{enc.disposition || <span className="text-gray-600 italic">In Process</span>}</span>
