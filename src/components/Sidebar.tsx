@@ -22,6 +22,7 @@ const NAV: NavItem[] = [
     icon: '🔥',
     label: 'Incidents',
     href: '/incidents',
+    directLink: true,
     sub: [
       { label: 'New Incident', href: '/incidents/new' },
       { label: 'All 214 Logs', href: '/ics214' },
@@ -47,6 +48,7 @@ const NAV: NavItem[] = [
     icon: '🚑',
     label: 'Units',
     href: '/units',
+    directLink: true,
     sub: [
       { label: 'Add New Unit', href: '/units/new' },
     ],
@@ -57,6 +59,7 @@ const NAV: NavItem[] = [
     icon: '📦',
     label: 'Inventory',
     href: '/inventory',
+    directLink: true,
     sub: [
       { label: 'Add Inventory', href: '/inventory/add' },
       { label: 'Formulary Templates', href: '/formulary' },
@@ -69,6 +72,7 @@ const NAV: NavItem[] = [
     icon: '🔐',
     label: 'CS System',
     href: '/cs',
+    directLink: true,
     sub: [
       { label: 'CS Overview', href: '/cs' },
       { label: 'Receive CS', href: '/cs/receive' },
@@ -82,6 +86,7 @@ const NAV: NavItem[] = [
     icon: '🚚',
     label: 'Supply Runs',
     href: '/supply-runs',
+    directLink: true,
     sub: [
       { label: 'New Supply Run', href: '/supply-runs/new' },
       { label: 'Search All', href: '/supply-runs/search' },
@@ -91,6 +96,7 @@ const NAV: NavItem[] = [
     icon: '👥',
     label: 'Employee Roster',
     href: '/roster',
+    directLink: true,
     sub: [
       { label: 'New Employee', href: '/roster/new' },
       { label: 'HR Credentials', href: '/roster/hr' },
@@ -109,6 +115,7 @@ const NAV: NavItem[] = [
     icon: '📅',
     label: 'Schedule',
     href: '/schedule',
+    directLink: true,
     sub: [
       { label: 'Coverage Calendar', href: '/schedule/calendar' },
       { label: '⚡ Generate Schedule', href: '/schedule/generate' },
@@ -120,6 +127,7 @@ const NAV: NavItem[] = [
     icon: '💰',
     label: 'Payroll',
     href: '/payroll',
+    directLink: true,
     sub: [{ label: 'My Payroll', href: '/payroll/my' }],
   },
   {
@@ -141,6 +149,7 @@ const NAV: NavItem[] = [
     icon: '⚙️',
     label: 'Admin',
     href: '/admin',
+    directLink: true,
     sub: [
       { label: 'Announcements', href: '/admin/announcements' },
       { label: 'Push Notifications', href: '/admin/push-notifications' },
