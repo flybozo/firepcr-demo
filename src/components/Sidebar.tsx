@@ -83,7 +83,7 @@ const NAV: NavItem[] = [
     ],
   },
   {
-    icon: '🚚',
+    icon: '🛒',
     label: 'Supply Runs',
     href: '/supply-runs',
     directLink: true,
@@ -104,18 +104,7 @@ const NAV: NavItem[] = [
     adminOnly: false,
   },
 
-  {
-    icon: '📅',
-    label: 'Schedule',
-    href: '/schedule',
-    directLink: true,
-    sub: [
-      { label: 'Coverage Calendar', href: '/schedule/calendar' },
-      { label: '⚡ Generate Schedule', href: '/schedule/generate' },
-    ],
-    adminOnly: false,
-    onlineOnly: true,
-  },
+
   {
     icon: '💰',
     label: 'Payroll',
@@ -123,14 +112,7 @@ const NAV: NavItem[] = [
     directLink: true,
     sub: [{ label: 'My Payroll', href: '/payroll/my' }],
   },
-  {
-    icon: '📇',
-    label: 'Contacts',
-    href: '/contacts',
-    sub: [],
-    adminOnly: false,
-    onlineOnly: true,
-  },
+
   {
     icon: '⚙️',
     label: 'Admin',
@@ -143,6 +125,10 @@ const NAV: NavItem[] = [
       { label: 'Company Profile', href: '/admin/company' },
       { label: 'Analytics', href: '/analytics' },
       { label: 'External Dashboard', href: '/admin/fire-dashboard' },
+      { label: 'Schedule', href: '/schedule' },
+      { label: 'Coverage Calendar', href: '/schedule/calendar' },
+      { label: '⚡ Generate Schedule', href: '/schedule/generate' },
+      { label: 'Contacts', href: '/contacts' },
     ],
     adminOnly: true,
   },
