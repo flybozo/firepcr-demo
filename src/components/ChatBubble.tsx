@@ -125,7 +125,7 @@ export default function ChatBubble() {
       // Got permission — stop the stream immediately (we just needed the grant)
       stream.getTracks().forEach(t => t.stop())
     } catch (e) {
-      alert('Microphone access denied. Please allow microphone access in Settings > Safari > demo.firepcr.com')
+      alert('Microphone access denied. Please allow microphone access in Settings > Safari > ram-field-ops.vercel.app')
       return
     }
     manualStopRef.current = false
@@ -392,7 +392,7 @@ export default function ChatBubble() {
       <button
         onClick={() => setOpen(true)}
         aria-label="Open Codsworth chat"
-        className={`fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-red-600 hover:bg-red-500 shadow-lg hover:shadow-red-600/30 flex items-center justify-center transition-all duration-300 ${
+        className={`fixed bottom-[calc(56px+env(safe-area-inset-bottom,0px)+16px)] md:bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-red-600 hover:bg-red-500 shadow-lg hover:shadow-red-600/30 flex items-center justify-center transition-all duration-300 ${
           mounted ? 'scale-100 opacity-100' : 'scale-0 opacity-0'
         } ${open ? 'pointer-events-none opacity-0 scale-75' : ''}`}
       >
