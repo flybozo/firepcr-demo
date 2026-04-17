@@ -407,7 +407,11 @@ function MARPageInner() {
 
 export default function MARPageWrapped() {
   return (
-    <FieldGuard redirectFn={(a) => a.unit?.name ? `/mar?unit=${encodeURIComponent(a.unit.name)}` : null}>
+    // Don't redirect if viewing a specific detail (id in URL) — let SplitShell handle it
+    <FieldGuard redirectFn={(a) => {
+      if (window.location.pathname.match(/\/mar\/.+/)) return null
+      return a.unit?.name ? `/mar?unit=${encodeURIComponent(a.unit.name)}` : null
+    }}>
       <MARPageInner />
     </FieldGuard>
   )

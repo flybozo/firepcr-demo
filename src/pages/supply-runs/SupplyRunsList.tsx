@@ -242,7 +242,10 @@ function SupplyRunsPageInner() {
 
 export default function SupplyRunsPageWrapped() {
   return (
-    <FieldGuard redirectFn={(a) => a.incidentUnit?.incident_id ? `/supply-runs?incidentId=${a.incidentUnit.incident_id}` : null}>
+    <FieldGuard redirectFn={(a) => {
+      if (window.location.pathname.match(/\/supply-runs\/.+/)) return null
+      return a.incidentUnit?.incident_id ? `/supply-runs?incidentId=${a.incidentUnit.incident_id}` : null
+    }}>
       <SupplyRunsPageInner />
     </FieldGuard>
   )

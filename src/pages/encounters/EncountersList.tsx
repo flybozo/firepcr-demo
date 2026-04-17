@@ -402,7 +402,10 @@ function EncountersPageInner() {
 
 export default function EncountersPageWrapped() {
   return (
-    <FieldGuard redirectFn={(a) => a.incidentUnit?.incident_id ? `/encounters?incidentId=${a.incidentUnit.incident_id}` : null}>
+    <FieldGuard redirectFn={(a) => {
+      if (window.location.pathname.match(/\/encounters\/.+/)) return null
+      return a.incidentUnit?.incident_id ? `/encounters?incidentId=${a.incidentUnit.incident_id}` : null
+    }}>
       <EncountersPageInner />
     </FieldGuard>
   )

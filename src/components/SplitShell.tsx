@@ -47,7 +47,7 @@ export default function SplitShell({ basePath, children, detailPattern, listWidt
           Desktop: always 40% with border, full height
           Mobile:  full screen when no detail, hidden when detail is open   */}
       <div className={[
-        'flex flex-col overflow-y-auto',
+        'flex flex-col overflow-y-auto overscroll-none',
         hasDetail
           ? `hidden lg:flex ${listWidth} lg:flex-shrink-0 lg:border-r lg:border-gray-800`
           : `w-full ${listWidth} lg:flex-shrink-0 lg:border-r lg:border-gray-800`,
@@ -61,7 +61,7 @@ export default function SplitShell({ basePath, children, detailPattern, listWidt
       {hasDetail && (
         <div className={[
           'flex flex-col overflow-y-auto relative bg-gray-950',
-          'w-full lg:flex-1',
+          'w-full lg:flex-1 overscroll-none',
         ].join(' ')}>
           {/* Close button — desktop only */}
           <button

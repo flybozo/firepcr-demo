@@ -24,7 +24,7 @@ export default function AppLayout() {
             <Sidebar />
           </div>
           <MobileNav />
-          <main className="flex-1 overflow-y-auto flex flex-col pb-[calc(56px+env(safe-area-inset-bottom,0px))] md:pb-0">
+          <main className="flex-1 overflow-y-auto overscroll-none flex flex-col pb-[calc(56px+env(safe-area-inset-bottom,0px))] md:pb-0">
             <Outlet />
           </main>
         </div>
