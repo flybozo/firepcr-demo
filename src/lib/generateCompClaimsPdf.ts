@@ -120,9 +120,10 @@ export function generateCompClaimsPDF(d: CompClaimsData, logoDataUrl?: string | 
   // Circular logo upper-left
   if (logoDataUrl) {
     try {
+      const cx = ML + 18, cy = y + 18, r = 20
       doc.setFillColor(30, 58, 95)
-      doc.circle(ML + 18, y + 18, 20, 'F')
-      doc.addImage(logoDataUrl, 'PNG', ML, y, 36, 36)
+      doc.circle(cx, cy, r, 'F')
+      doc.addImage(logoDataUrl, 'PNG', cx - r, cy - r, r * 2, r * 2)
     } catch {}
   }
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(100, 100, 100)

@@ -23,9 +23,10 @@ export function generateAMAPDF(data: AMAData, logoDataUrl?: string | null): jsPD
   doc.rect(0, y - 10, 612, 50, 'F')
   if (logoDataUrl) {
     try {
+      const cx = 38, cy = 28, r = 20
       doc.setFillColor(255, 255, 255)
-      doc.circle(M - 8, y + 12, 18, 'F')
-      doc.addImage(logoDataUrl, 'PNG', M - 24, y - 7, 36, 36)
+      doc.circle(cx, cy, r, 'F')
+      doc.addImage(logoDataUrl, 'PNG', cx - r, cy - r, r * 2, r * 2)
     } catch {}
   }
   doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255)
