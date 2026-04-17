@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { jsPDF } from 'jspdf'
 import { HttpError, requireAuthUser } from './_auth.js'
+import { validateBody, sanitize } from './_validate.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
@@ -8,12 +9,75 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     await requireAuthUser(req)
     const body = req.body
-  const {
-    incident, unit, ticketType, measureType, transportRetained,
-    shiftRows, personnelRows, remarks,
-    contractorRep, supervisorName,
-    contractorSig, supervisorSig,
-  } = body
+
+    // ── Input validation ──
+    validateBody(body, [
+      { field: 'incident',           type: 'object' as any },
+      { field: 'unit',               type: 'object' as any },
+      { field: 'ticketType',         type: 'string', maxLength: 20 },
+      { field: 'measureType',        type: 'string', maxLength: 20 },
+      { field: 'transportRetained',  type: 'string', maxLength: 10 },
+      { field: 'shiftRows',          type: 'array' },
+      { field: 'personnelRows',      type: 'array' },
+      { field: 'remarks',            type: 'string', maxLength: 2000 },
+      { field: 'contractorRep',      type: 'string', maxLength: 200 },
+      { field: 'supervisorName',     type: 'string', maxLength: 200 },
+      { field: 'contractorSig',      type: 'string', maxLength: 200000 }, // base64 PNG
+      { field: 'supervisorSig',      type: 'string', maxLength: 200000 }, // base64 PNG
+    ])
+
+    // ── Sanitize helpers ──
+    /** Strip control characters (incl. \r, \n, \t) from text destined for the PDF */
+    const cleanText = (val: unknown, max = 500): string =>
+      sanitize(val, max).replace(/[\x00-\x1F\x7F]/g, ' ').trim()
+
+    /** Sanitize a PDF Content-Disposition filename component */
+    const cleanFilename = (val: unknown, max = 100): string =>
+      String(val ?? '').replace(/["\/\\;\r\n\x00-\x1F]/g, '').slice(0, max)
+
+    /** Sanitize one shift/personnel row — all values are short display strings */
+    const cleanRow = (row: unknown): Record<string, string> => {
+      if (!row || typeof row !== 'object') return {}
+      const out: Record<string, string> = {}
+      for (const [k, v] of Object.entries(row as Record<string, unknown>)) {
+        out[k] = cleanText(v, 200)
+      }
+      return out
+    }
+
+    // ── Destructure + sanitize ──
+    const rawIncident = (body.incident && typeof body.incident === 'object') ? body.incident as Record<string, unknown> : {}
+    const rawUnit     = (body.unit     && typeof body.unit     === 'object') ? body.unit     as Record<string, unknown> : {}
+
+    const incident = {
+      agreement_number:      cleanText(rawIncident.agreement_number),
+      resource_order_number: cleanText(rawIncident.resource_order_number),
+      name:                  cleanText(rawIncident.name),
+      incident_number:       cleanText(rawIncident.incident_number),
+      financial_code:        cleanText(rawIncident.financial_code),
+    }
+    const unit = {
+      make_model:    cleanText(rawUnit.make_model),
+      unit_type:     cleanText(rawUnit.unit_type),
+      vin:           cleanText(rawUnit.vin, 50),
+      license_plate: cleanText(rawUnit.license_plate, 50),
+    }
+
+    const ticketType        = cleanText(body.ticketType, 20)
+    const measureType       = cleanText(body.measureType, 20)
+    const transportRetained = cleanText(body.transportRetained, 10)
+    const remarks           = cleanText(body.remarks, 2000)
+    const contractorRep     = cleanText(body.contractorRep, 200)
+    const supervisorName    = cleanText(body.supervisorName, 200)
+    // Signatures are base64-encoded PNG data URLs — validate prefix, don't run through cleanText
+    const sigRe = /^(data:image\/png;base64,)?[A-Za-z0-9+/]+=*$/
+    const contractorSig = typeof body.contractorSig === 'string' && sigRe.test(body.contractorSig) ? body.contractorSig : null
+    const supervisorSig = typeof body.supervisorSig === 'string' && sigRe.test(body.supervisorSig) ? body.supervisorSig : null
+
+    const rawShiftRows     = Array.isArray(body.shiftRows)     ? (body.shiftRows     as unknown[]).slice(0, 50)  : []
+    const rawPersonnelRows = Array.isArray(body.personnelRows) ? (body.personnelRows as unknown[]).slice(0, 50)  : []
+    const shiftRows     = rawShiftRows.map(cleanRow)
+    const personnelRows = rawPersonnelRows.map(cleanRow)
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
   const W = 215.9
@@ -214,7 +278,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   const pdfBuffer = Buffer.from(doc.output('arraybuffer'))
   res.setHeader('Content-Type', 'application/pdf')
-  res.setHeader('Content-Disposition', `attachment; filename="OF297-${incident?.name?.replace(/\s+/g,'-') || 'Shift'}.pdf"`)
+  const safeFilename = cleanFilename(incident.name.replace(/\s+/g, '-') || 'Shift')
+  res.setHeader('Content-Disposition', `attachment; filename="OF297-${safeFilename}.pdf"`)
   return res.send(pdfBuffer)
   } catch (err: any) {
     if (err instanceof HttpError) {
