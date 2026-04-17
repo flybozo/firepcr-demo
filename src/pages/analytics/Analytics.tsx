@@ -28,7 +28,7 @@ const C = {
 const ACUITY_COLORS: Record<string, string> = {
   'Immediate': C.red,
   'Delayed':   C.amber,
-  'Minimal':   C.green,
+  'Minor':   C.green,
   'Expectant': C.gray,
 }
 
@@ -50,7 +50,7 @@ function mapAcuity(raw: string | null): string {
   const v = raw.toLowerCase()
   if (v.includes('critical') || v.includes('red') || v.includes('immediate')) return 'Immediate'
   if (v.includes('yellow') || v.includes('delayed') || v.includes('emergent')) return 'Delayed'
-  if (v.includes('green') || v.includes('minor') || v.includes('non-acute') || v.includes('routine')) return 'Minimal'
+  if (v.includes('green') || v.includes('minor') || v.includes('non-acute') || v.includes('routine')) return 'Minor'
   return 'Expectant'
 }
 
@@ -218,7 +218,7 @@ function ClinicalTab({ isField = false, assignedIncidentId = null, assignedUnitN
     .map(([name, count]) => ({ name, count }))
 
   // ── Acuity breakdown ──────────────────────────────────────────────────────
-  const acuityCounts: Record<string, number> = { Immediate: 0, Delayed: 0, Minimal: 0, Expectant: 0 }
+  const acuityCounts: Record<string, number> = { Immediate: 0, Delayed: 0, Minor: 0, Expectant: 0 }
   filteredEncounters.forEach(e => { acuityCounts[mapAcuity(e.initial_acuity)]++ })
   const acuityData = Object.entries(acuityCounts)
     .filter(([, v]) => v > 0)

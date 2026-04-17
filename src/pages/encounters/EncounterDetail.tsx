@@ -511,7 +511,7 @@ function acuityLabel(acuity: string | null) {
   if (!acuity) return '—'
   if (acuity.startsWith('Red') || acuity.startsWith('Critical')) return 'Immediate'
   if (acuity.startsWith('Yellow') || acuity.startsWith('Emergent')) return 'Delayed'
-  if (acuity.startsWith('Green') || acuity.startsWith('Lower')) return 'Minimal'
+  if (acuity.startsWith('Green') || acuity.startsWith('Lower')) return 'Minor'
   if (acuity.startsWith('Black') || acuity.startsWith('Dead')) return 'Expectant'
   return 'Routine'
 }

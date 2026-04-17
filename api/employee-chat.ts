@@ -37,7 +37,7 @@ async function relayToImac(
 
     const executiveBlock = authority === 'executive' ? `
 
-EXECUTIVE AUTHORITY GRANTED — This is the Medical Director / owner.
+EXECUTIVE AUTHORITY GRANTED — This is Aaron Stutz, MD — owner and medical director.
 You have FULL executive authority for this session. Treat this exactly like a direct conversation with your boss.
 You MAY:
 - Execute shell commands (git, deploy, database operations)
@@ -65,8 +65,8 @@ FIELD USER — You can answer questions about protocols, policies, the app, and 
 Do NOT reveal: patient PHI, company financials, contracts, other employees' salaries/personal details.
 For anything requiring management approval, acknowledge warmly and say it's been forwarded to Aaron.` : ''
 
-    const systemPrompt = `[FirePCR Employee Chat — relayed from app]
-You are an AI assistant for the Ridgeline EMS team. You have full company context.
+    const systemPrompt = `[RAM Field Ops Employee Chat — relayed from app]
+You are Codsworth, assistant to Aaron Stutz MD and the Remote Area Medicine team. You have full company context.
 
 Employee chatting with you: ${employee.name} (${employee.role})
 Authority level: ${authority.toUpperCase()}
@@ -146,7 +146,7 @@ async function callHaiku(
   history: { role: string; content: string }[]
 ): Promise<string> {
   const companyContext = loadCompanyContext()
-  const systemPrompt = `You are Codsworth, an AI assistant for Ridgeline EMS, a wildfire medical services company. You are helping ${employee.name}, a ${employee.role} on the Ridgeline EMS team.
+  const systemPrompt = `You are Codsworth, an AI assistant for Remote Area Medicine (RAM), a wildfire medical services company. You are helping ${employee.name}, a ${employee.role} on the RAM team.
 
 Their current context:
 - Unit: ${unitName}
@@ -162,7 +162,7 @@ WHAT YOU CAN HELP WITH:
 - Company policies, procedures, and operational protocols
 - Clinical reference questions (medications, protocols, guidelines)
 - Questions about their own schedule, credentials, and assignments
-- How to use the FirePCR app
+- How to use the RAM Field Ops app
 - Submitting bug reports about the app
 - Submitting requests for admin approval (schedule changes, access requests, equipment needs, etc.)
 

@@ -16,7 +16,7 @@ const C = {
   teal: '#0d9488', orange: '#ea580c',
 }
 const ACUITY_COLORS: Record<string, string> = {
-  'Immediate': C.red, 'Delayed': C.amber, 'Minimal': C.green, 'Expectant': C.gray,
+  'Immediate': C.red, 'Delayed': C.amber, 'Minor': C.green, 'Expectant': C.gray,
 }
 const axisStyle = { fill: '#9ca3af', fontSize: 11 }
 const gridStyle = { stroke: '#1f2937' }
@@ -302,7 +302,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
           const v = raw.toLowerCase()
           if (v.includes('critical') || v.includes('red') || v.includes('immediate')) return 'Immediate'
           if (v.includes('yellow') || v.includes('delayed') || v.includes('emergent')) return 'Delayed'
-          if (v.includes('green') || v.includes('minor') || v.includes('non-acute') || v.includes('routine')) return 'Minimal'
+          if (v.includes('green') || v.includes('minor') || v.includes('non-acute') || v.includes('routine')) return 'Minor'
           return 'Expectant'
         }
         const encounters = encountersRaw.map((enc, idx) => ({
@@ -369,7 +369,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
 
         const complaintCounts: Record<string, number> = {}
         encounters.forEach(e => { if (e.chief_complaint) complaintCounts[e.chief_complaint] = (complaintCounts[e.chief_complaint] || 0) + 1 })
-        const acuityCounts: Record<string, number> = { Immediate: 0, Delayed: 0, Minimal: 0, Expectant: 0 }
+        const acuityCounts: Record<string, number> = { Immediate: 0, Delayed: 0, Minor: 0, Expectant: 0 }
         encounters.forEach(e => { acuityCounts[e.acuity]++ })
         const dailyCounts: Record<string, number> = {}
         encounters.forEach(e => { if (e.date) dailyCounts[e.date] = (dailyCounts[e.date] || 0) + 1 })
@@ -447,7 +447,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
     return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, count]) => ({ name, count }))
   })()
   const filteredAcuityBreakdown = (() => {
-    const acCounts: Record<string, number> = { Immediate: 0, Delayed: 0, Minimal: 0, Expectant: 0 }
+    const acCounts: Record<string, number> = { Immediate: 0, Delayed: 0, Minor: 0, Expectant: 0 }
     filteredEncounters.forEach(e => { acCounts[e.acuity] = (acCounts[e.acuity] || 0) + 1 })
     return Object.entries(acCounts).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value }))
   })()

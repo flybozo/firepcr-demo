@@ -52,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const rowH = 9
   const labels = [
     ['1. Agreement Number', incident?.agreement_number],
-    ['2. Contractor / Agency Name', 'Ridgeline EMS'],
+    ['2. Contractor / Agency Name', 'Remote Area Medicine'],
     ['3. Resource Order Number', incident?.resource_order_number],
   ]
   labels.forEach(([label, val], i) => {

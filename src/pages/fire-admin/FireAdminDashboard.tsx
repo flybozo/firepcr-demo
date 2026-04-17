@@ -14,7 +14,7 @@ const C = {
   teal: '#0d9488', orange: '#ea580c',
 }
 const ACUITY_COLORS: Record<string, string> = {
-  'Immediate': C.red, 'Delayed': C.amber, 'Minimal': C.green, 'Expectant': C.gray,
+  'Immediate': C.red, 'Delayed': C.amber, 'Minor': C.green, 'Expectant': C.gray,
 }
 // Tailwind acuity pill classes matching the rest of the app
 const ACUITY_PILL: Record<string, string> = {
@@ -22,7 +22,7 @@ const ACUITY_PILL: Record<string, string> = {
   'Red': 'bg-red-900/60 text-red-300 border border-red-700/40',
   'Delayed': 'bg-yellow-900/60 text-yellow-300 border border-yellow-700/40',
   'Yellow': 'bg-yellow-900/60 text-yellow-300 border border-yellow-700/40',
-  'Minimal': 'bg-green-900/60 text-green-300 border border-green-700/40',
+  'Minor': 'bg-green-900/60 text-green-300 border border-green-700/40',
   'Green': 'bg-green-900/60 text-green-300 border border-green-700/40',
   'Expectant': 'bg-gray-800 text-gray-400 border border-gray-700',
   'Black': 'bg-gray-900 text-gray-500 border border-gray-700',

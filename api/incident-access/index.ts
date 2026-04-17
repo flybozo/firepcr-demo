@@ -68,7 +68,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         const v = raw.toLowerCase()
         if (v.includes('immediate') || v.includes('critical') || v.includes('red') || v.startsWith('1')) return 'Immediate'
         if (v.includes('delayed') || v.includes('yellow') || v.includes('emergent') || v.startsWith('2')) return 'Delayed'
-        if (v.includes('minimal') || v.includes('minor') || v.includes('green') || v.includes('routine') || v.startsWith('3')) return 'Minimal'
+        if (v.includes('minimal') || v.includes('minor') || v.includes('green') || v.includes('routine') || v.startsWith('3')) return 'Minor'
         if (v.includes('expectant') || v.includes('black') || v.startsWith('4')) return 'Expectant'
         return raw
       }

@@ -26,7 +26,7 @@ const DISPOSITIONS = [
 ]
 
 const ACUITY = [
-  { value: 'Green (Minor)', label: 'Minimal', base: 'bg-green-700 hover:bg-green-600', selected: 'bg-green-500 ring-2 ring-green-300' },
+  { value: 'Green (Minor)', label: 'Minor', base: 'bg-green-700 hover:bg-green-600', selected: 'bg-green-500 ring-2 ring-green-300' },
   { value: 'Yellow (Delayed)', label: 'Delayed', base: 'bg-yellow-600 hover:bg-yellow-500', selected: 'bg-yellow-400 ring-2 ring-yellow-200' },
   { value: 'Red (Immediate)', label: 'Immediate', base: 'bg-red-700 hover:bg-red-600', selected: 'bg-red-500 ring-2 ring-red-300' },
   { value: 'Black (Expectant)', label: 'Expectant', base: 'bg-gray-700 hover:bg-gray-600 border border-gray-500', selected: 'bg-gray-600 ring-2 ring-gray-400 border border-gray-400' },

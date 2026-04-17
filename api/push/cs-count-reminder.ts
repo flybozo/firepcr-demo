@@ -15,7 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     // Try admin auth as fallback
     try {
-      const { requireEmployee } = await import('../_auth')
+      const { requireEmployee } = await import('../_auth.js')
       await requireEmployee(req, { admin: true })
     } catch {
       return res.status(401).json({ error: 'Unauthorized' })

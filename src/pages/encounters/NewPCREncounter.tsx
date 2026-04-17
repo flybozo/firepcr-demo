@@ -86,7 +86,7 @@ const PATIENT_RACE_OPTIONS = [
 const INITIAL_ACUITY_OPTIONS = [
   { value: 'Critical (Red)', color: 'bg-red-600 hover:bg-red-500', ring: 'ring-red-400', label: 'Immediate' },
   { value: 'Emergent (Yellow)', color: 'bg-yellow-500 hover:bg-yellow-400', ring: 'ring-yellow-300', label: 'Delayed' },
-  { value: 'Lower Acuity (Green)', color: 'bg-green-600 hover:bg-green-500', ring: 'ring-green-400', label: 'Minimal' },
+  { value: 'Lower Acuity (Green)', color: 'bg-green-600 hover:bg-green-500', ring: 'ring-green-400', label: 'Minor' },
   { value: 'Dead without Resuscitation Efforts (Black)', color: 'bg-gray-800 hover:bg-gray-700 border border-gray-600', ring: 'ring-gray-400', label: 'Expectant' },
   { value: 'Non-Acute/Routine', color: 'bg-blue-700 hover:bg-blue-600', ring: 'ring-blue-400', label: 'Routine' },
 ]
