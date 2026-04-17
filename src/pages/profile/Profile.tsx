@@ -1,6 +1,7 @@
 
 
 import { useEffect, useState, useRef } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import { createClient } from '@/lib/supabase/client'
 import { authFetch } from '@/lib/authFetch'
 import { loadSingle } from '@/lib/offlineFirst'
@@ -23,8 +24,11 @@ const CERT_TYPE_OPTIONS = [
 export default function ProfilePage() {
   const supabase = createClient()
   const assignment = useUserAssignment()
+  const location = useLocation()
   const headshotRef = useRef<HTMLInputElement>(null)
   const credRef = useRef<HTMLInputElement>(null)
+  const isUnassigned = !assignment.loading && assignment.employee && !assignment.unit
+  const wasRedirected = (location.state as any)?.unassigned || (location.state as any)?.accessDenied
 
   const [employee, setEmployee] = useState<any>(null)
   const [saving, setSaving] = useState(false)
@@ -250,6 +254,24 @@ export default function ProfilePage() {
 
   return (
     <div className="p-6 md:p-8 max-w-lg mt-8 md:mt-0 pb-20">
+
+      {/* Unassigned / redirected banner */}
+      {(wasRedirected || isUnassigned) && (
+        <div className="mb-5 bg-amber-900/30 border border-amber-700 rounded-xl px-4 py-3">
+          <p className="text-amber-300 text-sm font-semibold mb-1">📢 Not yet assigned to a unit</p>
+          <p className="text-amber-200/70 text-xs">
+            You’ll have full access to incidents, encounters, CS, and inventory once you’re assigned to an active unit.
+            In the meantime you can update your profile, view the roster, and submit schedule requests below.
+          </p>
+          <Link
+            to="/schedule/request"
+            className="inline-block mt-2 px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition-colors"
+          >
+            📅 Submit Schedule Request
+          </Link>
+        </div>
+      )}
+
       <h1 className="text-2xl font-bold mb-1">My Profile</h1>
       <p className="text-gray-400 text-sm mb-6">{form.name || employee.name} · {employee.role} · {employee.wf_email || employee.email}</p>
 

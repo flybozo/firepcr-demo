@@ -367,8 +367,14 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       })
   }, [])
 
+  // Field users with no unit assignment can only access profile, roster, schedule request
+  const isUnassigned = isField && !assignment.loading && !assignment.unit
+  const FIELD_UNASSIGNED_ALLOWED = ['/profile', '/roster']
+
   const visibleNav = NAV.filter(item => {
     if (item.adminOnly && isField) return false
+    // Hide most nav items for unassigned field users
+    if (isUnassigned && !FIELD_UNASSIGNED_ALLOWED.some(p => item.href.startsWith(p))) return false
     return true
   }).map(item => ({
     ...item,
@@ -397,7 +403,8 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           ? `/incidents/${assignment.incidentUnit.incident_id}`
           : '/incidents'
       case '/units':
-        return assignment.unit?.id ? `/units/${assignment.unit.id}` : '/units'
+        // Field users go straight to their unit detail, never the list
+        return assignment.unit?.id ? `/units/${assignment.unit.id}` : '/profile'
       default:
         return item.href
     }
@@ -484,6 +491,12 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           style={{ color: "var(--color-text-muted, #9ca3af)" }} className="flex items-center gap-3 text-sm hover:opacity-80 transition-colors">
           <span>👤</span> My Profile
         </Link>
+        {isField && (
+          <Link to="/schedule/request"
+            style={{ color: "var(--color-text-muted, #9ca3af)" }} className="flex items-center gap-3 text-sm hover:opacity-80 transition-colors">
+            <span>📅</span> Schedule Request
+          </Link>
+        )}
         <button
           onClick={async () => {
             const { createClient } = await import('@/lib/supabase/client')

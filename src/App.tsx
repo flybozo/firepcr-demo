@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import SplitShell from '@/components/SplitShell'
 import AuthGuard from '@/components/AuthGuard'
+import RouteGuard from '@/components/RouteGuard'
 import AppLayout from '@/layouts/AppLayout'
 
 // Eagerly loaded (needed immediately / on every page)
@@ -131,113 +132,117 @@ function App() {
           <Route path="/" element={<AuthGuard><AppLayout /></AuthGuard>}>
             <Route index element={<Dashboard />} />
 
-            {/* Encounters — split-pane on desktop */}
-            <Route path="encounters/new" element={<NewEncounter />} />
-            <Route path="encounters/new/simple" element={<NewSimpleEncounter />} />
-            <Route path="encounters/new/pcr" element={<NewPCREncounter />} />
-            <Route path="encounters/photos/new" element={<NewPhoto />} />
-            <Route path="encounters/procedures/new" element={<NewProcedure />} />
-            <Route path="encounters/:id/edit" element={<EncounterEdit />} />
-            <Route path="encounters" element={<SplitShell basePath="/encounters"><EncountersList /></SplitShell>}>
-              <Route path=":id" element={<EncounterDetail />} />
-            </Route>
-
-            {/* MAR — split-pane on desktop */}
-            <Route path="mar/new" element={<MARNew />} />
-            <Route path="mar/search" element={<MARSearch />} />
-            <Route path="mar" element={<SplitShell basePath="/mar"><MARList /></SplitShell>}>
-              <Route path=":id" element={<MARDetail />} />
-            </Route>
-
-            {/* Incidents — split-pane on desktop */}
-            <Route path="incidents/new" element={<NewIncident />} />
-            <Route path="incidents/:id/shift-ticket" element={<ShiftTicket />} />
-            <Route path="incidents" element={<SplitShell basePath="/incidents"><IncidentsList /></SplitShell>}>
-              <Route path=":id" element={<IncidentDetail />} />
-            </Route>
-
-            {/* Units — split-pane on desktop */}
-            <Route path="units/new" element={<NewUnit />} />
-            <Route path="units" element={<SplitShell basePath="/units" listWidth="lg:w-1/2"><UnitsList /></SplitShell>}>
-              <Route path=":id" element={<UnitDetail />} />
-            </Route>
-
-            {/* CS */}
-            <Route path="cs/overview" element={<CSOverview />} />
-            <Route path="cs/receive" element={<CSReceive />} />
-            <Route path="cs/transfer" element={<CSTransfer />} />
-            <Route path="cs/count" element={<CSCount />} />
-            <Route path="cs" element={<SplitShell basePath="/cs" detailPattern="/cs/item/:id"><CSList /></SplitShell>}>
-              <Route path="item/:id" element={<CSItemDetail />} />
-            </Route>
-            <Route path="cs/audit" element={<CSAudit />} />
-            <Route path="cs/checklist" element={<CSChecklist />} />
-            <Route path="cs-inventory/count" element={<CSInventoryCount />} />
-
-            {/* Inventory */}
-            <Route path="inventory/add" element={<InventoryAdd />} />
-            <Route path="inventory/burnrate" element={<BurnRate />} />
-            <Route path="inventory/reorder" element={<Reorder />} />
-            <Route path="inventory" element={<SplitShell basePath="/inventory"><InventoryList /></SplitShell>}>
-              <Route path=":id" element={<InventoryDetail />} />
-            </Route>
-
-            {/* Supply Runs — split-pane on desktop */}
-            <Route path="supply-runs/new" element={<NewSupplyRun />} />
-            <Route path="supply-runs/search" element={<SupplyRunSearch />} />
-            <Route path="supply-runs" element={<SplitShell basePath="/supply-runs"><SupplyRunsList /></SplitShell>}>
-              <Route path=":id" element={<SupplyRunDetail />} />
-            </Route>
-
-            {/* Roster — split-pane on desktop */}
-            <Route path="roster/new" element={<NewEmployee />} />
-            <Route path="roster/hr" element={<HRCredentials />} />
+            {/* ── Always accessible (any logged-in user, assigned or not) ── */}
+            <Route path="profile" element={<Profile />} />
             <Route path="roster" element={<SplitShell basePath="/roster"><RosterList /></SplitShell>}>
               <Route path=":id" element={<EmployeeDetail />} />
             </Route>
+            {/* Schedule request — field users get the full Schedule page (it self-filters) */}
+            <Route path="schedule/request" element={<Schedule />} />
 
-            {/* Schedule */}
-            <Route path="schedule" element={<Schedule />} />
-            <Route path="schedule/calendar" element={<ScheduleCalendar />} />
-            <Route path="schedule/generate" element={<GenerateSchedule />} />
-
-            {/* ICS 214 */}
-            <Route path="ics214" element={<ICS214List />} />
-            <Route path="ics214/new" element={<NewICS214 />} />
-            <Route path="ics214/:id" element={<ICS214Detail />} />
-            <Route path="ics214/:id/activity" element={<ICS214Activity />} />
-
-            {/* Other */}
-            <Route path="analytics" element={<Analytics />} />
-            <Route path="billing" element={<Billing />} />
-            <Route path="comp-claims" element={<CompClaimsList />} />
-            <Route path="comp-claims/new" element={<NewCompClaim />} />
-            <Route path="consent/ama" element={<AMAConsent />} />
-            <Route path="consent/treat" element={<ConsentToTreat />} />
-            <Route path="contacts" element={<Contacts />} />
-            <Route path="documents/handbook" element={<Handbook />} />
-            <Route path="documents/new" element={<NewDocument />} />
-            <Route path="documents" element={<SplitShell basePath="/documents"><DocumentsList /></SplitShell>}>
-              <Route path=":id" element={<DocumentDetail />} />
+            {/* ── Units: field users go straight to their unit; list is admin-only ── */}
+            <Route element={<RouteGuard unitListGuard />}>
+              <Route path="units" element={<SplitShell basePath="/units" listWidth="lg:w-1/2"><UnitsList /></SplitShell>}>
+                <Route path=":id" element={<UnitDetail />} />
+              </Route>
             </Route>
-            <Route path="formulary" element={<Formulary />} />
-            <Route path="payroll" element={<Payroll />} />
-            <Route path="payroll/my" element={<MyPayroll />} />
-            <Route path="profile" element={<Profile />} />
-            <Route path="unsigned-items" element={<UnsignedItems />} />
-            {/* Legacy routes redirect to unified page */}
-            <Route path="unsigned-orders" element={<Navigate to="/unsigned-items" replace />} />
-            <Route path="unsigned-pcrs" element={<Navigate to="/unsigned-items" replace />} />
-            <Route path="patient-search" element={<PatientSearch />} />
-            <Route path="dashboard/my-unit" element={<MyUnit />} />
 
-            {/* Admin */}
-            <Route path="admin" element={<Admin />} />
-            <Route path="admin/announcements" element={<Announcements />} />
-            <Route path="admin/push-notifications" element={<PushNotifications />} />
-            <Route path="admin/chat-requests" element={<ChatRequests />} />
-            <Route path="admin/company" element={<Company />} />
-            <Route path="admin/fire-dashboard" element={<FireDashboard />} />
+            {/* ── Requires active unit assignment ── */}
+            <Route element={<RouteGuard require="assigned" />}>
+              {/* Encounters */}
+              <Route path="encounters/new" element={<NewEncounter />} />
+              <Route path="encounters/new/simple" element={<NewSimpleEncounter />} />
+              <Route path="encounters/new/pcr" element={<NewPCREncounter />} />
+              <Route path="encounters/photos/new" element={<NewPhoto />} />
+              <Route path="encounters/procedures/new" element={<NewProcedure />} />
+              <Route path="encounters/:id/edit" element={<EncounterEdit />} />
+              <Route path="encounters" element={<SplitShell basePath="/encounters"><EncountersList /></SplitShell>}>
+                <Route path=":id" element={<EncounterDetail />} />
+              </Route>
+              {/* MAR */}
+              <Route path="mar/new" element={<MARNew />} />
+              <Route path="mar/search" element={<MARSearch />} />
+              <Route path="mar" element={<SplitShell basePath="/mar"><MARList /></SplitShell>}>
+                <Route path=":id" element={<MARDetail />} />
+              </Route>
+              {/* Incidents */}
+              <Route path="incidents/:id/shift-ticket" element={<ShiftTicket />} />
+              <Route path="incidents" element={<SplitShell basePath="/incidents"><IncidentsList /></SplitShell>}>
+                <Route path=":id" element={<IncidentDetail />} />
+              </Route>
+              {/* CS */}
+              <Route path="cs/overview" element={<CSOverview />} />
+              <Route path="cs/transfer" element={<CSTransfer />} />
+              <Route path="cs/count" element={<CSCount />} />
+              <Route path="cs" element={<SplitShell basePath="/cs" detailPattern="/cs/item/:id"><CSList /></SplitShell>}>
+                <Route path="item/:id" element={<CSItemDetail />} />
+              </Route>
+              <Route path="cs/checklist" element={<CSChecklist />} />
+              <Route path="cs-inventory/count" element={<CSInventoryCount />} />
+              {/* Inventory */}
+              <Route path="inventory" element={<SplitShell basePath="/inventory"><InventoryList /></SplitShell>}>
+                <Route path=":id" element={<InventoryDetail />} />
+              </Route>
+              {/* Supply Runs */}
+              <Route path="supply-runs/new" element={<NewSupplyRun />} />
+              <Route path="supply-runs/search" element={<SupplyRunSearch />} />
+              <Route path="supply-runs" element={<SplitShell basePath="/supply-runs"><SupplyRunsList /></SplitShell>}>
+                <Route path=":id" element={<SupplyRunDetail />} />
+              </Route>
+              {/* ICS 214 */}
+              <Route path="ics214" element={<ICS214List />} />
+              <Route path="ics214/new" element={<NewICS214 />} />
+              <Route path="ics214/:id" element={<ICS214Detail />} />
+              <Route path="ics214/:id/activity" element={<ICS214Activity />} />
+              {/* Unsigned / Patient */}
+              <Route path="unsigned-items" element={<UnsignedItems />} />
+              <Route path="unsigned-orders" element={<Navigate to="/unsigned-items" replace />} />
+              <Route path="unsigned-pcrs" element={<Navigate to="/unsigned-items" replace />} />
+              <Route path="patient-search" element={<PatientSearch />} />
+              <Route path="dashboard/my-unit" element={<MyUnit />} />
+              {/* Payroll (own pay stubs) */}
+              <Route path="payroll/my" element={<MyPayroll />} />
+              {/* Consent forms (needed on incident) */}
+              <Route path="consent/ama" element={<AMAConsent />} />
+              <Route path="consent/treat" element={<ConsentToTreat />} />
+              {/* Comp claims */}
+              <Route path="comp-claims/new" element={<NewCompClaim />} />
+              <Route path="comp-claims" element={<CompClaimsList />} />
+            </Route>
+
+            {/* ── Admin only ── */}
+            <Route element={<RouteGuard require="admin" />}>
+              <Route path="incidents/new" element={<NewIncident />} />
+              <Route path="units/new" element={<NewUnit />} />
+              <Route path="roster/new" element={<NewEmployee />} />
+              <Route path="roster/hr" element={<HRCredentials />} />
+              <Route path="cs/receive" element={<CSReceive />} />
+              <Route path="cs/audit" element={<CSAudit />} />
+              <Route path="inventory/add" element={<InventoryAdd />} />
+              <Route path="inventory/burnrate" element={<BurnRate />} />
+              <Route path="inventory/reorder" element={<Reorder />} />
+              <Route path="schedule" element={<Schedule />} />
+              <Route path="schedule/calendar" element={<ScheduleCalendar />} />
+              <Route path="schedule/generate" element={<GenerateSchedule />} />
+              <Route path="analytics" element={<Analytics />} />
+              <Route path="billing" element={<Billing />} />
+              <Route path="formulary" element={<Formulary />} />
+              <Route path="payroll" element={<Payroll />} />
+              <Route path="contacts" element={<Contacts />} />
+              <Route path="documents/handbook" element={<Handbook />} />
+              <Route path="documents/new" element={<NewDocument />} />
+              <Route path="documents" element={<SplitShell basePath="/documents"><DocumentsList /></SplitShell>}>
+                <Route path=":id" element={<DocumentDetail />} />
+              </Route>
+              <Route path="supply-runs/search" element={<SupplyRunSearch />} />
+              {/* Admin section */}
+              <Route path="admin" element={<Admin />} />
+              <Route path="admin/announcements" element={<Announcements />} />
+              <Route path="admin/push-notifications" element={<PushNotifications />} />
+              <Route path="admin/chat-requests" element={<ChatRequests />} />
+              <Route path="admin/company" element={<Company />} />
+              <Route path="admin/fire-dashboard" element={<FireDashboard />} />
+            </Route>
 
             {/* Catch-all */}
             <Route path="*" element={<Navigate to="/" replace />} />

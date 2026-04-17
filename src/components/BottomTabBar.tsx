@@ -9,7 +9,7 @@ type Tab = {
   label: string
   href: string
   adminOnly?: boolean
-  subItems?: { label: string; href: string; adminOnly?: boolean }[]
+  subItems?: { label: string; href: string; adminOnly?: boolean; fieldOnly?: boolean }[]
 }
 
 const TABS: Tab[] = [
@@ -79,6 +79,7 @@ const TABS: Tab[] = [
       { label: '💰 Payroll', href: '/payroll' },
       { label: '📋 Documents', href: '/documents' },
       { label: '👤 Profile', href: '/profile' },
+      { label: '📅 Schedule Request', href: '/schedule/request', fieldOnly: true },
       { label: '⚙️ Admin', href: '/admin', adminOnly: true },
     ],
   },
@@ -106,8 +107,14 @@ export default function BottomTabBar() {
   const [showAdminSheet, setShowAdminSheet] = useState(false)
   const navigate = useNavigate()
 
+  const assignment = useUserAssignment()
+  const isUnassigned = isField && !assignment.loading && !assignment.unit
+  const UNASSIGNED_ALLOWED_HREFS = ['/profile', '/roster', '/schedule/request']
+
   const visibleTabs = TABS.filter(tab => {
     if (tab.adminOnly && isField) return false
+    // Hide most tabs for unassigned field users
+    if (isUnassigned && !UNASSIGNED_ALLOWED_HREFS.some(p => tab.href.startsWith(p))) return false
     return true
   })
 
@@ -200,33 +207,43 @@ export default function BottomTabBar() {
               <span>{activeSheet.icon}</span>
               <span>View All {activeSheet.label}</span>
             </Link>
-            {activeSheet.subItems.filter(sub => !(sub.adminOnly && isField)).map(sub => {
-              // Admin item opens a nested sheet instead of navigating
-              if (sub.href === '/admin' && !isField) {
+            {activeSheet.subItems
+              .filter(sub => {
+                if (sub.adminOnly && isField) return false   // hide admin items from field
+                if (sub.fieldOnly && !isField) return false  // hide field-only items from admin
+                return true
+              })
+              .map(sub => {
+                // Admin item opens a nested sheet instead of navigating
+                if (sub.href === '/admin' && !isField) {
+                  return (
+                    <button
+                      key={sub.href}
+                      onClick={() => { setSheetTab(null); setShowAdminSheet(true) }}
+                      className="flex items-center gap-3 px-5 py-3.5 text-base text-gray-400 hover:bg-gray-800/60 transition-colors w-full text-left"
+                    >
+                      <span className="text-gray-600">›</span>
+                      <span>{sub.label}</span>
+                      <span className="ml-auto text-gray-600 text-xs">›</span>
+                    </button>
+                  )
+                }
+                // Units: field users go to their own unit
+                const href = sub.href === '/units' && isField && assignment.unit?.id
+                  ? `/units/${assignment.unit.id}`
+                  : sub.href
                 return (
-                  <button
+                  <Link
                     key={sub.href}
-                    onClick={() => { setSheetTab(null); setShowAdminSheet(true) }}
-                    className="flex items-center gap-3 px-5 py-3.5 text-base text-gray-400 hover:bg-gray-800/60 transition-colors w-full text-left"
+                    to={href}
+                    onClick={() => setSheetTab(null)}
+                    className="flex items-center gap-3 px-5 py-3.5 text-base text-gray-400 hover:bg-gray-800/60 transition-colors"
                   >
                     <span className="text-gray-600">›</span>
                     <span>{sub.label}</span>
-                    <span className="ml-auto text-gray-600 text-xs">›</span>
-                  </button>
+                  </Link>
                 )
-              }
-              return (
-                <Link
-                  key={sub.href}
-                  to={sub.href}
-                  onClick={() => setSheetTab(null)}
-                  className="flex items-center gap-3 px-5 py-3.5 text-base text-gray-400 hover:bg-gray-800/60 transition-colors"
-                >
-                  <span className="text-gray-600">›</span>
-                  <span>{sub.label}</span>
-                </Link>
-              )
-            })}
+              })}
             {activeSheet.label === 'More' && (
               <button
                 onClick={async () => {
