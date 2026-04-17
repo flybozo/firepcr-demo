@@ -31,7 +31,7 @@ type DashboardData = {
   encounters: { id: string; seq_id: string; date: string | null; unit: string | null; age: string | null; chief_complaint: string | null; acuity: string; disposition: string | null; created_at: string | null }[]
   comp_claims: { id: string; claim_number: string; date: string | null; status: string | null; has_pdf: boolean; pdf_url: string | null; patient_seq_id: string | null; osha_recordable: boolean | null; created_at: string | null }[]
   ics214s: { id: string; ics214_id: string; unit: string | null; prepared_by: string | null; date: string | null; status: string | null; has_pdf: boolean; pdf_file_name: string | null }[]
-  supply_aggregated: { item_name: string; total_qty: number; unit: string }[]
+  supply_aggregated: { item_name: string; total_qty: number; unit: string; category?: string }[]
   code_label: string | null
 }
 
@@ -282,18 +282,20 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
         // ── Supply runs fetch ──
         const supplyRunsRes = await supabase
           .from('supply_runs')
-          .select('id, run_date, unit, created_at')
+          .select('id, run_date, created_at')
           .eq('incident_id', incidentId)
         const runIds = (supplyRunsRes.data || []).map((r: { id: string }) => r.id)
         let supplyAggregated: { item_name: string; total_qty: number; unit: string }[] = []
         if (runIds.length > 0) {
           const supplyItemsRes = await supabase
             .from('supply_run_items')
-            .select('item_name, quantity, unit')
+            .select('item_name, quantity, unit_of_measure, category')
             .in('supply_run_id', runIds)
-          const itemTotals: Record<string, { total_qty: number; unit: string }> = {}
-          ;(supplyItemsRes.data || []).forEach((item: { item_name: string; quantity: number | null; unit: string | null }) => {
-            if (!itemTotals[item.item_name]) itemTotals[item.item_name] = { total_qty: 0, unit: item.unit || '' }
+            .is('deleted_at', null)
+          const itemTotals: Record<string, { total_qty: number; unit: string; category: string }> = {}
+          ;(supplyItemsRes.data || []).forEach((item: { item_name: string; quantity: number | null; unit_of_measure: string | null; category: string | null }) => {
+            if (!item.item_name) return
+            if (!itemTotals[item.item_name]) itemTotals[item.item_name] = { total_qty: 0, unit: item.unit_of_measure || '', category: item.category || '' }
             itemTotals[item.item_name].total_qty += item.quantity || 0
           })
           supplyAggregated = Object.entries(itemTotals)
@@ -634,9 +636,11 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
                     <YAxis type="category" dataKey="name" tick={{ ...axisStyle, fontSize: 11 }} width={155} />
                     <Tooltip contentStyle={tooltipStyle} />
                     <Bar dataKey="qty" radius={[0, 4, 4, 0]} name="Total Qty">
-                      {data.supply_aggregated.map((_, i) => (
-                        <Cell key={i} fill={i % 2 === 0 ? C.blue : C.teal} />
-                      ))}
+                      {data.supply_aggregated.map((item, i) => {
+                        const CAT: Record<string, string> = { 'CS': C.red, 'Medication': C.violet, 'IV': C.blue, 'Airway': C.teal, 'Wound Care': C.amber, 'OTC': C.green, 'Supply': C.amber }
+                        const BARS = [C.blue, C.teal, C.violet, C.green, C.amber, C.red]
+                        return <Cell key={i} fill={CAT[item.category || ''] || BARS[i % BARS.length]} />
+                      })}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>

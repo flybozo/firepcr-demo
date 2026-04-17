@@ -130,7 +130,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const initials = parts.length >= 2
             ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
             : parts[0] ? parts[0][0].toUpperCase() : '—'
-          return { ...c, seq_id: `WC-${String(i + 1).padStart(3, '0')}`, has_pdf: !!c.pdf_url, patient_initials: initials }
+          // Map encounter_id (text like ENC-123 or UUID) to the PT-NNN seq_id
+          const encSeqId = encounters.find((e: any) =>
+            e.encounter_id === c.encounter_id || e.id === c.encounter_id
+          )?.seq_id || null
+          return { ...c, seq_id: `WC-${String(i + 1).padStart(3, '0')}`, has_pdf: !!c.pdf_url, patient_initials: initials, patient_seq_id: encSeqId }
         }),
         ics214s: (ics214R.data || []).map((f: any) => ({ ...f, date: f.op_date, unit: f.unit_name, prepared_by: f.created_by || null, has_pdf: !!f.pdf_url })),
         code_label: codeRow.label,
