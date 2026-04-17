@@ -1854,7 +1854,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                               className="flex items-center gap-2 px-3 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors">
                               <span>📷</span> Add Photo
                             </Link>
-                            <Link to={`/comp-claims/new?encounterId=${enc.encounter_id}&unit=${encodeURIComponent(enc.unit||'')}&dob=${encodeURIComponent(enc.patient_dob||'')}&tebw=${encodeURIComponent(enc.time_employee_began_work || (enc.date ? enc.date + "T06:00" : ""))}`}
+                            <Link to={`/comp-claims/new?encounterId=${enc.encounter_id}&unit=${encodeURIComponent(enc.unit||'')}&dob=${encodeURIComponent(enc.patient_dob||'')}&tebw=${encodeURIComponent(enc.time_employee_began_work || (enc.date ? enc.date + "T06:00" : ""))}${enc.incident_id ? '&incidentId=' + enc.incident_id : ''}`}
                               className="flex items-center gap-2 px-3 py-2.5 bg-gray-800 hover:bg-gray-700 rounded-lg text-sm font-medium transition-colors">
                               <span>📋</span> Comp Claim
                             </Link>
@@ -2356,7 +2356,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                               <span className="text-gray-500 text-xs">{showCompClaims ? '▲' : '▼'}</span>
                             </button>
                             {!isLocked && (
-                              <Link to={`/comp-claims/new?encounterId=${enc.encounter_id}&unit=${encodeURIComponent(enc.unit||'')}&dob=${encodeURIComponent(enc.patient_dob||'')}&tebw=${encodeURIComponent(enc.time_employee_began_work || (enc.date ? enc.date + "T06:00" : ""))}`}
+                              <Link to={`/comp-claims/new?encounterId=${enc.encounter_id}&unit=${encodeURIComponent(enc.unit||'')}&dob=${encodeURIComponent(enc.patient_dob||'')}&tebw=${encodeURIComponent(enc.time_employee_began_work || (enc.date ? enc.date + "T06:00" : ""))}${enc.incident_id ? '&incidentId=' + enc.incident_id : ''}`}
                                 className="text-xs px-2.5 py-1 bg-red-600 hover:bg-red-700 rounded-lg text-white font-semibold transition-colors flex items-center gap-1">
                                 <span>+</span> New Comp Claim
                               </Link>

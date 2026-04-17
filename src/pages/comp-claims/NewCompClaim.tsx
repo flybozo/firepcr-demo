@@ -221,6 +221,7 @@ function NewCompClaimInner() {
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null)
   const [physicians, setPhysicians] = useState<Employee[]>([])
   const [encounterUUID, setEncounterUUID] = useState<string>('')
+  const [incidentIdFromEnc, setIncidentIdFromEnc] = useState<string | null>(null)
 
   const [form, setForm] = useState({
     // Section 1 - Incident Info
@@ -304,6 +305,7 @@ function NewCompClaimInner() {
         if (enc) {
           setEncounterUUID(enc.id as string)
           const encIncId = (enc as any).incident_id
+          if (encIncId) setIncidentIdFromEnc(encIncId)
           setForm(prev => ({
             ...prev,
             patient_name: [enc.patient_first_name, enc.patient_last_name].filter(Boolean).join(' '),
@@ -343,6 +345,7 @@ function NewCompClaimInner() {
           if (enc2) {
             setEncounterUUID(enc2.id as string)
             const enc2IncId = (enc2 as any).incident_id
+            if (enc2IncId) setIncidentIdFromEnc(enc2IncId)
             setForm(prev => ({
               ...prev,
               patient_name: [enc2.patient_first_name, enc2.patient_last_name].filter(Boolean).join(' '),
@@ -443,7 +446,7 @@ function NewCompClaimInner() {
       notes: form.notes || null,
       time_employee_began_work: form.time_employee_began_work ? form.time_employee_began_work.slice(-5).padStart(5, '0') : null,
       status: 'Complete',
-      incident_id: incidentIdParam || null,
+      incident_id: incidentIdParam || incidentIdFromEnc || null,
     }
 
     const { data: insertedClaim, error: insertErr } = await supabase.from('comp_claims').insert(payload).select('id').single()

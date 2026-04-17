@@ -213,7 +213,7 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
 }
 
 // ── Dashboard tabs ────────────────────────────────────────────────────────────
-type DashTab = 'overview' | 'patients' | 'comp' | 'ics214' | 'access-log' | 'supply'
+type DashTab = 'overview' | 'patients' | 'ics214' | 'access-log' | 'supply'
 
 function IncidentDashboard({ incidentId }: { incidentId: string }) {
   const [data, setData] = useState<DashboardData | null>(null)
@@ -232,7 +232,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
         const [incRes, orgRes, encRes, unitsRes, compRes, icsRes] = await Promise.all([
           supabase.from('incidents').select('id, name, location, incident_number, start_date, end_date, status').eq('id', incidentId).single(),
           supabase.from('organizations').select('name, dba, logo_url').limit(1).single(),
-          supabase.from('patient_encounters').select('id, date, unit, patient_age, patient_age_units, primary_symptom_text, initial_acuity, final_acuity, patient_disposition, created_at').eq('incident_id', incidentId).is('deleted_at', null).order('date', { ascending: true }),
+          supabase.from('patient_encounters').select('id, encounter_id, date, unit, patient_age, patient_age_units, primary_symptom_text, initial_acuity, final_acuity, patient_disposition, created_at').eq('incident_id', incidentId).is('deleted_at', null).order('date', { ascending: true }),
           supabase.from('incident_units').select('id, unit_id').eq('incident_id', incidentId),
           supabase.from('comp_claims').select('id, date_of_injury, status, pdf_url, encounter_id, osha_recordable, created_at').eq('incident_id', incidentId).order('created_at', { ascending: true }),
           supabase.from('ics214_headers').select('id, ics214_id, unit_name, leader_name, op_date, status, pdf_url, pdf_file_name, created_by, created_at, closed_at').eq('incident_id', incidentId).order('op_date', { ascending: true }),
@@ -259,17 +259,25 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
           disposition: enc.patient_disposition,
           created_at: enc.created_at ?? null,
         }))
+        // encLookup maps both UUID and text encounter_id → encounter UUID
+        const encLookup: Record<string, string> = {}
         const encIdToSeq: Record<string, string> = {}
-        encounters.forEach(e => { encIdToSeq[e.id] = e.seq_id })
+        encountersRaw.forEach((e, idx) => {
+          const seqId = `PT-${String(idx + 1).padStart(3, '0')}`
+          encLookup[e.id] = e.id  // UUID → UUID (identity)
+          if ((e as any).encounter_id) encLookup[(e as any).encounter_id] = e.id  // text → UUID
+          encIdToSeq[e.id] = seqId
+        })
 
         const compClaims = (compRes.data || []).map((cc, idx) => ({
           id: cc.id, claim_number: `WC-${String(idx + 1).padStart(3, '0')}`,
           date: cc.date_of_injury, status: cc.status,
           has_pdf: !!cc.pdf_url, pdf_url: cc.pdf_url ?? null,
-          patient_seq_id: cc.encounter_id ? encIdToSeq[cc.encounter_id] || null : null,
+          patient_seq_id: cc.encounter_id ? (encIdToSeq[encLookup[cc.encounter_id] || cc.encounter_id] || null) : null,
           osha_recordable: cc.osha_recordable,
           created_at: cc.created_at ?? null,
-          encounter_id: cc.encounter_id ?? null,
+          // store the resolved UUID so WC lookup works correctly
+          encounter_id: cc.encounter_id ? (encLookup[cc.encounter_id] || cc.encounter_id) : null,
         }))
 
         const ics214s = (icsRes.data || []).map(form => ({
@@ -343,7 +351,6 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
   const tabs: { id: DashTab; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: '📊' },
     { id: 'patients', label: 'Patient Log', icon: '📋' },
-    { id: 'comp', label: 'Comp Claims', icon: '📄' },
     { id: 'ics214', label: 'ICS 214s', icon: '📝' },
     { id: 'supply', label: 'Supply', icon: '🧰' },
     { id: 'access-log', label: 'Access Log', icon: '👀' },
@@ -405,15 +412,34 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
   // ── PDF signed URL opener ──────────────────────────────────────────────────
   const openPdf = async (pdfUrl: string) => {
     const supabase = createClient()
+    let bucket = 'documents'
+    let objectPath = pdfUrl
+    if (!pdfUrl.startsWith('http')) {
+      const slash = pdfUrl.indexOf('/')
+      if (slash !== -1 && pdfUrl.slice(0, slash) === 'comp-claims') {
+        bucket = 'comp-claims'
+        objectPath = pdfUrl.slice(slash + 1)
+      }
+    }
     const { data: signedData } = await supabase.storage
-      .from('documents')
-      .createSignedUrl(pdfUrl, 3600)
+      .from(bucket)
+      .createSignedUrl(objectPath, 3600)
     if (signedData?.signedUrl) {
       window.open(signedData.signedUrl, '_blank')
     } else {
       alert('Could not generate PDF link. The file may have been removed.')
     }
   }
+
+  // ── WC claim lookup by encounter id ─────────────────────────────────────────
+  const claimByEncId = Object.fromEntries(
+    data.comp_claims
+      .map(cc => {
+        const encId = (cc as typeof cc & { encounter_id?: string | null }).encounter_id
+        return encId ? [encId, cc] : null
+      })
+      .filter((x): x is [string, typeof data.comp_claims[0]] => x !== null)
+  )
 
   // ── Date range filter dropdown ─────────────────────────────────────────────
   const DateFilterDropdown = () => (
@@ -442,7 +468,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
       </div>
 
       {/* Date range filter (shown on all data tabs) */}
-      {(tab === 'patients' || tab === 'comp' || tab === 'overview' || tab === 'supply') && (
+      {(tab === 'patients' || tab === 'overview' || tab === 'supply') && (
         <div className="flex items-center gap-3">
           <span className="text-xs text-gray-500">Date range:</span>
           <DateFilterDropdown />
@@ -526,65 +552,41 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
           <p className="text-xs text-gray-500">{filteredEncounters.length} encounters — de-identified</p>
           {filteredEncounters.length === 0 ? <Empty text="No encounters for this period" /> : (
             <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="grid grid-cols-[72px_80px_60px_1fr_80px_50px_1fr] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
-                <span>ID</span><span>Date</span><span>Age</span><span>Chief Complaint</span><span>Acuity</span><span>WC</span><span className="hidden md:block">Disposition</span>
+              <div className="grid grid-cols-[72px_72px_52px_1fr_80px_130px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
+                <span>ID</span><span>Date</span><span>Age</span><span>Chief Complaint</span><span>Acuity</span><span>WC / AMA</span>
               </div>
-              {filteredEncounters.map(enc => (
-                <div key={enc.id} className="grid grid-cols-[72px_80px_60px_1fr_80px_50px_1fr] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 transition-colors items-center">
-                  <span className="font-mono text-xs text-gray-300">{enc.seq_id}</span>
-                  <span className="text-xs text-gray-400">{enc.date ? new Date(enc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
-                  <span className="text-xs text-gray-400">{enc.age || '—'}</span>
-                  <span className="text-xs text-white truncate">{enc.chief_complaint || '—'}</span>
-                  <span><Badge color={ACUITY_COLORS[enc.acuity] ?? C.gray} label={enc.acuity} /></span>
-                  <span>
-                    {wcEncounterIds.has(enc.id) && (
-                      <span className="text-xs px-1.5 py-0.5 rounded font-bold" style={{ backgroundColor: C.amber + '30', color: C.amber }}>WC</span>
-                    )}
-                  </span>
-                  <span className="hidden md:block text-xs text-gray-400 truncate">{enc.disposition || '—'}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── Comp Claims ── */}
-      {tab === 'comp' && (
-        <div className="space-y-3">
-          <p className="text-xs text-gray-500">{filteredCompClaims.length} comp claims</p>
-          {filteredCompClaims.length === 0 ? <Empty text="No comp claims for this period" /> : (
-            <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="grid grid-cols-[80px_80px_72px_1fr_110px_80px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
-                <span>Claim #</span><span>Date</span><span>Patient</span><span>Status</span><span>OSHA</span><span>PDF</span>
-              </div>
-              {filteredCompClaims.map(cc => (
-                <div key={cc.id} className="grid grid-cols-[80px_80px_72px_1fr_110px_80px] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 items-center">
-                  <span className="font-mono text-xs text-gray-300">{cc.claim_number}</span>
-                  <span className="text-xs text-gray-400">{cc.date ? new Date(cc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
-                  <span className="font-mono text-xs text-gray-400">{cc.patient_seq_id || '—'}</span>
-                  <span><Badge color={STATUS_COLOR[cc.status || ''] ?? C.gray} label={cc.status || 'Unknown'} /></span>
-                  <span className="text-xs">
-                    {cc.osha_recordable === true && <span style={{ color: C.red }}>🔴 Recordable</span>}
-                    {cc.osha_recordable === false && <span style={{ color: C.green }}>✅ Not Recordable</span>}
-                    {cc.osha_recordable === null && <span style={{ color: C.gray }}>—</span>}
-                  </span>
-                  <span className="text-xs">
-                    {cc.has_pdf && cc.pdf_url ? (
-                      <button
-                        onClick={() => openPdf(cc.pdf_url!)}
-                        className="text-blue-400 hover:text-blue-300 underline cursor-pointer transition-colors"
-                      >
-                        📄 PDF
-                      </button>
-                    ) : cc.has_pdf ? (
-                      <span className="text-green-400">✅</span>
-                    ) : (
-                      <span className="text-gray-600">—</span>
-                    )}
-                  </span>
-                </div>
-              ))}
+              {filteredEncounters.map(enc => {
+                const claim = claimByEncId[enc.id]
+                return (
+                  <div key={enc.id} className="grid grid-cols-[72px_72px_52px_1fr_80px_130px] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 transition-colors items-center">
+                    <span className="font-mono text-xs text-blue-400 font-semibold">{enc.seq_id}</span>
+                    <span className="text-xs text-gray-400">{enc.date ? new Date(enc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
+                    <span className="text-xs text-gray-400">{enc.age || '—'}</span>
+                    <span className="text-xs text-white truncate">{enc.chief_complaint || '—'}</span>
+                    <span><Badge color={ACUITY_COLORS[enc.acuity] ?? C.gray} label={enc.acuity} /></span>
+                    <span className="flex flex-col gap-1">
+                      {wcEncounterIds.has(enc.id) && claim ? (
+                        <>
+                          {claim.osha_recordable === true && <span className="text-xs bg-red-900/50 text-red-300 border border-red-700/40 px-1.5 py-0.5 rounded font-medium leading-none">🔴 Recordable</span>}
+                          {claim.osha_recordable === false && <span className="text-xs bg-green-900/50 text-green-300 border border-green-700/40 px-1.5 py-0.5 rounded font-medium leading-none">✅ Not Recordable</span>}
+                          {claim.osha_recordable == null && <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded leading-none">📋 WC Filed</span>}
+                          {claim.has_pdf && claim.pdf_url && (
+                            <button
+                              onClick={() => openPdf(claim.pdf_url!)}
+                              className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-1.5 py-0.5 rounded transition-colors leading-none w-fit">
+                              ⬇ WC PDF
+                            </button>
+                          )}
+                        </>
+                      ) : wcEncounterIds.has(enc.id) ? (
+                        <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded leading-none">📋 WC</span>
+                      ) : (
+                        <span className="text-gray-700 text-xs">—</span>
+                      )}
+                    </span>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>
