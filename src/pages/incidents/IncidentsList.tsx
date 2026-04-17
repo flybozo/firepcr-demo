@@ -139,9 +139,7 @@ function IncidentsPageInner() {
                 <span className="w-40 shrink-0 text-gray-400 text-xs truncate pr-2 hidden md:block">
                   {incident.location || '—'}
                 </span>
-                <span className="w-28 shrink-0 text-gray-500 text-xs hidden md:block">
-                  {incident.incident_number ? `#${incident.incident_number}` : '—'}
-                </span>
+
                 <span className="w-16 shrink-0 text-center text-gray-400 text-xs">
                   {incident.incident_units?.filter(u => !u.released_at).length || 0}
                 </span>
