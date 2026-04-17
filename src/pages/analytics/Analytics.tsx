@@ -453,9 +453,11 @@ function OperationsTab() {
 
         // supply run items — keyed with incident_id for filtering
         const itemMap: Record<string, { qty: number; category: string; incident_id: string | null }> = {}
-        ;(runItems || []).forEach((r: { item_name: string | null; quantity: number | null; category: string | null; supply_run: { incident_id: string | null } | null }) => {
+        ;(runItems || []).forEach((r: { item_name: string | null; quantity: number | null; category: string | null; supply_run: { incident_id: string | null }[] | { incident_id: string | null } | null }) => {
           if (!r.item_name) return
-          if (!itemMap[r.item_name]) itemMap[r.item_name] = { qty: 0, category: r.category || '', incident_id: r.supply_run?.incident_id || null }
+          // Supabase may return the join as an array or object depending on schema
+          const sr = Array.isArray(r.supply_run) ? r.supply_run[0] : r.supply_run
+          if (!itemMap[r.item_name]) itemMap[r.item_name] = { qty: 0, category: r.category || '', incident_id: sr?.incident_id || null }
           itemMap[r.item_name].qty += (r.quantity || 0)
         })
         setSupplyItems(
@@ -622,7 +624,7 @@ function OperationsTab() {
                   <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke={gridStyle.stroke} />
                   <XAxis type="number" tick={axisStyle} allowDecimals={false} />
                   <YAxis type="category" dataKey="name" tick={{ ...axisStyle, fontSize: 10 }} width={150} />
-                  <Tooltip contentStyle={tooltipStyle} formatter={(v: unknown) => [v, 'Qty'] as [unknown, string]} />
+                  <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [v, 'Qty'] as [number, string]} />
                   <Bar dataKey="qty" radius={[0, 4, 4, 0]} name="Qty Used">
                     {filteredSupply.map((item, i) => (
                       <Cell key={item.name} fill={CATEGORY_COLORS[item.category] || BAR_COLORS[i % BAR_COLORS.length]} />
