@@ -84,12 +84,26 @@ const TABS: Tab[] = [
   },
 ]
 
+// Admin sub-items for the second-level sheet
+const ADMIN_SUB_ITEMS = [
+  { label: '📣 Announcements & Push', href: '/admin/announcements' },
+  { label: '💬 Chat Requests', href: '/admin/chat-requests' },
+  { label: '🏢 Company Profile', href: '/admin/company' },
+  { label: '📊 Analytics', href: '/analytics' },
+  { label: '🔥 External Dashboard', href: '/admin/fire-dashboard' },
+  { label: '📅 Schedule', href: '/schedule' },
+  { label: '📆 Coverage Calendar', href: '/schedule/calendar' },
+  { label: '⚡ Generate Schedule', href: '/schedule/generate' },
+  { label: '📞 Contacts', href: '/contacts' },
+]
+
 export default function BottomTabBar() {
   const location = useLocation()
   const pathname = location.pathname
   const { isField } = useRole()
   const unsignedCounts = useUnsignedCounts()
   const [sheetTab, setSheetTab] = useState<string | null>(null)
+  const [showAdminSheet, setShowAdminSheet] = useState(false)
   const navigate = useNavigate()
 
   const visibleTabs = TABS.filter(tab => {
@@ -107,14 +121,61 @@ export default function BottomTabBar() {
 
   const activeSheet = visibleTabs.find(t => t.label === sheetTab)
 
+  const closeAll = () => {
+    setSheetTab(null)
+    setShowAdminSheet(false)
+  }
+
   return (
     <>
       {/* Bottom sheet overlay */}
-      {sheetTab && (
+      {(sheetTab || showAdminSheet) && (
         <div
           className="fixed inset-0 z-[55] bg-black/50 md:hidden"
-          onClick={() => setSheetTab(null)}
+          onClick={closeAll}
         />
+      )}
+
+      {/* Admin second-level sheet */}
+      {showAdminSheet && (
+        <div
+          className="fixed bottom-[calc(56px+env(safe-area-inset-bottom,0px))] left-0 right-0 z-[65] md:hidden rounded-t-2xl border-t border-gray-700 shadow-2xl"
+          style={{ backgroundColor: 'var(--color-sidebar-bg, #111827)' }}
+        >
+          <div className="flex justify-center pt-2 pb-1">
+            <div className="w-10 h-1 rounded-full bg-gray-600" />
+          </div>
+          <div className="flex items-center gap-2 px-4 py-2">
+            <button
+              onClick={() => { setShowAdminSheet(false); setSheetTab('More') }}
+              className="text-gray-500 hover:text-gray-300 transition-colors text-sm"
+            >
+              ← Back
+            </button>
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">Admin</p>
+          </div>
+          <div className="pb-2 overflow-y-auto max-h-[60vh]">
+            <Link
+              to="/admin"
+              onClick={closeAll}
+              className="flex items-center gap-3 px-5 py-3.5 text-base text-gray-300 hover:bg-gray-800/60 transition-colors"
+            >
+              <span>⚙️</span>
+              <span>Admin Home</span>
+            </Link>
+            {ADMIN_SUB_ITEMS.map(sub => (
+              <Link
+                key={sub.href}
+                to={sub.href}
+                onClick={closeAll}
+                className="flex items-center gap-3 px-5 py-3.5 text-base text-gray-400 hover:bg-gray-800/60 transition-colors"
+              >
+                <span className="text-gray-600">›</span>
+                <span>{sub.label}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Bottom sheet */}
@@ -139,17 +200,33 @@ export default function BottomTabBar() {
               <span>{activeSheet.icon}</span>
               <span>View All {activeSheet.label}</span>
             </Link>
-            {activeSheet.subItems.filter(sub => !(sub.adminOnly && isField)).map(sub => (
-              <Link
-                key={sub.href}
-                to={sub.href}
-                onClick={() => setSheetTab(null)}
-                className="flex items-center gap-3 px-5 py-3.5 text-base text-gray-400 hover:bg-gray-800/60 transition-colors"
-              >
-                <span className="text-gray-600">›</span>
-                <span>{sub.label}</span>
-              </Link>
-            ))}
+            {activeSheet.subItems.filter(sub => !(sub.adminOnly && isField)).map(sub => {
+              // Admin item opens a nested sheet instead of navigating
+              if (sub.href === '/admin' && !isField) {
+                return (
+                  <button
+                    key={sub.href}
+                    onClick={() => { setSheetTab(null); setShowAdminSheet(true) }}
+                    className="flex items-center gap-3 px-5 py-3.5 text-base text-gray-400 hover:bg-gray-800/60 transition-colors w-full text-left"
+                  >
+                    <span className="text-gray-600">›</span>
+                    <span>{sub.label}</span>
+                    <span className="ml-auto text-gray-600 text-xs">›</span>
+                  </button>
+                )
+              }
+              return (
+                <Link
+                  key={sub.href}
+                  to={sub.href}
+                  onClick={() => setSheetTab(null)}
+                  className="flex items-center gap-3 px-5 py-3.5 text-base text-gray-400 hover:bg-gray-800/60 transition-colors"
+                >
+                  <span className="text-gray-600">›</span>
+                  <span>{sub.label}</span>
+                </Link>
+              )
+            })}
             {activeSheet.label === 'More' && (
               <button
                 onClick={async () => {

@@ -1,7 +1,7 @@
 // FirePCR Service Worker v11 — Vite SPA
 // Caches index.html + all JS/CSS assets for true offline
 
-const CACHE_NAME = 'firepcr-v12';
+const CACHE_NAME = 'firepcr-v13';
 
 // Install: cache the app shell
 self.addEventListener('install', (event) => {
@@ -57,18 +57,26 @@ self.addEventListener('notificationclick', (event) => {
   const targetUrl = new URL(event.notification.data?.url || '/', self.location.origin).href;
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      // If app is already open, navigate it to the target URL and focus
-      for (const client of clients) {
-        if (client.url.startsWith(self.location.origin)) {
-          return client.focus().then(focused => {
-            if ('navigate' in focused) return focused.navigate(targetUrl);
-            // Fallback: post a message to the client to handle navigation
-            focused.postMessage({ type: 'NAVIGATE', url: targetUrl });
-            return focused;
-          });
-        }
+      // Broadcast NAVIGATE to ALL existing clients first (handles iOS suspended PWA)
+      clients.forEach(client => {
+        client.postMessage({ type: 'NAVIGATE', url: targetUrl });
+      });
+
+      // Find a client on our origin to focus
+      const appClient = clients.find(client => client.url.startsWith(self.location.origin));
+
+      if (appClient) {
+        // Focus the existing window; NAVIGATE postMessage above handles routing
+        return appClient.focus().then(focused => {
+          // Also try navigate() directly (supported in some browsers)
+          if ('navigate' in focused) {
+            try { return focused.navigate(targetUrl); } catch (_) {}
+          }
+          return focused;
+        });
       }
-      // No open tab — open a new one
+
+      // No open window — open a new one directly at the target URL
       return self.clients.openWindow(targetUrl);
     })
   );
