@@ -10,6 +10,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { createClient } from '@/lib/supabase/client'
+import { authFetch } from '@/lib/authFetch'
 import { getIsOnline } from '@/lib/syncManager'
 import { loadSingle } from '@/lib/offlineFirst'
 import { getCachedData, getCachedById, cacheData, queueOfflineWrite } from '@/lib/offlineStore'
@@ -1369,8 +1370,10 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
             await Promise.all(claimsData.map(async (cc: any) => {
               if (!cc.pdf_url) return
               if (cc.pdf_url.startsWith('http')) { urlMap[cc.id] = cc.pdf_url; return }
-              const { data: signed } = await supabase.storage.from('documents').createSignedUrl(cc.pdf_url, 3600)
-              if (signed?.signedUrl) urlMap[cc.id] = signed.signedUrl
+              try {
+                const res = await authFetch(`/api/pdf/sign?path=${encodeURIComponent(cc.pdf_url)}&bucket=documents`)
+                if (res.ok) { const { url } = await res.json(); if (url) urlMap[cc.id] = url }
+              } catch { /* silent */ }
             }))
             setClaimPdfUrls(urlMap)
           }
@@ -2373,7 +2376,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                                       <span className="flex-1 text-gray-300 text-xs truncate">{cc.patient_name || '—'}</span>
                                       <span className="text-gray-500 text-xs whitespace-nowrap shrink-0">{cc.created_at ? new Date(cc.created_at).toLocaleDateString('en-US',{month:'short',day:'numeric'}) + ' ' + new Date(cc.created_at).toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit'}) : '—'}</span>
                                       <span className={`text-xs px-2 py-0.5 rounded-full ${cc.status === 'Complete' ? 'bg-green-900 text-green-300' : cc.status === 'Filed' ? 'bg-blue-900 text-blue-300' : 'bg-gray-700 text-gray-300'}`}>{cc.status || 'Pending'}</span>
-                                      {(claimPdfUrls[cc.id] || cc.pdf_url) && <a href={claimPdfUrls[cc.id] || cc.pdf_url!} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 whitespace-nowrap">📄 PDF</a>}
+                                      {claimPdfUrls[cc.id] && <a href={claimPdfUrls[cc.id]} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 whitespace-nowrap">📄 CC PDF</a>}
                                     </div>
                                   ))}
                                 </div>

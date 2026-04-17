@@ -53,7 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         supabase.from('organizations').select('name, dba, logo_url').limit(1).single(),
         supabase.from('patient_encounters').select('id, encounter_id, date, unit, patient_age, patient_age_units, primary_symptom_text, initial_acuity, final_acuity, patient_disposition, created_at').eq('incident_id', incidentId).order('date', { ascending: false }),
         supabase.from('incident_units').select('id, unit:units(name)').eq('incident_id', incidentId),
-        supabase.from('comp_claims').select('id, date_of_injury, status, pdf_url, osha_recordable, created_at, encounter_id, patient_name').eq('incident_id', incidentId).order('created_at', { ascending: false }),
+        supabase.from('comp_claims').select('id, date_of_injury, status, pdf_url, osha_recordable, created_at, encounter_id, patient_name, employee_supervisor_name').eq('incident_id', incidentId).order('created_at', { ascending: false }),
         supabase.from('ics214_headers').select('id, ics214_id, unit_name, op_date, status, pdf_url, created_at, created_by').eq('incident_id', incidentId).order('op_date', { ascending: false }),
         supabase.from('consent_forms').select('id, encounter_id, form_type, created_at').eq('incident_id', incidentId).eq('form_type', 'AMA'),
       ])
@@ -134,7 +134,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           const encSeqId = encounters.find((e: any) =>
             e.encounter_id === c.encounter_id || e.id === c.encounter_id
           )?.seq_id || null
-          return { ...c, seq_id: `WC-${String(i + 1).padStart(3, '0')}`, has_pdf: !!c.pdf_url, patient_initials: initials, patient_seq_id: encSeqId }
+          return { ...c, seq_id: `WC-${String(i + 1).padStart(3, '0')}`, has_pdf: !!c.pdf_url, patient_initials: initials, patient_seq_id: encSeqId, supervisor_name: c.employee_supervisor_name || null }
         }),
         ics214s: (ics214R.data || []).map((f: any) => ({ ...f, date: f.op_date, unit: f.unit_name, prepared_by: f.created_by || null, has_pdf: !!f.pdf_url })),
         code_label: codeRow.label,

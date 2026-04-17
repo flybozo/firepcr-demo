@@ -58,6 +58,7 @@ type DashboardData = {
   comp_claims: {
     id: string; seq_id: string; date_of_injury: string | null; status: string | null
     has_pdf: boolean; patient_seq_id: string | null; osha_recordable: boolean | null; created_at?: string | null
+    supervisor_name?: string | null
   }[]
   ics214s: {
     id: string; ics214_id: string; unit: string | null; prepared_by: string | null
@@ -250,7 +251,11 @@ function PatientLogTab({ data, code, logEvent }: { data: DashboardData; code: st
     }
   }
 
-  const units = ['All', ...Array.from(new Set(data.encounters.map(e => e.unit).filter(Boolean))).sort()]
+  // Use units assigned to this incident (from incident_units), falling back to encounter units
+  const assignedUnits = data.stats.unique_units && data.stats.unique_units.length > 0
+    ? data.stats.unique_units
+    : Array.from(new Set(data.encounters.map(e => e.unit).filter(Boolean)))
+  const units = ['All', ...[...assignedUnits].sort()]
   const filtered = unitFilter === 'All' ? data.encounters : data.encounters.filter(e => e.unit === unitFilter)
   const byUnit: Record<string, typeof data.encounters> = {}
   filtered.forEach(e => {
@@ -278,27 +283,30 @@ function PatientLogTab({ data, code, logEvent }: { data: DashboardData; code: st
           <div className="px-4 py-2.5 border-b border-gray-800 bg-gray-800/40">
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">🚑 {unitName} — {encs.length} patient{encs.length !== 1 ? 's' : ''}</h3>
           </div>
-          {/* Column headers */}
-          <div className="grid grid-cols-[72px_72px_52px_1fr_140px_80px] gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
-            <span>ID</span><span>Date</span><span>Age</span><span>Chief Complaint</span><span>CC / OSHA</span><span>Acuity</span>
+          {/* Column headers: ID | Date | Age | Chief Complaint | Disposition | CC/OSHA | Supervisor | Acuity */}
+          <div className="grid grid-cols-[60px_60px_44px_1fr_100px_110px_110px_72px] gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
+            <span>ID</span><span>Date</span><span>Age</span><span>Chief Complaint</span><span>Disposition</span><span>CC / OSHA</span><span>Supervisor</span><span>Acuity</span>
           </div>
           <div className="divide-y divide-gray-800/50">
             {encs.map(enc => {
               const claim = claimBySeqId[enc.seq_id]
               return (
                 <button key={enc.id} onClick={() => setSelected(enc === selected ? null : enc)}
-                  className="w-full text-left grid grid-cols-[72px_72px_52px_1fr_140px_80px] gap-2 px-4 py-2.5 text-sm hover:bg-gray-800/50 transition-colors items-center">
+                  className="w-full text-left grid grid-cols-[60px_60px_44px_1fr_100px_110px_110px_72px] gap-2 px-4 py-2.5 text-sm hover:bg-gray-800/50 transition-colors items-center">
                   <span className="font-mono text-blue-400 text-xs font-semibold">{enc.seq_id}</span>
                   <span className="text-gray-400 text-xs">{enc.date ? new Date(enc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
                   <span className="text-gray-400 text-xs">{enc.age || '—'}</span>
                   <span className="text-white text-xs truncate">{enc.chief_complaint || <span className="text-gray-600 italic">Not recorded</span>}</span>
+                  {/* Disposition */}
+                  <span className="text-xs text-gray-300 truncate">{enc.disposition || <span className="text-gray-600 italic">In Process</span>}</span>
                   {/* CC / OSHA column */}
                   <span className="flex flex-col gap-1">
                     {enc.has_comp_claim && claim && (
                       <>
-                        {claim.osha_recordable === true && <span className="text-xs bg-red-900/50 text-red-300 border border-red-700/40 px-1.5 py-0.5 rounded font-medium leading-none">🔴 OSHA Recordable</span>}
-                        {claim.osha_recordable === false && <span className="text-xs bg-green-900/50 text-green-300 border border-green-700/40 px-1.5 py-0.5 rounded font-medium leading-none">✅ Not Recordable</span>}
-                        {claim.osha_recordable == null && <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded leading-none">📋 CC Filed</span>}
+                        {claim.osha_recordable === false
+                          ? <span className="text-xs bg-green-900/50 text-green-300 border border-green-700/40 px-1.5 py-0.5 rounded font-medium leading-none">✅ Not Recordable</span>
+                          : <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded leading-none">📋 CC Filed</span>
+                        }
                         {claim.has_pdf && (
                           <button onClick={e => { e.stopPropagation(); handleDownload(claim.id) }}
                             disabled={downloading === claim.id}
@@ -311,6 +319,8 @@ function PatientLogTab({ data, code, logEvent }: { data: DashboardData; code: st
                     {enc.has_ama && <span className="text-xs bg-orange-900/50 text-orange-300 border border-orange-700/40 px-1.5 py-0.5 rounded leading-none">⚠️ AMA</span>}
                     {!enc.has_comp_claim && !enc.has_ama && <span className="text-gray-700 text-xs">—</span>}
                   </span>
+                  {/* Supervisor from comp claim */}
+                  <span className="text-xs text-gray-400 truncate">{(claim as any)?.supervisor_name || '—'}</span>
                   {/* Acuity — last column */}
                   <span className={`text-xs px-1.5 py-0.5 rounded font-medium text-center ${ACUITY_PILL[enc.acuity] ?? 'bg-gray-800 text-gray-400 border border-gray-700'}`}>
                     {enc.acuity?.split(' ')[0] || '—'}
