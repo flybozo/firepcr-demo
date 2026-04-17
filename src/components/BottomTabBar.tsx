@@ -9,7 +9,7 @@ type Tab = {
   label: string
   href: string
   adminOnly?: boolean
-  subItems?: { label: string; href: string }[]
+  subItems?: { label: string; href: string; adminOnly?: boolean }[]
 }
 
 const TABS: Tab[] = [
@@ -76,12 +76,10 @@ const TABS: Tab[] = [
       { label: '🚑 Units', href: '/units' },
       { label: '📊 Analytics', href: '/analytics' },
       { label: '🔥 External Dashboard', href: '/admin/fire-dashboard' },
-
       { label: '💰 Payroll', href: '/payroll' },
-
       { label: '📋 Documents', href: '/documents' },
       { label: '👤 Profile', href: '/profile' },
-      { label: '⚙️ Admin', href: '/admin' },
+      { label: '⚙️ Admin', href: '/admin', adminOnly: true },
     ],
   },
 ]
@@ -141,7 +139,7 @@ export default function BottomTabBar() {
               <span>{activeSheet.icon}</span>
               <span>View All {activeSheet.label}</span>
             </Link>
-            {activeSheet.subItems.map(sub => (
+            {activeSheet.subItems.filter(sub => !(sub.adminOnly && isField)).map(sub => (
               <Link
                 key={sub.href}
                 to={sub.href}

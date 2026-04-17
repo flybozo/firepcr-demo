@@ -374,7 +374,7 @@ export default function UnitDetailPage() {
         <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 bg-gray-800">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Vehicle Details</h2>
-            {!editingVehicle && (
+            {!editingVehicle && isAdmin && (
               <button
                 onClick={() => setEditingVehicle(true)}
                 className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
