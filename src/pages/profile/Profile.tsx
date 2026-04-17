@@ -457,7 +457,7 @@ export default function ProfilePage() {
                           title="Download">⬇ Save</button>
                       </>
                     ) : (
-                      <span className="text-xs text-gray-500 italic">No file uploaded</span>
+                      <span className="text-xs text-gray-500 italic">{c.file_name ? 'File missing — re-upload' : 'No file uploaded'}</span>
                     )}
                   </div>
                 </div>

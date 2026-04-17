@@ -52,5 +52,6 @@ export async function requireEmployee(req: VercelRequest, options?: { admin?: bo
     throw new HttpError(403, 'Admin access required')
   }
 
-  return { user, employee, supabase }
+  const isAdmin = employee.app_role === 'admin'
+  return { user, employee, isAdmin, supabase }
 }
