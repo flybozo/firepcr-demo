@@ -298,7 +298,7 @@ function NewCompClaimInner() {
       if (encounterId) {
         const { data: enc } = await supabase
           .from('patient_encounters')
-          .select('id, patient_first_name, patient_last_name, patient_dob, date, incident_id, unit, primary_impression_text, notes, provider_of_record, crew_resource_number, primary_symptom_text')
+          .select('id, patient_first_name, patient_last_name, patient_dob, patient_agency, date, incident_id, unit, primary_impression_text, notes, provider_of_record, crew_resource_number, primary_symptom_text')
           .eq('encounter_id', encounterId)
           .single()
 
@@ -317,6 +317,7 @@ function NewCompClaimInner() {
             patient_dob: (enc as any).patient_dob ? String((enc as any).patient_dob).slice(0, 10) : '',
             time_employee_began_work: (() => { const v = (enc as any).time_employee_began_work || tebwParam || '06:00'; return v.includes('T') ? v.slice(-5) : v; })(),
             employee_crew_assignment: (enc.crew_resource_number as string) || '',
+            employee_agency: (enc as any).patient_agency || '',
           }))
           // Load incident from encounter's incident_id
           if (encIncId) {
@@ -339,7 +340,7 @@ function NewCompClaimInner() {
           // Try by UUID
           const { data: enc2 } = await supabase
             .from('patient_encounters')
-            .select('id, patient_first_name, patient_last_name, patient_dob, date, incident_id, unit, primary_impression_text, notes, provider_of_record, crew_resource_number, primary_symptom_text')
+            .select('id, patient_first_name, patient_last_name, patient_dob, patient_agency, date, incident_id, unit, primary_impression_text, notes, provider_of_record, crew_resource_number, primary_symptom_text')
             .eq('id', encounterId)
             .single()
           if (enc2) {
@@ -355,6 +356,7 @@ function NewCompClaimInner() {
               treatment_summary: ((enc2 as any).notes || '') as string,
               provider_name: (enc2.provider_of_record as string) || '',
               employee_crew_assignment: (enc2.crew_resource_number as string) || '',
+            employee_agency: (enc2 as any).patient_agency || '',
             }))
             if (enc2IncId) {
               const { data: enc2Inc } = await supabase
@@ -665,8 +667,20 @@ function NewCompClaimInner() {
             <input type="date" className={inputCls} value={form.patient_dob} onChange={e => set('patient_dob', e.target.value)} />
           </div>
           <div>
-            <label className={labelCls}>Employee Agency</label>
-            <input type="text" className={inputCls} value={form.employee_agency} onChange={e => set('employee_agency', e.target.value)} />
+            <label className={labelCls}>Patient Agency</label>
+            <select className={inputCls} value={form.employee_agency} onChange={e => set('employee_agency', e.target.value)}>
+              <option value="">Select...</option>
+              <option>Cal Fire</option>
+              <option>USFS</option>
+              <option>BLM</option>
+              <option>NPS</option>
+              <option>CHP</option>
+              <option>County Fire</option>
+              <option>Municipal Fire</option>
+              <option>OES / CAL OES</option>
+              <option>Private Contractor</option>
+              <option>Other</option>
+            </select>
           </div>
           <div>
             <label className={labelCls}>Crew / Assignment (Resource Number)</label>
