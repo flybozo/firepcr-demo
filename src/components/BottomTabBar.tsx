@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useState } from 'react'
 import { useRole } from '@/lib/useRole'
 import { useUnsignedCounts } from '@/lib/useUnsignedPCRCount'
+import { useUserAssignment } from '@/lib/useUserAssignment'
 
 type Tab = {
   icon: string
