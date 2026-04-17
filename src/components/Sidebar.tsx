@@ -223,7 +223,7 @@ function SortableNavItem({
           ⠿
         </div>
 
-        {isField && (item.href === '/incidents' || item.href === '/units') || visibleSub.length === 0 ? (
+        {isField && (item.href === '/incidents' || item.href === '/units') ? (
           <Link
             to={href}
             onClick={onNavigate}
@@ -404,14 +404,15 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             className="w-10 h-10 rounded-full object-contain bg-white p-0.5 shrink-0"
           />
         ) : (
-          <img
-            src="https://kfkpvazkikpuwatthtow.supabase.co/storage/v1/object/public/headshots/ram-logo.png"
-            alt="Remote Area Medicine"
-            className="w-10 h-10 rounded-full object-contain bg-white p-0.5 shrink-0"
-          />
+          <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center shrink-0">
+            <svg viewBox="0 0 40 40" className="w-6 h-6" fill="white" xmlns="http://www.w3.org/2000/svg">
+              <rect x="15" y="4" width="10" height="32" rx="2"/>
+              <rect x="4" y="15" width="32" height="10" rx="2"/>
+            </svg>
+          </div>
         )}
         <div className="min-w-0">
-          <h1 className="text-sm font-bold text-white leading-tight">{org?.dba ?? org?.name ?? 'Remote Area Medicine'}</h1>
+          <h1 className="text-sm font-bold text-white leading-tight">{org?.dba ?? org?.name ?? 'Ridgeline EMS'}</h1>
           <p className="text-xs text-gray-500">Field Ops</p>
         </div>
       </Link>
