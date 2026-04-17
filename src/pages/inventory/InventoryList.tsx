@@ -3,7 +3,7 @@ import { FieldGuard } from '@/components/FieldGuard'
 import { useRole } from '@/lib/useRole'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { getCachedData } from '@/lib/offlineStore'
@@ -183,22 +183,26 @@ function InventoryPageInner() {
   // Reset page when filters change
   useEffect(() => { setPage(1) }, [unitFilter, catFilter, search, showLowOnly, showAlsOnly])
 
-  // Unit type lookup for color sorting
-const unitTypeMap: Record<string, string> = {}
-items.forEach(i => {
-  const name = (i as any)?.unit?.name
-  const type = (i as any)?.unit?.unit_type?.name || ''
-  if (name) unitTypeMap[name] = type
-})
-const units = ['All', ...Array.from(new Set(
-  items.map(i => (i as any)?.unit?.name).filter(Boolean)
-)).sort((a, b) => {
-  const aOrder = UNIT_TYPE_ORDER[unitTypeMap[a]] ?? 99
-  const bOrder = UNIT_TYPE_ORDER[unitTypeMap[b]] ?? 99
-  return aOrder !== bOrder ? aOrder - bOrder : a.localeCompare(b)
-})]
+  // Unit type lookup map — only recomputes when items changes
+  const unitTypeMap = useMemo(() => {
+    const map: Record<string, string> = {}
+    items.forEach(i => {
+      const name = (i as any)?.unit?.name
+      const type = (i as any)?.unit?.unit_type?.name || ''
+      if (name) map[name] = type
+    })
+    return map
+  }, [items])
 
-  const filtered = items.filter(item => {
+  const units = useMemo(() => ['All', ...Array.from(new Set(
+    items.map(i => (i as any)?.unit?.name).filter(Boolean)
+  )).sort((a, b) => {
+    const aOrder = UNIT_TYPE_ORDER[unitTypeMap[a]] ?? 99
+    const bOrder = UNIT_TYPE_ORDER[unitTypeMap[b]] ?? 99
+    return aOrder !== bOrder ? aOrder - bOrder : a.localeCompare(b)
+  })], [items, unitTypeMap])
+
+  const filtered = useMemo(() => items.filter(item => {
     const unitName = (item as any)?.unit?.name
     const effectiveFilter = isField && assignment.unit?.name ? assignment.unit.name : unitFilter
     if (effectiveFilter !== 'All' && unitName !== effectiveFilter) return false
@@ -207,11 +211,17 @@ const units = ['All', ...Array.from(new Set(
     if (showAlsOnly && !(item as any).is_als) return false
     if (search && !item.item_name.toLowerCase().includes(search.toLowerCase())) return false
     return true
-  })
+  }), [items, unitFilter, catFilter, search, showLowOnly, showAlsOnly, isField, assignment.unit?.name])
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
-  const lowCount = items.filter(i => i.quantity <= i.par_qty).length
+  const paginated = useMemo(
+    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [filtered, page]
+  )
+  const lowCount = useMemo(
+    () => items.filter(i => i.quantity <= i.par_qty).length,
+    [items]
+  )
 
   return (
     <div className="p-4 md:p-6">

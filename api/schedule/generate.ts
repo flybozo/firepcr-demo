@@ -118,12 +118,59 @@ Return ONLY a valid JSON array (no explanation, no markdown) in this exact forma
     const aiData = await anthropicRes.json()
     const content = aiData.content?.[0]?.text || ''
 
-    const jsonMatch = content.match(/\[[\s\S]*\]/)
-    if (!jsonMatch) {
-      return res.status(500).json({ error: 'Could not parse schedule from AI response', raw: content })
+    // ── Parse and validate AI response ──
+    const trimmed = content.trim()
+    let rawJson: string
+    if (trimmed.startsWith('[')) {
+      rawJson = trimmed
+    } else {
+      const jsonMatch = trimmed.match(/\[[\s\S]*\]/)
+      if (!jsonMatch) {
+        return res.status(500).json({ error: 'AI response did not contain a JSON array', raw: content.slice(0, 500) })
+      }
+      rawJson = jsonMatch[0]
     }
 
-    const schedule = JSON.parse(jsonMatch[0])
+    let parsed: unknown[]
+    try {
+      parsed = JSON.parse(rawJson)
+    } catch {
+      return res.status(500).json({ error: 'AI response contained malformed JSON', raw: content.slice(0, 500) })
+    }
+    if (!Array.isArray(parsed)) {
+      return res.status(422).json({ error: 'AI response was not a JSON array' })
+    }
+
+    // Validate each entry: reject unknown employees/units, strip extra keys, clamp numerics
+    const validEmployeeIds = new Set((employees || []).map((e: any) => e.id))
+    const validUnitIds = new Set(unit_ids as string[])
+    const DATE_RE2 = /^\d{4}-\d{2}-\d{2}$/
+    const schedule = parsed
+      .filter((entry): entry is Record<string, unknown> =>
+        !!entry && typeof entry === 'object' && !Array.isArray(entry))
+      .map((entry) => {
+        const e = entry as Record<string, unknown>
+        if (!e.unit_id || !e.employee_id || !e.role) return null
+        if (!validUnitIds.has(e.unit_id as string)) return null
+        if (!validEmployeeIds.has(e.employee_id as string)) return null
+        return {
+          unit_id:          String(e.unit_id),
+          unit_name:        typeof e.unit_name === 'string' ? e.unit_name.slice(0, 100) : '',
+          employee_id:      String(e.employee_id),
+          employee_name:    typeof e.employee_name === 'string' ? e.employee_name.slice(0, 100) : '',
+          role:             typeof e.role === 'string' ? e.role.slice(0, 50) : '',
+          experience_level: typeof e.experience_level === 'number'
+            ? Math.min(Math.max(Math.round(e.experience_level), 1), 5) : 1,
+          start_date: typeof e.start_date === 'string' && DATE_RE2.test(e.start_date) ? e.start_date : start_date,
+          end_date:   typeof e.end_date   === 'string' && DATE_RE2.test(e.end_date)   ? e.end_date   : end_date,
+        }
+      })
+      .filter(Boolean)
+
+    if (schedule.length === 0) {
+      return res.status(422).json({ error: 'AI returned an empty or entirely invalid schedule', raw: content.slice(0, 500) })
+    }
+
     return res.json({ schedule })
   } catch (err: any) {
     if (err instanceof HttpError) {

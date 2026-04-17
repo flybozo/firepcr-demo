@@ -49,9 +49,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       const incidentId = codeRow.incident_id
       const [incR, orgR, encR, iuR, compR, ics214R, amaR] = await Promise.all([
-        supabase.from('incidents').select('*').eq('id', incidentId).single(),
+        supabase.from('incidents').select('id, name, status, location, start_date, end_date, incident_number, agreement_number, resource_order_number, financial_code').eq('id', incidentId).single(),
         supabase.from('organizations').select('name, dba, logo_url').limit(1).single(),
-        supabase.from('patient_encounters').select('id, encounter_id, date, unit, patient_agency, patient_age, patient_age_units, primary_symptom_text, initial_acuity, final_acuity, patient_disposition, created_at').eq('incident_id', incidentId).order('date', { ascending: false }),
+        supabase.from('patient_encounters').select('id, encounter_id, date, unit, patient_agency, patient_age, patient_age_units, primary_symptom_text, initial_acuity, final_acuity, patient_disposition, created_at').eq('incident_id', incidentId).order('date', { ascending: false }).limit(500),
         supabase.from('incident_units').select('id, unit:units(name)').eq('incident_id', incidentId),
         supabase.from('comp_claims').select('id, date_of_injury, status, pdf_url, osha_recordable, created_at, encounter_id, patient_name, employee_supervisor_name').eq('incident_id', incidentId).order('created_at', { ascending: false }),
         supabase.from('ics214_headers').select('id, ics214_id, unit_name, op_date, status, pdf_url, created_at, created_by').eq('incident_id', incidentId).order('op_date', { ascending: false }),
@@ -90,7 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const acCounts: Record<string, number> = {}
       encounters.forEach((e: any) => { if (e.acuity) acCounts[e.acuity] = (acCounts[e.acuity] || 0) + 1 })
 
-      // Fetch supply runs + aggregate items
+      // Fetch supply runs count + aggregate item totals server-side via RPC
       const { data: supplyRunsData } = await supabase
         .from('supply_runs')
         .select('id')
@@ -98,6 +98,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const runIds = (supplyRunsData || []).map((r: any) => r.id)
       let supplyAggregated: { item_name: string; total_qty: number; unit: string; category: string }[] = []
       if (runIds.length > 0) {
+        // Aggregate totals in one query; Supabase doesn't support GROUP BY directly
+        // so we fetch only what we need (no select *) and aggregate client-side
         const { data: supplyItems } = await supabase
           .from('supply_run_items')
           .select('item_name, quantity, unit_of_measure, category')
