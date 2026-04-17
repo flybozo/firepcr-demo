@@ -97,7 +97,7 @@ function PushNotificationsInner() {
   if (!isAdmin) return <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center"><p className="text-gray-500">Admin access required</p></div>
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white pb-16">
+    <div className="min-h-screen bg-gray-950 text-white pb-[calc(80px+env(safe-area-inset-bottom,0px))] md:pb-8">
       <div className="max-w-2xl mx-auto p-4 md:p-6 space-y-6 mt-8 md:mt-0">
         <div>
           <h1 className="text-xl font-bold">Push Notifications</h1>

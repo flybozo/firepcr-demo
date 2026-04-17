@@ -280,7 +280,7 @@ export default function MARDetailPage() {
   const awaitingSignature = entry.requires_cosign && !entry.provider_signature_url
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white pb-16">
+    <div className="min-h-screen bg-gray-950 text-white pb-[calc(80px+env(safe-area-inset-bottom,0px))] md:pb-8">
       <div className="p-6 md:p-8 max-w-3xl mx-auto space-y-4">
 
         <Link to="/mar" className="text-gray-500 hover:text-gray-300 text-sm">← MAR</Link>

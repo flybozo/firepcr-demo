@@ -458,7 +458,7 @@ export default function SupplyRunDetailPage() {
   const scannedCount = items.filter(i => i.barcode).length
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white pb-16 mt-8 md:mt-0">
+    <div className="min-h-screen bg-gray-950 text-white pb-[calc(80px+env(safe-area-inset-bottom,0px))] md:pb-8 mt-8 md:mt-0">
       <div className="max-w-3xl mx-auto p-6 md:p-8 space-y-4">
 
         <Link to="/supply-runs" className="text-gray-500 hover:text-gray-300 text-sm">← Supply Runs</Link>

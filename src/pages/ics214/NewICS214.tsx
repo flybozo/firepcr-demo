@@ -328,7 +328,7 @@ export default function NewICS214Page() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white pb-16">
+    <div className="min-h-screen bg-gray-950 text-white pb-[calc(80px+env(safe-area-inset-bottom,0px))] md:pb-8">
       <div className="max-w-lg mx-auto p-4 md:p-6">
 
         {/* Header */}
@@ -536,19 +536,20 @@ export default function NewICS214Page() {
                 }}
                 className="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 text-sm border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500"
               >
-                <option value="">Select or type below...</option>
+                <option value="">Select leader...</option>
                 {crew.map(emp => (
                   <option key={emp.id} value={emp.name}>{emp.name} — {emp.role}</option>
                 ))}
               </select>
-            ) : null}
-            <input
-              type="text"
-              value={leaderName}
-              onChange={e => setLeaderName(e.target.value)}
-              placeholder="Leader name"
-              className={`w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 text-sm border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 ${crew.length > 0 ? 'mt-2' : ''}`}
-            />
+            ) : (
+              <input
+                type="text"
+                value={leaderName}
+                onChange={e => setLeaderName(e.target.value)}
+                placeholder="Leader name"
+                className="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 text-sm border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+            )}
           </div>
 
           {/* ICS Position */}

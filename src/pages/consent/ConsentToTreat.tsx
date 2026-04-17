@@ -275,7 +275,7 @@ function ConsentToTreatInner() {
   // ── Success Screen ─────────────────────────────────────────────────────────
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gray-950 text-white pb-16">
+      <div className="min-h-screen bg-gray-950 text-white pb-[calc(80px+env(safe-area-inset-bottom,0px))] md:pb-8">
         <div className="max-w-lg mx-auto p-4 md:p-6 space-y-6 mt-8 md:mt-0">
           <div className="text-center space-y-4 py-8">
             <p className="text-5xl">✅</p>
@@ -331,7 +331,7 @@ function ConsentToTreatInner() {
 
   // ── Form ───────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-gray-950 text-white pb-16">
+    <div className="min-h-screen bg-gray-950 text-white pb-[calc(80px+env(safe-area-inset-bottom,0px))] md:pb-8">
       <div className="max-w-lg mx-auto p-4 md:p-6 space-y-6 mt-8 md:mt-0">
         <div>
           <h1 className="text-xl font-bold">Consent to Treat</h1>

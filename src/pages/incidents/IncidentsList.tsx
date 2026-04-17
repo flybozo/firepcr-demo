@@ -68,7 +68,7 @@ function IncidentsPageInner() {
   })
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white pb-16">
+    <div className="min-h-screen bg-gray-950 text-white pb-[calc(80px+env(safe-area-inset-bottom,0px))] md:pb-8">
       <div className="p-4 md:p-6 space-y-4">
 
         {/* Header */}

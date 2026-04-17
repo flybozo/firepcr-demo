@@ -73,7 +73,7 @@ export default function AddActivityPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white pb-16">
+    <div className="min-h-screen bg-gray-950 text-white pb-[calc(80px+env(safe-area-inset-bottom,0px))] md:pb-8">
       <div className="max-w-lg mx-auto p-4 md:p-6">
 
         <div className="flex items-center gap-3 mb-6 pt-2">
