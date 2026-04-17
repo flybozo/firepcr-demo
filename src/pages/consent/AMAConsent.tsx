@@ -460,26 +460,12 @@ function AMAFormInner() {
             {pdfGenerating ? '⏳ Generating...' : '📄 Download AMA PDF'}
           </button>
 
-          {/* Share section — shown after PDF uploaded */}
+          {/* PDF link — shown after auto-save on submit */}
           {pdfUrl && (
-            <div className="bg-gray-900 border border-gray-700 rounded-xl p-4 space-y-3 text-left">
-              <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide">📤 Share PDF</p>
-              <div className="bg-gray-800 rounded-lg px-3 py-2 text-xs text-gray-300 break-all">{pdfUrl}</div>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleCopyLink}
-                  className="flex-1 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition-colors"
-                >
-                  {copySuccess ? '✅ Copied!' : '📋 Copy Link'}
-                </button>
-                <button
-                  onClick={handleShare}
-                  className="flex-1 px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white text-sm rounded-lg transition-colors"
-                >
-                  📤 Share
-                </button>
-              </div>
-            </div>
+            <a href={pdfUrl} target="_blank" rel="noopener noreferrer"
+              className="block bg-green-900/30 border border-green-700 rounded-xl px-4 py-3 text-green-300 text-sm text-center hover:bg-green-900/50 transition-colors">
+              ✅ AMA PDF saved — tap to open
+            </a>
           )}
 
           <button
