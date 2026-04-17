@@ -608,6 +608,8 @@ export default function NewICS214Page() {
           >
             {submitting ? 'Creating ICS 214...' : 'Start ICS 214 Log'}
           </button>
+          {/* Spacer so submit button clears the mobile tab bar */}
+          <div className="h-20 md:hidden" />
         </form>
 
       </div>

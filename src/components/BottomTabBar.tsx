@@ -134,7 +134,7 @@ export default function BottomTabBar() {
             <Link
               to={activeSheet.href === '/more' ? '#' : activeSheet.href}
               onClick={() => setSheetTab(null)}
-              className="flex items-center gap-3 px-5 py-3 text-sm text-gray-300 hover:bg-gray-800/60 transition-colors"
+              className="flex items-center gap-3 px-5 py-3.5 text-base text-gray-300 hover:bg-gray-800/60 transition-colors"
             >
               <span>{activeSheet.icon}</span>
               <span>View All {activeSheet.label}</span>
@@ -144,7 +144,7 @@ export default function BottomTabBar() {
                 key={sub.href}
                 to={sub.href}
                 onClick={() => setSheetTab(null)}
-                className="flex items-center gap-3 px-5 py-3 text-sm text-gray-400 hover:bg-gray-800/60 transition-colors"
+                className="flex items-center gap-3 px-5 py-3.5 text-base text-gray-400 hover:bg-gray-800/60 transition-colors"
               >
                 <span className="text-gray-600">›</span>
                 <span>{sub.label}</span>
@@ -158,7 +158,7 @@ export default function BottomTabBar() {
                   await supabase.auth.signOut()
                   navigate('/login')
                 }}
-                className="flex items-center gap-3 px-5 py-3 text-sm text-red-400 hover:bg-gray-800/60 transition-colors w-full border-t border-gray-800 mt-1"
+                className="flex items-center gap-3 px-5 py-3.5 text-base text-red-400 hover:bg-gray-800/60 transition-colors w-full border-t border-gray-800 mt-1"
               >
                 <span>🚪</span>
                 <span>Sign Out</span>
@@ -200,12 +200,12 @@ export default function BottomTabBar() {
                     style={{ color: 'inherit' }}
                   >
                     <span className="text-xl leading-none">{tab.icon === '•••' ? '⋯' : tab.icon}</span>
-                    <span className="text-[10px] font-medium leading-none">{tab.label}</span>
+                    <span className="text-xs font-medium leading-none">{tab.label}</span>
                   </Link>
                 ) : (
                   <>
                     <span className="text-xl leading-none">{tab.icon === '•••' ? '⋯' : tab.icon}</span>
-                    <span className="text-[10px] font-medium leading-none">{tab.label}</span>
+                    <span className="text-xs font-medium leading-none">{tab.label}</span>
                   </>
                 )}
                 {badge && (
