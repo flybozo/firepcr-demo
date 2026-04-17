@@ -686,65 +686,149 @@ function AccessLogTab({ incidentId }: { incidentId: string }) {
       .select('*')
       .eq('incident_id', incidentId)
       .order('accessed_at', { ascending: false })
-      .limit(200)
+      .limit(500)
       .then(({ data }) => { setLogs(data || []); setLoading(false) })
   }, [incidentId])
 
-  const byCode: Record<string, { count: number; lastAccess: string }> = {}
-  logs.forEach(l => {
-    const key = l.label || l.access_code
-    if (!byCode[key]) byCode[key] = { count: 0, lastAccess: '' }
-    byCode[key].count++
-    if (!byCode[key].lastAccess || l.accessed_at > byCode[key].lastAccess) byCode[key].lastAccess = l.accessed_at
-  })
-
   if (loading) return <p className="text-gray-500 text-sm py-4 text-center">Loading access log...</p>
 
+  // ── Aggregate by access code ───────────────────────────────────────────────
+  const byCode: Record<string, {
+    label: string; code: string; pageViews: number; tabViews: Record<string, number>
+    pdfDownloads: number; lastAccess: string; devices: Set<string>
+  }> = {}
+  logs.forEach(l => {
+    const key = l.access_code
+    if (!byCode[key]) byCode[key] = {
+      label: l.label || l.access_code, code: l.access_code,
+      pageViews: 0, tabViews: {}, pdfDownloads: 0, lastAccess: '', devices: new Set()
+    }
+    const entry = byCode[key]
+    const evType = l.event_type || 'page_view'
+    if (evType === 'page_view') entry.pageViews++
+    else if (evType === 'tab_view' && l.tab) entry.tabViews[l.tab] = (entry.tabViews[l.tab] || 0) + 1
+    else if (evType === 'pdf_download') entry.pdfDownloads++
+    if (!entry.lastAccess || l.accessed_at > entry.lastAccess) entry.lastAccess = l.accessed_at
+    if (l.user_agent) {
+      const ua = l.user_agent
+      const device = ua.includes('Mobile') ? '📱 Mobile' : ua.includes('iPad') ? '📱 iPad' : '💻 Desktop'
+      entry.devices.add(device)
+    }
+  })
+
+  const TAB_LABEL: Record<string, string> = {
+    overview: 'Overview', patients: 'Patient Log', ics214: 'ICS 214s', supply: 'Supply'
+  }
+
+  // Totals
+  const totalPageViews = logs.filter(l => (l.event_type || 'page_view') === 'page_view').length
+  const totalTabViews = logs.filter(l => l.event_type === 'tab_view').length
+  const totalPdfDownloads = logs.filter(l => l.event_type === 'pdf_download').length
+  const uniqueCodes = Object.keys(byCode).length
+  const lastAccess = logs.length > 0 ? logs[0].accessed_at : null
+
+  // Recent activity feed (all events)
+  const recentLogs = logs.slice(0, 60)
+
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+    <div className="space-y-5">
+      {/* ── Summary cards ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-          <p className="text-2xl font-bold text-blue-400">{logs.length}</p>
-          <p className="text-xs text-gray-500 mt-1">Total Views</p>
+          <p className="text-2xl font-bold text-blue-400">{totalPageViews}</p>
+          <p className="text-xs text-gray-500 mt-1">Page Opens</p>
         </div>
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-          <p className="text-2xl font-bold text-amber-400">{logs.filter(l => new Date(l.accessed_at) > new Date(Date.now() - 24*60*60*1000)).length}</p>
-          <p className="text-xs text-gray-500 mt-1">Views Today</p>
+          <p className="text-2xl font-bold text-teal-400">{totalTabViews}</p>
+          <p className="text-xs text-gray-500 mt-1">Tab Views</p>
         </div>
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-          <p className="text-2xl font-bold text-purple-400">{logs.length > 0 ? new Date(logs[0].accessed_at).toLocaleDateString() : '—'}</p>
-          <p className="text-xs text-gray-500 mt-1">Last Access</p>
+          <p className="text-2xl font-bold text-amber-400">{totalPdfDownloads}</p>
+          <p className="text-xs text-gray-500 mt-1">PDF Downloads</p>
+        </div>
+        <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+          <p className="text-2xl font-bold text-purple-400">{uniqueCodes}</p>
+          <p className="text-xs text-gray-500 mt-1">Active Code{uniqueCodes !== 1 ? 's' : ''}</p>
         </div>
       </div>
 
-      <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-800">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">👀 Views by Code</h3>
+      {logs.length === 0 ? (
+        <div className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-10 text-center text-gray-600 text-sm">
+          No access yet — share a code to start tracking
         </div>
-        {Object.entries(byCode).sort((a, b) => b[1].count - a[1].count).map(([label, info]) => (
-          <div key={label} className="flex items-center justify-between px-4 py-3 border-b border-gray-800/50 text-sm">
-            <p className="font-medium">{label}</p>
-            <div className="text-right">
-              <p className="font-bold text-blue-400">{info.count} views</p>
-              <p className="text-xs text-gray-500">{new Date(info.lastAccess).toLocaleString()}</p>
-            </div>
-          </div>
-        ))}
-        {logs.length === 0 && <p className="px-4 py-6 text-gray-600 text-sm text-center">No access yet — share a code to start tracking</p>}
-      </div>
-
-      {logs.length > 0 && (
-        <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-800"><h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Recent Access</h3></div>
-          <div className="divide-y divide-gray-800/50">
-            {logs.slice(0, 50).map(l => (
-              <div key={l.id} className="flex items-center justify-between px-4 py-2 text-xs">
-                <span className="font-medium text-white">{l.label || l.access_code}</span>
-                <span className="text-gray-500">{new Date(l.accessed_at).toLocaleString()}</span>
+      ) : (
+        <>
+          {/* ── Per-code breakdown ── */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">👀 Activity by Access Code</h3>
+            {Object.entries(byCode)
+              .sort((a, b) => (b[1].pageViews + b[1].pdfDownloads) - (a[1].pageViews + a[1].pdfDownloads))
+              .map(([_key, info]) => (
+              <div key={info.code} className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
+                {/* Code header */}
+                <div className="flex items-start justify-between gap-2 flex-wrap">
+                  <div>
+                    <p className="font-semibold text-sm text-white">{info.label !== info.code ? info.label : '(No label)'}</p>
+                    <p className="font-mono text-xs text-amber-400 mt-0.5">{info.code}</p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-xs text-gray-500">Last access</p>
+                    <p className="text-xs text-gray-300">{new Date(info.lastAccess).toLocaleString()}</p>
+                    <p className="text-xs text-gray-600 mt-0.5">{[...info.devices].join(' · ')}</p>
+                  </div>
+                </div>
+                {/* Stats row */}
+                <div className="flex gap-4 flex-wrap text-xs">
+                  <span className="text-gray-400"><span className="font-bold text-blue-400">{info.pageViews}</span> opens</span>
+                  <span className="text-gray-400"><span className="font-bold text-amber-400">{info.pdfDownloads}</span> PDF{info.pdfDownloads !== 1 ? 's' : ''} downloaded</span>
+                </div>
+                {/* Tab breakdown */}
+                {Object.keys(info.tabViews).length > 0 && (
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1.5">Tabs viewed:</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {Object.entries(info.tabViews)
+                        .sort((a, b) => b[1] - a[1])
+                        .map(([t, count]) => (
+                        <span key={t} className="text-xs bg-gray-800 border border-gray-700 px-2 py-0.5 rounded-full text-gray-300">
+                          {TAB_LABEL[t] || t} <span className="text-gray-500 ml-0.5">×{count}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
-        </div>
+
+          {/* ── Activity feed ── */}
+          <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-800">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Recent Activity</h3>
+            </div>
+            <div className="divide-y divide-gray-800/50">
+              {recentLogs.map(l => {
+                const evType = l.event_type || 'page_view'
+                const icon = evType === 'page_view' ? '🔓' : evType === 'tab_view' ? '🔍' : '⬇'
+                const detail = evType === 'page_view'
+                  ? 'Opened dashboard'
+                  : evType === 'tab_view'
+                  ? `Viewed ${TAB_LABEL[l.tab] || l.tab} tab`
+                  : `Downloaded ${l.document_type === 'comp_claim' ? 'WC claim PDF' : 'ICS 214 PDF'}`
+                return (
+                  <div key={l.id} className="grid grid-cols-[20px_1fr_auto] gap-2 px-4 py-2 items-start text-xs">
+                    <span>{icon}</span>
+                    <span>
+                      <span className="font-medium text-white">{l.label || l.access_code}</span>
+                      <span className="text-gray-500 ml-1.5">{detail}</span>
+                    </span>
+                    <span className="text-gray-600 shrink-0 whitespace-nowrap">{new Date(l.accessed_at).toLocaleString()}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </>
       )}
     </div>
   )

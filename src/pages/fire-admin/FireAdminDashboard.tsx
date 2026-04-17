@@ -228,7 +228,7 @@ function OverviewTab({ data, filteredEncounters }: {
 }
 
 // ── Tab 2: Patient Log ────────────────────────────────────────────────────────
-function PatientLogTab({ data, code }: { data: DashboardData; code: string }) {
+function PatientLogTab({ data, code, logEvent }: { data: DashboardData; code: string; logEvent: (e: { event_type: string; tab?: string; document_type?: string; document_id?: string }) => void }) {
   const [unitFilter, setUnitFilter] = useState('All')
   const [selected, setSelected] = useState<typeof data.encounters[0] | null>(null)
   const [downloading, setDownloading] = useState<string | null>(null)
@@ -240,6 +240,7 @@ function PatientLogTab({ data, code }: { data: DashboardData; code: string }) {
 
   const handleDownload = async (claimId: string) => {
     setDownloading(claimId)
+    logEvent({ event_type: 'pdf_download', tab: 'patients', document_type: 'comp_claim', document_id: claimId })
     try {
       const res = await fetch(`/api/incident-access/download?code=${code}&type=comp_claim&id=${claimId}`)
       const { url } = await res.json()
@@ -347,11 +348,12 @@ function PatientLogTab({ data, code }: { data: DashboardData; code: string }) {
 }
 
 // ── Tab 4: ICS 214s ──────────────────────────────────────────────────────────
-function ICS214Tab({ data, code }: { data: DashboardData; code: string }) {
+function ICS214Tab({ data, code, logEvent }: { data: DashboardData; code: string; logEvent: (e: { event_type: string; tab?: string; document_type?: string; document_id?: string }) => void }) {
   const [downloading, setDownloading] = useState<string | null>(null)
 
   const handleDownload = async (formId: string) => {
     setDownloading(formId)
+    logEvent({ event_type: 'pdf_download', tab: 'ics214', document_type: 'ics214', document_id: formId })
     try {
       const res = await fetch(`/api/incident-access/download?code=${code}&type=ics214&id=${formId}`)
       const { url } = await res.json()
@@ -475,6 +477,21 @@ export default function FireAdminPage() {
   const [tab, setTab] = useState<Tab>('overview')
   const [dateFilter, setDateFilter] = useState<DateFilter>('all')
 
+  // Fire-and-forget event logger — records tab views + PDF downloads
+  const logEvent = (event: { event_type: string; tab?: string; document_type?: string; document_id?: string }) => {
+    if (!code) return
+    fetch('/api/incident-access/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: code.toUpperCase(), ...event }),
+    }).catch(() => {/* silent */})
+  }
+
+  const handleTabChange = (newTab: Tab) => {
+    setTab(newTab)
+    logEvent({ event_type: 'tab_view', tab: newTab })
+  }
+
   useEffect(() => {
     if (!code) return
     fetch(`/api/incident-access?code=${code.toUpperCase()}`)
@@ -580,7 +597,7 @@ export default function FireAdminPage() {
         {/* ── Tab pills + date filter ── */}
         <div className="flex flex-wrap items-center gap-2">
           {tabs.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
+            <button key={t.id} onClick={() => handleTabChange(t.id)}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 tab === t.id ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
               }`}>
@@ -598,8 +615,8 @@ export default function FireAdminPage() {
 
         {/* ── Tab content ── */}
         {tab === 'overview' && <OverviewTab data={data} filteredEncounters={applyDateFilter(data.encounters)} />}
-        {tab === 'patients' && <PatientLogTab data={{ ...data, encounters: applyDateFilter(data.encounters) }} code={code} />}
-        {tab === 'ics214' && <ICS214Tab data={data} code={code} />}
+        {tab === 'patients' && <PatientLogTab data={{ ...data, encounters: applyDateFilter(data.encounters) }} code={code} logEvent={logEvent} />}
+        {tab === 'ics214' && <ICS214Tab data={data} code={code} logEvent={logEvent} />}
         {tab === 'supply' && <SupplyTab data={data} />}
 
         {/* ── Footer ── */}
