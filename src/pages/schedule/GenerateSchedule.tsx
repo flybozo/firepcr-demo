@@ -268,6 +268,10 @@ export default function GenerateSchedulePage() {
 
           {error && <p className="text-red-400 text-sm">{error}</p>}
 
+          <p className="text-xs text-gray-600 text-center px-2">
+            🤖 Schedule generation sends your employee roster and unit list to an external AI API (Anthropic Claude) to produce staffing suggestions. Review all results before approving.
+          </p>
+
           <button
             onClick={handleGenerate}
             disabled={generating || selectedUnits.size === 0}
