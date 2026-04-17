@@ -303,10 +303,7 @@ function PatientLogTab({ data, code, logEvent }: { data: DashboardData; code: st
                   <span className="flex flex-col gap-1">
                     {enc.has_comp_claim && claim && (
                       <>
-                        {claim.osha_recordable === false
-                          ? <span className="text-xs bg-green-900/50 text-green-300 border border-green-700/40 px-1.5 py-0.5 rounded font-medium leading-none">✅ Not Recordable</span>
-                          : <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded leading-none">📋 CC Filed</span>
-                        }
+                        <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded leading-none">📋 CC Filed</span>
                         {claim.has_pdf && (
                           <button onClick={e => { e.stopPropagation(); handleDownload(claim.id) }}
                             disabled={downloading === claim.id}

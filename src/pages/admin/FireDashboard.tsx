@@ -558,9 +558,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
                     <span className="flex flex-col gap-1">
                       {wcEncounterIds.has(enc.id) && claim ? (
                         <>
-                          {claim.osha_recordable === true && <span className="text-xs bg-red-900/50 text-red-300 border border-red-700/40 px-1.5 py-0.5 rounded font-medium leading-none">🔴 OSHA Recordable</span>}
-                          {claim.osha_recordable === false && <span className="text-xs bg-green-900/50 text-green-300 border border-green-700/40 px-1.5 py-0.5 rounded font-medium leading-none">✅ Not Recordable</span>}
-                          {claim.osha_recordable == null && <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded leading-none">📋 CC Filed</span>}
+                          <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded leading-none">📋 CC Filed</span>
                           {claim.has_pdf && claim.pdf_url && (
                             <button
                               onClick={() => openPdf(claim.pdf_url!)}
