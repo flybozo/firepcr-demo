@@ -277,47 +277,43 @@ function PatientLogTab({ data, code }: { data: DashboardData; code: string }) {
           <div className="px-4 py-2.5 border-b border-gray-800 bg-gray-800/40">
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">🚑 {unitName} — {encs.length} patient{encs.length !== 1 ? 's' : ''}</h3>
           </div>
+          {/* Column headers */}
+          <div className="grid grid-cols-[72px_72px_52px_1fr_80px_130px] gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
+            <span>ID</span><span>Date</span><span>Age</span><span>Chief Complaint</span><span>Acuity</span><span>WC / AMA</span>
+          </div>
           <div className="divide-y divide-gray-800/50">
             {encs.map(enc => {
               const claim = claimBySeqId[enc.seq_id]
               return (
-                <div key={enc.id} className="px-4 py-2.5 hover:bg-gray-800/30 transition-colors">
-                  {/* Main row — tappable to expand */}
-                  <button onClick={() => setSelected(enc === selected ? null : enc)}
-                    className="w-full text-left grid grid-cols-[68px_68px_52px_1fr_80px] gap-2 text-sm items-center">
-                    <span className="font-mono text-blue-400 text-xs font-semibold">{enc.seq_id}</span>
-                    <span className="text-gray-400 text-xs">{enc.date ? new Date(enc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
-                    <span className="text-gray-400 text-xs">{enc.age || '—'}</span>
-                    <span className="text-white text-xs truncate">{enc.chief_complaint || <span className="text-gray-600 italic">Not recorded</span>}</span>
-                    <span className={`text-xs px-1.5 py-0.5 rounded font-medium text-center ${ACUITY_PILL[enc.acuity] ?? 'bg-gray-800 text-gray-400 border border-gray-700'}`}>
-                      {enc.acuity?.split(' ')[0] || '—'}
-                    </span>
-                  </button>
-                  {/* Inline flags row */}
-                  {(enc.has_comp_claim || enc.has_ama) && (
-                    <div className="flex flex-wrap items-center gap-2 mt-1.5 pl-0">
-                      {enc.has_comp_claim && claim && (
-                        <>
-                          {/* OSHA status */}
-                          {claim.osha_recordable === true && <span className="text-xs bg-red-900/50 text-red-300 border border-red-700/40 px-1.5 py-0.5 rounded font-medium">🔴 OSHA Recordable</span>}
-                          {claim.osha_recordable === false && <span className="text-xs bg-green-900/50 text-green-300 border border-green-700/40 px-1.5 py-0.5 rounded font-medium">✅ Not Recordable</span>}
-                          {claim.osha_recordable == null && <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded">📋 WC Filed</span>}
-                          {/* PDF download */}
-                          {claim.has_pdf && (
-                            <button
-                              onClick={e => { e.stopPropagation(); handleDownload(claim.id) }}
-                              disabled={downloading === claim.id}
-                              className="text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-2 py-0.5 rounded transition-colors"
-                            >
-                              {downloading === claim.id ? '...' : '⬇ WC PDF'}
-                            </button>
-                          )}
-                        </>
-                      )}
-                      {enc.has_ama && <span className="text-xs bg-orange-900/50 text-orange-300 border border-orange-700/40 px-1.5 py-0.5 rounded">⚠️ AMA / Refusal</span>}
-                    </div>
-                  )}
-                </div>
+                <button key={enc.id} onClick={() => setSelected(enc === selected ? null : enc)}
+                  className="w-full text-left grid grid-cols-[72px_72px_52px_1fr_80px_130px] gap-2 px-4 py-2.5 text-sm hover:bg-gray-800/50 transition-colors items-center">
+                  <span className="font-mono text-blue-400 text-xs font-semibold">{enc.seq_id}</span>
+                  <span className="text-gray-400 text-xs">{enc.date ? new Date(enc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
+                  <span className="text-gray-400 text-xs">{enc.age || '—'}</span>
+                  <span className="text-white text-xs truncate">{enc.chief_complaint || <span className="text-gray-600 italic">Not recorded</span>}</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded font-medium text-center ${ACUITY_PILL[enc.acuity] ?? 'bg-gray-800 text-gray-400 border border-gray-700'}`}>
+                    {enc.acuity?.split(' ')[0] || '—'}
+                  </span>
+                  {/* WC / AMA column */}
+                  <span className="flex flex-col gap-1">
+                    {enc.has_comp_claim && claim && (
+                      <>
+                        {claim.osha_recordable === true && <span className="text-xs bg-red-900/50 text-red-300 border border-red-700/40 px-1.5 py-0.5 rounded font-medium leading-none">🔴 Recordable</span>}
+                        {claim.osha_recordable === false && <span className="text-xs bg-green-900/50 text-green-300 border border-green-700/40 px-1.5 py-0.5 rounded font-medium leading-none">✅ Not Recordable</span>}
+                        {claim.osha_recordable == null && <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded leading-none">📋 WC Filed</span>}
+                        {claim.has_pdf && (
+                          <button onClick={e => { e.stopPropagation(); handleDownload(claim.id) }}
+                            disabled={downloading === claim.id}
+                            className="text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-1.5 py-0.5 rounded transition-colors leading-none w-fit">
+                            {downloading === claim.id ? '...' : '⬇ WC PDF'}
+                          </button>
+                        )}
+                      </>
+                    )}
+                    {enc.has_ama && <span className="text-xs bg-orange-900/50 text-orange-300 border border-orange-700/40 px-1.5 py-0.5 rounded leading-none">⚠️ AMA</span>}
+                    {!enc.has_comp_claim && !enc.has_ama && <span className="text-gray-700 text-xs">—</span>}
+                  </span>
+                </button>
               )
             })}
           </div>
