@@ -15,7 +15,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 
 type SubItem = { label: string; href: string }
-type NavItem = { icon: string; label: string; href: string; sub: SubItem[]; adminOnly?: boolean; onlineOnly?: boolean }
+type NavItem = { icon: string; label: string; href: string; sub: SubItem[]; adminOnly?: boolean; onlineOnly?: boolean; directLink?: boolean }
 
 const NAV: NavItem[] = [
   {
@@ -23,8 +23,6 @@ const NAV: NavItem[] = [
     label: 'Incidents',
     href: '/incidents',
     sub: [
-      { label: 'Active Incidents', href: '/incidents?status=Active' },
-      { label: 'Closed Incidents', href: '/incidents?status=Closed' },
       { label: 'New Incident', href: '/incidents/new' },
       { label: 'All 214 Logs', href: '/ics214' },
       { label: 'New ICS 214', href: '/ics214/new' },
@@ -35,6 +33,7 @@ const NAV: NavItem[] = [
     icon: '📋',
     label: 'Patient Encounters',
     href: '/encounters',
+    directLink: true,
     sub: [
       { label: 'New Encounter', href: '/encounters/new' },
       { label: 'Unsigned Items', href: '/unsigned-items' },
@@ -223,7 +222,55 @@ function SortableNavItem({
           ⠿
         </div>
 
-        {isField && (item.href === '/incidents' || item.href === '/units') ? (
+        {item.directLink ? (
+          // Direct-link item: label navigates, chevron toggles sub-items
+          <>
+            <Link
+              to={href}
+              onClick={onNavigate}
+              style={isActive ? { color: '#fff', backgroundColor: 'var(--color-primary, #374151)' } : { color: 'var(--color-text-muted, #9ca3af)' }}
+              className="flex-1 flex items-center gap-3 pl-0 py-3 text-sm font-medium transition-colors hover:opacity-80"
+            >
+              <span className="text-base">{item.icon}</span>
+              <span>{item.label}</span>
+              {badges && badges[item.label] && badges[item.label].total > 0 && (
+                <span className="relative">
+                  <span
+                    className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold leading-none cursor-default"
+                    onMouseEnter={() => setShowBadgeDetail(true)}
+                    onMouseLeave={() => setShowBadgeDetail(false)}
+                    onClick={(e) => { e.stopPropagation(); setShowBadgeDetail(s => !s) }}
+                  >
+                    {badges[item.label].total > 99 ? '99+' : badges[item.label].total}
+                  </span>
+                  {showBadgeDetail && (
+                    <span className="absolute left-0 top-full mt-1 z-50 bg-gray-900 border border-gray-700 rounded-lg shadow-xl p-2.5 whitespace-nowrap text-xs">
+                      <p className="text-gray-400 font-semibold uppercase tracking-wide text-[10px] mb-1.5">Needs Signature</p>
+                      {badges[item.label].charts > 0 && (
+                        <p className="text-orange-300">📋 {badges[item.label].charts} chart{badges[item.label].charts !== 1 ? 's' : ''}</p>
+                      )}
+                      {badges[item.label].notes > 0 && (
+                        <p className="text-amber-300">📝 {badges[item.label].notes} note{badges[item.label].notes !== 1 ? 's' : ''}</p>
+                      )}
+                      {badges[item.label].mar > 0 && (
+                        <p className="text-red-300">💊 {badges[item.label].mar} MAR entr{badges[item.label].mar !== 1 ? 'ies' : 'y'}</p>
+                      )}
+                    </span>
+                  )}
+                </span>
+              )}
+            </Link>
+            {visibleSub.length > 0 && (
+              <button
+                onClick={() => toggle(item.label)}
+                className="pr-4 py-3 text-gray-600 hover:text-gray-400 transition-colors"
+                title="Toggle sub-menu"
+              >
+                <span className={`text-xs transition-transform block ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
+              </button>
+            )}
+          </>
+        ) : isField && (item.href === '/incidents' || item.href === '/units') || visibleSub.length === 0 ? (
           <Link
             to={href}
             onClick={onNavigate}
@@ -278,15 +325,17 @@ function SortableNavItem({
 
       {isExpanded && (
         <div style={{ backgroundColor: 'color-mix(in srgb, var(--color-sidebar-bg, #0a0a0a) 85%, var(--color-primary, #dc2626) 5%)' }}>
-          <Link
-            to={href}
-            onClick={onNavigate}
-            style={pathname === item.href ? { color: 'var(--color-primary, #f87171)' } : { color: 'var(--color-text-muted, #9ca3af)' }}
-            className="flex items-center gap-2 px-10 py-2 text-xs transition-colors hover:opacity-80"
-          >
-            {isField && (item.href === '/incidents' || item.href === '/units') ? 'My ' : 'View All'}
-            {isField && item.href === '/incidents' ? 'Incident' : isField && item.href === '/units' ? 'Unit' : ''}
-          </Link>
+          {!item.directLink && (
+            <Link
+              to={href}
+              onClick={onNavigate}
+              style={pathname === item.href ? { color: 'var(--color-primary, #f87171)' } : { color: 'var(--color-text-muted, #9ca3af)' }}
+              className="flex items-center gap-2 px-10 py-2 text-xs transition-colors hover:opacity-80"
+            >
+              {isField && (item.href === '/incidents' || item.href === '/units') ? 'My ' : 'View All'}
+              {isField && item.href === '/incidents' ? 'Incident' : isField && item.href === '/units' ? 'Unit' : ''}
+            </Link>
+          )}
           {visibleSub.map(sub => (
             <Link
               key={sub.href}
@@ -404,15 +453,14 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             className="w-10 h-10 rounded-full object-contain bg-white p-0.5 shrink-0"
           />
         ) : (
-          <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center shrink-0">
-            <svg viewBox="0 0 40 40" className="w-6 h-6" fill="white" xmlns="http://www.w3.org/2000/svg">
-              <rect x="15" y="4" width="10" height="32" rx="2"/>
-              <rect x="4" y="15" width="32" height="10" rx="2"/>
-            </svg>
-          </div>
+          <img
+            src="https://kfkpvazkikpuwatthtow.supabase.co/storage/v1/object/public/headshots/ram-logo.png"
+            alt="Remote Area Medicine"
+            className="w-10 h-10 rounded-full object-contain bg-white p-0.5 shrink-0"
+          />
         )}
         <div className="min-w-0">
-          <h1 className="text-sm font-bold text-white leading-tight">{org?.dba ?? org?.name ?? 'Ridgeline EMS'}</h1>
+          <h1 className="text-sm font-bold text-white leading-tight">{org?.dba ?? org?.name ?? 'Remote Area Medicine'}</h1>
           <p className="text-xs text-gray-500">Field Ops</p>
         </div>
       </Link>
