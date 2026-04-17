@@ -253,6 +253,25 @@ function ConsentToTreatInner() {
   const inp = 'w-full bg-gray-800 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500'
   const lbl = 'text-xs text-gray-400 block mb-1'
 
+  // Poll DB for pdf_url after success (background save may still be running)
+  useEffect(() => {
+    if (!submitted || !lastConsentId || pdfUrl) return
+    let attempts = 0
+    const poll = setInterval(async () => {
+      attempts++
+      try {
+        const { data } = await supabase.from('consent_forms').select('pdf_url').eq('consent_id', lastConsentId).single()
+        if (data?.pdf_url) {
+          const { data: signed } = await supabase.storage.from('documents').createSignedUrl(data.pdf_url, 3600 * 24 * 365)
+          if (signed?.signedUrl) setPdfUrl(signed.signedUrl)
+          clearInterval(poll)
+        }
+      } catch {}
+      if (attempts >= 10) clearInterval(poll)
+    }, 1000)
+    return () => clearInterval(poll)
+  }, [submitted, lastConsentId, pdfUrl])
+
   // ── Success Screen ─────────────────────────────────────────────────────────
   if (submitted) {
     return (
@@ -276,11 +295,13 @@ function ConsentToTreatInner() {
               className="w-full py-3 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl font-semibold transition-colors text-sm">
               {pdfGenerating ? 'Generating...' : '📄 Download & Save PDF'}
             </button>
-            {pdfUrl && (
+            {pdfUrl ? (
               <a href={pdfUrl} target="_blank" rel="noopener noreferrer"
                 className="block bg-green-900/30 border border-green-700 rounded-xl px-4 py-3 text-green-300 text-sm text-center hover:bg-green-900/50 transition-colors">
                 ✅ PDF saved — tap to open
               </a>
+            ) : (
+              <p className="text-xs text-gray-500 text-center">⏳ Saving PDF...</p>
             )}
           </div>
 

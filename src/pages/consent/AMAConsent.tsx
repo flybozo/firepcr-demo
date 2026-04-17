@@ -438,6 +438,25 @@ function AMAFormInner() {
     }
   }
 
+  // On success screen, poll DB for pdf_url if not set yet (background save may still be running)
+  useEffect(() => {
+    if (!submitted || !lastConsentId || pdfUrl) return
+    let attempts = 0
+    const poll = setInterval(async () => {
+      attempts++
+      try {
+        const { data } = await supabase.from('consent_forms').select('pdf_url').eq('consent_id', lastConsentId).single()
+        if (data?.pdf_url) {
+          const { data: signed } = await supabase.storage.from('documents').createSignedUrl(data.pdf_url, 3600 * 24 * 365)
+          if (signed?.signedUrl) setPdfUrl(signed.signedUrl)
+          clearInterval(poll)
+        }
+      } catch {}
+      if (attempts >= 10) clearInterval(poll) // give up after 10s
+    }, 1000)
+    return () => clearInterval(poll)
+  }, [submitted, lastConsentId, pdfUrl])
+
   if (submitted) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center p-8">
@@ -446,28 +465,24 @@ function AMAFormInner() {
           <h1 className="text-2xl font-bold text-white">Refusal Documented</h1>
           <p className="text-gray-400">AMA form saved successfully.</p>
 
-          {/* PDF Download */}
-          <button
-            onClick={handlePreviewPDF}
-            className="w-full px-4 py-3 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 mb-2"
-          >
-            👁️ Preview PDF
-          </button>
+          {/* PDF link — appears once background save completes */}
+          {pdfUrl ? (
+            <a href={pdfUrl} target="_blank" rel="noopener noreferrer"
+              className="block bg-green-900/30 border border-green-700 rounded-xl px-4 py-3 text-green-300 text-sm text-center hover:bg-green-900/50 transition-colors">
+              ✅ AMA PDF saved — tap to open
+            </a>
+          ) : (
+            <p className="text-xs text-gray-500">⏳ Saving PDF...</p>
+          )}
+
+          {/* Manual download fallback */}
           <button
             onClick={handleDownloadPDF}
             disabled={pdfGenerating}
             className="w-full px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 text-white rounded-xl font-semibold flex items-center justify-center gap-2 transition-colors"
           >
-            {pdfGenerating ? '⏳ Generating...' : '📄 Download AMA PDF'}
+            {pdfGenerating ? '⏳ Generating...' : '📄 Download PDF'}
           </button>
-
-          {/* PDF link — shown after auto-save on submit */}
-          {pdfUrl && (
-            <a href={pdfUrl} target="_blank" rel="noopener noreferrer"
-              className="block bg-green-900/30 border border-green-700 rounded-xl px-4 py-3 text-green-300 text-sm text-center hover:bg-green-900/50 transition-colors">
-              ✅ AMA PDF saved — tap to open
-            </a>
-          )}
 
           <button
             onClick={() => {
