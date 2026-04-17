@@ -1,8 +1,9 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { FieldGuard } from '@/components/FieldGuard'
 import { authFetch } from '@/lib/authFetch'
+import { useRole } from '@/lib/useRole'
+import { useUserAssignment } from '@/lib/useUserAssignment'
 import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, CartesianGrid,
@@ -886,16 +887,25 @@ function AccessLogTab({ incidentId }: { incidentId: string }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 function FireDashboardContent() {
+  const { isField } = useRole()
+  const assignment = useUserAssignment()
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [loadingIncidents, setLoadingIncidents] = useState(true)
 
   useEffect(() => {
+    if (isField) {
+      // Field users: locked to their assigned incident — no DB fetch needed
+      const assignedId = assignment.incidentUnit?.incident_id || null
+      if (assignedId) setSelectedId(assignedId)
+      setLoadingIncidents(false)
+      return
+    }
     const supabase = createClient()
     supabase
       .from('incidents')
       .select('id, name, status, start_date, incident_number')
-      .order('status', { ascending: true }) // Active first
+      .order('status', { ascending: true })
       .order('start_date', { ascending: false })
       .then(({ data }) => {
         const sorted = (data || []).sort((a, b) => {
@@ -907,9 +917,11 @@ function FireDashboardContent() {
         if (sorted.length > 0 && !selectedId) setSelectedId(sorted[0].id)
         setLoadingIncidents(false)
       })
-  }, [])
+  }, [isField, assignment.loading])
 
-  const selectedIncident = incidents.find(i => i.id === selectedId)
+  const selectedIncident = isField
+    ? (selectedId ? { id: selectedId, name: assignment.incident?.name || 'Your Incident', status: 'Active', start_date: null, incident_number: null } : undefined)
+    : incidents.find(i => i.id === selectedId)
 
   return (
     <div className="min-h-screen bg-gray-950 text-white pb-16">
@@ -923,25 +935,47 @@ function FireDashboardContent() {
           </div>
         </div>
 
-        {/* Incident pills */}
+        {/* Incident selector */}
         <div>
-          <p className="text-xs text-gray-600 uppercase tracking-wide mb-2 font-medium">Select Incident</p>
+          <p className="text-xs text-gray-600 uppercase tracking-wide mb-2 font-medium">Incident</p>
           {loadingIncidents ? (
             <div className="flex gap-2">{[1, 2, 3].map(i => <div key={i} className="h-8 w-32 bg-gray-800/50 rounded-xl animate-pulse" />)}</div>
-          ) : (
-            <div className="flex gap-2 flex-wrap">
-              {incidents.map(inc => (
-                <button key={inc.id} onClick={() => setSelectedId(inc.id)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors flex items-center gap-1.5 border ${
-                    selectedId === inc.id
-                      ? 'bg-red-600 text-white border-red-500'
-                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700 border-gray-700'
-                  }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${inc.status === 'Active' ? 'bg-green-400' : 'bg-gray-600'}`} />
-                  {inc.name}
-                </button>
-              ))}
+          ) : isField ? (
+            // Field user — locked to their assigned fire
+            <div className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 rounded-xl w-fit">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+              <span className="text-sm font-medium text-white">{selectedIncident?.name || 'Your assigned incident'}</span>
+              <span className="text-xs text-gray-500 ml-1">(locked)</span>
             </div>
+          ) : (
+            <>
+              {/* Dropdown on mobile */}
+              <div className="md:hidden">
+                <select
+                  value={selectedId || ''}
+                  onChange={e => setSelectedId(e.target.value)}
+                  className="bg-gray-800 text-white text-sm px-3 py-2 rounded-lg border border-gray-700 focus:outline-none focus:border-red-500 w-full"
+                >
+                  {incidents.map(inc => (
+                    <option key={inc.id} value={inc.id}>{inc.status === 'Active' ? '● ' : '◦ '}{inc.name}</option>
+                  ))}
+                </select>
+              </div>
+              {/* Pills on desktop */}
+              <div className="hidden md:flex gap-2 flex-wrap">
+                {incidents.map(inc => (
+                  <button key={inc.id} onClick={() => setSelectedId(inc.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-colors flex items-center gap-1.5 border ${
+                      selectedId === inc.id
+                        ? 'bg-red-600 text-white border-red-500'
+                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700 border-gray-700'
+                    }`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${inc.status === 'Active' ? 'bg-green-400' : 'bg-gray-600'}`} />
+                    {inc.name}
+                  </button>
+                ))}
+              </div>
+            </>
           )}
         </div>
 
@@ -997,9 +1031,5 @@ function FireDashboardContent() {
 }
 
 export default function FireDashboardPage() {
-  return (
-    <FieldGuard redirectFn={() => null}>
-      <FireDashboardContent />
-    </FieldGuard>
-  )
+  return <FireDashboardContent />
 }
