@@ -625,7 +625,7 @@ function PCRFormInner() {
     pcr_number: `PCR-${Date.now()}`,
     agency_number: 'USFS',
     type_of_service: 'Standby',
-    patient_agency: ''
+    patient_agency: '',
     transport_capability: 'Ground Transport (ALS Equipped)',
     dispatch_datetime: '',
     en_route_datetime: '',
