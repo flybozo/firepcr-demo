@@ -97,48 +97,22 @@ export default function ProfilePage() {
 
   const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }))
 
-  const loadCreds = async (empId: string) => {
-    const { data } = await supabase
-      .from('employee_credentials')
-      .select('id, cert_type, file_name, file_url, expiration_date, issued_date')
-      .eq('employee_id', empId)
-      .order('cert_type')
-    setCreds(data || [])
-    // Generate signed URLs for storage-hosted files (not Drive links)
-    const urlMap: Record<string, string> = {}
-
-    // Get employee's Drive folder as fallback
-    const { data: empRow } = await supabase.from('employees').select('drive_folder_id').eq('id', empId).single()
-    const driveFolderUrl = (empRow as any)?.drive_folder_id
-      ? `https://drive.google.com/drive/folders/${(empRow as any).drive_folder_id}`
-      : null
-
-    await Promise.all((data || []).map(async (c: any) => {
-      if (!c.file_url) {
-        // No URL at all — skip (don't redirect to Drive)
-        return
+  const loadCreds = async (_empId: string) => {
+    // Fetch credentials + server-generated signed URLs in one call
+    try {
+      const res = await authFetch('/api/credentials/signed-urls')
+      if (!res.ok) throw new Error('Failed to load credentials')
+      const { credentials } = await res.json()
+      // Separate cred metadata from URL map
+      setCreds(credentials || [])
+      const urlMap: Record<string, string> = {}
+      for (const c of (credentials || [])) {
+        if (c.signed_url) urlMap[c.id] = c.signed_url
       }
-      if (c.file_url.includes('drive.google.com')) {
-        // Drive link — skip; show "contact admin" instead of bouncing to Drive
-        return
-      }
-      if (c.file_url.startsWith('https://') && !c.file_url.includes('supabase.co/storage')) {
-        // Other external URL — use directly
-        urlMap[c.id] = c.file_url
-        return
-      }
-      // Supabase storage path — generate signed URL
-      // file_url may be a full URL or just a path; extract the storage path
-      const storagePath = c.file_url
-        .replace(/.*\/storage\/v1\/object\/(?:public|sign)\/credentials\//, '')
-        .replace(/.*\/credentials\//, '')
-      const { data: signed } = await supabase.storage.from('credentials').createSignedUrl(storagePath, 3600)
-      if (signed?.signedUrl) {
-        urlMap[c.id] = signed.signedUrl
-      }
-      // If signed URL fails, leave unset — show "upload needed" message
-    }))
-    setCredSignedUrls(urlMap)
+      setCredSignedUrls(urlMap)
+    } catch (e) {
+      console.error('[Profile] loadCreds error:', e)
+    }
   }
 
   const handleSave = async () => {
@@ -452,7 +426,7 @@ export default function ProfilePage() {
                           title="Download">⬇ Save</button>
                       </>
                     ) : (
-                      <span className="text-xs text-gray-500 italic">On file — contact admin</span>
+                      <span className="text-xs text-gray-500 italic">No file uploaded</span>
                     )}
                   </div>
                 </div>
