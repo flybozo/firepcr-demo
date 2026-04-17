@@ -1,24 +1,49 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import bcrypt from 'bcryptjs'
-import { HttpError, requireAuthUser } from '../_auth.js'
+import { HttpError, requireEmployee } from '../_auth.js'
 import { createServiceClient } from '../_supabase.js'
 import { validateBody } from '../_validate.js'
 import { rateLimit } from '../_rateLimit.js'
+import { consumeWitnessToken } from './witness-token.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
-    await requireAuthUser(req)
+    const { employee: caller } = await requireEmployee(req)
     const supabase = createServiceClient()
 
     validateBody(req.body, [
       { field: 'pin', type: 'string', required: true, maxLength: 20 },
       { field: 'employee_id', type: 'uuid', required: true },
       { field: 'document_context', type: 'string', maxLength: 500 },
+      { field: 'witness_token', type: 'string', maxLength: 200 },
     ])
 
-    const { pin, employee_id, document_context } = req.body
+    const { pin, employee_id, document_context, witness_token } = req.body
+
+    // ── Security check ──────────────────────────────────────────────────────
+    // Self-signing: caller verifying their own PIN — always allowed.
+    // Witness signing: caller verifying a DIFFERENT employee's PIN — requires
+    // a valid short-lived witness token issued by this same session moments ago.
+    // This prevents any authenticated user from brute-forcing another employee's PIN.
+    const isSelfSign = caller.id === employee_id
+    if (!isSelfSign) {
+      if (!witness_token) {
+        return res.status(403).json({
+          error: 'Witness token required to verify another employee\'s PIN',
+          code: 'witness_token_required',
+        })
+      }
+      const tokenResult = consumeWitnessToken(witness_token, caller.id, document_context || '')
+      if (!tokenResult.ok) {
+        return res.status(403).json({
+          error: 'Invalid or expired witness token. Please restart the witness signing flow.',
+          code: tokenResult.reason,
+        })
+      }
+    }
+    // ────────────────────────────────────────────────────────────────────────
 
     // Rate limit PIN attempts per employee (5 per minute)
     const rl = rateLimit(`pin:${employee_id}`, 5, 60_000)

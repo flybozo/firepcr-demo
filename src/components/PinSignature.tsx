@@ -77,10 +77,14 @@ export default function PinSignature({
   const [searchResults, setSearchResults] = useState<{ id: string; name: string; role: string }[]>([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  // Witness token — fetched server-side when witness employee is selected
+  const [witnessToken, setWitnessToken] = useState<string | null>(null)
+  const [fetchingToken, setFetchingToken] = useState(false)
 
   const handleWitnessSearch = async (q: string) => {
     setWitnessSearch(q)
     setWitnessEmployee(null)
+    setWitnessToken(null)
     if (q.length < 2) { setSearchResults([]); return }
     const { data } = await supabase
       .from('employees')
@@ -89,6 +93,30 @@ export default function PinSignature({
       .eq('status', 'Active')
       .limit(6)
     setSearchResults(data || [])
+  }
+
+  const handleWitnessSelect = async (emp: { id: string; name: string; role: string }) => {
+    setWitnessEmployee(emp)
+    setSearchResults([])
+    setWitnessToken(null)
+    setFetchingToken(true)
+    try {
+      const res = await authFetch('/api/pin/witness-token', {
+        method: 'POST',
+        body: JSON.stringify({ document_context: documentContext }),
+      })
+      const data = await res.json()
+      if (res.ok && data.witness_token) {
+        setWitnessToken(data.witness_token)
+      } else {
+        setError('Could not start witness session. Please try again.')
+        setWitnessEmployee(null)
+      }
+    } catch {
+      setError('Network error starting witness session. Please try again.')
+      setWitnessEmployee(null)
+    }
+    setFetchingToken(false)
   }
 
   const handleSubmit = async () => {
@@ -107,14 +135,29 @@ export default function PinSignature({
 
     try {
       // Server-side PIN verification (bcrypt)
+      // For witness mode, include the short-lived witness token (required by server)
+      const verifyBody: Record<string, string> = {
+        pin,
+        employee_id: targetId,
+        document_context: documentContext,
+      }
+      if (mode === 'witness' && witnessToken) {
+        verifyBody.witness_token = witnessToken
+      }
       const verifyRes = await authFetch('/api/pin/verify', {
         method: 'POST',
-        body: JSON.stringify({ pin, employee_id: targetId, document_context: documentContext }),
+        body: JSON.stringify(verifyBody),
       })
       const verifyData = await verifyRes.json()
 
       if (!verifyRes.ok) {
-        setError(verifyData.error || 'Verification failed')
+        // Witness token expired or invalid — reset so they can re-select the witness
+        if (verifyData.code === 'token_expired' || verifyData.code === 'token_already_used' || verifyData.code === 'witness_token_required') {
+          setWitnessToken(null)
+          setError('Signing session expired. Please re-select the witness to start a new session.')
+        } else {
+          setError(verifyData.error || 'Verification failed')
+        }
         setLoading(false)
         return
       }
@@ -228,9 +271,13 @@ export default function PinSignature({
               <div className="flex items-center justify-between bg-gray-800 rounded-xl px-4 py-3">
                 <div>
                   <p className="text-white font-medium text-sm">{witnessEmployee.name}</p>
-                  <p className="text-gray-500 text-xs">{witnessEmployee.role}</p>
+                  <p className="text-gray-500 text-xs">
+                    {witnessEmployee.role}
+                    {fetchingToken && <span className="ml-2 text-yellow-400">⏳ Starting session…</span>}
+                    {!fetchingToken && witnessToken && <span className="ml-2 text-green-400">✅ Ready</span>}
+                  </p>
                 </div>
-                <button onClick={() => { setWitnessEmployee(null); setWitnessSearch('') }}
+                <button onClick={() => { setWitnessEmployee(null); setWitnessSearch(''); setWitnessToken(null) }}
                   className="text-gray-500 hover:text-white text-xs">Change</button>
               </div>
             ) : (
@@ -245,7 +292,7 @@ export default function PinSignature({
                   <div className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-xl overflow-hidden z-10">
                     {searchResults.map(emp => (
                       <button key={emp.id} type="button"
-                        onClick={() => { setWitnessEmployee(emp); setSearchResults([]) }}
+                        onClick={() => handleWitnessSelect(emp)}
                         className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-700 transition-colors">
                         <span className="text-white">{emp.name}</span>
                         <span className="text-gray-500 ml-2 text-xs">{emp.role}</span>
@@ -285,9 +332,9 @@ export default function PinSignature({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={loading || pin.length < 4 || (mode === 'witness' && !witnessEmployee)}
+            disabled={loading || fetchingToken || pin.length < 4 || (mode === 'witness' && !witnessEmployee) || (mode === 'witness' && !witnessToken)}
             className="flex-1 py-3 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 disabled:text-gray-500 rounded-xl text-sm font-bold transition-colors">
-            {loading ? 'Verifying…' : 'Sign'}
+            {loading ? 'Verifying…' : fetchingToken ? 'Starting…' : 'Sign'}
           </button>
         </div>
 
