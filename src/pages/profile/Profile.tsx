@@ -115,22 +115,28 @@ export default function ProfilePage() {
 
     await Promise.all((data || []).map(async (c: any) => {
       if (!c.file_url) {
-        // No file recorded — link to Drive folder if available
-        if (driveFolderUrl) urlMap[c.id] = driveFolderUrl
+        // No URL at all — skip (don't redirect to Drive)
         return
       }
-      if (c.file_url.includes('drive.google.com') || c.file_url.startsWith('http')) {
-        urlMap[c.id] = c.file_url  // Drive/external links work directly
-      } else {
-        // Supabase storage path — try signed URL, fall back to Drive folder
-        const storagePath = c.file_url.replace(/.*\/credentials\//, '')
-        const { data: signed } = await supabase.storage.from('credentials').createSignedUrl(storagePath, 3600)
-        if (signed?.signedUrl) {
-          urlMap[c.id] = signed.signedUrl
-        } else if (driveFolderUrl) {
-          urlMap[c.id] = driveFolderUrl  // Fall back to employee's Drive folder
-        }
+      if (c.file_url.includes('drive.google.com')) {
+        // Drive link — skip; show "contact admin" instead of bouncing to Drive
+        return
       }
+      if (c.file_url.startsWith('https://') && !c.file_url.includes('supabase.co/storage')) {
+        // Other external URL — use directly
+        urlMap[c.id] = c.file_url
+        return
+      }
+      // Supabase storage path — generate signed URL
+      // file_url may be a full URL or just a path; extract the storage path
+      const storagePath = c.file_url
+        .replace(/.*\/storage\/v1\/object\/(?:public|sign)\/credentials\//, '')
+        .replace(/.*\/credentials\//, '')
+      const { data: signed } = await supabase.storage.from('credentials').createSignedUrl(storagePath, 3600)
+      if (signed?.signedUrl) {
+        urlMap[c.id] = signed.signedUrl
+      }
+      // If signed URL fails, leave unset — show "upload needed" message
     }))
     setCredSignedUrls(urlMap)
   }
@@ -138,9 +144,24 @@ export default function ProfilePage() {
   const handleSave = async () => {
     if (!employee?.id) return
     setSaving(true); setError(''); setSuccess('')
-    const { error: err } = await supabase.from('employees').update(form).eq('id', employee.id)
-    if (err) setError(err.message)
-    else setSuccess('Profile updated successfully')
+    try {
+      const res = await authFetch('/api/profile/update', {
+        method: 'POST',
+        body: JSON.stringify(form),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Save failed')
+      // Update local state + cache with the fresh row from server
+      setEmployee((prev: any) => ({ ...prev, ...data.employee }))
+      // Update the offline cache so reload doesn't revert
+      try {
+        const { cacheData } = await import('@/lib/offlineStore')
+        await cacheData('employees', [data.employee])
+      } catch {}
+      setSuccess('Profile updated successfully')
+    } catch (e: any) {
+      setError(e.message || 'Failed to save profile')
+    }
     setSaving(false)
   }
 
@@ -182,14 +203,36 @@ export default function ProfilePage() {
     const file = e.target.files?.[0]; if (!file || !employee?.id) return
     setUploadingCred(true); setError('')
 
-    // Build canonical filename
-    const origExt = file.name.includes('.') ? '.' + file.name.split('.').pop()!.toLowerCase() : '.pdf'
+    // Build canonical filename — preserve the real file extension, never let it be .txt
+    const rawExt = file.name.includes('.') ? file.name.split('.').pop()!.toLowerCase() : ''
+    // Determine extension: prefer file extension, fall back to MIME type, then .pdf
+    let origExt = rawExt ? `.${rawExt}` : ''
+    if (!origExt || origExt === '.txt') {
+      // MIME-based fallback
+      if (file.type === 'application/pdf') origExt = '.pdf'
+      else if (file.type === 'image/jpeg') origExt = '.jpg'
+      else if (file.type === 'image/png') origExt = '.png'
+      else if (file.type === 'image/heic') origExt = '.heic'
+      else origExt = '.pdf'
+    }
     const ramId = `RAM-${employee.id.slice(-3).toUpperCase()}`  // fallback ID from UUID
     const certType = selectedCredType || 'Document'
     const canonicalName = buildCanonicalName(ramId, certType, employee.name || 'Unknown', credExpiry || null, origExt)
 
     const path = `${employee.id}/${canonicalName}`
-    const { data, error: upErr } = await supabase.storage.from('credentials').upload(path, file, { upsert: false })
+    // Determine content type — use file.type if available, fall back from extension
+    const mimeFromExt: Record<string, string> = {
+      '.pdf': 'application/pdf',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.png': 'image/png',
+      '.heic': 'image/heic',
+      '.webp': 'image/webp',
+    }
+    const contentType = file.type && file.type !== 'application/octet-stream' && file.type !== 'text/plain'
+      ? file.type
+      : (mimeFromExt[origExt] || 'application/pdf')
+    const { data, error: upErr } = await supabase.storage.from('credentials').upload(path, file, { upsert: false, contentType })
     if (upErr) { setError('Upload failed: ' + upErr.message); setUploadingCred(false); return }
 
     const fileUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/credentials/${path}`
@@ -392,10 +435,14 @@ export default function ProfilePage() {
                             try {
                               const res = await fetch(url)
                               const blob = await res.blob()
+                              // Use file_name directly — it already has the correct extension
+                              const fileName = c.file_name || 'credential.pdf'
                               const a = document.createElement('a')
                               a.href = URL.createObjectURL(blob)
-                              a.download = c.file_name || 'credential'
+                              a.download = fileName
+                              document.body.appendChild(a)
                               a.click()
+                              document.body.removeChild(a)
                               URL.revokeObjectURL(a.href)
                             } catch {
                               window.open(url, '_blank')
@@ -405,7 +452,7 @@ export default function ProfilePage() {
                           title="Download">⬇ Save</button>
                       </>
                     ) : (
-                      <span className="text-xs text-gray-500 italic">File in Drive — contact admin</span>
+                      <span className="text-xs text-gray-500 italic">On file — contact admin</span>
                     )}
                   </div>
                 </div>
