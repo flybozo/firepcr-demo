@@ -88,7 +88,7 @@ export default function SplitShell({ basePath, children, detailPattern, listWidt
             }
           `}</style>
 
-          <div className="split-detail-pane h-full overflow-y-auto">
+          <div className="split-detail-pane h-full overflow-y-auto pb-[calc(56px+env(safe-area-inset-bottom,0px))] md:pb-0">
             <Outlet />
           </div>
         </div>
