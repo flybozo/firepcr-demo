@@ -1,5 +1,5 @@
 
-import EncounterPicker, { type PickedEncounter } from '@/components/EncounterPicker'
+import { type PickedEncounter } from '@/components/EncounterPicker'
 
 import { useEffect, useRef, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -648,17 +648,7 @@ function MARNewFormInner() {
           }} />
         )}
 
-        {/* Encounter Picker */}
-        {!encounterId && (
-          <EncounterPicker
-            unitName={form.med_unit || undefined}
-            onSelect={(enc) => {
-              const name = [enc.patient_first_name, enc.patient_last_name].filter(Boolean).join(' ')
-              setForm(prev => ({ ...prev, patient_name: name || prev.patient_name, encounter_id: enc.encounter_id || '', prescribing_provider: enc.provider_of_record || prev.prescribing_provider, med_unit: enc.unit || prev.med_unit }))
-              if (enc.unit) { loadUnitInventory(enc.unit); loadUnitCrew(enc.unit) }
-            }}
-          />
-        )}
+        {/* Removed duplicate EncounterPicker — EncounterPickerSection above handles this */}
 
         {/* Linked Encounter Banner */}
         {encounterId && (
