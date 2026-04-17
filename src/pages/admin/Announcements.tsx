@@ -8,8 +8,6 @@ import { authFetch } from '@/lib/authFetch'
 // ── Push Notification constants ───────────────────────────────────────────────
 const PUSH_ROLES = ['EMT', 'Paramedic', 'RN', 'NP', 'PA', 'MD', 'DO', 'Tech']
 const PUSH_UNITS = ['RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
-const inputCls = 'w-full bg-gray-800 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500'
-const labelCls = 'block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1'
 
 type Announcement = {
   id: string
