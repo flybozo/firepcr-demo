@@ -495,6 +495,7 @@ function NewCompClaimInner() {
           claim_id: claimIdStr,
         }, logoDataUrl)
         const pdfBlob = new Blob([doc2.output('arraybuffer')], { type: 'application/pdf' })
+        // Upload to documents bucket under comp-claims/ subfolder
         const storagePath = `comp-claims/${claimIdStr}.pdf`
         const { error: upErr } = await supabase.storage.from('documents').upload(storagePath, pdfBlob, { contentType: 'application/pdf', upsert: true })
         if (!upErr && (insertedClaim as any)?.id) {

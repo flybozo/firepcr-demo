@@ -94,16 +94,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (firstSlash === -1) {
         return res.status(404).json({ error: 'Invalid PDF path' })
       }
-      const prefix = pdfUrl.slice(0, firstSlash)
-      // Known bucket prefixes
-      if (prefix === 'comp-claims') {
-        bucket = 'comp-claims'
-        objectPath = pdfUrl.slice(firstSlash + 1)
-      } else {
-        // Default: treat as documents bucket with full path
-        bucket = 'documents'
-        objectPath = pdfUrl
-      }
+      // All storage paths live in the 'documents' bucket — use full path as object path
+      bucket = 'documents'
+      objectPath = pdfUrl
     }
 
     const { data: signedData, error: signErr } = await supabase.storage

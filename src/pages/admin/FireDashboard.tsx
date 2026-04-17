@@ -412,18 +412,10 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
   // ── PDF signed URL opener ──────────────────────────────────────────────────
   const openPdf = async (pdfUrl: string) => {
     const supabase = createClient()
-    let bucket = 'documents'
-    let objectPath = pdfUrl
-    if (!pdfUrl.startsWith('http')) {
-      const slash = pdfUrl.indexOf('/')
-      if (slash !== -1 && pdfUrl.slice(0, slash) === 'comp-claims') {
-        bucket = 'comp-claims'
-        objectPath = pdfUrl.slice(slash + 1)
-      }
-    }
+    // All comp claim PDFs live in the 'documents' bucket under comp-claims/ subfolder
     const { data: signedData } = await supabase.storage
-      .from(bucket)
-      .createSignedUrl(objectPath, 3600)
+      .from('documents')
+      .createSignedUrl(pdfUrl, 3600)
     if (signedData?.signedUrl) {
       window.open(signedData.signedUrl, '_blank')
     } else {
@@ -552,38 +544,38 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
           <p className="text-xs text-gray-500">{filteredEncounters.length} encounters — de-identified</p>
           {filteredEncounters.length === 0 ? <Empty text="No encounters for this period" /> : (
             <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="grid grid-cols-[72px_72px_52px_1fr_80px_130px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
-                <span>ID</span><span>Date</span><span>Age</span><span>Chief Complaint</span><span>Acuity</span><span>WC / AMA</span>
+              <div className="grid grid-cols-[72px_72px_52px_1fr_140px_80px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
+                <span>ID</span><span>Date</span><span>Age</span><span>Chief Complaint</span><span>CC / OSHA</span><span>Acuity</span>
               </div>
               {filteredEncounters.map(enc => {
                 const claim = claimByEncId[enc.id]
                 return (
-                  <div key={enc.id} className="grid grid-cols-[72px_72px_52px_1fr_80px_130px] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 transition-colors items-center">
+                  <div key={enc.id} className="grid grid-cols-[72px_72px_52px_1fr_140px_80px] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 transition-colors items-center">
                     <span className="font-mono text-xs text-blue-400 font-semibold">{enc.seq_id}</span>
                     <span className="text-xs text-gray-400">{enc.date ? new Date(enc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
                     <span className="text-xs text-gray-400">{enc.age || '—'}</span>
                     <span className="text-xs text-white truncate">{enc.chief_complaint || '—'}</span>
-                    <span><Badge color={ACUITY_COLORS[enc.acuity] ?? C.gray} label={enc.acuity} /></span>
                     <span className="flex flex-col gap-1">
                       {wcEncounterIds.has(enc.id) && claim ? (
                         <>
-                          {claim.osha_recordable === true && <span className="text-xs bg-red-900/50 text-red-300 border border-red-700/40 px-1.5 py-0.5 rounded font-medium leading-none">🔴 Recordable</span>}
+                          {claim.osha_recordable === true && <span className="text-xs bg-red-900/50 text-red-300 border border-red-700/40 px-1.5 py-0.5 rounded font-medium leading-none">🔴 OSHA Recordable</span>}
                           {claim.osha_recordable === false && <span className="text-xs bg-green-900/50 text-green-300 border border-green-700/40 px-1.5 py-0.5 rounded font-medium leading-none">✅ Not Recordable</span>}
-                          {claim.osha_recordable == null && <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded leading-none">📋 WC Filed</span>}
+                          {claim.osha_recordable == null && <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded leading-none">📋 CC Filed</span>}
                           {claim.has_pdf && claim.pdf_url && (
                             <button
                               onClick={() => openPdf(claim.pdf_url!)}
                               className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-1.5 py-0.5 rounded transition-colors leading-none w-fit">
-                              ⬇ WC PDF
+                              ⬇ CC PDF
                             </button>
                           )}
                         </>
                       ) : wcEncounterIds.has(enc.id) ? (
-                        <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded leading-none">📋 WC</span>
+                        <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded leading-none">📋 CC Filed</span>
                       ) : (
                         <span className="text-gray-700 text-xs">—</span>
                       )}
                     </span>
+                    <span><Badge color={ACUITY_COLORS[enc.acuity] ?? C.gray} label={enc.acuity} /></span>
                   </div>
                 )
               })}
@@ -814,7 +806,7 @@ function AccessLogTab({ incidentId }: { incidentId: string }) {
                   ? 'Opened dashboard'
                   : evType === 'tab_view'
                   ? `Viewed ${TAB_LABEL[l.tab] || l.tab} tab`
-                  : `Downloaded ${l.document_type === 'comp_claim' ? 'WC claim PDF' : 'ICS 214 PDF'}`
+                  : `Downloaded ${l.document_type === 'comp_claim' ? 'CC PDF' : 'ICS 214 PDF'}`
                 return (
                   <div key={l.id} className="grid grid-cols-[20px_1fr_auto] gap-2 px-4 py-2 items-start text-xs">
                     <span>{icon}</span>
