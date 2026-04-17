@@ -438,12 +438,12 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         ) : (
           <img
             src="https://kfkpvazkikpuwatthtow.supabase.co/storage/v1/object/public/headshots/ram-logo.png"
-            alt="Remote Area Medicine"
+            alt={import.meta.env.VITE_COMPANY_DBA || 'Remote Area Medicine'}
             className="w-10 h-10 rounded-full object-contain bg-white p-0.5 shrink-0"
           />
         )}
         <div className="min-w-0">
-          <h1 className="text-sm font-bold text-white leading-tight">{org?.dba ?? org?.name ?? 'Remote Area Medicine'}</h1>
+          <h1 className="text-sm font-bold text-white leading-tight">{org?.dba ?? org?.name ?? (import.meta.env.VITE_COMPANY_DBA || 'Remote Area Medicine')}</h1>
           <p className="text-xs text-gray-500">Field Ops</p>
         </div>
       </Link>

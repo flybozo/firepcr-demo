@@ -52,13 +52,13 @@ import {
 
 // ─── Agency Constants ────────────────────────────────────────────────────────
 
-const AGENCY_NUMBER = 'S00-00000';
-const AGENCY_STATE_ID = 'S00-00000';
+const AGENCY_NUMBER = 'S65-52014';
+const AGENCY_STATE_ID = 'S65-52014';
 const STATE_CODE = '06';
-const AGENCY_NAME = 'Ridgeline EMS';
+const AGENCY_NAME = import.meta.env.VITE_COMPANY_DBA || 'Remote Area Medicine';
 const SOFTWARE_NAME = 'RAM Field Operations';
 const SOFTWARE_VERSION = '1.0';
-const SOFTWARE_CREATOR = 'Ridgeline EMS PC';
+const SOFTWARE_CREATOR = import.meta.env.VITE_COMPANY_NAME || 'Mossbrae Medical Group PC';
 // NEMSIS_VERSION constant kept for reference
 // const NEMSIS_VERSION = '3.5.1.240301CP1';
 

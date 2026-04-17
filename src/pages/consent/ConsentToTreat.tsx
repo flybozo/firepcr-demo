@@ -377,7 +377,7 @@ function ConsentToTreatInner() {
             <div className="text-xs text-gray-300 space-y-2 leading-relaxed max-h-48 overflow-y-auto pr-2">
               <p>
                 I, <span className="text-white font-medium">{patientName}</span>, hereby consent to emergency medical
-                treatment and care provided by Remote Area Medicine (Mossbrae Medical Group P.C.) personnel, including
+                treatment and care provided by {import.meta.env.VITE_COMPANY_DBA || 'Remote Area Medicine'} ({import.meta.env.VITE_COMPANY_NAME || 'Mossbrae Medical Group P.C.'}) personnel, including
                 physicians, physician assistants, nurse practitioners, registered nurses, EMTs, and paramedics.
               </p>
               <p className="font-semibold text-gray-200">I understand and acknowledge:</p>

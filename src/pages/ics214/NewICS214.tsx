@@ -287,7 +287,7 @@ export default function NewICS214Page() {
             ics214_id: ics214Id,
             employee_name: emp.name,
             ics_position: emp.role || '',
-            home_agency: 'Ridgeline EMS',
+            home_agency: import.meta.env.VITE_COMPANY_DBA || 'Remote Area Medicine',
           }))
         )
       }
@@ -477,7 +477,7 @@ export default function NewICS214Page() {
                   <div key={emp.id} className="flex items-center px-3 py-2 text-sm gap-3">
                     <span className="flex-1 text-white">{emp.name}</span>
                     <span className="text-gray-500 text-xs w-28 truncate">{emp.role || '—'}</span>
-                    <span className="text-gray-600 text-xs w-32 truncate">Ridgeline EMS</span>
+                    <span className="text-gray-600 text-xs w-32 truncate">{import.meta.env.VITE_COMPANY_DBA || 'Remote Area Medicine'}</span>
                     <button type="button" onClick={() => setCrew(prev => prev.filter((_, idx) => idx !== i))}
                       className="text-red-500 hover:text-red-400 text-xs px-1.5 py-0.5 rounded transition-colors">✕</button>
                   </div>

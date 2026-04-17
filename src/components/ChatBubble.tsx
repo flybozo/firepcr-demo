@@ -125,7 +125,7 @@ export default function ChatBubble() {
       // Got permission — stop the stream immediately (we just needed the grant)
       stream.getTracks().forEach(t => t.stop())
     } catch (e) {
-      alert('Microphone access denied. Please allow microphone access in Settings > Safari > ram-field-ops.vercel.app')
+      alert(`Microphone access denied. Please allow microphone access in Settings > Safari > ${window.location.hostname}`)
       return
     }
     manualStopRef.current = false
