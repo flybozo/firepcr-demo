@@ -1219,91 +1219,68 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
           setLoading(false)
         }
       } catch {}
-      // Try loading by UUID first, then fall back to text encounter_id
-      let { data, offline } = await loadSingle(
-        () => supabase.from('patient_encounters').select('*').eq('id', id).single() as any,
-        'encounters',
-        id
-      )
-      // If not found by UUID, try by text encounter_id (e.g. navigating from MAR link)
-      if (!data && !offline) {
-        const fallback = await loadSingle(
-          () => supabase.from('patient_encounters').select('*').eq('encounter_id', id).single() as any,
-          'encounters',
-          id
-        )
-        data = fallback.data
-        offline = fallback.offline
+      // ── Single RPC call replaces 10+ sequential queries ──
+      // Falls back to offline cache if network unavailable
+      let rpcData: any = null
+      let offline = false
+      try {
+        const { data: rpc, error: rpcErr } = await supabase.rpc('get_encounter_detail', { p_encounter_id: id }) as any
+        if (rpcErr || !rpc || rpc.error === 'not_found') {
+          throw new Error(rpcErr?.message || 'not found')
+        }
+        rpcData = rpc
+      } catch {
+        offline = true
       }
+
       if (offline) {
-        if (data) {
+        // Offline fallback: serve from cache
+        const allCached = await getCachedData('encounters') as any[]
+        let cached = allCached.find((e: any) => e.id === id) || null
+        if (!cached) cached = allCached.find((e: any) => e.encounter_id === id) || null
+        if (cached) {
           setIsOfflineData(true)
           const cachedVitals = await getCachedData('vitals')
           setAdditionalVitals(cachedVitals.filter((v: any) => v.encounter_id === id))
           const cachedMar = await getCachedData('mar_entries')
-          if ((data as any).encounter_id) {
-            setMarEntries(cachedMar.filter((m: any) => m.encounter_id === (data as any).encounter_id))
+          if (cached.encounter_id) {
+            setMarEntries(cachedMar.filter((m: any) => m.encounter_id === cached.encounter_id))
           }
+          setEnc(cached)
         }
-        setEnc(data)
         setLoading(false)
         return
       }
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        setUserEmail(user?.email || null)
-      } catch {}
-      setEnc(data)
 
-      // Load incident name if incident_id is set
-      if ((data as any)?.incident_id) {
-        try {
-          const cachedInc = await getCachedData('incidents') as any[]
-          const found = cachedInc?.find((i: any) => i.id === (data as any).incident_id)
-          if (found) {
-            setIncidentName(found.name)
-          } else {
-            const { data: incData } = await supabase.from('incidents').select('name').eq('id', (data as any).incident_id).single()
-            if (incData) setIncidentName(incData.name)
-          }
-        } catch {}
-      }
+      // ── Hydrate all state from RPC response ──
+      const enc = rpcData.encounter
+      setEnc(enc)
+      if (rpcData.incident_name) setIncidentName(rpcData.incident_name)
 
-      // Load serial vitals
-      const { data: vitals } = await supabase
-        .from('encounter_vitals')
-        .select('*')
-        .eq('encounter_id', id)
-        .order('recorded_at', { ascending: true })
-      setAdditionalVitals(vitals || [])
-      if (vitals) await cacheData('vitals', vitals)
+      setAdditionalVitals(rpcData.vitals || [])
+      if (rpcData.vitals?.length) await cacheData('vitals', rpcData.vitals)
 
-      // Load photos
-      const { data: photoData } = await supabase
-        .from('patient_photos')
-        .select('*')
-        .eq('encounter_id', id)
-        .order('taken_at', { ascending: true })
-      setPhotos(photoData || [])
+      setProcedures(rpcData.procedures || [])
+      setMarEntries(rpcData.mar || [])
+      setProgressNotes(rpcData.progress_notes || [])
+      setConsentForms(rpcData.consent_forms || [])
+      setCompClaims(rpcData.comp_claims || [])
 
-      // Generate display URLs for photos
-      if (photoData && photoData.length > 0) {
+      const photoData = rpcData.photos || []
+      setPhotos(photoData)
+
+      // Generate signed URLs for photos (storage calls can't go in the RPC)
+      if (photoData.length > 0) {
         const urlMap: Record<string, string> = {}
-        await Promise.all((photoData as any[]).map(async (ph) => {
+        await Promise.all(photoData.map(async (ph: any) => {
           if (!ph.photo_url) return
           const raw = ph.photo_url as string
           if (raw.startsWith('http')) {
-            // Already a full URL — use directly (public bucket)
             urlMap[ph.id] = raw
           } else {
-            // Relative storage path — try signed URL first, fall back to public URL
-            const { data: signed } = await supabase.storage
-              .from('patient-photos')
-              .createSignedUrl(raw, 3600)
-            if (signed?.signedUrl) {
-              urlMap[ph.id] = signed.signedUrl
-            } else {
-              // Public URL fallback
+            const { data: signed } = await supabase.storage.from('patient-photos').createSignedUrl(raw, 3600)
+            if (signed?.signedUrl) urlMap[ph.id] = signed.signedUrl
+            else {
               const { data: pub } = supabase.storage.from('patient-photos').getPublicUrl(raw)
               if (pub?.publicUrl) urlMap[ph.id] = pub.publicUrl
             }
@@ -1312,36 +1289,9 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
         setPhotoSignedUrls(urlMap)
       }
 
-      // Load procedures
-      const { data: procData } = await supabase
-        .from('encounter_procedures')
-        .select('*')
-        .eq('encounter_id', id)
-        .order('performed_at', { ascending: true })
-      setProcedures(procData || [])
-
-      // Load MAR entries
-      const encIdForMar = (data as any)?.encounter_id || null
-      if (encIdForMar) {
-        const { data: marData } = await supabase
-          .from('dispense_admin_log')
-          .select('id, date, time, item_name, item_type, qty_used, dosage_units, medication_route, dispensed_by, requires_cosign, provider_signature_url, med_unit')
-          .eq('encounter_id', encIdForMar)
-          .order('date', { ascending: false })
-          .order('time', { ascending: false })
-        setMarEntries(marData || [])
-      }
-
-      // Load linked consent forms — match by encounter_id text (FK) or encounter UUID
-      const encIdText = (data as any)?.encounter_id || null
-      const { data: consentData } = await supabase
-        .from('consent_forms')
-        .select('id, consent_id, consent_type, date_time, patient_first_name, patient_last_name, provider_of_record, signed, pdf_url')
-        .eq('encounter_id', encIdText || id)
-        .order('date_time', { ascending: false })
-      setConsentForms(consentData || [])
-      // Generate signed URLs for consent form PDFs (private documents bucket)
-      if (consentData && consentData.length > 0) {
+      // Generate signed URLs for consent PDFs
+      const consentData = rpcData.consent_forms || []
+      if (consentData.length > 0) {
         const urlMap: Record<string, string> = {}
         await Promise.all(consentData.map(async (cf: any) => {
           if (!cf.pdf_url) return
@@ -1352,81 +1302,30 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
         setConsentPdfUrls(urlMap)
       }
 
-      // Load linked comp claims (graceful fallback if column doesn't exist)
+      // Generate signed URLs for comp claim PDFs
+      const claimsData = rpcData.comp_claims || []
+      if (claimsData.length > 0) {
+        const urlMap: Record<string, string> = {}
+        await Promise.all(claimsData.map(async (cc: any) => {
+          if (!cc.pdf_url) return
+          if (cc.pdf_url.startsWith('http')) { urlMap[cc.id] = cc.pdf_url; return }
+          try {
+            const res = await authFetch(`/api/pdf/sign?path=${encodeURIComponent(cc.pdf_url)}&bucket=documents`)
+            if (res.ok) { const { url } = await res.json(); if (url) urlMap[cc.id] = url }
+          } catch { /* silent */ }
+        }))
+        setClaimPdfUrls(urlMap)
+      }
+
+      setCrewOptions(rpcData.crew || [])
+      setProviderOptions((rpcData.providers || []) as string[])
+
       try {
-        const encText = (data as any)?.encounter_id || null
-        const { data: claimsData, error: claimsError } = await supabase
-          .from('comp_claims')
-          .select('id, encounter_id, patient_name, date_of_injury, status, pdf_url, created_at')
-          .eq('encounter_id', encText || id)
-          .order('created_at', { ascending: false })
-        if (claimsError) {
-          setCompClaimsSupported(false)
-        } else {
-          setCompClaims(claimsData || [])
-          // Generate signed URLs for comp claim PDFs
-          if (claimsData && claimsData.length > 0) {
-            const urlMap: Record<string, string> = {}
-            await Promise.all(claimsData.map(async (cc: any) => {
-              if (!cc.pdf_url) return
-              if (cc.pdf_url.startsWith('http')) { urlMap[cc.id] = cc.pdf_url; return }
-              try {
-                const res = await authFetch(`/api/pdf/sign?path=${encodeURIComponent(cc.pdf_url)}&bucket=documents`)
-                if (res.ok) { const { url } = await res.json(); if (url) urlMap[cc.id] = url }
-              } catch { /* silent */ }
-            }))
-            setClaimPdfUrls(urlMap)
-          }
-        }
-      } catch {
-        setCompClaimsSupported(false)
-      }
+        const { data: { user } } = await supabase.auth.getUser()
+        setUserEmail(user?.email || null)
+      } catch {}
 
-      // Try to load crew for the unit
-      if (data?.unit) {
-        // Load only crew assigned to this unit via unit_assignments
-        const { data: iuData } = await supabase
-          .from('incident_units')
-          .select('id')
-          .eq('unit_id', data.unit_id || '')
-          .is('released_at', null)
-          .limit(1)
-        
-        let crew: {id: string, name: string}[] = []
-        if (iuData?.length) {
-          const { data: assignedCrew } = await supabase
-            .from('unit_assignments')
-            .select('employee:employees(id, name)')
-            .eq('incident_unit_id', iuData[0].id)
-            .is('released_at', null)
-          crew = ((assignedCrew || []).map((a: any) => a.employee).filter(Boolean)) as {id: string, name: string}[]
-        }
-        // Fallback to all active if no unit assignments found
-        if (!crew.length) {
-          const { data: allCrew } = await supabase
-            .from('employees')
-            .select('id, name')
-            .eq('status', 'Active')
-            .order('name')
-          crew = allCrew || []
-        }
-        setCrewOptions(crew)
-        // Load MD/NP/PA for Provider of Record dropdown
-        const { data: provs } = await supabase
-          .from('employees')
-          .select('name')
-          .in('role', ['MD', 'MD/DO', 'NP', 'PA'])
-          .eq('status', 'Active')
-          .order('name')
-        setProviderOptions((provs || []).map((p: any) => p.name))
-      }
-
-      // Load progress notes
-    if (data?.encounter_id) {
-      const { data: notesData } = await supabase.from('progress_notes').select('*').eq('encounter_id', data.encounter_id).is('deleted_at', null).order('note_datetime', { ascending: false })
-      setProgressNotes(notesData || [])
-    }
-    setLoading(false)
+      setLoading(false)
     }
     load()
   }, [id])
