@@ -304,20 +304,15 @@ function PatientLogTab({ data, code, logEvent }: { data: DashboardData; code: st
                   <span className="text-xs text-gray-300 truncate">{enc.disposition || <span className="text-gray-600 italic">In Process</span>}</span>
                   {/* CC / OSHA column */}
                   <span className="flex flex-col gap-1">
-                    {enc.has_comp_claim && claim && (
-                      <>
-                        <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded leading-none">📋 CC Filed</span>
-                        {claim.has_pdf && (
-                          <button onClick={e => { e.stopPropagation(); handleDownload(claim.id) }}
-                            disabled={downloading === claim.id}
-                            className="text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-1.5 py-0.5 rounded transition-colors leading-none w-fit">
-                            {downloading === claim.id ? '...' : '⬇ CC PDF'}
-                          </button>
-                        )}
-                      </>
+                    {enc.has_comp_claim && claim?.has_pdf && (
+                      <button onClick={e => { e.stopPropagation(); handleDownload(claim.id) }}
+                        disabled={downloading === claim.id}
+                        className="text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-1.5 py-0.5 rounded transition-colors leading-none w-fit">
+                        {downloading === claim.id ? '...' : '⬇ CC PDF'}
+                      </button>
                     )}
                     {enc.has_ama && <span className="text-xs bg-orange-900/50 text-orange-300 border border-orange-700/40 px-1.5 py-0.5 rounded leading-none">⚠️ AMA</span>}
-                    {!enc.has_comp_claim && !enc.has_ama && <span className="text-gray-700 text-xs">—</span>}
+                    {!enc.has_ama && !(enc.has_comp_claim && claim?.has_pdf) && <span className="text-gray-700 text-xs">—</span>}
                   </span>
                   {/* Supervisor from comp claim */}
                   <span className="text-xs text-gray-400 truncate">{(claim as any)?.supervisor_name || '—'}</span>
