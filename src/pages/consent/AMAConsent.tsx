@@ -323,24 +323,25 @@ function AMAFormInner() {
       }
       setLastConsentId(consentId)
       setLastConsentData(amaData)
+      setSubmitted(true) // Show success screen immediately — PDF saves in background
 
-      // Auto-save PDF to storage on submit
-      try {
-        const doc = generateAMAPDF({ ...amaData, consent_id: consentId }, logoDataUrl)
-        const pdfBlob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' })
-        const storagePath = `ama/${consentId}.pdf`
-        const { error: uploadErr } = await supabase.storage.from('documents').upload(storagePath, pdfBlob, { contentType: 'application/pdf', upsert: true })
-        if (!uploadErr) {
-          const { data: signed } = await supabase.storage.from('documents').createSignedUrl(storagePath, 3600 * 24 * 365)
-          const url = signed?.signedUrl || storagePath
-          setPdfUrl(url)
-          await supabase.from('consent_forms').update({ pdf_url: storagePath }).eq('consent_id', consentId)
+      // Auto-save PDF to storage (background — success screen already shown)
+      ;(async () => {
+        try {
+          const doc = generateAMAPDF({ ...amaData, consent_id: consentId }, logoDataUrl)
+          const pdfBlob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' })
+          const storagePath = `ama/${consentId}.pdf`
+          const { error: uploadErr } = await supabase.storage.from('documents').upload(storagePath, pdfBlob, { contentType: 'application/pdf', upsert: true })
+          if (!uploadErr) {
+            const { data: signed } = await supabase.storage.from('documents').createSignedUrl(storagePath, 3600 * 24 * 365)
+            const url = signed?.signedUrl || storagePath
+            setPdfUrl(url)
+            await supabase.from('consent_forms').update({ pdf_url: storagePath }).eq('consent_id', consentId)
+          }
+        } catch (pdfErr) {
+          console.error('Auto-save PDF error:', pdfErr)
         }
-      } catch (pdfErr) {
-        console.error('Auto-save PDF error:', pdfErr)
-      }
-
-      setSubmitted(true)
+      })()
     } catch (err: any) {
       setError(err.message || 'Submission failed. Please try again.')
     } finally {
