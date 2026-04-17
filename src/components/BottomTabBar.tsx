@@ -74,6 +74,7 @@ const TABS: Tab[] = [
     subItems: [
       { label: '🚑 Units', href: '/units' },
       { label: '📊 Analytics', href: '/analytics' },
+      { label: '🔥 External Dashboard', href: '/admin/fire-dashboard' },
       { label: '📅 Schedule', href: '/schedule' },
       { label: '💰 Payroll', href: '/payroll' },
       { label: '📇 Contacts', href: '/contacts' },

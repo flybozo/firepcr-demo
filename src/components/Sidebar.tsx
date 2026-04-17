@@ -103,14 +103,7 @@ const NAV: NavItem[] = [
     ],
     adminOnly: false,
   },
-  {
-    icon: '📊',
-    label: 'Analytics',
-    href: '/analytics',
-    sub: [],
-    adminOnly: false,
-    onlineOnly: true,
-  },
+
   {
     icon: '📅',
     label: 'Schedule',
@@ -139,13 +132,6 @@ const NAV: NavItem[] = [
     onlineOnly: true,
   },
   {
-    icon: '🔥',
-    label: 'Fire Dashboard',
-    href: '/admin/fire-dashboard',
-    sub: [],
-    adminOnly: true,
-  },
-  {
     icon: '⚙️',
     label: 'Admin',
     href: '/admin',
@@ -155,6 +141,8 @@ const NAV: NavItem[] = [
       { label: 'Push Notifications', href: '/admin/push-notifications' },
       { label: 'Chat Requests', href: '/admin/chat-requests' },
       { label: 'Company Profile', href: '/admin/company' },
+      { label: 'Analytics', href: '/analytics' },
+      { label: 'External Dashboard', href: '/admin/fire-dashboard' },
     ],
     adminOnly: true,
   },

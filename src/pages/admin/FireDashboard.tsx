@@ -862,7 +862,7 @@ function FireDashboardContent() {
         {/* Header */}
         <div className="flex items-center justify-between pt-2">
           <div>
-            <h1 className="text-xl font-bold">🔥 Fire Admin Dashboard</h1>
+            <h1 className="text-xl font-bold">External Dashboard</h1>
             <p className="text-gray-500 text-xs">External access codes &amp; incident data for fire agency personnel</p>
           </div>
         </div>
