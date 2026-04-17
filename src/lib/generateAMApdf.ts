@@ -15,12 +15,14 @@ export type AMAData = {
 
 export function generateAMAPDF(data: AMAData, logoDataUrl?: string | null): jsPDF {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'letter' })
-  const W = 612, M = 54
-  let y = M
+  const W = 612, M = 48
+  let y = 0
 
-  // Header bar with circular logo
+  // ── Header bar (same structure as Consent form) ───────────────────────────
   doc.setFillColor(220, 38, 38)
-  doc.rect(0, y - 10, 612, 50, 'F')
+  doc.rect(0, 0, W, 56, 'F')
+
+  // Circular logo — perfectly centered (cx, cy = center; r = radius)
   if (logoDataUrl) {
     try {
       const cx = 38, cy = 28, r = 20
@@ -29,14 +31,19 @@ export function generateAMAPDF(data: AMAData, logoDataUrl?: string | null): jsPD
       doc.addImage(logoDataUrl, 'PNG', cx - r, cy - r, r * 2, r * 2)
     } catch {}
   }
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(255, 255, 255)
-  doc.text('REMOTE AREA MEDICINE', W / 2, y + 6, { align: 'center' })
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255)
+  doc.text('REMOTE AREA MEDICINE', W / 2, 22, { align: 'center' })
   doc.setFontSize(8); doc.setFont('helvetica', 'normal')
-  doc.text('Mossbrae Medical Group P.C.  |  Medical Director: Aaron Stutz, MD', W / 2, y + 20, { align: 'center' })
+  doc.text(`Mossbrae Medical Group P.C.  |  Medical Director: ${data.provider_name}`, W / 2, 38, { align: 'center' })
   doc.setTextColor(0, 0, 0)
-  y += 44
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(11)
-  doc.text('REFUSAL OF EMERGENCY MEDICAL CARE / AGAINST MEDICAL ADVICE (AMA)', W / 2, y, { align: 'center' }); y += 14
+  y = 72
+
+  // ── Form title ────────────────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13)
+  doc.text('REFUSAL OF EMERGENCY MEDICAL CARE', W / 2, y, { align: 'center' }); y += 14
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10)
+  doc.text('AGAINST MEDICAL ADVICE (AMA)', W / 2, y, { align: 'center' }); y += 14
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9)
   doc.text(`Date: ${data.form_date}     Incident: ${data.incident || '—'}     Unit: ${data.unit}`, W / 2, y, { align: 'center' }); y += 22
 
