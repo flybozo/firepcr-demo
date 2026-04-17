@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useRole } from '@/lib/useRole'
+import { useUserAssignment } from '@/lib/useUserAssignment'
 import {
   ResponsiveContainer,
   BarChart, Bar,
@@ -113,7 +115,11 @@ function DatePills({ range, setRange }: { range: DateRange; setRange: (r: DateRa
 // ════════════════════════════════════════════════════════════════════════════
 // CLINICAL TAB
 // ════════════════════════════════════════════════════════════════════════════
-function ClinicalTab() {
+function ClinicalTab({ isField = false, assignedIncidentId = null, assignedUnitNames = [] }: {
+  isField?: boolean
+  assignedIncidentId?: string | null
+  assignedUnitNames?: string[]
+}) {
   const supabase = createClient()
   const [range, setRange] = useState<DateRange>('30d')
   const [loading, setLoading] = useState(true)
@@ -122,6 +128,7 @@ function ClinicalTab() {
   const [encounters, setEncounters] = useState<{ date: string; primary_symptom_text: string | null; initial_acuity: string | null; patient_disposition: string | null; unit: string | null; incident_id: string | null; incident_name: string | null }[]>([])
   const [activeIncidents, setActiveIncidents] = useState<{ id: string; name: string }[]>([])
   const [incidentFilter, setIncidentFilter] = useState<string>('All')
+  const [unitFilter, setUnitFilter] = useState<string>('All')
   // medications
   const [meds, setMeds] = useState<{ item_name: string; count: number }[]>([])
 
@@ -134,9 +141,11 @@ function ClinicalTab() {
         .select('date, primary_symptom_text, initial_acuity, patient_disposition, unit, incident_id, incident:incidents(name)')
         .is('deleted_at', null)
       if (dateFrom) q = (q as any).gte('date', dateFrom)
+      // Field users: scope to their assigned incident only
+      if (isField && assignedIncidentId) q = (q as any).eq('incident_id', assignedIncidentId)
       const [{ data: enc }, { data: incs }] = await Promise.all([
         q,
-        supabase.from('incidents').select('id, name').eq('status', 'Active').order('name'),
+        isField ? Promise.resolve({ data: [] }) : supabase.from('incidents').select('id, name').eq('status', 'Active').order('name'),
       ])
       setEncounters((enc || []).map((e: any) => ({ ...e, incident_name: e.incident?.name || null })))
       setActiveIncidents(incs || [])
@@ -170,10 +179,15 @@ function ClinicalTab() {
 
   useEffect(() => { load() }, [load])
 
-  // ── Incident-filtered encounter slice (client-side, instant) ───────────────
-  const filteredEncounters = incidentFilter === 'All'
-    ? encounters
-    : encounters.filter(e => e.incident_id === incidentFilter)
+  // ── Filtered encounter slice (incident + unit, client-side) ────────────────
+  const filteredEncounters = encounters
+    .filter(e => incidentFilter === 'All' || e.incident_id === incidentFilter)
+    .filter(e => unitFilter === 'All' || e.unit === unitFilter)
+
+  // Units available for filter — for field users constrain to assigned units
+  const availableUnits = isField && assignedUnitNames.length > 0
+    ? assignedUnitNames
+    : Array.from(new Set(encounters.map(e => e.unit).filter(Boolean))) as string[]
 
   // ── Derived stats ──────────────────────────────────────────────────────────
   const now = new Date()
@@ -244,29 +258,62 @@ function ClinicalTab() {
 
   return (
     <div className="space-y-8">
-      {/* Date + Incident filters */}
-      <div className="flex flex-col gap-2">
-        <DatePills range={range} setRange={setRange} />
-        {activeIncidents.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 items-center">
-            <span className="text-xs text-gray-500">Incident:</span>
-            <button
-              onClick={() => setIncidentFilter('All')}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                incidentFilter === 'All' ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-              }`}
-            >All</button>
-            {activeIncidents.map(inc => (
-              <button
-                key={inc.id}
-                onClick={() => setIncidentFilter(inc.id)}
-                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                  incidentFilter === inc.id ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                }`}
-              >{inc.name}</button>
-            ))}
+      {/* Filters */}
+      <div className="flex flex-col gap-3">
+        {/* Date range — dropdown on mobile, pills on desktop */}
+        <div>
+          <label className="text-xs text-gray-500 mb-1 block">Date range</label>
+          <div className="md:hidden">
+            <select
+              value={range}
+              onChange={e => setRange(e.target.value as DateRange)}
+              className="bg-gray-800 text-white text-sm px-3 py-2 rounded-lg border border-gray-700 focus:outline-none focus:border-red-500 w-full"
+            >
+              {(['7d','30d','90d','1y','all'] as DateRange[]).map(r => (
+                <option key={r} value={r}>{{ '7d':'Last 7 days','30d':'Last 30 days','90d':'Last 90 days','1y':'Last year','all':'All time' }[r]}</option>
+              ))}
+            </select>
           </div>
-        )}
+          <div className="hidden md:block">
+            <DatePills range={range} setRange={setRange} />
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          {/* Incident filter — admins only */}
+          {!isField && activeIncidents.length > 0 && (
+            <div className="flex-1 min-w-[160px]">
+              <label className="text-xs text-gray-500 mb-1 block">Incident</label>
+              <select
+                value={incidentFilter}
+                onChange={e => setIncidentFilter(e.target.value)}
+                className="bg-gray-800 text-white text-sm px-3 py-2 rounded-lg border border-gray-700 focus:outline-none focus:border-red-500 w-full"
+              >
+                <option value="All">All incidents</option>
+                {activeIncidents.map(inc => (
+                  <option key={inc.id} value={inc.id}>{inc.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Unit filter — all users; field users constrained to their incident's units */}
+          {availableUnits.length > 1 && (
+            <div className="flex-1 min-w-[140px]">
+              <label className="text-xs text-gray-500 mb-1 block">Unit</label>
+              <select
+                value={unitFilter}
+                onChange={e => setUnitFilter(e.target.value)}
+                className="bg-gray-800 text-white text-sm px-3 py-2 rounded-lg border border-gray-700 focus:outline-none focus:border-red-500 w-full"
+              >
+                <option value="All">All units</option>
+                {availableUnits.sort().map(u => (
+                  <option key={u} value={u}>{u}</option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── A: Encounter Volume ── */}
@@ -861,12 +908,19 @@ type Tab = 'clinical' | 'operations' | 'workforce'
 
 export default function AnalyticsPage() {
   const [tab, setTab] = useState<Tab>('clinical')
+  const { isField } = useRole()
+  const assignment = useUserAssignment()
 
-  const tabs: { id: Tab; label: string; icon: string }[] = [
+  const assignedIncidentId = assignment.incidentUnit?.incident_id || null
+  // Unit names assigned to the field user's incident
+  const assignedUnitNames: string[] = assignment.unit?.name ? [assignment.unit.name] : []
+
+  const allTabs: { id: Tab; label: string; icon: string }[] = [
     { id: 'clinical',   label: 'Clinical',    icon: '🩺' },
     { id: 'operations', label: 'Operations',  icon: '🔥' },
     { id: 'workforce',  label: 'Workforce',   icon: '👥' },
   ]
+  const tabs = isField ? allTabs.filter(t => t.id === 'clinical') : allTabs
 
   return (
     <div className="min-h-screen bg-gray-950 text-white pb-16">
@@ -899,7 +953,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Tab content */}
-        {tab === 'clinical'   && <ClinicalTab />}
+        {tab === 'clinical'   && <ClinicalTab isField={isField} assignedIncidentId={assignedIncidentId} assignedUnitNames={assignedUnitNames} />}
         {tab === 'operations' && <OperationsTab />}
         {tab === 'workforce'  && <WorkforceTab />}
       </div>
