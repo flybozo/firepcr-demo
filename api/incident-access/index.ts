@@ -174,12 +174,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (req.method === 'DELETE') {
-      const { code_id } = req.body as { code_id?: string }
+      // code_id can come from query string (preferred) or body
+      const code_id = (req.query['code_id'] as string) || (req.body as any)?.code_id
       if (!code_id) return res.status(400).json({ error: 'code_id required' })
       const { supabase } = await requireEmployee(req, { admin: true })
       const { error } = await supabase.from('incident_access_codes').delete().eq('id', code_id)
       if (error) return res.status(500).json({ error: error.message })
-      return res.status(204).end()
+      return res.status(200).json({ ok: true })
     }
 
     return res.status(405).json({ error: 'Method not allowed' }

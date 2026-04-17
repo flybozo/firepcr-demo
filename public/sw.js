@@ -1,7 +1,7 @@
-// FirePCR Service Worker v9 — Vite SPA
+// FirePCR Service Worker v11 — Vite SPA
 // Caches index.html + all JS/CSS assets for true offline
 
-const CACHE_NAME = 'firepcr-v9';
+const CACHE_NAME = 'firepcr-v12';
 
 // Install: cache the app shell
 self.addEventListener('install', (event) => {
@@ -23,6 +23,53 @@ self.addEventListener('activate', (event) => {
     ).then(() => {
       // Take control of all open tabs immediately
       return self.clients.claim();
+    })
+  );
+});
+
+// Listen for skip-waiting message from client
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+// Push notification handler
+self.addEventListener('push', (event) => {
+  let data = { title: 'FirePCR', body: 'You have a new notification', url: '/' };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch {}
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-192.png',
+      data: { url: data.url || '/' },
+      vibrate: [200, 100, 200],
+    })
+  );
+});
+
+// Notification click — open the app to the specified URL
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = new URL(event.notification.data?.url || '/', self.location.origin).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+      // If app is already open, navigate it to the target URL and focus
+      for (const client of clients) {
+        if (client.url.startsWith(self.location.origin)) {
+          return client.focus().then(focused => {
+            if ('navigate' in focused) return focused.navigate(targetUrl);
+            // Fallback: post a message to the client to handle navigation
+            focused.postMessage({ type: 'NAVIGATE', url: targetUrl });
+            return focused;
+          });
+        }
+      }
+      // No open tab — open a new one
+      return self.clients.openWindow(targetUrl);
     })
   );
 });

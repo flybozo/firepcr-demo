@@ -126,11 +126,10 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
 
   const deleteCode = async (codeId: string, codeStr: string) => {
     if (!confirm(`Delete access code ${codeStr}? This cannot be undone.`)) return
-    const res = await authFetch('/api/incident-access', {
+    const res = await authFetch(`/api/incident-access?code_id=${encodeURIComponent(codeId)}`, {
       method: 'DELETE',
-      body: JSON.stringify({ code_id: codeId }),
     })
-    if (res.ok || res.status === 204) loadCodes()
+    if (res.ok) loadCodes()
   }
 
   const saveExpiry = async (codeId: string) => {

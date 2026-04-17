@@ -41,4 +41,11 @@ export function registerServiceWorker() {
       window.location.reload()
     }
   })
+
+  // Handle navigation messages from SW (push notification click)
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data?.type === 'NAVIGATE' && event.data?.url) {
+      window.location.href = event.data.url
+    }
+  })
 }
