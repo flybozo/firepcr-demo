@@ -122,6 +122,24 @@ type DeploymentRecord = {
   employees: { name: string; role: string } | null
 }
 
+// Merged view: unit_assignment enriched with optional deployment_records data
+type CrewDeployment = {
+  assignment_id: string
+  employee_id: string
+  employee_name: string
+  employee_role: string
+  unit_name: string
+  daily_rate: number
+  released_at: string | null
+  // From deployment_records (if exists)
+  deployment_id: string | null
+  travel_date: string | null
+  check_in_date: string | null
+  check_out_date: string | null
+  deploy_status: string
+  notes: string | null
+}
+
 function calcDays(travelDate: string, checkOutDate: string | null): number {
   const start = new Date(travelDate)
   const end = checkOutDate ? new Date(checkOutDate) : new Date()
@@ -473,7 +491,8 @@ export default function IncidentDetailPage() {
   const [supplyCount, setSupplyCount] = useState(0)
   const [supplyRuns, setSupplyRuns] = useState<SupplyRunRow[]>([])
 
-  // Deployments
+  // Deployments (merged view from unit_assignments + deployment_records)
+  const [crewDeployments, setCrewDeployments] = useState<CrewDeployment[]>([])
   const [deployments, setDeployments] = useState<DeploymentRecord[]>([])
   const [allEmployees, setAllEmployees] = useState<Employee[]>([])
   const [showAddDeployment, setShowAddDeployment] = useState(false)
@@ -519,7 +538,7 @@ export default function IncidentDetailPage() {
       'incidents',
       activeIncidentId
     )
-    let inc = incResult.data
+    const inc = incResult.data
     let iUnits: any[] | null = null
     let allUnitsData: any[] | null = null
     let userData: any = null
@@ -804,10 +823,26 @@ export default function IncidentDetailPage() {
       }
     })()
 
-    // Load deployments
+    // Load deployments: merge unit_assignments (primary) with deployment_records (payroll enrichment)
     ;(async () => {
       try {
-        const [{ data: depData }, { data: empData }] = await Promise.all([
+        // Get ALL incident_unit IDs for this incident (active + released)
+        const { data: allIUData } = await supabaseClient
+          .from('incident_units')
+          .select('id, units(name), released_at')
+          .eq('incident_id', activeIncidentId)
+        const allIUs = (allIUData || []) as { id: string; units: { name: string } | null; released_at: string | null }[]
+        const allIUIds = allIUs.map(iu => iu.id)
+
+        const [{ data: uaData }, { data: depData }, { data: empData }] = await Promise.all([
+          // All unit_assignments for this incident's units
+          allIUIds.length > 0
+            ? supabaseClient
+                .from('unit_assignments')
+                .select('id, employee_id, incident_unit_id, released_at, employees(id, name, role, daily_rate)')
+                .in('incident_unit_id', allIUIds)
+            : Promise.resolve({ data: [] }),
+          // Deployment records (payroll layer)
           supabaseClient
             .from('deployment_records')
             .select('id, employee_id, travel_date, check_in_date, check_out_date, daily_rate, status, notes, employees(name, role)')
@@ -819,10 +854,51 @@ export default function IncidentDetailPage() {
             .eq('status', 'Active')
             .order('name'),
         ])
+
         setDeployments((depData as unknown as DeploymentRecord[]) ?? [])
         setAllEmployees((empData as Employee[]) ?? [])
+
+        // Build merged crew deployment list
+        const depByEmployee = new Map<string, any>()
+        for (const dep of (depData || [])) {
+          depByEmployee.set((dep as any).employee_id, dep)
+        }
+
+        const iuMap = new Map<string, { unitName: string; released: string | null }>()
+        for (const iu of allIUs) {
+          iuMap.set(iu.id, { unitName: iu.units?.name || '?', released: iu.released_at })
+        }
+
+        const merged: CrewDeployment[] = ((uaData || []) as any[]).map(ua => {
+          const emp = ua.employees || {}
+          const iu = iuMap.get(ua.incident_unit_id)
+          const dep = depByEmployee.get(ua.employee_id)
+          return {
+            assignment_id: ua.id,
+            employee_id: ua.employee_id,
+            employee_name: emp.name || '?',
+            employee_role: emp.role || '?',
+            unit_name: iu?.unitName || '?',
+            daily_rate: dep?.daily_rate ?? emp.daily_rate ?? 0,
+            released_at: ua.released_at || iu?.released || null,
+            deployment_id: dep?.id || null,
+            travel_date: dep?.travel_date || null,
+            check_in_date: dep?.check_in_date || null,
+            check_out_date: dep?.check_out_date || ua.released_at || null,
+            deploy_status: ua.released_at ? 'Released' : (dep?.status || 'On Scene'),
+            notes: dep?.notes || null,
+          }
+        })
+        // Sort: active first, then by name
+        merged.sort((a, b) => {
+          if (!a.released_at && b.released_at) return -1
+          if (a.released_at && !b.released_at) return 1
+          return a.employee_name.localeCompare(b.employee_name)
+        })
+        setCrewDeployments(merged)
       } catch {
         setDeployments([])
+        setCrewDeployments([])
       }
     })()
 
@@ -887,7 +963,7 @@ export default function IncidentDetailPage() {
 
   // ─── Deployment handlers ────────────────────────────────────────────────────
 
-  const deployedEmployeeIds = new Set(deployments.map(d => d.employee_id))
+  const deployedEmployeeIds = new Set(crewDeployments.map(d => d.employee_id))
   const availableEmployees = allEmployees.filter(e => !deployedEmployeeIds.has(e.id))
 
   const handleEmployeeSelect = (empId: string) => {
@@ -938,20 +1014,15 @@ export default function IncidentDetailPage() {
 
     setShowAddDeployment(false)
     setDeployForm({ employeeId: '', travelDate: new Date().toISOString().split('T')[0], dailyRate: '', notes: '' })
-    // Reload deployments
-    const { data } = await supabase
-      .from('deployment_records')
-      .select('id, employee_id, travel_date, check_in_date, check_out_date, daily_rate, status, notes, employees(name, role)')
-      .eq('incident_id', activeIncidentId)
-      .order('travel_date', { ascending: false })
-    setDeployments((data as unknown as DeploymentRecord[]) ?? [])
     setDeploySubmitting(false)
+    // Reload all deployment data (unit_assignments + deployment_records merged)
+    load()
   }
 
   const handleDeleteDeployment = async (id: string) => {
     if (!confirm('Delete this deployment record?')) return
     await supabase.from('deployment_records').delete().eq('id', id)
-    setDeployments(prev => prev.filter(d => d.id !== id))
+    load()
   }
 
   const handleSaveDeployEdit = async (id: string) => {
@@ -965,14 +1036,9 @@ export default function IncidentDetailPage() {
       admin_override_by: assignment.employee?.name ?? 'Admin',
       updated_at: new Date().toISOString(),
     }).eq('id', id)
-    const { data } = await supabase
-      .from('deployment_records')
-      .select('id, employee_id, travel_date, check_in_date, check_out_date, daily_rate, status, notes, employees(name, role)')
-      .eq('incident_id', activeIncidentId)
-      .order('travel_date', { ascending: false })
-    setDeployments((data as unknown as DeploymentRecord[]) ?? [])
     setEditingDeployId(null)
     setEditDeployFields({})
+    load()
   }
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -1024,6 +1090,9 @@ export default function IncidentDetailPage() {
 
       case 'deployments':
         if (!isAdmin) return null
+        {
+        const activeCrewCount = crewDeployments.filter(d => !d.released_at).length
+        const totalCrewCount = crewDeployments.length
         return (
           <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-700 bg-slate-800/90">
@@ -1034,56 +1103,44 @@ export default function IncidentDetailPage() {
                 >⠿</div>
               )}
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">👥 Deployments</h3>
-              <span className="text-xl font-bold text-white">{deployments.length}</span>
+              <div className="text-right">
+                <span className="text-xl font-bold text-white">{activeCrewCount}</span>
+                {totalCrewCount > activeCrewCount && (
+                  <span className="text-xs text-gray-500 ml-1">({totalCrewCount} total)</span>
+                )}
+              </div>
             </div>
 
-            {/* Table */}
-            {deployments.length > 0 && (
+            {/* Crew Deployment Table — derived from unit_assignments + deployment_records */}
+            {crewDeployments.length > 0 && (
               <div className="overflow-x-auto">
                 <table className="w-full text-xs" style={{ minWidth: '600px' }}>
                   <thead>
                     <tr className="border-b border-gray-800 bg-gray-800/30">
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Employee</th>
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Role</th>
-                      <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Travel</th>
-                      <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Check-In</th>
-                      <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Check-Out</th>
+                      <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Unit</th>
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Status</th>
-                      <th className="text-right px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Days</th>
-                      <th className="text-right px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Pay</th>
+                      <th className="text-right px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Rate</th>
+                      <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Travel</th>
+                      <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Check-Out</th>
                       <th className="px-3 py-2"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-800/60">
-                    {deployments.map(dep => {
-                      const days = calcDays(dep.travel_date, dep.check_out_date)
-                      const pay = days * dep.daily_rate
-                      const isActive = dep.status === 'Traveling' || dep.status === 'On Scene'
-                      const isEditing = editingDeployId === dep.id
+                    {crewDeployments.map(dep => {
+                      const isActive = !dep.released_at
+                      const isEditing = editingDeployId === dep.deployment_id
 
-                      if (isEditing) {
+                      if (isEditing && dep.deployment_id) {
                         return (
-                          <tr key={dep.id} className="bg-gray-800/50">
+                          <tr key={dep.assignment_id} className="bg-gray-800/50">
                             <td className="px-3 py-2 text-white font-medium" colSpan={2}>
-                              {dep.employees?.name ?? '—'} · {dep.employees?.role ?? ''}
+                              {dep.employee_name} · {dep.employee_role}
                             </td>
+                            <td className="px-3 py-2 text-gray-400">{dep.unit_name}</td>
                             <td className="px-3 py-2">
-                              <input type="date" defaultValue={dep.travel_date}
-                                onChange={e => setEditDeployFields(f => ({ ...f, travel_date: e.target.value, admin_override_checkin: e.target.value }))}
-                                className={inputCls} />
-                            </td>
-                            <td className="px-3 py-2">
-                              <input type="date" defaultValue={dep.check_in_date ?? ''}
-                                onChange={e => setEditDeployFields(f => ({ ...f, check_in_date: e.target.value || null, admin_override_checkin: e.target.value }))}
-                                className={inputCls} />
-                            </td>
-                            <td className="px-3 py-2">
-                              <input type="date" defaultValue={dep.check_out_date ?? ''}
-                                onChange={e => setEditDeployFields(f => ({ ...f, check_out_date: e.target.value || null, admin_override_checkout: e.target.value }))}
-                                className={inputCls} />
-                            </td>
-                            <td className="px-3 py-2">
-                              <select defaultValue={dep.status}
+                              <select defaultValue={dep.deploy_status}
                                 onChange={e => setEditDeployFields(f => ({ ...f, status: e.target.value }))}
                                 className={inputCls}>
                                 {['Traveling', 'On Scene', 'Released', 'Emergency Release'].map(s => (
@@ -1091,11 +1148,24 @@ export default function IncidentDetailPage() {
                                 ))}
                               </select>
                             </td>
-                            <td className="px-3 py-2 text-right">{days}</td>
-                            <td className="px-3 py-2 text-right text-green-400">{fmtCurrency(pay)}</td>
+                            <td className="px-3 py-2">
+                              <input type="number" step="1" defaultValue={dep.daily_rate}
+                                onChange={e => setEditDeployFields(f => ({ ...f, daily_rate: parseFloat(e.target.value) || 0 }))}
+                                className={inputCls + ' w-20 text-right'} />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input type="date" defaultValue={dep.travel_date ?? ''}
+                                onChange={e => setEditDeployFields(f => ({ ...f, travel_date: e.target.value }))}
+                                className={inputCls} />
+                            </td>
+                            <td className="px-3 py-2">
+                              <input type="date" defaultValue={dep.check_out_date ?? ''}
+                                onChange={e => setEditDeployFields(f => ({ ...f, check_out_date: e.target.value || null }))}
+                                className={inputCls} />
+                            </td>
                             <td className="px-3 py-2">
                               <div className="flex gap-1">
-                                <button onClick={() => handleSaveDeployEdit(dep.id)}
+                                <button onClick={() => handleSaveDeployEdit(dep.deployment_id!)}
                                   className="px-2 py-1 bg-green-700 hover:bg-green-600 rounded text-xs font-semibold">Save</button>
                                 <button onClick={() => { setEditingDeployId(null); setEditDeployFields({}) }}
                                   className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs">Cancel</button>
@@ -1106,33 +1176,38 @@ export default function IncidentDetailPage() {
                       }
 
                       return (
-                        <tr key={dep.id} className="hover:bg-gray-800/30 transition-colors">
-                          <td className="px-3 py-2 text-white font-medium">{dep.employees?.name ?? '—'}</td>
-                          <td className="px-3 py-2 text-gray-400">{dep.employees?.role ?? '—'}</td>
-                          <td className="px-3 py-2 text-gray-400">{formatDeployDate(dep.travel_date)}</td>
-                          <td className="px-3 py-2 text-gray-400">{formatDeployDate(dep.check_in_date)}</td>
-                          <td className="px-3 py-2 text-gray-400">{formatDeployDate(dep.check_out_date)}</td>
+                        <tr key={dep.assignment_id} className={`hover:bg-gray-800/30 transition-colors ${dep.released_at ? 'opacity-50' : ''}`}>
+                          <td className="px-3 py-2 text-white font-medium">{dep.employee_name}</td>
+                          <td className="px-3 py-2 text-gray-400">{dep.employee_role}</td>
+                          <td className="px-3 py-2 text-gray-400">{dep.unit_name}</td>
                           <td className="px-3 py-2">
                             <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
-                              dep.status === 'On Scene' ? 'bg-green-900/60 text-green-300' :
-                              dep.status === 'Traveling' ? 'bg-yellow-900/60 text-yellow-300' :
-                              dep.status === 'Released' ? 'bg-gray-700 text-gray-400' :
+                              dep.deploy_status === 'On Scene' ? 'bg-green-900/60 text-green-300' :
+                              dep.deploy_status === 'Traveling' ? 'bg-yellow-900/60 text-yellow-300' :
+                              dep.deploy_status === 'Released' ? 'bg-gray-700 text-gray-400' :
                               'bg-red-900/60 text-red-300'
                             }`}>
-                              {isActive && '🔴 '}{dep.status}
+                              {isActive && '🔴 '}{dep.deploy_status}
                             </span>
                           </td>
-                          <td className="px-3 py-2 text-right font-medium">
-                            {days}
-                            {isActive && <span className="ml-1 text-gray-500 text-xs">+</span>}
+                          <td className="px-3 py-2 text-right font-medium text-green-400">
+                            {dep.daily_rate > 0 ? fmtCurrency(dep.daily_rate) : <span className="text-gray-600">—</span>}
+                            <span className="text-gray-600 text-xs">/d</span>
                           </td>
-                          <td className="px-3 py-2 text-right font-semibold text-green-400">{fmtCurrency(pay)}</td>
+                          <td className="px-3 py-2 text-gray-400">{dep.travel_date ? formatDeployDate(dep.travel_date) : <span className="text-gray-600">—</span>}</td>
+                          <td className="px-3 py-2 text-gray-400">{dep.check_out_date ? formatDeployDate(dep.check_out_date) : <span className="text-gray-600">—</span>}</td>
                           <td className="px-3 py-2">
                             <div className="flex gap-1">
-                              <button onClick={() => { setEditingDeployId(dep.id); setEditDeployFields({}) }}
-                                className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs">Edit</button>
-                              <button onClick={() => handleDeleteDeployment(dep.id)}
-                                className="px-2 py-1 bg-red-900/60 hover:bg-red-800 text-red-300 rounded text-xs">Del</button>
+                              {dep.deployment_id ? (
+                                <>
+                                  <button onClick={() => { setEditingDeployId(dep.deployment_id); setEditDeployFields({}) }}
+                                    className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs">Edit</button>
+                                  <button onClick={() => handleDeleteDeployment(dep.deployment_id!)}
+                                    className="px-2 py-1 bg-red-900/60 hover:bg-red-800 text-red-300 rounded text-xs">Del</button>
+                                </>
+                              ) : (
+                                <span className="text-xs text-gray-600 italic">via unit assign</span>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -1143,8 +1218,8 @@ export default function IncidentDetailPage() {
               </div>
             )}
 
-            {deployments.length === 0 && !showAddDeployment && (
-              <p className="px-4 py-6 text-sm text-gray-600 text-center">No deployments on this incident</p>
+            {crewDeployments.length === 0 && !showAddDeployment && (
+              <p className="px-4 py-6 text-sm text-gray-600 text-center">No crew assigned to this incident</p>
             )}
 
             {/* Add Deployment Form */}
@@ -1210,6 +1285,7 @@ export default function IncidentDetailPage() {
             </div>
           </div>
         )
+        }
 
       case 'encounters':
         return (
