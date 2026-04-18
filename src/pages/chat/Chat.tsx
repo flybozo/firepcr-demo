@@ -667,16 +667,34 @@ function MessageThread({
     if (!file) return
     e.target.value = ''
 
+    // Vercel serverless limit is ~4.5MB; base64 adds ~33% overhead, so cap at 3MB raw
+    const MAX_FILE_SIZE = 3 * 1024 * 1024
+    if (file.size > MAX_FILE_SIZE) {
+      alert(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum is 3MB.`)
+      return
+    }
+
     setUploading(true)
     try {
       const isImage = file.type.startsWith('image/')
+
+      // Convert file to base64 for reliable upload (avoids Vercel body parsing issues)
+      const arrayBuf = await file.arrayBuffer()
+      const bytes = new Uint8Array(arrayBuf)
+      let binary = ''
+      const chunkSize = 8192
+      for (let i = 0; i < bytes.length; i += chunkSize) {
+        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize))
+      }
+      const base64 = btoa(binary)
+
       const resp = await authFetch(`/api/chat/upload?channelId=${channel.id}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': file.type || 'application/octet-stream',
-          'X-File-Name': file.name,
-        },
-        body: file,
+        body: JSON.stringify({
+          fileName: file.name,
+          contentType: file.type || 'application/octet-stream',
+          data: base64,
+        }),
       })
 
       if (!resp.ok) {
