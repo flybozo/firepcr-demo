@@ -122,7 +122,7 @@ export default function RosterPage() {
         'employees'
       )
       setEmployees(data)
-      if (offline) setIsOfflineData(true)
+      setIsOfflineData(offline)
       setLoading(false)
     }
     load()

@@ -155,7 +155,7 @@ export default function RosterDetailPage() {
         id
       )
       setEmp(empData)
-      if (offline) setIsOfflineData(true)
+      setIsOfflineData(offline)
       if (empData && !offline) {
         try {
           const { data: credData } = await supabase.from('employee_credentials').select('*').eq('employee_id', id).order('cert_type')

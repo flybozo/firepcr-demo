@@ -52,7 +52,7 @@ function IncidentsPageInner() {
       )
       const sorted = [...data].sort((a: any, b: any) => (b.start_date || b.created_at || '').localeCompare(a.start_date || a.created_at || ''))
       setIncidents(sorted as Incident[])
-      if (offline) setIsOfflineData(true)
+      setIsOfflineData(offline)
       setLoading(false)
     }
     load()

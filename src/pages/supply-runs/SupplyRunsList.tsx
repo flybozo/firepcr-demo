@@ -85,7 +85,7 @@ function SupplyRunsPageInner() {
         )
         const sorted = [...data].sort((a: any, b: any) => (b.run_date || b.created_at || '').localeCompare(a.run_date || a.created_at || ''))
         setRuns(sorted)
-        if (offline) setIsOfflineData(true)
+        setIsOfflineData(offline)
       } catch {
         const cached = await getCachedData('supply_runs')
         if (cached.length > 0) {

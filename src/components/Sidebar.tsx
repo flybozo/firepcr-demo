@@ -216,7 +216,7 @@ function SortableNavItem({
             <Link
               to={href}
               onClick={onNavigate}
-              className={`flex-1 flex items-center gap-3 pl-2.5 py-2 text-sm font-medium rounded-lg mx-1 transition-all duration-150 ${
+              className={`flex-1 flex items-center gap-3 pl-2.5 py-2.5 text-sm font-medium rounded-lg mx-1 transition-all duration-150 ${
                 isActive
                   ? 'text-white'
                   : 'hover:bg-white/[0.04]'
@@ -274,7 +274,7 @@ function SortableNavItem({
           <Link
             to={href}
             onClick={onNavigate}
-            className={`flex-1 flex items-center gap-3 pl-2.5 pr-4 py-2 text-sm font-medium rounded-lg mx-1 transition-all duration-150 ${
+            className={`flex-1 flex items-center gap-3 pl-2.5 pr-4 py-2.5 text-sm font-medium rounded-lg mx-1 transition-all duration-150 ${
               isActive
                 ? 'text-white'
                 : 'hover:bg-white/[0.04]'
@@ -295,7 +295,7 @@ function SortableNavItem({
         ) : (
           <button
             onClick={() => toggle(item.label)}
-            className={`flex-1 flex items-center justify-between pl-2.5 pr-4 py-2 text-sm font-medium rounded-lg mx-1 transition-all duration-150 ${
+            className={`flex-1 flex items-center justify-between pl-2.5 pr-4 py-2.5 text-sm font-medium rounded-lg mx-1 transition-all duration-150 ${
               isActive
                 ? 'text-white'
                 : 'hover:bg-white/[0.04]'
@@ -517,7 +517,25 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </Link>
 
-      <div className="flex-1 overflow-y-auto py-2">
+      {/* Breadcrumb — current location */}
+      {(() => {
+        const activeNav = visibleNav.find(n => pathname.startsWith(n.href))
+        if (!activeNav) return null
+        const activeSub = activeNav.sub.find(s => pathname === s.href)
+        return (
+          <div className="px-4 py-2.5 border-b text-[11px] flex items-center gap-1.5 min-h-[32px]" style={{ borderColor: 'var(--color-border, #1f2937)', color: sidebarText.muted }}>
+            <span style={{ color: sidebarText.inactive }}>{activeNav.label}</span>
+            {activeSub && (
+              <>
+                <span style={{ opacity: 0.4 }}>/</span>
+                <span style={{ color: 'var(--color-primary, #dc2626)' }}>{activeSub.label}</span>
+              </>
+            )}
+          </div>
+        )
+      })()}
+
+      <div className="flex-1 overflow-y-auto py-3 space-y-1">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={order} strategy={verticalListSortingStrategy}>
             {orderedNav.map(item => (
@@ -544,8 +562,13 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       <div className="border-t p-4 space-y-2" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
         {!roleLoading && assignment.employee && (
-          <div className="text-xs truncate mb-2" style={{ color: sidebarText.muted }}>
-            {assignment.employee.name} · {assignment.unit?.name || 'No unit'}
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-xs truncate" style={{ color: sidebarText.muted }}>
+              {assignment.employee.name} · {assignment.unit?.name || 'No unit'}
+            </div>
+            <button className="relative p-1 rounded-md hover:bg-white/[0.06] transition-colors" style={{ color: sidebarText.inactive }} title="Notifications">
+              <span className="w-5 h-5 flex items-center justify-center opacity-60"><SidebarIcon name="bell" /></span>
+            </button>
           </div>
         )}
         <Link to="/documents"

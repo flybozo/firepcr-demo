@@ -87,7 +87,7 @@ export default function InventoryDetailPage() {
       id
     )
     setItem(inv)
-    if (offline) setIsOfflineData(true)
+    setIsOfflineData(offline)
 
     // Load all units carrying same item
     if (inv?.item_name) {

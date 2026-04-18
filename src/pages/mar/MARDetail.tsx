@@ -178,7 +178,7 @@ export default function MARDetailPage() {
       'mar_entries',
       id
     )
-    if (offline) setIsOfflineData(true)
+    setIsOfflineData(offline)
     setEntry(data)
     setLoading(false)
     // Resolve encounter text ID → UUID for navigation (online only)
