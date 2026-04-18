@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useId } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 
@@ -34,45 +34,56 @@ export function useChatUnread(activeChannelId?: string): UseChatUnreadResult {
     activeChannelRef.current = activeChannelId
   }, [activeChannelId])
 
+  // Unique channel name per hook instance to avoid Supabase "already subscribed" errors
+  const instanceId = useRef(`chat-unread-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`)
+
   // Subscribe to new messages via Realtime
   useEffect(() => {
     if (!employee?.id) return
 
     const supabase = createClient()
+    const channelName = instanceId.current
+    let realtimeChannel: ReturnType<typeof supabase.channel> | null = null
 
-    const channel = supabase
-      .channel('chat-unread')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_messages',
-        },
-        (payload) => {
-          const msg = payload.new as {
-            channel_id: string
-            sender_id: string
-            created_at: string
+    try {
+      realtimeChannel = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'chat_messages',
+          },
+          (payload) => {
+            const msg = payload.new as {
+              channel_id: string
+              sender_id: string
+              created_at: string
+            }
+
+            // Don't count own messages
+            if (msg.sender_id === employee.id) return
+
+            // Don't count messages in the currently active channel
+            // (those are auto-marked as read by the Chat component)
+            if (msg.channel_id === activeChannelRef.current) return
+
+            setUnreadByChannel((prev) => ({
+              ...prev,
+              [msg.channel_id]: (prev[msg.channel_id] || 0) + 1,
+            }))
           }
-
-          // Don't count own messages
-          if (msg.sender_id === employee.id) return
-
-          // Don't count messages in the currently active channel
-          // (those are auto-marked as read by the Chat component)
-          if (msg.channel_id === activeChannelRef.current) return
-
-          setUnreadByChannel((prev) => ({
-            ...prev,
-            [msg.channel_id]: (prev[msg.channel_id] || 0) + 1,
-          }))
-        }
-      )
-      .subscribe()
+        )
+        .subscribe()
+    } catch (err) {
+      console.warn('[useChatUnread] Realtime subscribe failed (non-fatal):', err)
+    }
 
     return () => {
-      supabase.removeChannel(channel)
+      if (realtimeChannel) {
+        supabase.removeChannel(realtimeChannel)
+      }
     }
   }, [employee?.id])
 
