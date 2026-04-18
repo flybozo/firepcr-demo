@@ -570,10 +570,12 @@ export default function IncidentDetailPage() {
   const [ics214Rows, setIcs214Rows] = useState<{ ics214_id: string; unit_name: string; op_date: string; status: string }[]>([])
 
   // Expenses
-  const [expenses, setExpenses] = useState<{ id: string; expense_type: string; amount: number; description: string | null; expense_date: string; unit_id: string | null; employee_id: string | null; created_by: string | null; employees?: { name: string } | null }[]>([])
+  const [expenses, setExpenses] = useState<{ id: string; expense_type: string; amount: number; description: string | null; expense_date: string; unit_id: string | null; employee_id: string | null; created_by: string | null; receipt_url: string | null; employees?: { name: string } | null }[]>([])
   const [showAddExpense, setShowAddExpense] = useState(false)
   const [expenseForm, setExpenseForm] = useState({ type: 'Gas', amount: '', description: '', date: new Date().toISOString().split('T')[0], unitId: '' })
+  const [expenseReceipt, setExpenseReceipt] = useState<File | null>(null)
   const [expenseSubmitting, setExpenseSubmitting] = useState(false)
+  const expenseReceiptRef = useRef<HTMLInputElement>(null)
   // Contract rate editing
   const [editingRateIuId, setEditingRateIuId] = useState<string | null>(null)
   const [editRateVal, setEditRateVal] = useState('')
@@ -967,7 +969,7 @@ export default function IncidentDetailPage() {
       try {
         const { data } = await supabaseClient
           .from('incident_expenses')
-          .select('id, expense_type, amount, description, expense_date, unit_id, employee_id, created_by, employees(name)')
+          .select('id, expense_type, amount, description, expense_date, unit_id, employee_id, created_by, receipt_url, employees(name)')
           .eq('incident_id', activeIncidentId)
           .order('expense_date', { ascending: false })
           .limit(100)
@@ -1657,6 +1659,7 @@ export default function IncidentDetailPage() {
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Description</th>
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">By</th>
                       <th className="text-right px-3 py-2 text-gray-500 font-semibold uppercase">Amount</th>
+                      <th className="px-2 py-2 text-gray-500 font-semibold uppercase text-center">🧃</th>
                       {isAdmin && <th className="px-2 py-2"></th>}
                     </tr>
                   </thead>
@@ -1677,6 +1680,16 @@ export default function IncidentDetailPage() {
                         <td className="px-3 py-2 text-gray-300 truncate max-w-[150px]">{exp.description || '—'}</td>
                         <td className="px-3 py-2 text-gray-400 truncate max-w-[100px]">{(exp.employees as any)?.name || exp.created_by || '—'}</td>
                         <td className="px-3 py-2 text-right font-medium text-red-400">{fmtCurrency(exp.amount)}</td>
+                        <td className="px-2 py-2 text-center">
+                          {exp.receipt_url ? (
+                            <button onClick={async () => {
+                              const { data } = await supabase.storage.from('documents').createSignedUrl(exp.receipt_url!, 3600)
+                              if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+                            }} className="text-xs text-blue-400 hover:text-blue-300" title="View receipt">🧃</button>
+                          ) : (
+                            <span className="text-gray-700 text-xs">—</span>
+                          )}
+                        </td>
                         {isAdmin && (
                           <td className="px-2 py-2">
                             <button onClick={async () => {
@@ -1737,11 +1750,37 @@ export default function IncidentDetailPage() {
                       placeholder="What was this expense for?"
                       className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500" />
                   </div>
+                  <div className="col-span-2">
+                    <label className="text-xs text-gray-500 block mb-1">Receipt Photo (optional)</label>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={() => expenseReceiptRef.current?.click()}
+                        className="px-3 py-2 bg-gray-800 border border-gray-700 hover:bg-gray-700 text-white text-sm rounded-lg transition-colors">
+                        {expenseReceipt ? `📎 ${expenseReceipt.name}` : '📷 Attach Receipt'}
+                      </button>
+                      {expenseReceipt && (
+                        <button type="button" onClick={() => { setExpenseReceipt(null); if (expenseReceiptRef.current) expenseReceiptRef.current.value = '' }}
+                          className="text-xs text-gray-500 hover:text-red-400">✕ Remove</button>
+                      )}
+                      <input ref={expenseReceiptRef} type="file" accept="image/*,.pdf" className="hidden"
+                        onChange={e => setExpenseReceipt(e.target.files?.[0] || null)} />
+                    </div>
+                    <p className="text-xs text-gray-600 mt-1">JPG, PNG, or PDF</p>
+                  </div>
                 </div>
+                <p className="text-xs text-gray-500">Logged by: <span className="text-white">{assignment.employee?.name || 'Unknown'}</span></p>
                 <div className="flex gap-2">
                   <button onClick={async () => {
                     if (!expenseForm.amount) return
                     setExpenseSubmitting(true)
+                    // Upload receipt if attached
+                    let receiptPath: string | null = null
+                    if (expenseReceipt) {
+                      const ext = expenseReceipt.name.split('.').pop()?.toLowerCase() || 'jpg'
+                      const fname = `${Date.now()}_${expenseForm.type.toLowerCase()}.${ext}`
+                      const storagePath = `expenses/${activeIncidentId}/${fname}`
+                      const { error: upErr } = await supabase.storage.from('documents').upload(storagePath, expenseReceipt, { upsert: false })
+                      if (!upErr) receiptPath = storagePath
+                    }
                     await supabase.from('incident_expenses').insert({
                       incident_id: activeIncidentId,
                       expense_type: expenseForm.type,
@@ -1751,9 +1790,12 @@ export default function IncidentDetailPage() {
                       unit_id: expenseForm.unitId || null,
                       employee_id: assignment.employee?.id || null,
                       created_by: assignment.employee?.name || 'Unknown',
+                      receipt_url: receiptPath,
                     })
                     setShowAddExpense(false)
                     setExpenseForm({ type: 'Gas', amount: '', description: '', date: new Date().toISOString().split('T')[0], unitId: '' })
+                    setExpenseReceipt(null)
+                    if (expenseReceiptRef.current) expenseReceiptRef.current.value = ''
                     setExpenseSubmitting(false)
                     load()
                   }} disabled={expenseSubmitting || !expenseForm.amount}
