@@ -52,8 +52,11 @@ export function getIsOnline(): boolean {
 
 // ── Pull fresh data from Supabase ─────────────────────────────────────────────
 
+let syncFromServerInProgress = false
+
 export async function syncDataFromServer(): Promise<void> {
-  if (!isOnline) return
+  if (!isOnline || syncFromServerInProgress) return
+  syncFromServerInProgress = true
 
   const supabase = createClient()
 
@@ -143,6 +146,8 @@ export async function syncDataFromServer(): Promise<void> {
     console.log('[Sync] Complete — all data preloaded for offline use')
   } catch (err) {
     console.error('[Sync] Sync from server failed:', err)
+  } finally {
+    syncFromServerInProgress = false
   }
 }
 
