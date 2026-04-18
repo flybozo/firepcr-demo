@@ -175,7 +175,7 @@ function InventoryPageInner() {
       // Any inventory rows not matching a template are ignored.
 
       setItems(mergedItems)
-      setIsOfflineData(!!invResult.error && !navigator.onLine)
+      if (invResult.error) setIsOfflineData(true)
       setLoading(false)
     }
     load()

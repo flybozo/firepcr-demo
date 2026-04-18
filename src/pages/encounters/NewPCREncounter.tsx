@@ -1013,7 +1013,10 @@ function PCRFormInner() {
                 <input type="text" className={inputCls} value={form.incident} onChange={e => set('incident', e.target.value)} placeholder="e.g. Park Fire" />
               )}
             </div>
-
+            <div>
+              <label className={labelCls}>Crew Resource Number</label>
+              <input type="text" className={inputCls} value={form.crew_resource_number} onChange={e => set('crew_resource_number', e.target.value)} placeholder="e.g. CRN-2024-001" />
+            </div>
             <div>
               <label className={labelCls}>Response # (CAD)</label>
               <input type="text" className={inputCls} value={form.response_number} onChange={e => set('response_number', e.target.value)} placeholder="e.g. 2024-001234" />
@@ -1105,10 +1108,6 @@ function PCRFormInner() {
             <NEMSISWarnings section="patient" warnings={nemsisWarnings} />
             <NEMSISWarnings section="scene" warnings={nemsisWarnings} />
             <p className={sectionCls}>Patient Identity</p>
-            <div>
-              <label className={labelCls}>Crew Resource Number</label>
-              <input type="text" className={inputCls} value={form.crew_resource_number} onChange={e => set('crew_resource_number', e.target.value)} placeholder="e.g. CRN-2024-001" />
-            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={labelCls}>First Name</label>

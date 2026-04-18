@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { authFetch } from '@/lib/authFetch'
 
-const APP_VERSION = '1.7.3'
+const APP_VERSION = '1.6.3'
 
 export default function VersionNotifier() {
   useEffect(() => {

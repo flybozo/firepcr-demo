@@ -17,12 +17,6 @@ export type UnsignedCounts = {
   total: number
 }
 
-// Global refresh trigger — call this after signing to update badge immediately
-let refreshListeners: (() => void)[] = []
-export function refreshUnsignedCounts() {
-  refreshListeners.forEach(fn => fn())
-}
-
 export function useUnsignedCounts(): UnsignedCounts {
   const [counts, setCounts] = useState<UnsignedCounts>({ charts: 0, notes: 0, mar: 0, total: 0 })
   const assignment = useUserAssignment()
@@ -85,12 +79,7 @@ export function useUnsignedCounts(): UnsignedCounts {
 
     // Refresh every 5 minutes while sidebar is mounted
     const interval = setInterval(load, 5 * 60 * 1000)
-    // Also listen for manual refresh triggers (e.g. after signing)
-    refreshListeners.push(load)
-    return () => {
-      clearInterval(interval)
-      refreshListeners = refreshListeners.filter(fn => fn !== load)
-    }
+    return () => clearInterval(interval)
   }, [assignment.loading, assignment.employee?.name, assignment.employee?.role])
 
   return counts

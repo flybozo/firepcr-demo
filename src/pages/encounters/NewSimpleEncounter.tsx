@@ -372,6 +372,11 @@ function SimpleEHRInner() {
               )}
             </div>
 
+            <div>
+              <label className={labelClass}>Crew Resource Number</label>
+              <input value={form.crew_resource_number} onChange={e => set('crew_resource_number', e.target.value)}
+                placeholder="e.g. 2026-RAM-MSU1-001" className={inputClass} />
+            </div>
           </div>
 
           {/* Patient */}
@@ -393,11 +398,6 @@ function SimpleEHRInner() {
                 <input type="date" value={form.patient_dob} onChange={e => set('patient_dob', e.target.value)} className={inputClass + ' min-w-0'} required />
               </div>
               <div />
-            </div>
-            <div>
-              <label className={labelClass}>Crew Resource Number</label>
-              <input value={form.crew_resource_number} onChange={e => set('crew_resource_number', e.target.value)}
-                placeholder="e.g. 2026-RAM-MSU1-001" className={inputClass} />
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div className="col-span-1">

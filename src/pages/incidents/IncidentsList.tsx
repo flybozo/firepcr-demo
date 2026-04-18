@@ -33,11 +33,7 @@ function IncidentsPageInner() {
 
   useEffect(() => {
     const load = async () => {
-      // Check for a user-set default fire
-      let defaultIncidentId: string | null = null
-      try { defaultIncidentId = localStorage.getItem('default_incident_id') } catch {}
-
-      // Show cached incidents instantly — and auto-redirect to default or most recent active fire
+      // Show cached incidents instantly
       try {
         const { getCachedData } = await import('@/lib/offlineStore')
         const cached = await getCachedData('incidents') as any[]
@@ -45,10 +41,6 @@ function IncidentsPageInner() {
           cached.sort((a: any, b: any) => (b.start_date || b.created_at || '').localeCompare(a.start_date || a.created_at || ''))
           setIncidents(cached as any[])
           setLoading(false)
-          // Prefer user-set default fire if it's active, else most recent active
-          const defaultFire = defaultIncidentId ? cached.find((i: any) => i.id === defaultIncidentId && i.status === 'Active') : null
-          const target = defaultFire || cached.find((i: any) => i.status === 'Active')
-          if (target && statusParam !== 'Closed') { navigate(`/incidents/${target.id}`, { replace: true }); return }
         }
       } catch {}
       const { data, offline } = await loadList(
@@ -62,10 +54,6 @@ function IncidentsPageInner() {
       setIncidents(sorted as Incident[])
       setIsOfflineData(offline)
       setLoading(false)
-      // Auto-redirect: prefer user-set default fire if active, else most recent active
-      const defaultFire = defaultIncidentId ? sorted.find((i: any) => i.id === defaultIncidentId && i.status === 'Active') : null
-      const redirectTarget = defaultFire || sorted.find((i: any) => i.status === 'Active')
-      if (redirectTarget && statusParam !== 'Closed') { navigate(`/incidents/${redirectTarget.id}`, { replace: true }); return }
     }
     load()
   }, [])

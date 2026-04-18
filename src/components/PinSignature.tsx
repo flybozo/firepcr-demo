@@ -230,14 +230,14 @@ export default function PinSignature({
           </div>
           <div className="flex gap-3">
             <button
-              onClick={() => { if (onNoPinSet) { onNoPinSet() } else { onCancel() } }}
+              onClick={() => { onNoPinSet ? onNoPinSet() : onCancel() }}
               className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm font-medium transition-colors">
               {isSelf ? 'Cancel' : 'Choose Different Witness'}
             </button>
             {isSelf && (
               <button
                 onClick={() => {
-                  if (onNoPinSet) { onNoPinSet() } else { onCancel() }
+                  onNoPinSet ? onNoPinSet() : onCancel()
                   navigate('/profile')
                 }}
                 className="flex-1 py-3 bg-orange-600 hover:bg-orange-700 rounded-xl text-sm font-bold transition-colors">

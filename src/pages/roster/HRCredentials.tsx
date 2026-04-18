@@ -146,7 +146,6 @@ export default function HRCredentialsPage() {
   const [complianceFilter, setComplianceFilter] = useState<ComplianceFilter>('All')
   const [roleFilter, setRoleFilter] = useState('All')
   const [savingExp, setSavingExp] = useState<string | null>(null)
-  const [expDropdownId, setExpDropdownId] = useState<string | null>(null)
 
   const isAdmin = ['MD', 'MD/DO', 'Admin'].includes(assignment.employee?.role || '')
 
@@ -269,7 +268,7 @@ export default function HRCredentialsPage() {
             <div className="flex items-center px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header" style={{ minWidth: '700px' }}>
               <span className="w-36 shrink-0">Name</span>
               <span className="w-20 shrink-0">Role</span>
-              <span className="w-20 shrink-0 hidden md:block">Exp</span>
+              <span className="w-28 shrink-0 hidden md:block">Exp</span>
               <span className="w-44 shrink-0">Compliance</span>
               <span className="flex-1 min-w-0">Missing / Expired</span>
               <span className="w-20 shrink-0 text-right">Action</span>
@@ -301,58 +300,35 @@ export default function HRCredentialsPage() {
                     </span>
                   </div>
 
-                  {/* Experience Level — click stars to change */}
-                  <div className="w-20 shrink-0 hidden md:block" onClick={e => e.stopPropagation()}>
-                    {isAdmin ? (
-                      <div className="relative inline-block">
-                        <button
-                          onClick={() => setExpDropdownId(expDropdownId === emp.id ? null : emp.id)}
-                          disabled={savingExp === emp.id}
-                          className="text-sm hover:opacity-80 transition-opacity cursor-pointer disabled:opacity-50"
-                          title="Click to set experience level"
-                        >
-                          {emp.experience_level === 1 ? '⭐' :
-                           emp.experience_level === 2 ? '⭐⭐' :
-                           emp.experience_level === 3 ? '⭐⭐⭐' :
-                           <span className="text-gray-600 text-xs">☆☆☆</span>}
-                        </button>
-                        {expDropdownId === emp.id && (
-                          <>
-                            <div className="fixed inset-0 z-40" onClick={() => setExpDropdownId(null)} />
-                            <div className="absolute left-0 top-full mt-1 z-50 bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1 min-w-[120px]">
-                              {[
-                                { val: null, label: '— None', stars: '' },
-                                { val: 1, label: '⭐ Junior', stars: '⭐' },
-                                { val: 2, label: '⭐⭐ Mid', stars: '⭐⭐' },
-                                { val: 3, label: '⭐⭐⭐ Senior', stars: '⭐⭐⭐' },
-                              ].map(opt => (
-                                <button
-                                  key={opt.val ?? 'none'}
-                                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-700 transition-colors ${
-                                    emp.experience_level === opt.val ? 'text-white font-semibold' : 'text-gray-300'
-                                  }`}
-                                  onClick={async () => {
-                                    setExpDropdownId(null)
-                                    setSavingExp(emp.id)
-                                    await supabase.from('employees').update({ experience_level: opt.val }).eq('id', emp.id)
-                                    setEmployees(prev => prev.map(x => x.id === emp.id ? { ...x, experience_level: opt.val } : x))
-                                    setSavingExp(null)
-                                  }}
-                                >
-                                  {opt.label}
-                                </button>
-                              ))}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    ) : (
+                  {/* Experience Level */}
+                  <div className="w-28 shrink-0 hidden md:block" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-1.5">
                       <span className="text-sm">
                         {emp.experience_level === 1 ? '⭐' :
                          emp.experience_level === 2 ? '⭐⭐' :
                          emp.experience_level === 3 ? '⭐⭐⭐' : '—'}
                       </span>
-                    )}
+                      {isAdmin && (
+                        <select
+                          value={emp.experience_level ?? ''}
+                          disabled={savingExp === emp.id}
+                          onChange={async (e) => {
+                            const val = e.target.value ? parseInt(e.target.value) : null
+                            setSavingExp(emp.id)
+                            await supabase.from('employees').update({ experience_level: val }).eq('id', emp.id)
+                            setEmployees(prev => prev.map(x => x.id === emp.id ? { ...x, experience_level: val } : x))
+                            setSavingExp(null)
+                          }}
+                          className="bg-gray-800 text-gray-300 text-xs rounded px-1 py-0.5 border border-gray-700 focus:outline-none focus:border-red-500 max-w-[70px]"
+                          title="Experience Level (1=Junior, 2=Mid, 3=Senior)"
+                        >
+                          <option value="">—</option>
+                          <option value="1">1 - Junior</option>
+                          <option value="2">2 - Mid</option>
+                          <option value="3">3 - Senior</option>
+                        </select>
+                      )}
+                    </div>
                   </div>
 
                   {/* Compliance bar */}

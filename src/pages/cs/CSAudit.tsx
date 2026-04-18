@@ -1,7 +1,7 @@
 
 import { FieldGuard } from '@/components/FieldGuard'
 
-import { useEffect, useState, useMemo, Suspense } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 
@@ -61,9 +61,12 @@ function AuditLogInner() {
     dateTo: searchParams.get('to') || '',
   })
 
-  const now = useMemo(() => Date.now(), [dateRange])
   const quickDateFilter = dateRange === 'All' ? null :
-    new Date(now - (dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90) * 86400000).toISOString()
+    new Date(Date.now() - (dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90) * 86400000).toISOString()
+
+  useEffect(() => {
+    loadTransactions()
+  }, [filters, dateRange])
 
   async function loadTransactions() {
     setLoading(true)
@@ -87,9 +90,6 @@ function AuditLogInner() {
     setTotal(count || 0)
     setLoading(false)
   }
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { loadTransactions() }, [filters, dateRange])
 
   function setFilter(key: string, value: string) {
     setFilters(prev => ({ ...prev, [key]: value }))
