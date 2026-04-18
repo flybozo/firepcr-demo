@@ -84,7 +84,7 @@ export default function ChatBubble() {
     const vh = window.innerHeight
     const size = 56 // bubble diameter
     const newRight = Math.max(8, Math.min(vw - size - 8, d.startRight - dx))
-    const newBottom = Math.max(8, Math.min(vh - size - 8, d.startBottom + dy))
+    const newBottom = Math.max(8, Math.min(vh - size - 8, d.startBottom - dy))
     setBubblePos({ right: newRight, bottom: newBottom })
   }, [])
 
