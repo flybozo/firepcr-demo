@@ -29,7 +29,6 @@ export type Employee = {
   rems: boolean
   additional_certs: string | null
   wf_email: string | null
-  drive_folder_id: string | null
   created_at: string
   updated_at: string
 }

@@ -24,7 +24,6 @@ type Employee = {
   ics200: string | null
   ics700: string | null
   ics800: string | null
-  drive_folder_id: string | null
   experience_level: number | null
 }
 
@@ -154,7 +153,7 @@ export default function HRCredentialsPage() {
     const load = async () => {
       const [{ data }, { data: credData }] = await Promise.all([
         supabase.from('employees')
-          .select('id, name, role, status, bls, acls, itls, pals, paramedic_license, medical_license, ambulance_driver_cert, s130, s190, l180, ics100, ics200, ics700, ics800, drive_folder_id, experience_level')
+          .select('id, name, role, status, bls, acls, itls, pals, paramedic_license, medical_license, ambulance_driver_cert, s130, s190, l180, ics100, ics200, ics700, ics800, experience_level')
           .eq('status', 'Active').order('name'),
         supabase.from('employee_credentials').select('employee_id, cert_type'),
       ])

@@ -33,9 +33,7 @@ type Employee = {
   red_card: string | null
   red_card_year: number | null
   ssv_lemsa: string | null
-  drive_folder_url: string | null
-  drive_folder_id: string | null
-  qr_code_url: string | null
+  app_role: string | null
   // Medical certs
   bls: string | null
   acls: string | null
@@ -113,8 +111,6 @@ export default function RosterDetailPage() {
   const [creds, setCreds] = useState<CredentialDoc[]>([])
   const [loading, setLoading] = useState(true)
   const [isOfflineData, setIsOfflineData] = useState(false)
-  const [generatingQr, setGeneratingQr] = useState(false)
-  const [qrUrl, setQrUrl] = useState<string | null>(null)
   const [togglingStatus, setTogglingStatus] = useState(false)
   const [empExpenses, setEmpExpenses] = useState<{ id: string; expense_type: string; amount: number; description: string | null; expense_date: string; receipt_url: string | null; no_receipt_reason: string | null; incidents?: { name: string } | null }[]>([])
 
@@ -154,12 +150,11 @@ export default function RosterDetailPage() {
         }
       } catch {}
       const { data: empData, offline } = await loadSingle<Employee>(
-        () => supabase.from('employees').select('id, name, role, app_role, status, wf_email, email, phone, personal_email, personal_phone, home_address, emergency_contact_name, emergency_contact_phone, emergency_contact_relationship, headshot_url, date_of_birth, auth_user_id, qr_code_url, daily_rate, default_hours_per_day, bls, acls, pals, itls, paramedic_license, ambulance_driver_cert, medical_license, s130, s190, l180, ics100, ics200, ics700, ics800, dea_license, ssv_lemsa, npi').eq('id', id).single() as any,
+        () => supabase.from('employees').select('id, name, role, app_role, status, wf_email, email, phone, personal_email, personal_phone, home_address, emergency_contact_name, emergency_contact_phone, emergency_contact_relationship, headshot_url, date_of_birth, auth_user_id, daily_rate, default_hours_per_day, bls, acls, pals, itls, paramedic_license, ambulance_driver_cert, medical_license, s130, s190, l180, ics100, ics200, ics700, ics800, dea_license, ssv_lemsa, npi').eq('id', id).single() as any,
         'employees',
         id
       )
       setEmp(empData)
-      setQrUrl((empData as any)?.qr_code_url || null)
       if (offline) setIsOfflineData(true)
       if (empData && !offline) {
         try {
@@ -182,16 +177,7 @@ export default function RosterDetailPage() {
     load()
   }, [id])
 
-  const generateQrCode = async () => {
-    if (!emp?.drive_folder_id) return
-    setGeneratingQr(true)
-    const folderUrl = `https://drive.google.com/drive/folders/${emp.drive_folder_id}`
-    const generated = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(folderUrl)}`
-    await supabase.from('employees').update({ qr_code_url: generated }).eq('id', id)
-    setQrUrl(generated)
-    setEmp(prev => prev ? { ...prev, qr_code_url: generated } : prev)
-    setGeneratingQr(false)
-  }
+
 
   if (loading) return (
     <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
@@ -254,20 +240,7 @@ export default function RosterDetailPage() {
                 )}
               </div>
             </div>
-            <div className="flex flex-col gap-2 items-end shrink-0">
-              {emp.drive_folder_url && (
-                <a href={emp.drive_folder_url} target="_blank" rel="noopener noreferrer"
-                  className="text-xs px-3 py-1.5 border border-gray-700 rounded-lg hover:bg-gray-800 transition-colors">
-                  📁 Drive
-                </a>
-              )}
-              {emp.drive_folder_id && !emp.drive_folder_url && (
-                <a href={`https://drive.google.com/drive/folders/${emp.drive_folder_id}`} target="_blank" rel="noopener noreferrer"
-                  className="text-xs px-3 py-1.5 border border-gray-700 rounded-lg hover:bg-gray-800 transition-colors">
-                  📁 Open Drive Folder
-                </a>
-              )}
-            </div>
+
           </div>
         </div>
 
@@ -411,21 +384,7 @@ export default function RosterDetailPage() {
         <div className="theme-card rounded-xl p-4 border space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Credential Documents</h2>
-            <div className="flex gap-2">
-              {emp.drive_folder_id && (
-                <a
-                  href={`https://drive.google.com/drive/folders/${emp.drive_folder_id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs px-3 py-1.5 border border-gray-700 rounded-lg hover:bg-gray-800 transition-colors"
-                >
-                  📁 Open Drive Folder
-                </a>
-              )}
-              <button className="text-xs px-3 py-1.5 bg-gray-800 border border-gray-700 rounded-lg hover:bg-gray-700 transition-colors text-gray-400 cursor-default">
-                Upload via Drive folder
-              </button>
-            </div>
+
           </div>
 
           {creds.length === 0 ? (
@@ -463,34 +422,7 @@ export default function RosterDetailPage() {
           )}
         </div>
 
-        {/* QR Code Section */}
-        <div className="theme-card rounded-xl p-4 border space-y-3">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">QR Code</h2>
 
-          {qrUrl ? (
-            <div className="flex flex-col items-center gap-3 py-2">
-              <div className="bg-white p-2 rounded-lg inline-block">
-                <img src={qrUrl} alt="Employee QR Code" width={200} height={200} />
-              </div>
-              <p className="text-xs text-gray-500">Scan to open Drive folder</p>
-            </div>
-          ) : emp.drive_folder_id ? (
-            <div className="flex flex-col items-center gap-3 py-2">
-              <p className="text-gray-400 text-sm">No QR code generated yet.</p>
-              {canEdit && <button
-                onClick={generateQrCode}
-                disabled={generatingQr}
-                className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 disabled:text-gray-500 rounded-lg text-sm font-semibold transition-colors"
-              >
-                {generatingQr ? 'Generating...' : '📷 Generate QR Code'}
-              </button>}
-            </div>
-          ) : (
-            <p className="text-gray-600 text-sm text-center py-4">
-              No Drive folder linked — add a Drive folder ID to enable QR code generation.
-            </p>
-          )}
-        </div>
 
         {/* Employee Expenses — admin only */}
         {isAdmin && (
