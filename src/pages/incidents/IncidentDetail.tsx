@@ -374,6 +374,7 @@ function StatCard({
   title,
   count,
   children,
+  expandedChildren,
   viewAllHref,
   newHref,
   newLabel,
@@ -382,15 +383,18 @@ function StatCard({
   title: string
   count: number | string
   children?: React.ReactNode
+  expandedChildren?: React.ReactNode
   viewAllHref?: string
   newHref?: string
   newLabel?: string
   dragHandleProps?: React.HTMLAttributes<HTMLDivElement>
 }) {
+  const [expanded, setExpanded] = useState(false)
+  const showContent = expanded ? expandedChildren || children : children
   return (
     <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-      {/* Card header — distinct bg from body */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-700 bg-slate-800/90">
+      {/* Card header — consistent dark header */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-700 bg-gray-800">
         {dragHandleProps && (
           <div
             {...dragHandleProps}
@@ -402,18 +406,35 @@ function StatCard({
         )}
         <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">{title}</h3>
         <span className="text-2xl font-bold text-white">{count}</span>
+        {(expandedChildren || children) && (
+          <button
+            onClick={() => setExpanded(e => !e)}
+            className="ml-1 text-gray-500 hover:text-white transition-colors text-sm"
+            title={expanded ? 'Collapse' : 'Expand'}
+          >
+            {expanded ? '▾' : '▸'}
+          </button>
+        )}
       </div>
-      {/* Scrollable rows — max 5 visible (~44px each) */}
-      {children && (
-        <div className="divide-y divide-gray-800/60 overflow-y-auto" style={{maxHeight: '220px'}}>
-          {children}
+      {/* Rows — scrollable when collapsed, full height when expanded */}
+      {showContent && (
+        <div
+          className="divide-y divide-gray-800/60 overflow-y-auto"
+          style={expanded ? { maxHeight: 'calc(100vh - 200px)' } : { maxHeight: '220px' }}
+        >
+          {showContent}
         </div>
       )}
       <div className="flex items-center gap-2 px-4 py-2 bg-gray-800/30">
-        {viewAllHref && (
+        {viewAllHref && !expanded && (
           <Link to={viewAllHref} className="text-xs text-gray-400 hover:text-white transition-colors">
             View all →
           </Link>
+        )}
+        {expanded && (
+          <button onClick={() => setExpanded(false)} className="text-xs text-gray-400 hover:text-white transition-colors">
+            ▴ Collapse
+          </button>
         )}
         <div className="flex-1" />
         {newHref && (
@@ -511,6 +532,10 @@ export default function IncidentDetailPage() {
   const [closeoutDt, setCloseoutDt] = useState('')
   const [isOfflineData, setIsOfflineData] = useState(false)
 
+  // Comp claims rows
+  const [compRows, setCompRows] = useState<{ id: string; patient_name: string | null; unit: string | null; date_of_injury: string | null; status: string | null; injury_type: string | null }[]>([])
+  // Reorder rows
+  const [reorderRows, setReorderRows] = useState<{ id: string; item_name: string; quantity: number; par_qty: number; unit_name: string }[]>([])
   // ICS 214
   const [ics214Rows, setIcs214Rows] = useState<{ ics214_id: string; unit_name: string; op_date: string; status: string }[]>([])
 
@@ -727,6 +752,20 @@ export default function IncidentDetailPage() {
     setMarEntries((marData as MARRow[]) || [])
     setCompCount(compC ?? 0)
 
+    // Load comp claims rows (separate from count to avoid complicating Promise.all)
+    ;(async () => {
+      try {
+        const { data } = await supabaseClient
+          .from('comp_claims')
+          .select('id, patient_name, unit, date_of_injury, status, injury_type')
+          .eq('incident_id', activeIncidentId)
+          .is('deleted_at', null)
+          .order('date_of_injury', { ascending: false })
+          .limit(50)
+        setCompRows((data as any[]) || [])
+      } catch { setCompRows([]) }
+    })()
+
     const srRows = (srData as unknown as SupplyRunRow[]) || []
     setSupplyRuns(srRows)
 
@@ -805,8 +844,44 @@ export default function IncidentDetailPage() {
           row.par_qty != null && row.quantity <= row.par_qty
         )
         setReorderCount(low.length)
+
+        // Also load reorder rows with item names and unit names
+        if (allIuIds.length > 0) {
+          const { data: reorderData } = await supabaseClient
+            .from('unit_inventory')
+            .select('id, item_name, quantity, par_qty, incident_unit_id')
+            .in('incident_unit_id', allIuIds)
+            .lte('quantity', supabaseClient.rpc ? 0 : 999999)
+          // Filter client-side for quantity <= par_qty and map unit names
+          const iuToUnit = new Map<string, string>()
+          for (const iu of mappedUnits) {
+            if (iu.unit) iuToUnit.set(iu.id, (iu.unit as any)?.name || '?')
+          }
+          // Also check released units
+          if (allIuData) {
+            for (const iu of (allIuData as any[])) {
+              if (!iuToUnit.has(iu.id)) {
+                // Fetch unit name
+                const matchedUnit = allUnitsData?.find((u: any) => mappedUnits.some(mu => mu.id === iu.id))
+                if (matchedUnit) iuToUnit.set(iu.id, (matchedUnit as any).name || '?')
+              }
+            }
+          }
+          const rows = ((reorderData as any[]) || [])
+            .filter((r: any) => r.par_qty != null && r.quantity <= r.par_qty)
+            .map((r: any) => ({
+              id: r.id,
+              item_name: r.item_name || '?',
+              quantity: r.quantity ?? 0,
+              par_qty: r.par_qty ?? 0,
+              unit_name: iuToUnit.get(r.incident_unit_id) || '?',
+            }))
+            .sort((a: any, b: any) => a.quantity - b.quantity)
+          setReorderRows(rows.slice(0, 100))
+        }
       } catch {
         setReorderCount(0)
+        setReorderRows([])
       }
     })()
 
@@ -1106,7 +1181,7 @@ export default function IncidentDetailPage() {
         const totalCrewCount = crewDeployments.length
         return (
           <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-700 bg-slate-800/90">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-700 bg-gray-800">
               {dragHandleProps && (
                 <div
                   {...dragHandleProps}
@@ -1421,7 +1496,8 @@ export default function IncidentDetailPage() {
           </StatCard>
         )
 
-      case 'comp-claims':
+      case 'comp-claims': {
+        const filteredComps = effectiveUnitFilter === 'All' ? compRows : compRows.filter(c => c.unit === effectiveUnitFilter)
         return (
           <StatCard
             title="Comp Claims"
@@ -1430,12 +1506,56 @@ export default function IncidentDetailPage() {
             newHref={`/comp-claims/new?activeIncidentId=${activeIncidentId}`}
             newLabel="+ New Claim"
             dragHandleProps={dragHandleProps}
+            expandedChildren={
+              filteredComps.length > 0 ? (
+                <>
+                  <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 bg-gray-800/30">
+                    <span className="w-24 shrink-0">Date</span>
+                    <span className="flex-1 min-w-0">Patient</span>
+                    <span className="w-20 shrink-0">Unit</span>
+                    <span className="w-20 shrink-0">Injury</span>
+                    <span className="w-20 shrink-0 text-right">Status</span>
+                  </div>
+                  {filteredComps.map(c => (
+                    <Link key={c.id} to={`/comp-claims/${c.id}`}
+                      className="flex items-center px-4 py-2 hover:bg-gray-800/50 transition-colors text-sm">
+                      <span className="w-24 shrink-0 text-gray-400 text-xs">{c.date_of_injury || '—'}</span>
+                      <span className="flex-1 min-w-0 truncate pr-1 text-xs text-white">{c.patient_name || '—'}</span>
+                      <span className="w-20 shrink-0 text-xs text-gray-400">{c.unit || '—'}</span>
+                      <span className="w-20 shrink-0 text-xs text-gray-400 truncate">{c.injury_type || '—'}</span>
+                      <span className={`w-20 shrink-0 text-right text-xs font-medium ${
+                        c.status === 'Complete' ? 'text-green-400' : c.status === 'Pending' ? 'text-yellow-400' : 'text-gray-400'
+                      }`}>{c.status || '—'}</span>
+                    </Link>
+                  ))}
+                </>
+              ) : undefined
+            }
           >
-            {compCount === 0 && (
+            {filteredComps.length > 0 ? (
+              <>
+                <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 bg-gray-800/30">
+                  <span className="w-24 shrink-0">Date</span>
+                  <span className="flex-1 min-w-0">Patient</span>
+                  <span className="w-20 shrink-0 text-right">Status</span>
+                </div>
+                {filteredComps.slice(0, 5).map(c => (
+                  <Link key={c.id} to={`/comp-claims/${c.id}`}
+                    className="flex items-center px-4 py-2 hover:bg-gray-800/50 transition-colors text-sm">
+                    <span className="w-24 shrink-0 text-gray-400 text-xs">{c.date_of_injury || '—'}</span>
+                    <span className="flex-1 min-w-0 truncate pr-1 text-xs text-white">{c.patient_name || '—'}</span>
+                    <span className={`w-20 shrink-0 text-right text-xs font-medium ${
+                      c.status === 'Complete' ? 'text-green-400' : c.status === 'Pending' ? 'text-yellow-400' : 'text-gray-400'
+                    }`}>{c.status || '—'}</span>
+                  </Link>
+                ))}
+              </>
+            ) : (
               <p className="text-center text-gray-600 text-sm py-4">No claims filed</p>
             )}
           </StatCard>
         )
+      }
 
       case 'supply-runs':
         return (
@@ -1495,25 +1615,64 @@ export default function IncidentDetailPage() {
           </StatCard>
         )
 
-      case 'reorder-summary':
+      case 'reorder-summary': {
+        const filteredReorder = effectiveUnitFilter === 'All' ? reorderRows : reorderRows.filter(r => r.unit_name === effectiveUnitFilter)
         return (
           <StatCard
             title="Reorder Needed"
             count={reorderCount ?? '…'}
             viewAllHref={`/inventory/reorder?activeIncidentId=${activeIncidentId}`}
             dragHandleProps={dragHandleProps}
+            expandedChildren={
+              filteredReorder.length > 0 ? (
+                <>
+                  <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 bg-gray-800/30">
+                    <span className="flex-1 min-w-0">Item</span>
+                    <span className="w-20 shrink-0">Unit</span>
+                    <span className="w-14 shrink-0 text-right">Qty</span>
+                    <span className="w-14 shrink-0 text-right">Par</span>
+                  </div>
+                  {filteredReorder.map(r => (
+                    <div key={r.id} className="flex items-center px-4 py-1.5 text-xs hover:bg-gray-800/50 transition-colors">
+                      <span className="flex-1 min-w-0 truncate pr-1 text-white">{r.item_name}</span>
+                      <span className="w-20 shrink-0 text-gray-400">{r.unit_name}</span>
+                      <span className={`w-14 shrink-0 text-right font-medium ${r.quantity === 0 ? 'text-red-400' : 'text-yellow-400'}`}>{r.quantity}</span>
+                      <span className="w-14 shrink-0 text-right text-gray-500">{r.par_qty}</span>
+                    </div>
+                  ))}
+                </>
+              ) : undefined
+            }
           >
-            <div className="px-4 py-3 text-sm text-gray-400">
-              {reorderCount != null ? (
-                reorderCount === 0
-                  ? <p className="text-green-400 text-xs">All items at or above par. ✓</p>
-                  : <p>{reorderCount} item{reorderCount !== 1 ? 's' : ''} at or below par{!isAdmin && assignment.unit?.name ? ` on ${assignment.unit.name}` : ' across all units'}.</p>
-              ) : (
-                <p className="text-gray-600 text-xs">Calculating...</p>
-              )}
-            </div>
+            {filteredReorder.length > 0 ? (
+              <>
+                <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 bg-gray-800/30">
+                  <span className="flex-1 min-w-0">Item</span>
+                  <span className="w-14 shrink-0 text-right">Qty</span>
+                  <span className="w-14 shrink-0 text-right">Par</span>
+                </div>
+                {filteredReorder.slice(0, 5).map(r => (
+                  <div key={r.id} className="flex items-center px-4 py-1.5 text-xs hover:bg-gray-800/50 transition-colors">
+                    <span className="flex-1 min-w-0 truncate pr-1 text-white">{r.item_name}</span>
+                    <span className={`w-14 shrink-0 text-right font-medium ${r.quantity === 0 ? 'text-red-400' : 'text-yellow-400'}`}>{r.quantity}</span>
+                    <span className="w-14 shrink-0 text-right text-gray-500">{r.par_qty}</span>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <div className="px-4 py-3 text-sm text-gray-400">
+                {reorderCount != null ? (
+                  reorderCount === 0
+                    ? <p className="text-green-400 text-xs">All items at or above par. ✓</p>
+                    : <p className="text-xs">{reorderCount} item{reorderCount !== 1 ? 's' : ''} at or below par. Expand to see details.</p>
+                ) : (
+                  <p className="text-gray-600 text-xs">Calculating...</p>
+                )}
+              </div>
+            )}
           </StatCard>
         )
+      }
 
       case 'ics214':
         return (
