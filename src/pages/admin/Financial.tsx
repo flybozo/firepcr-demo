@@ -86,10 +86,10 @@ export default function Financial() {
 
       const incidentIds = incidentsData.map(i => i.id)
 
-      // 2. Fetch all incident_units for these incidents
+      // 2. Fetch all incident_units for these incidents (include unit_type default rate)
       const { data: iuData } = await supabase
         .from('incident_units')
-        .select('id, incident_id, assigned_at, released_at, daily_contract_rate, unit:units(id, name)')
+        .select('id, incident_id, assigned_at, released_at, daily_contract_rate, unit:units(id, name, unit_type:unit_types(default_contract_rate))')
         .in('incident_id', incidentIds)
 
       // 3. Fetch all unit_assignments for those incident_units
@@ -145,10 +145,13 @@ export default function Financial() {
       const results: IncidentFinancial[] = incidentsData.map(inc => {
         const incIUs = iuByIncident.get(inc.id) || []
 
-        // Revenue: days × daily_contract_rate per incident_unit
+        // Revenue: days × daily_contract_rate per incident_unit (fallback to unit_type default)
         let grossRevenue = 0
         for (const iu of incIUs) {
-          const rate = iu.daily_contract_rate ?? 0
+          const rawType = iu.unit?.unit_type
+          const unitType = Array.isArray(rawType) ? rawType[0] : rawType
+          const defaultRate = unitType?.default_contract_rate ?? 0
+          const rate = iu.daily_contract_rate ?? defaultRate
           const start = iu.assigned_at || inc.start_date || null
           const end = iu.released_at || null
           const days = start ? calcDays(start.split('T')[0], end ? end.split('T')[0] : null) : 0
@@ -156,6 +159,12 @@ export default function Financial() {
         }
 
         // Payroll: from unit_assignments (same logic as IncidentDetail)
+        // Build deployment_records lookup by employee for this incident
+        const incDeps = depByIncident.get(inc.id) || []
+        const depByEmployee = new Map<string, any>()
+        for (const dep of incDeps) {
+          depByEmployee.set(dep.employee_id, dep)
+        }
         let payroll = 0
         let crewCount = 0
         const seenEmployees = new Set<string>()
@@ -163,7 +172,8 @@ export default function Financial() {
           const uas = uaByIU.get(iu.id) || []
           for (const ua of uas) {
             const emp = Array.isArray(ua.employees) ? ua.employees[0] : ua.employees
-            const rate = ua.daily_rate_override ?? emp?.daily_rate ?? 0
+            const dep = depByEmployee.get(ua.employee_id)
+            const rate = ua.daily_rate_override ?? dep?.daily_rate ?? emp?.daily_rate ?? 0
             const start = ua.travel_date || (ua.assigned_at ? ua.assigned_at.split('T')[0] : null) || inc.start_date || null
             const end = ua.released_at ? ua.released_at.split('T')[0] : null
             const d = start ? calcDays(start, end) : 0
