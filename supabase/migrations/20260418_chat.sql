@@ -93,3 +93,20 @@ create policy "Members can update own read status" on chat_members for update
 
 -- Enable realtime for chat_messages
 alter publication supabase_realtime add table chat_messages;
+
+-- Storage bucket for chat file uploads
+insert into storage.buckets (id, name, public)
+values ('chat-files', 'chat-files', true)
+on conflict (id) do nothing;
+
+-- Allow authenticated users to upload to chat-files
+create policy "Authenticated users can upload chat files"
+on storage.objects for insert
+to authenticated
+with check (bucket_id = 'chat-files');
+
+-- Allow anyone to read chat files (public bucket)
+create policy "Public read access for chat files"
+on storage.objects for select
+to public
+using (bucket_id = 'chat-files');

@@ -40,13 +40,22 @@ self.addEventListener('push', (event) => {
   try {
     if (event.data) data = { ...data, ...event.data.json() };
   } catch {}
+
+  // Don't show notification if the app is already visible in the foreground
   event.waitUntil(
-    self.registration.showNotification(data.title, {
-      body: data.body,
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-192.png',
-      data: { url: data.url || '/' },
-      vibrate: [200, 100, 200],
+    self.clients.matchAll({ type: 'window', includeUncontrolled: false }).then((clients) => {
+      const appInForeground = clients.some((c) => c.visibilityState === 'visible');
+      // If app is open and the notification is a chat message, skip it
+      if (appInForeground && data.url === '/chat') return;
+      return self.registration.showNotification(data.title, {
+        body: data.body,
+        icon: '/icons/icon-192.png',
+        badge: '/icons/icon-192.png',
+        data: { url: data.url || '/' },
+        vibrate: [200, 100, 200],
+        tag: data.tag || undefined,
+        renotify: false,
+      });
     })
   );
 });

@@ -667,10 +667,9 @@ function MessageThread({
     if (!file) return
     e.target.value = ''
 
-    // Vercel serverless limit is ~4.5MB; base64 adds ~33% overhead, so cap at 3MB raw
-    const MAX_FILE_SIZE = 3 * 1024 * 1024
+    const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10MB
     if (file.size > MAX_FILE_SIZE) {
-      alert(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum is 3MB.`)
+      alert(`File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum is 10MB.`)
       return
     }
 
@@ -678,40 +677,36 @@ function MessageThread({
     try {
       const isImage = file.type.startsWith('image/')
 
-      // Convert file to base64 for reliable upload (avoids Vercel body parsing issues)
-      const arrayBuf = await file.arrayBuffer()
-      const bytes = new Uint8Array(arrayBuf)
-      let binary = ''
-      const chunkSize = 8192
-      for (let i = 0; i < bytes.length; i += chunkSize) {
-        binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize))
-      }
-      const base64 = btoa(binary)
+      // Upload directly to Supabase Storage (bypasses Vercel body parsing entirely)
+      const supabase = createClient()
+      const timestamp = Date.now()
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+      const storagePath = `${channel.id}/${timestamp}_${safeName}`
 
-      const resp = await authFetch(`/api/chat/upload?channelId=${channel.id}`, {
-        method: 'POST',
-        body: JSON.stringify({
-          fileName: file.name,
+      const { error: uploadErr } = await supabase.storage
+        .from('chat-files')
+        .upload(storagePath, file, {
           contentType: file.type || 'application/octet-stream',
-          data: base64,
-        }),
-      })
+          upsert: false,
+        })
 
-      if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}))
-        console.error('[Chat] upload API error:', resp.status, errData)
-        throw new Error(errData.error || 'Upload failed')
+      if (uploadErr) {
+        console.error('[Chat] Supabase storage upload error:', uploadErr)
+        throw new Error(uploadErr.message || 'Upload failed')
       }
-      const { url, file_name: uploadedName } = await resp.json()
 
+      const { data: urlData } = supabase.storage.from('chat-files').getPublicUrl(storagePath)
+      const fileUrl = urlData.publicUrl
+
+      // Send message with file URL
       const msgResp = await authFetch('/api/chat/messages', {
         method: 'POST',
         body: JSON.stringify({
           channel_id: channel.id,
-          content: isImage ? (uploadedName || file.name) : url,
+          content: isImage ? (file.name) : fileUrl,
           message_type: isImage ? 'image' : 'file',
-          file_url: url,
-          file_name: uploadedName || file.name,
+          file_url: fileUrl,
+          file_name: file.name,
         }),
       })
 

@@ -184,6 +184,11 @@ async function sendPushNotifications(
 
   if (!subscriptions?.length) return
 
+  // Double-check: filter out any subscriptions belonging to the sender
+  // (safety net in case of duplicate employee records or stale data)
+  const filteredSubs = subscriptions.filter((s) => s.employee_id !== senderId)
+  if (!filteredSubs.length) return
+
   const channelName = channel?.name || 'Team Chat'
   const body = messageType === 'image'
     ? `${senderName}: 📷 Photo`
@@ -199,11 +204,16 @@ async function sendPushNotifications(
   })
 
   await Promise.allSettled(
-    subscriptions.map((sub) =>
+    filteredSubs.map((sub) =>
       webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
         payload
-      )
+      ).catch((err) => {
+        // Remove invalid subscriptions (410 Gone = unsubscribed)
+        if (err.statusCode === 410) {
+          supabase.from('push_subscriptions').delete().eq('endpoint', sub.endpoint).then(() => {})
+        }
+      })
     )
   )
 }
