@@ -58,7 +58,9 @@ type IncidentUnit = {
   id: string
   unit: { id: string; name: string; type?: string } | null
   _crew_count: number
+  assigned_at?: string | null
   released_at?: string | null
+  daily_contract_rate?: number | null
 }
 
 type Unit = {
@@ -92,6 +94,7 @@ type SupplyRunRow = {
 
 const DEFAULT_CARD_ORDER = [
   'deployments',
+  'unit-revenue',
   'encounters',
   'mar',
   'comp-claims',
@@ -392,9 +395,9 @@ function StatCard({
   const [expanded, setExpanded] = useState(false)
   const showContent = expanded ? expandedChildren || children : children
   return (
-    <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-      {/* Card header — consistent dark header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-700 bg-gray-800">
+    <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--color-card-bg, #111827)', borderColor: 'var(--color-border, #1f2937)' }}>
+      {/* Card header — uses theme header color */}
+      <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ backgroundColor: 'var(--color-header-bg, #030712)', borderColor: 'var(--color-border, #1f2937)' }}>
         {dragHandleProps && (
           <div
             {...dragHandleProps}
@@ -494,6 +497,7 @@ export default function IncidentDetailPage() {
   const [incident, setIncident] = useState<Incident | null>(null)
   const [activeIncidents, setActiveIncidents] = useState<{id: string, name: string}[]>([])
   const [incidentUnits, setIncidentUnits] = useState<IncidentUnit[]>([])
+  const [allIncidentUnits, setAllIncidentUnits] = useState<IncidentUnit[]>([]) // includes released, for revenue
   const [allUnits, setAllUnits] = useState<Unit[]>([])
   const [assigningUnit, setAssigningUnit] = useState(false)
   const [selectedUnitId, setSelectedUnitId] = useState('')
@@ -603,16 +607,43 @@ export default function IncidentDetailPage() {
 
     // Online — load the rest
     try {
-      const [iuRes, unitsRes, authRes] = await Promise.all([
+      const [iuRes, allIuRes, unitsRes, authRes] = await Promise.all([
         supabaseClient.from('incident_units').select(`
           id,
-          unit:units(id, name, unit_type:unit_types(name)),
+          assigned_at,
+          released_at,
+          daily_contract_rate,
+          unit:units(id, name, unit_type:unit_types(name, default_contract_rate)),
           unit_assignments(id)
         `).eq('incident_id', activeIncidentId).is('released_at', null),
-        supabaseClient.from('units').select('id, name, unit_type:unit_types(name)').eq('is_storage', false).order('name'),
+        // ALL units (including released) for revenue tracking
+        supabaseClient.from('incident_units').select(`
+          id,
+          assigned_at,
+          released_at,
+          daily_contract_rate,
+          unit:units(id, name, unit_type:unit_types(name, default_contract_rate)),
+          unit_assignments(id)
+        `).eq('incident_id', activeIncidentId),
+        supabaseClient.from('units').select('id, name, unit_type:unit_types(name, default_contract_rate)').eq('is_storage', false).order('name'),
         supabaseClient.auth.getUser(),
       ])
       iUnits = iuRes.data; allUnitsData = unitsRes.data; userData = authRes.data
+      // Map ALL incident units (for revenue card)
+      const allIuMapped: IncidentUnit[] = ((allIuRes.data as unknown as any[]) || []).map((u: any) => {
+        const rawType = u.unit?.unit_type
+        const unitType = Array.isArray(rawType) ? rawType[0] : rawType
+        const defaultRate = unitType?.default_contract_rate ?? 0
+        return {
+          id: u.id,
+          unit: u.unit,
+          _crew_count: u.unit_assignments?.length ?? 0,
+          assigned_at: u.assigned_at,
+          released_at: u.released_at,
+          daily_contract_rate: u.daily_contract_rate ?? defaultRate,
+        }
+      })
+      setAllIncidentUnits(allIuMapped)
     } catch {}
 
     setIncident(inc as Incident | null)
@@ -652,13 +683,25 @@ export default function IncidentDetailPage() {
 
     const mappedUnits: IncidentUnit[] = ((iUnits as unknown as Array<{
       id: string
-      unit: { id: string; name: string; type?: string } | null
+      assigned_at?: string
+      released_at?: string | null
+      daily_contract_rate?: number | null
+      unit: { id: string; name: string; unit_type?: { name: string; default_contract_rate?: number } | { name: string; default_contract_rate?: number }[] | null } | null
       unit_assignments: { id: string }[]
-    }>) || []).map(u => ({
-      id: u.id,
-      unit: u.unit,
-      _crew_count: u.unit_assignments?.length ?? 0,
-    }))
+    }>) || []).map(u => {
+      // Normalize unit_type (may be array from Supabase join)
+      const rawType = (u.unit as any)?.unit_type
+      const unitType = Array.isArray(rawType) ? rawType[0] : rawType
+      const defaultRate = unitType?.default_contract_rate ?? 0
+      return {
+        id: u.id,
+        unit: u.unit,
+        _crew_count: u.unit_assignments?.length ?? 0,
+        assigned_at: u.assigned_at,
+        released_at: u.released_at,
+        daily_contract_rate: u.daily_contract_rate ?? defaultRate,
+      }
+    })
     setIncidentUnits(mappedUnits)
     setAllUnits((allUnitsData as Unit[]) || [])
 
@@ -1038,9 +1081,14 @@ export default function IncidentDetailPage() {
 
   const assignUnit = async () => {
     if (!selectedUnitId) return
+    // Look up default contract rate from unit type
+    const selectedUnit = allUnits.find(u => u.id === selectedUnitId) as any
+    const unitType = Array.isArray(selectedUnit?.unit_type) ? selectedUnit.unit_type[0] : selectedUnit?.unit_type
+    const defaultRate = unitType?.default_contract_rate ?? 0
     await supabase.from('incident_units').insert({
       incident_id: activeIncidentId,
       unit_id: selectedUnitId,
+      daily_contract_rate: defaultRate || null,
     })
     setAssigningUnit(false)
     setSelectedUnitId('')
@@ -1180,8 +1228,8 @@ export default function IncidentDetailPage() {
         const activeCrewCount = crewDeployments.filter(d => !d.released_at).length
         const totalCrewCount = crewDeployments.length
         return (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-700 bg-gray-800">
+          <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--color-card-bg, #111827)', borderColor: 'var(--color-border, #1f2937)' }}>
+            <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ backgroundColor: 'var(--color-header-bg, #030712)', borderColor: 'var(--color-border, #1f2937)' }}>
               {dragHandleProps && (
                 <div
                   {...dragHandleProps}
@@ -1399,6 +1447,84 @@ export default function IncidentDetailPage() {
           </div>
         )
         }
+
+      case 'unit-revenue': {
+        if (!isAdmin) return null
+        // Calculate revenue per unit: days on incident × daily contract rate
+        // Also need ALL incident_units (including released) for full revenue picture
+        const revenueUnits = allIncidentUnits.map(iu => {
+          const rate = iu.daily_contract_rate ?? 0
+          const start = iu.assigned_at || incident?.start_date || null
+          const end = iu.released_at || null
+          const days = start ? calcDays(start.split('T')[0], end ? end.split('T')[0] : null) : 0
+          const revenue = days * rate
+          const typeName = (() => {
+            const ut = (iu.unit as any)?.unit_type
+            const t = Array.isArray(ut) ? ut[0] : ut
+            return t?.name || ''
+          })()
+          return { ...iu, rate, days, revenue, typeName }
+        })
+        const totalRevenue = revenueUnits.reduce((s, u) => s + u.revenue, 0)
+        const totalUnitDays = revenueUnits.reduce((s, u) => s + u.days, 0)
+        return (
+          <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--color-card-bg, #111827)', borderColor: 'var(--color-border, #1f2937)' }}>
+            <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ backgroundColor: 'var(--color-header-bg, #030712)', borderColor: 'var(--color-border, #1f2937)' }}>
+              {dragHandleProps && (
+                <div {...dragHandleProps} className="text-gray-600 hover:text-gray-300 cursor-grab active:cursor-grabbing transition-colors shrink-0 opacity-0 group-hover:opacity-100 select-none">⠿</div>
+              )}
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">💵 Unit Revenue</h3>
+              <span className="text-xl font-bold text-green-400">{fmtCurrency(totalRevenue)}</span>
+            </div>
+            {revenueUnits.length > 0 && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b bg-opacity-30" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
+                      <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Unit</th>
+                      <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Type</th>
+                      <th className="text-right px-3 py-2 text-gray-500 font-semibold uppercase">Rate/Day</th>
+                      <th className="text-right px-3 py-2 text-gray-500 font-semibold uppercase">Days</th>
+                      <th className="text-right px-3 py-2 text-gray-500 font-semibold uppercase">Revenue</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
+                    {revenueUnits.map(u => {
+                      const isActive = !u.released_at
+                      return (
+                        <tr key={u.id} className={`hover:bg-gray-800/30 transition-colors ${u.released_at ? 'opacity-50' : ''}`}>
+                          <td className="px-3 py-2 text-white font-medium">{(u.unit as any)?.name || '?'}</td>
+                          <td className="px-3 py-2 text-gray-400">{u.typeName}</td>
+                          <td className="px-3 py-2 text-right text-green-400">
+                            {u.rate > 0 ? fmtCurrency(u.rate) : <span className="text-gray-600">—</span>}
+                          </td>
+                          <td className="px-3 py-2 text-right font-medium">
+                            {u.days}{isActive && <span className="text-gray-500 ml-0.5">+</span>}
+                          </td>
+                          <td className="px-3 py-2 text-right font-semibold text-green-400">
+                            {u.revenue > 0 ? fmtCurrency(u.revenue) : <span className="text-gray-600">—</span>}
+                            {isActive && u.revenue > 0 && <span className="text-gray-500 ml-0.5">+</span>}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t" style={{ borderColor: 'var(--color-border, #1f2937)', backgroundColor: 'var(--color-header-bg, #030712)' }}>
+                      <td colSpan={3} className="px-3 py-2 text-right text-xs font-bold uppercase text-gray-400">Total</td>
+                      <td className="px-3 py-2 text-right text-sm font-bold text-white">{totalUnitDays}</td>
+                      <td className="px-3 py-2 text-right text-sm font-bold text-green-400">{fmtCurrency(totalRevenue)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+            {revenueUnits.length === 0 && (
+              <p className="px-4 py-6 text-sm text-gray-600 text-center">No units assigned</p>
+            )}
+          </div>
+        )
+      }
 
       case 'encounters':
         return (
