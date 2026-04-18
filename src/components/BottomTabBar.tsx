@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useState } from 'react'
 import { useRole } from '@/lib/useRole'
 import { useUnsignedCounts } from '@/lib/useUnsignedPCRCount'
+import { useChatUnread } from '@/hooks/useChatUnread'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 
 type Tab = {
@@ -105,6 +106,7 @@ export default function BottomTabBar() {
   const pathname = location.pathname
   const { isField } = useRole()
   const unsignedCounts = useUnsignedCounts()
+  const { totalUnread: chatUnread } = useChatUnread()
   const [sheetTab, setSheetTab] = useState<string | null>(null)
   const [showAdminSheet, setShowAdminSheet] = useState(false)
   const navigate = useNavigate()
@@ -243,6 +245,11 @@ export default function BottomTabBar() {
                   >
                     <span className="text-gray-600">›</span>
                     <span>{sub.label}</span>
+                    {sub.href === '/chat' && chatUnread > 0 && (
+                      <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold leading-none">
+                        {chatUnread > 99 ? '99+' : chatUnread}
+                      </span>
+                    )}
                   </Link>
                 )
               })}
@@ -277,9 +284,14 @@ export default function BottomTabBar() {
         <div className="flex h-14 items-stretch">
           {visibleTabs.map(tab => {
             const isActive = tab.href !== '/more' && pathname.startsWith(tab.href)
-            const badge = tab.href === '/encounters' && unsignedCounts.total > 0
+            // Badge: unsigned encounters on Encounters tab, chat unread on More tab
+            const encounterBadge = tab.href === '/encounters' && unsignedCounts.total > 0
               ? unsignedCounts.total
               : null
+            const moreBadge = tab.label === 'More' && chatUnread > 0
+              ? chatUnread
+              : null
+            const badge = encounterBadge || moreBadge
 
             return (
               <button
@@ -305,7 +317,7 @@ export default function BottomTabBar() {
                   </>
                 )}
                 {badge && (
-                  <span className="absolute top-1 right-1/4 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-orange-500 text-white text-[9px] font-bold leading-none">
+                  <span className={`absolute top-1 right-1/4 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-white text-[9px] font-bold leading-none ${moreBadge ? 'bg-red-600' : 'bg-orange-500'}`}>
                     {badge > 99 ? '99+' : badge}
                   </span>
                 )}
