@@ -13,7 +13,8 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { SidebarIcon } from './SidebarIcons'
+import { SidebarIcon, RAINBOW_ICON_COLORS } from './SidebarIcons'
+import { useTheme } from './ThemeProvider'
 
 type SubItem = { label: string; href: string }
 type NavItem = { icon: string; label: string; href: string; sub: SubItem[]; adminOnly?: boolean; onlineOnly?: boolean; directLink?: boolean }
@@ -148,7 +149,7 @@ function loadOrder(labels: string[]): string[] {
 
 // ── Sortable nav item ────────────────────────────────────────────────────────
 function SortableNavItem({
-  item, isAdmin, isField, pathname, expanded, toggle, onNavigate, assignment, roleLoading, getHref, badges,
+  item, isAdmin, isField, pathname, expanded, toggle, onNavigate, assignment, roleLoading, getHref, badges, isRainbow,
 }: {
   item: NavItem & { _disabled?: boolean }
   isAdmin: boolean
@@ -161,6 +162,7 @@ function SortableNavItem({
   roleLoading: boolean
   getHref: (item: NavItem) => string
   badges?: Record<string, { charts: number; notes: number; mar: number; total: number }>
+  isRainbow?: boolean
 }) {
   const [showBadgeDetail, setShowBadgeDetail] = useState(false)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -175,6 +177,11 @@ function SortableNavItem({
   const isActive = pathname.startsWith(item.href)
   const isExpanded = expanded === item.label
   const href = getHref(item)
+
+  // Icon color: rainbow = per-icon color always, others = primary when active
+  const iconColor = isRainbow
+    ? (RAINBOW_ICON_COLORS[item.icon] || 'var(--color-primary, #dc2626)')
+    : (isActive ? 'var(--color-primary, #dc2626)' : undefined)
 
   const PRESCRIBER_ROLES = ['MD', 'MD/DO', 'PA', 'NP', 'DO']
   const visibleSub = item.sub.filter(s => {
@@ -208,17 +215,20 @@ function SortableNavItem({
             <Link
               to={href}
               onClick={onNavigate}
-              className={`flex-1 flex items-center gap-3 pl-2 py-2 text-[13px] font-medium rounded-lg mx-1 transition-all duration-150 ${
+              className={`flex-1 flex items-center gap-3 pl-2.5 py-2 text-sm font-medium rounded-lg mx-1 transition-all duration-150 ${
                 isActive
                   ? 'text-white'
                   : 'hover:bg-white/[0.04]'
               }`}
               style={{
                 color: isActive ? '#fff' : 'var(--color-text-muted, #9ca3af)',
-                ...(isActive ? { backgroundColor: 'color-mix(in srgb, var(--color-primary, #374151) 25%, transparent)' } : {}),
+                ...(isActive ? {
+                  backgroundColor: 'color-mix(in srgb, var(--color-primary, #374151) 15%, transparent)',
+                  border: '1px solid color-mix(in srgb, var(--color-primary, #374151) 30%, transparent)',
+                } : {}),
               }}
             >
-              <span className={`w-5 h-5 shrink-0 flex items-center justify-center transition-colors ${isActive ? 'opacity-100' : 'opacity-60'}`} style={isActive ? { color: 'var(--color-primary, #dc2626)' } : {}}>
+              <span className={`w-6 h-6 shrink-0 flex items-center justify-center transition-colors ${isActive || isRainbow ? 'opacity-100' : 'opacity-50'}`} style={iconColor ? { color: iconColor } : {}}>
                 <SidebarIcon name={item.icon} />
               </span>
               <span>{item.label}</span>
@@ -263,17 +273,20 @@ function SortableNavItem({
           <Link
             to={href}
             onClick={onNavigate}
-            className={`flex-1 flex items-center gap-3 pl-2 pr-4 py-2 text-[13px] font-medium rounded-lg mx-1 transition-all duration-150 ${
+            className={`flex-1 flex items-center gap-3 pl-2.5 pr-4 py-2 text-sm font-medium rounded-lg mx-1 transition-all duration-150 ${
               isActive
                 ? 'text-white'
                 : 'hover:bg-white/[0.04]'
             }`}
             style={{
               color: isActive ? '#fff' : 'var(--color-text-muted, #9ca3af)',
-              ...(isActive ? { backgroundColor: 'color-mix(in srgb, var(--color-primary, #374151) 25%, transparent)' } : {}),
+              ...(isActive ? {
+                backgroundColor: 'color-mix(in srgb, var(--color-primary, #374151) 15%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--color-primary, #374151) 30%, transparent)',
+              } : {}),
             }}
           >
-            <span className={`w-5 h-5 shrink-0 flex items-center justify-center transition-colors ${isActive ? 'opacity-100' : 'opacity-60'}`} style={isActive ? { color: 'var(--color-primary, #dc2626)' } : {}}>
+            <span className={`w-6 h-6 shrink-0 flex items-center justify-center transition-colors ${isActive || isRainbow ? 'opacity-100' : 'opacity-50'}`} style={iconColor ? { color: iconColor } : {}}>
               <SidebarIcon name={item.icon} />
             </span>
             <span>{item.label}</span>
@@ -281,18 +294,21 @@ function SortableNavItem({
         ) : (
           <button
             onClick={() => toggle(item.label)}
-            className={`flex-1 flex items-center justify-between pl-2 pr-4 py-2 text-[13px] font-medium rounded-lg mx-1 transition-all duration-150 ${
+            className={`flex-1 flex items-center justify-between pl-2.5 pr-4 py-2 text-sm font-medium rounded-lg mx-1 transition-all duration-150 ${
               isActive
                 ? 'text-white'
                 : 'hover:bg-white/[0.04]'
             }`}
             style={{
               color: isActive ? '#fff' : 'var(--color-text-muted, #9ca3af)',
-              ...(isActive ? { backgroundColor: 'color-mix(in srgb, var(--color-primary, #374151) 25%, transparent)' } : {}),
+              ...(isActive ? {
+                backgroundColor: 'color-mix(in srgb, var(--color-primary, #374151) 15%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--color-primary, #374151) 30%, transparent)',
+              } : {}),
             }}
           >
             <div className="flex items-center gap-3">
-              <span className={`w-5 h-5 shrink-0 flex items-center justify-center transition-colors ${isActive ? 'opacity-100' : 'opacity-60'}`} style={isActive ? { color: 'var(--color-primary, #dc2626)' } : {}}>
+              <span className={`w-6 h-6 shrink-0 flex items-center justify-center transition-colors ${isActive || isRainbow ? 'opacity-100' : 'opacity-50'}`} style={iconColor ? { color: iconColor } : {}}>
                 <SidebarIcon name={item.icon} />
               </span>
               <span>{item.label}</span>
@@ -331,12 +347,12 @@ function SortableNavItem({
       </div>
 
       {isExpanded && (
-        <div className="ml-8 mr-2 mb-1">
+        <div className="ml-[42px] mr-2 mb-1">
           {!item.directLink && (
             <Link
               to={href}
               onClick={onNavigate}
-              className={`block py-1.5 px-3 text-xs rounded-md transition-all duration-150 ${
+              className={`block py-1.5 px-3 text-[13px] rounded-md transition-all duration-150 ${
                 pathname === item.href ? '' : 'hover:bg-white/[0.04]'
               }`}
               style={pathname === item.href ? { color: 'var(--color-primary, #f87171)' } : { color: 'var(--color-text-muted, #6b7280)' }}
@@ -350,7 +366,7 @@ function SortableNavItem({
               key={sub.href}
               to={sub.href}
               onClick={onNavigate}
-              className={`block py-1.5 px-3 text-xs rounded-md transition-all duration-150 ${
+              className={`block py-1.5 px-3 text-[13px] rounded-md transition-all duration-150 ${
                 pathname === sub.href ? '' : 'hover:bg-white/[0.04]'
               }`}
               style={pathname === sub.href ? { color: 'var(--color-primary, #f87171)' } : { color: 'var(--color-text-muted, #6b7280)' }}
@@ -373,6 +389,8 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { isAdmin, isField, loading: roleLoading } = useRole()
   const assignment = useUserAssignment()
   const unsignedCounts = useUnsignedCounts()
+  const { theme } = useTheme()
+  const isRainbow = theme.preset === 'rainbow'
   const [org, setOrg] = useState<OrgBranding | null>(null)
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true)
 
@@ -500,6 +518,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 roleLoading={roleLoading}
                 getHref={getHref}
                 badges={{ 'Patient Encounters': unsignedCounts }}
+                isRainbow={isRainbow}
               />
             ))}
           </SortableContext>
@@ -513,17 +532,17 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         )}
         <Link to="/documents"
-          style={{ color: "var(--color-text-muted, #9ca3af)" }} className="flex items-center gap-3 py-1.5 px-2 rounded-lg text-[13px] hover:bg-white/[0.04] transition-all duration-150">
-          <span className="w-5 h-5 shrink-0 flex items-center justify-center opacity-50"><SidebarIcon name="documents" /></span> Policies & Procedures
+          style={{ color: "var(--color-text-muted, #9ca3af)" }} className="flex items-center gap-3 py-1.5 px-2.5 rounded-lg text-sm hover:bg-white/[0.04] transition-all duration-150">
+          <span className="w-6 h-6 shrink-0 flex items-center justify-center opacity-50" style={isRainbow ? { color: RAINBOW_ICON_COLORS.documents, opacity: 1 } : {}}><SidebarIcon name="documents" /></span> Policies & Procedures
         </Link>
         <Link to="/profile"
-          style={{ color: "var(--color-text-muted, #9ca3af)" }} className="flex items-center gap-3 py-1.5 px-2 rounded-lg text-[13px] hover:bg-white/[0.04] transition-all duration-150">
-          <span className="w-5 h-5 shrink-0 flex items-center justify-center opacity-50"><SidebarIcon name="profile" /></span> My Profile
+          style={{ color: "var(--color-text-muted, #9ca3af)" }} className="flex items-center gap-3 py-1.5 px-2.5 rounded-lg text-sm hover:bg-white/[0.04] transition-all duration-150">
+          <span className="w-6 h-6 shrink-0 flex items-center justify-center opacity-50" style={isRainbow ? { color: RAINBOW_ICON_COLORS.profile, opacity: 1 } : {}}><SidebarIcon name="profile" /></span> My Profile
         </Link>
         {isField && (
           <Link to="/schedule/request"
-            style={{ color: "var(--color-text-muted, #9ca3af)" }} className="flex items-center gap-3 py-1.5 px-2 rounded-lg text-[13px] hover:bg-white/[0.04] transition-all duration-150">
-            <span className="w-5 h-5 shrink-0 flex items-center justify-center opacity-50"><SidebarIcon name="schedule" /></span> Schedule Request
+            style={{ color: "var(--color-text-muted, #9ca3af)" }} className="flex items-center gap-3 py-1.5 px-2.5 rounded-lg text-sm hover:bg-white/[0.04] transition-all duration-150">
+            <span className="w-6 h-6 shrink-0 flex items-center justify-center opacity-50" style={isRainbow ? { color: RAINBOW_ICON_COLORS.schedule, opacity: 1 } : {}}><SidebarIcon name="schedule" /></span> Schedule Request
           </Link>
         )}
         <button
@@ -533,9 +552,9 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             await sb.auth.signOut()
             window.location.href = '/login'
           }}
-          style={{ color: "var(--color-text-muted, #6b7280)" }} className="flex items-center gap-3 py-1.5 px-2 rounded-lg text-[13px] hover:bg-white/[0.04] transition-all duration-150 w-full"
+          style={{ color: "var(--color-text-muted, #6b7280)" }} className="flex items-center gap-3 py-1.5 px-2.5 rounded-lg text-sm hover:bg-white/[0.04] transition-all duration-150 w-full"
         >
-          <span className="w-5 h-5 shrink-0 flex items-center justify-center opacity-50"><SidebarIcon name="logout" /></span> Sign Out
+          <span className="w-6 h-6 shrink-0 flex items-center justify-center opacity-50" style={isRainbow ? { color: RAINBOW_ICON_COLORS.logout, opacity: 1 } : {}}><SidebarIcon name="logout" /></span> Sign Out
         </button>
       </div>
       <div className="px-4 pb-3 pt-1">

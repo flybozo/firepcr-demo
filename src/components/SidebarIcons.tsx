@@ -1,7 +1,24 @@
 // Stencil-style sidebar icons — thin stroke, no fill, consistent 20×20 viewBox
 // Matches the modern sidebar aesthetic of OpenClaw / Vercel / Supabase
 
-const iconProps = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+const iconProps = { width: 20, height: 20, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+
+// Rainbow theme — each nav icon gets its own color
+export const RAINBOW_ICON_COLORS: Record<string, string> = {
+  incidents: '#ef4444',    // red
+  encounters: '#3b82f6',   // blue
+  units: '#f97316',        // orange
+  inventory: '#8b5cf6',    // purple
+  cs: '#14b8a6',           // teal
+  supply: '#eab308',       // yellow
+  roster: '#22c55e',       // green
+  payroll: '#ec4899',      // pink
+  admin: '#6366f1',        // indigo
+  documents: '#06b6d4',    // cyan
+  profile: '#a855f7',      // violet
+  schedule: '#f59e0b',     // amber
+  logout: '#78716c',       // stone
+}
 
 export const SidebarIcon = ({ name }: { name: string }) => {
   switch (name) {
