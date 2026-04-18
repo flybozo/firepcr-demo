@@ -100,6 +100,7 @@ const Formulary = lazy(() => import('@/pages/formulary/Formulary'))
 const Payroll = lazy(() => import('@/pages/payroll/Payroll'))
 const MyPayroll = lazy(() => import('@/pages/payroll/MyPayroll'))
 const Profile = lazy(() => import('@/pages/profile/Profile'))
+const ChatPage = lazy(() => import('@/pages/chat/Chat'))
 // Legacy — kept for redirect
 const UnsignedOrders = lazy(() => import('@/pages/unsigned-orders/UnsignedOrders'))
 const MyUnit = lazy(() => import('@/pages/dashboard/MyUnit'))
@@ -143,6 +144,8 @@ function App() {
             </Route>
             {/* Schedule request — field users get the full Schedule page (it self-filters) */}
             <Route path="schedule/request" element={<Schedule />} />
+            {/* Team Chat — available to all logged-in users */}
+            <Route path="chat" element={<ChatPage />} />
 
             {/* ── Units: field users go straight to their unit; list is admin-only ── */}
             <Route element={<RouteGuard unitListGuard />}>

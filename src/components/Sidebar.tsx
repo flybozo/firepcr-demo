@@ -5,6 +5,7 @@ import { APP_VERSION } from '@/components/VersionNotifier'
 import { useRole } from '@/lib/useRole'
 import { createClient } from '@/lib/supabase/client'
 import { useUnsignedCounts } from '@/lib/useUnsignedPCRCount'
+import { useChatUnread } from '@/hooks/useChatUnread'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
 } from '@dnd-kit/core'
@@ -105,6 +106,14 @@ const NAV: NavItem[] = [
     adminOnly: false,
   },
   {
+    icon: 'chat',
+    label: 'Team Chat',
+    href: '/chat',
+    directLink: true,
+    sub: [],
+    adminOnly: false,
+  },
+  {
     icon: 'payroll',
     label: 'Payroll',
     href: '/payroll',
@@ -148,7 +157,7 @@ function loadOrder(labels: string[]): string[] {
 
 // ── Sortable nav item ────────────────────────────────────────────────────────
 function SortableNavItem({
-  item, isAdmin, isField, pathname, expanded, toggle, onNavigate, assignment, roleLoading, getHref, badges, isRainbow, sidebarText,
+  item, isAdmin, isField, pathname, expanded, toggle, onNavigate, assignment, roleLoading, getHref, badges, isRainbow, sidebarText, chatUnread,
 }: {
   item: NavItem & { _disabled?: boolean }
   isAdmin: boolean
@@ -163,6 +172,7 @@ function SortableNavItem({
   badges?: Record<string, { charts: number; notes: number; mar: number; total: number }>
   isRainbow?: boolean
   sidebarText?: { inactive: string; muted: string }
+  chatUnread?: number
 }) {
   const [showBadgeDetail, setShowBadgeDetail] = useState(false)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -258,6 +268,11 @@ function SortableNavItem({
                   )}
                 </span>
               )}
+              {item.icon === 'chat' && chatUnread && chatUnread > 0 ? (
+                <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold leading-none">
+                  {chatUnread > 99 ? '99+' : chatUnread}
+                </span>
+              ) : null}
             </Link>
             {visibleSub.length > 0 && (
               <button
@@ -403,6 +418,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { isAdmin, isField, loading: roleLoading } = useRole()
   const assignment = useUserAssignment()
   const unsignedCounts = useUnsignedCounts()
+  const { totalUnread: chatUnread } = useChatUnread()
   const { theme } = useTheme()
   const isRainbow = theme.preset === 'rainbow'
   const sidebarText = getSidebarTextColors()
@@ -535,6 +551,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 roleLoading={roleLoading}
                 getHref={getHref}
                 badges={{ 'Encounters': unsignedCounts }}
+                chatUnread={chatUnread}
                 isRainbow={isRainbow}
                 sidebarText={sidebarText}
               />

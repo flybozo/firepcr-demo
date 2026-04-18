@@ -79,6 +79,7 @@ const TABS: Tab[] = [
       { label: '🔥 External Dashboard', href: '/admin/fire-dashboard' },
       { label: '💰 Payroll', href: '/payroll' },
       { label: '📋 Documents', href: '/documents' },
+      { label: '💬 Chat', href: '/chat' },
       { label: '👤 Profile', href: '/profile' },
       { label: '📅 Schedule Request', href: '/schedule/request', fieldOnly: true },
       { label: '⚙️ Admin', href: '/admin', adminOnly: true },
