@@ -585,13 +585,11 @@ function MessageThread({
     }
   }, [channel.id, employeeId, fetchAndMergeNew])
 
-  // Fallback: poll every 5s when Realtime isn't confirmed active
+  // Poll every 3s for new messages (Realtime is unreliable without confirmed publication)
   useEffect(() => {
     const interval = setInterval(() => {
-      if (!realtimeActive.current) {
-        fetchAndMergeNew()
-      }
-    }, 5000)
+      fetchAndMergeNew()
+    }, 3000)
 
     return () => clearInterval(interval)
   }, [fetchAndMergeNew])
@@ -681,19 +679,34 @@ function MessageThread({
         body: file,
       })
 
-      if (!resp.ok) throw new Error('Upload failed')
-      const { url, file_name } = await resp.json()
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}))
+        console.error('[Chat] upload API error:', resp.status, errData)
+        throw new Error(errData.error || 'Upload failed')
+      }
+      const { url, file_name: uploadedName } = await resp.json()
 
-      await authFetch('/api/chat/messages', {
+      const msgResp = await authFetch('/api/chat/messages', {
         method: 'POST',
         body: JSON.stringify({
           channel_id: channel.id,
-          content: url,
+          content: isImage ? (uploadedName || file.name) : url,
           message_type: isImage ? 'image' : 'file',
           file_url: url,
-          file_name,
+          file_name: uploadedName || file.name,
         }),
       })
+
+      if (msgResp.ok) {
+        const msgData = await msgResp.json()
+        if (msgData.message) {
+          const sent = normalizeMessage(msgData.message as Record<string, unknown>)
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === sent.id)) return prev
+            return [...prev, sent]
+          })
+        }
+      }
     } catch (e) {
       console.error('[Chat] upload failed', e)
     } finally {

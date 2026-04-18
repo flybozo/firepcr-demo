@@ -2,6 +2,13 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { requireEmployee, HttpError } from '../_auth.js'
 import { createServiceClient } from '../_supabase.js'
 
+// Disable Vercel's default body parser so we can read raw binary
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
@@ -33,12 +40,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_')
     const path = `${channelId}/${timestamp}_${safeName}`
 
-    // Read raw body
+    // Read raw body (bodyParser disabled via config export above)
     const chunks: Buffer[] = []
     for await (const chunk of req) {
       chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk))
     }
     const fileBuffer = Buffer.concat(chunks)
+
+    if (fileBuffer.length === 0) {
+      throw new HttpError(400, 'Empty file body')
+    }
 
     const { error: uploadErr } = await supabase.storage
       .from('chat-files')
