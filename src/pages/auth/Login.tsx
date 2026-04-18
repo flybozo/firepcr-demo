@@ -33,7 +33,7 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <img
-            src={import.meta.env.VITE_LOGO_URL || '/firepcr-logo.svg'}
+            src={import.meta.env.VITE_LOGO_URL || '/firepcr-logo.png'}
             alt={import.meta.env.VITE_COMPANY_DBA || 'Ridgeline EMS'}
             className="w-24 h-24 mx-auto mb-4 rounded-full object-contain bg-white p-1"
           />

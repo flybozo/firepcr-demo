@@ -506,7 +506,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           />
         ) : (
           <img
-            src="/firepcr-logo.svg"
+            src="/firepcr-logo.png"
             alt={import.meta.env.VITE_COMPANY_DBA || 'Ridgeline EMS'}
             className="w-10 h-10 rounded-full object-contain bg-white p-0.5 shrink-0"
           />

@@ -180,7 +180,7 @@ function AMAFormInner() {
 
   // Preload logo as base64 for PDF embedding
   useEffect(() => {
-    fetch('/firepcr-logo.svg')
+    fetch('/firepcr-logo.png')
       .then(r => r.blob())
       .then(blob => { const reader = new FileReader(); reader.onload = () => setLogoDataUrl(reader.result as string); reader.readAsDataURL(blob) })
       .catch(() => {})
