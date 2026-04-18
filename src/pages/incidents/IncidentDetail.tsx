@@ -831,7 +831,11 @@ export default function IncidentDetailPage() {
           .from('incident_units')
           .select('id, units(name), released_at')
           .eq('incident_id', activeIncidentId)
-        const allIUs = (allIUData || []) as { id: string; units: { name: string } | null; released_at: string | null }[]
+        const allIUs = ((allIUData || []) as unknown as { id: string; units: { name: string } | { name: string }[] | null; released_at: string | null }[]).map(iu => ({
+          id: iu.id,
+          unitName: Array.isArray(iu.units) ? iu.units[0]?.name || '?' : iu.units?.name || '?',
+          released_at: iu.released_at,
+        }))
         const allIUIds = allIUs.map(iu => iu.id)
 
         const [{ data: uaData }, { data: depData }, { data: empData }] = await Promise.all([
@@ -866,7 +870,7 @@ export default function IncidentDetailPage() {
 
         const iuMap = new Map<string, { unitName: string; released: string | null }>()
         for (const iu of allIUs) {
-          iuMap.set(iu.id, { unitName: iu.units?.name || '?', released: iu.released_at })
+          iuMap.set(iu.id, { unitName: iu.unitName, released: iu.released_at })
         }
 
         const merged: CrewDeployment[] = ((uaData || []) as any[]).map(ua => {
