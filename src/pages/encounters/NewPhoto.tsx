@@ -263,7 +263,6 @@ function PhotoUploadInner() {
             onClick={() => document.getElementById('photo-input')?.click()}
           >
             {preview ? (
-              // eslint-disable-next-line @next/next/no-img-element
               <img src={preview} alt="Preview" className="max-h-64 mx-auto rounded-lg object-contain" />
             ) : (
               <div className="space-y-2">

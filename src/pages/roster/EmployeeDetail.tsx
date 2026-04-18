@@ -213,7 +213,15 @@ export default function RosterDetailPage() {
         {/* Header */}
         <div className="theme-card rounded-xl p-4 border">
           <div className="flex items-start justify-between gap-3">
-            <div>
+            {/* Headshot */}
+            <div className="w-14 h-14 rounded-full overflow-hidden shrink-0 bg-gray-700 flex items-center justify-center">
+              {emp.headshot_url ? (
+                <img src={emp.headshot_url} alt={emp.name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-gray-400 text-2xl font-bold">{emp.name.charAt(0)}</span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
               <h1 className="text-xl font-bold">{emp.name}</h1>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className={`text-xs px-2 py-0.5 rounded-full ${ROLE_COLORS[emp.role] || ROLE_COLORS.Tech}`}>

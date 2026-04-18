@@ -78,12 +78,11 @@ function CompClaimsInner() {
                   <p className="text-white font-medium truncate">{c.patient_name || '—'}</p>
                   <p className="text-xs text-gray-500 truncate">{c.incident} · {c.unit} · {c.date_of_injury}</p>
                 </div>
-                <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${c.status === 'Complete' ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-400'}`}>
-                  {c.status || 'Pending'}
-                </span>
-                {c.pdf_url && (
-                  <a href={c.pdf_url} target="_blank" rel="noopener noreferrer"
-                    className="text-xs text-blue-400 hover:text-blue-300 shrink-0">📄 PDF</a>
+                {c.pdf_url ? (
+                  <a href={c.pdf_url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}
+                    className="text-xs px-2 py-0.5 rounded-full bg-green-900 text-green-300 shrink-0 hover:bg-green-800">📄 PDF</a>
+                ) : (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-900/50 text-yellow-400 shrink-0">⚠️ No PDF</span>
                 )}
               </div>
             ))}

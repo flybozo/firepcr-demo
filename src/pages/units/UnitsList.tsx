@@ -20,6 +20,7 @@ type Unit = {
   make: string | null
   model: string | null
   year: number | null
+  photo_url: string | null
   unit_type: { name: string } | null
   incident_units: {
     id: string
@@ -85,7 +86,7 @@ function UnitsPageInner() {
       () => supabase
         .from('units')
         .select(`
-          id, name, active, unit_status, vin, license_plate, plate_state, make, model, year,
+          id, name, active, unit_status, vin, license_plate, plate_state, make, model, year, photo_url,
           unit_type:unit_types(name),
           incident_units(
             id, released_at,
@@ -220,9 +221,10 @@ function UnitsPageInner() {
         <div className="theme-card rounded-xl border overflow-x-auto">
           {/* Header */}
           <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header min-w-[760px]">
+            <span className="w-8 shrink-0" />{/* photo */}
             <span className="w-32 shrink-0">Unit</span>
             <span className="w-24 shrink-0 hidden sm:block">Type</span>
-            <span className="w-36 shrink-0 hidden lg:block font-mono">VIN</span>
+            <span className="w-20 shrink-0 hidden lg:block font-mono">VIN</span>
             <span className="w-28 shrink-0 hidden lg:block">Plate</span>
             <span className="w-32 shrink-0 hidden md:block">Incident</span>
             <span className="w-48 shrink-0">Crew</span>
@@ -240,9 +242,17 @@ function UnitsPageInner() {
               <div key={unit.id} onClick={() => navigate(`/units/${unit.id}`)}
                 className={`flex items-center px-4 py-2 cursor-pointer border-b border-gray-800/50 text-sm min-w-[760px] ${detailMatch?.params?.id === unit.id ? 'bg-gray-700' : 'hover:bg-gray-800'}`}>
 
-                {/* Unit name + emoji */}
+                {/* Unit photo */}
+                <div className="w-8 h-8 rounded overflow-hidden shrink-0 bg-gray-700 flex items-center justify-center mr-0">
+                  {unit.photo_url ? (
+                    <img src={unit.photo_url} alt={unit.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-xs">{emoji}</span>
+                  )}
+                </div>
+
+                {/* Unit name */}
                 <span className="w-32 shrink-0 font-medium truncate pr-2 flex items-center gap-1.5">
-                  <span>{emoji}</span>
                   <span className="truncate">{unit.name}</span>
                 </span>
 
@@ -253,8 +263,8 @@ function UnitsPageInner() {
                   </span>
                 </span>
 
-                {/* VIN */}
-                <span className="w-36 shrink-0 text-gray-500 text-xs font-mono truncate pr-2 hidden lg:block">{unit.vin || '—'}</span>
+                {/* VIN — narrow with hover expand */}
+                <span className="w-20 shrink-0 text-gray-500 text-xs font-mono truncate pr-2 hidden lg:block hover:w-auto hover:overflow-visible hover:bg-gray-900 hover:px-1 hover:rounded hover:z-10 hover:relative transition-all cursor-default" title={unit.vin || ''}>{unit.vin ? `…${unit.vin.slice(-6)}` : '—'}</span>
                 {/* Plate */}
                 <span className="w-28 shrink-0 text-gray-400 text-xs truncate pr-2 hidden lg:block">{unit.license_plate ? (unit.plate_state ? `${unit.license_plate} (${unit.plate_state})` : unit.license_plate) : "—"}</span>
                 {/* Incident */}

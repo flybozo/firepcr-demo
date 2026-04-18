@@ -1492,6 +1492,8 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
     }
     setShowSignModal(false)
     setActionLoading(false)
+    // Refresh sidebar badge count immediately
+    try { const { refreshUnsignedCounts } = await import('@/lib/useUnsignedPCRCount'); refreshUnsignedCounts() } catch {}
   }
 
   // NEMSIS quality warnings — must be called before any early returns (hooks rule)
@@ -1710,6 +1712,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
               </div>
               <p className="text-gray-500 text-xs mt-1">
                 {enc.encounter_id} · {enc.date} · {enc.unit}
+                {enc.crew_resource_number && <span className="text-blue-400"> · CRN: {enc.crew_resource_number}</span>}
                 {incidentName && <span className="text-orange-400"> · 🔥 {incidentName}</span>}
               </p>
             </div>
@@ -2190,7 +2193,6 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                       <DraggableSection key="provider" id="provider">
                         <SectionCard title="Provider" badge={<SectionBadge section="provider" />}>
                           <InlineField label="Provider of Record" value={enc.provider_of_record} fieldKey="provider_of_record" isLocked={isLocked} onSave={saveField} type="select" options={providerOptions} />
-                          <InlineField label="Crew Resource #" value={enc.crew_resource_number} fieldKey="crew_resource_number" isLocked={isLocked} onSave={saveField} />
                           <InlineField label="PCR #" value={enc.pcr_number} fieldKey="pcr_number" isLocked={isLocked} onSave={saveField} />
                           <InlineField label="Agency" value={enc.agency_number} fieldKey="agency_number" isLocked={isLocked} onSave={saveField} type="select" options={AGENCY_OPTIONS} />
                           <Field label="Unit" value={enc.unit} />
@@ -2449,6 +2451,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
               .eq('id', noteToSign)
             setNoteToSign(null)
             loadNotes()
+            try { const { refreshUnsignedCounts } = await import('@/lib/useUnsignedPCRCount'); refreshUnsignedCounts() } catch {}
           }}
           onCancel={() => setNoteToSign(null)}
         />

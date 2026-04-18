@@ -93,16 +93,22 @@ type SupplyRunRow = {
 }
 
 const DEFAULT_CARD_ORDER = [
-  'deployments',
-  'unit-revenue',
-  'expenses',
+  // Row 1: 1/3 each
+  'units',
   'encounters',
-  'mar',
-  'comp-claims',
   'supply-runs',
-  'ics214',
-  'billing-summary',
+  // Row 2: 1/3 each
   'reorder-summary',
+  'mar',
+  'ics214',
+  // Row 3: 1/3 each
+  'billing-summary',
+  'expenses',
+  'comp-claims',
+  // Row 4: full-width
+  'deployments',
+  // Row 5: full-width
+  'unit-revenue',
 ]
 
 // ─── Deployment types ────────────────────────────────────────────────────────
@@ -132,6 +138,7 @@ type CrewDeployment = {
   employee_id: string
   employee_name: string
   employee_role: string
+  employee_headshot_url: string | null
   unit_name: string
   daily_rate: number
   hours_per_day: number
@@ -385,6 +392,8 @@ function StatCard({
   newHref,
   newLabel,
   dragHandleProps,
+  cycleSpan,
+  span,
 }: {
   title: string
   count: number | string
@@ -394,21 +403,81 @@ function StatCard({
   newHref?: string
   newLabel?: string
   dragHandleProps?: React.HTMLAttributes<HTMLDivElement>
+  cycleSpan?: () => void
+  span?: number
 }) {
+  const cardRef = useRef<HTMLDivElement>(null)
   const [expanded, setExpanded] = useState(false)
+  const [overlayVisible, setOverlayVisible] = useState(false)
+  const [overlayAnimate, setOverlayAnimate] = useState(false)
+  // Origin rect for slide-from-card animation
+  const [originRect, setOriginRect] = useState<DOMRect | null>(null)
 
-  // Expanded overlay — fills right pane like narrative card
-  const expandedOverlay = expanded ? (
-    <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4" onClick={() => setExpanded(false)}>
+  const openExpanded = () => {
+    // Capture card position before expanding
+    if (cardRef.current) {
+      setOriginRect(cardRef.current.getBoundingClientRect())
+    }
+    setExpanded(true)
+    setOverlayVisible(true)
+    // Trigger animation on next frame
+    requestAnimationFrame(() => requestAnimationFrame(() => setOverlayAnimate(true)))
+  }
+
+  const closeExpanded = () => {
+    setOverlayAnimate(false)
+    // Wait for exit animation then unmount
+    setTimeout(() => {
+      setOverlayVisible(false)
+      setExpanded(false)
+      setOriginRect(null)
+    }, 300)
+  }
+
+  // Compute the transform to go from center-of-viewport to origin card position
+  const getOriginTransform = () => {
+    if (!originRect) return 'scale(0.92) translateY(16px)'
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    // Target overlay is centered, max-w-4xl (56rem = 896px), max-h 90vh
+    const targetW = Math.min(896, vw - 32)
+    const targetH = Math.min(vh * 0.9, vh - 32)
+    const targetX = (vw - targetW) / 2
+    const targetY = (vh - targetH) / 2
+    // Offset from target center to origin card center
+    const dx = (originRect.left + originRect.width / 2) - (targetX + targetW / 2)
+    const dy = (originRect.top + originRect.height / 2) - (targetY + targetH / 2)
+    const scaleX = originRect.width / targetW
+    const scaleY = originRect.height / targetH
+    const s = Math.min(scaleX, scaleY, 0.95)
+    return `translate(${dx}px, ${dy}px) scale(${s})`
+  }
+
+  // Expanded overlay — slides up from card position
+  const expandedOverlay = overlayVisible ? (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{
+        backgroundColor: overlayAnimate ? 'rgba(0,0,0,0.8)' : 'rgba(0,0,0,0)',
+        transition: 'background-color 300ms ease-out',
+      }}
+      onClick={closeExpanded}
+    >
       <div
         className="rounded-2xl border w-full max-w-4xl max-h-[90vh] flex flex-col"
-        style={{ backgroundColor: 'var(--color-card-bg, #111827)', borderColor: 'var(--color-border, #1f2937)' }}
+        style={{
+          backgroundColor: 'var(--color-card-bg, #111827)',
+          borderColor: 'var(--color-border, #1f2937)',
+          transform: overlayAnimate ? 'translate(0,0) scale(1)' : getOriginTransform(),
+          opacity: overlayAnimate ? 1 : 0,
+          transition: 'transform 300ms cubic-bezier(0.2, 0.9, 0.3, 1), opacity 200ms ease-out',
+        }}
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 px-6 py-4 border-b" style={{ backgroundColor: 'var(--color-header-bg, #030712)', borderColor: 'var(--color-border, #1f2937)' }}>
           <h2 className="text-sm font-bold text-white flex-1">{title}</h2>
           <span className="text-xl font-bold text-white mr-2">{count}</span>
-          <button onClick={() => setExpanded(false)} className="text-gray-400 hover:text-white text-xl leading-none">✕</button>
+          <button onClick={closeExpanded} className="text-gray-400 hover:text-white text-xl leading-none">✕</button>
         </div>
         <div className="flex-1 overflow-y-auto">
           {expandedChildren || children}
@@ -421,7 +490,7 @@ function StatCard({
           {newHref && (
             <Link to={newHref} className="text-xs px-2.5 py-1 bg-red-600 hover:bg-red-700 rounded-lg font-semibold transition-colors">{newLabel || '+ New'}</Link>
           )}
-          <button onClick={() => setExpanded(false)} className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 text-white rounded-lg">Close</button>
+          <button onClick={closeExpanded} className="px-3 py-1.5 text-sm bg-gray-700 hover:bg-gray-600 text-white rounded-lg">Close</button>
         </div>
       </div>
     </div>
@@ -430,7 +499,7 @@ function StatCard({
   return (
     <>
     {expandedOverlay}
-    <div className="theme-card rounded-xl border overflow-hidden">
+    <div ref={cardRef} className="theme-card rounded-xl border overflow-hidden flex flex-col flex-1">
       {/* Card header — uses theme header color */}
       <div className="flex items-center gap-2 px-4 py-3 border-b theme-card-header">
         {dragHandleProps && (
@@ -442,11 +511,17 @@ function StatCard({
             ⠿
           </div>
         )}
+        {cycleSpan && (
+          <button onClick={cycleSpan} title={`Column span: ${span || 3}/3 — click to cycle`}
+            className="text-gray-600 hover:text-gray-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity select-none shrink-0 hidden md:inline-block">
+            {`${span || 3}/3`}
+          </button>
+        )}
         <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">{title}</h3>
         <span className="text-2xl font-bold text-white">{count}</span>
         {(expandedChildren || children) && (
           <button
-            onClick={() => setExpanded(true)}
+            onClick={openExpanded}
             className="ml-1 text-gray-500 hover:text-white transition-colors text-sm"
             title="Expand"
           >
@@ -454,13 +529,13 @@ function StatCard({
           </button>
         )}
       </div>
-      {/* Collapsed rows — max 5 visible */}
+      {/* Collapsed rows — fills remaining card height */}
       {children && (
-        <div className="divide-y divide-gray-800/60 overflow-y-auto" style={{ maxHeight: '220px' }}>
+        <div className="divide-y divide-gray-800/60 overflow-y-auto flex-1">
           {children}
         </div>
       )}
-      <div className="flex items-center gap-2 px-4 py-2 theme-card-footer">
+      <div className="flex items-center gap-2 px-4 py-2 theme-card-footer mt-auto">
         {viewAllHref && (
           <Link to={viewAllHref} className="text-xs text-gray-400 hover:text-white transition-colors">
             View all →
@@ -480,11 +555,20 @@ function StatCard({
 
 // ─── Sortable Card Wrapper ───────────────────────────────────────────────────
 
+// Mobile always col-span-1; spans only apply at md+ (2-col) and lg+ (3-col)
+const COL_SPAN_CLASSES: Record<number, string> = {
+  1: 'col-span-1',
+  2: 'col-span-1 md:col-span-2',
+  3: 'col-span-1 md:col-span-2 lg:col-span-3',
+}
+
 function SortableCard({
   id,
   children,
+  colSpan = 3,
 }: {
   id: string
+  colSpan?: 1 | 2 | 3
   children: (dragHandleProps: React.HTMLAttributes<HTMLDivElement>) => React.ReactNode
 }) {
   const {
@@ -504,7 +588,7 @@ function SortableCard({
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="group">
+    <div ref={setNodeRef} style={{ ...style, display: 'flex', flexDirection: 'column' }} className={`group ${COL_SPAN_CLASSES[colSpan] || 'col-span-3'}`}>
       {children({ ...attributes, ...listeners })}
     </div>
   )
@@ -531,6 +615,23 @@ export default function IncidentDetailPage() {
   const [selectedUnitId, setSelectedUnitId] = useState('')
   const [loading, setLoading] = useState(true)
   const [uploadingContract, setUploadingContract] = useState(false)
+
+  // Default fire preference (localStorage)
+  const [defaultFireId, setDefaultFireId] = useState<string | null>(() => {
+    try { return localStorage.getItem('default_incident_id') } catch { return null }
+  })
+  const isDefaultFire = defaultFireId === activeIncidentId
+  const toggleDefaultFire = () => {
+    try {
+      if (isDefaultFire) {
+        localStorage.removeItem('default_incident_id')
+        setDefaultFireId(null)
+      } else {
+        localStorage.setItem('default_incident_id', activeIncidentId)
+        setDefaultFireId(activeIncidentId)
+      }
+    } catch {}
+  }
 
   // Stats
   // Unit filter for dashboard cards
@@ -565,7 +666,7 @@ export default function IncidentDetailPage() {
   const [isOfflineData, setIsOfflineData] = useState(false)
 
   // Comp claims rows
-  const [compRows, setCompRows] = useState<{ id: string; patient_name: string | null; unit: string | null; date_of_injury: string | null; status: string | null; injury_type: string | null }[]>([])
+  const [compRows, setCompRows] = useState<{ id: string; patient_name: string | null; unit: string | null; date_of_injury: string | null; status: string | null; injury_type: string | null; pdf_url: string | null }[]>([])
   // Reorder rows
   const [reorderRows, setReorderRows] = useState<{ id: string; item_name: string; quantity: number; par_qty: number; unit_name: string }[]>([])
   // ICS 214
@@ -582,9 +683,33 @@ export default function IncidentDetailPage() {
   // Contract rate editing
   const [editingRateIuId, setEditingRateIuId] = useState<string | null>(null)
   const [editRateVal, setEditRateVal] = useState('')
-  // Card order
+  // Card order + widths
   const [cardOrder, setCardOrder] = useState<string[]>(DEFAULT_CARD_ORDER)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  // Default column spans per card (out of 4)
+  const DEFAULT_SPANS: Record<string, number> = {
+    'units': 1, 'encounters': 1, 'supply-runs': 1,
+    'reorder-summary': 1, 'mar': 1, 'ics214': 1,
+    'billing-summary': 1, 'expenses': 1, 'comp-claims': 1,
+    'deployments': 3, 'unit-revenue': 3,
+  }
+  const [cardSpans, setCardSpans] = useState<Record<string, number>>(() => {
+    try { return JSON.parse(localStorage.getItem('incident_card_spans') || '{}') } catch { return {} }
+  })
+  const getSpan = (cardId: string): 1 | 2 | 3 => {
+    const s = cardSpans[cardId] ?? DEFAULT_SPANS[cardId] ?? 3
+    return Math.min(3, Math.max(1, s)) as 1 | 2 | 3
+  }
+  const cycleCardSpan = (cardId: string) => {
+    setCardSpans(prev => {
+      const current = prev[cardId] ?? DEFAULT_SPANS[cardId] ?? 3
+      // Cycle: 1 → 2 → 3 → 1
+      const next = current >= 3 ? 1 : current + 1
+      const updated: Record<string, number> = { ...prev, [cardId]: next }
+      localStorage.setItem('incident_card_spans', JSON.stringify(updated))
+      return updated
+    })
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -653,7 +778,7 @@ export default function IncidentDetailPage() {
           assigned_at,
           released_at,
           daily_contract_rate,
-          unit:units(id, name, unit_type:unit_types(name, default_contract_rate)),
+          unit:units(id, name, photo_url, unit_type:unit_types(name, default_contract_rate)),
           unit_assignments(id)
         `).eq('incident_id', activeIncidentId).is('released_at', null),
         // ALL units (including released) for revenue tracking
@@ -662,7 +787,7 @@ export default function IncidentDetailPage() {
           assigned_at,
           released_at,
           daily_contract_rate,
-          unit:units(id, name, unit_type:unit_types(name, default_contract_rate)),
+          unit:units(id, name, photo_url, unit_type:unit_types(name, default_contract_rate)),
           unit_assignments(id)
         `).eq('incident_id', activeIncidentId),
         supabaseClient.from('units').select('id, name, unit_type:unit_types(name, default_contract_rate)').eq('is_storage', false).order('name'),
@@ -840,7 +965,7 @@ export default function IncidentDetailPage() {
       try {
         const { data } = await supabaseClient
           .from('comp_claims')
-          .select('id, patient_name, unit, date_of_injury, status, injury_type')
+          .select('id, patient_name, unit, date_of_injury, status, injury_type, pdf_url')
           .eq('incident_id', activeIncidentId)
           .is('deleted_at', null)
           .order('date_of_injury', { ascending: false })
@@ -1016,7 +1141,7 @@ export default function IncidentDetailPage() {
           allIUIds.length > 0
             ? supabaseClient
                 .from('unit_assignments')
-                .select('id, employee_id, incident_unit_id, assigned_at, released_at, daily_rate_override, hours_per_day, travel_date, check_in_at, check_out_at, notes, employees(id, name, role, daily_rate, default_hours_per_day)')
+                .select('id, employee_id, incident_unit_id, assigned_at, released_at, daily_rate_override, hours_per_day, travel_date, check_in_at, check_out_at, notes, employees(id, name, role, daily_rate, default_hours_per_day, headshot_url)')
                 .in('incident_unit_id', allIUIds)
             : Promise.resolve({ data: [] }),
           // Deployment records (payroll layer)
@@ -1058,6 +1183,7 @@ export default function IncidentDetailPage() {
             employee_id: ua.employee_id,
             employee_name: emp.name || '?',
             employee_role: emp.role || '?',
+            employee_headshot_url: emp.headshot_url || null,
             unit_name: iu?.unitName || '?',
             daily_rate: rate,
             hours_per_day: hours,
@@ -1131,6 +1257,8 @@ export default function IncidentDetailPage() {
     await supabase.from('incident_units').update({ released_at: new Date().toISOString() }).eq('id', incidentUnitId)
     // Assign unit to new incident
     await supabase.from('incident_units').insert({ incident_id: targetIncidentId, unit_id: unitId })
+    // Keep unit_status in sync — reassigned unit is still in service
+    await supabase.from('units').update({ unit_status: 'in_service' }).eq('id', unitId)
     load()
   }
 
@@ -1145,6 +1273,8 @@ export default function IncidentDetailPage() {
       unit_id: selectedUnitId,
       daily_contract_rate: defaultRate || null,
     })
+    // Keep unit_status in sync — assigning a unit to an incident means it's in service/deployed
+    await supabase.from('units').update({ unit_status: 'in_service' }).eq('id', selectedUnitId)
     setAssigningUnit(false)
     setSelectedUnitId('')
     load()
@@ -1281,8 +1411,208 @@ export default function IncidentDetailPage() {
   const inputCls = 'bg-gray-800 border border-gray-700 text-white text-xs rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-red-500'
   const labelCls = 'text-xs text-gray-500 uppercase tracking-wide font-bold mb-1 block'
 
-  const renderCard = (cardId: string, dragHandleProps: React.HTMLAttributes<HTMLDivElement>) => {
+  const renderCard = (cardId: string, dragHandleProps: React.HTMLAttributes<HTMLDivElement>, cycleSpan?: () => void, span?: number) => {
     switch (cardId) {
+
+      case 'incident-info':
+        if (!isAdmin) return null
+        return (
+          <div className="theme-card rounded-xl border overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center gap-2 px-4 py-3 border-b theme-card-header">
+              {dragHandleProps && (
+                <div {...dragHandleProps} className="text-gray-600 hover:text-gray-300 cursor-grab active:cursor-grabbing transition-colors shrink-0 opacity-0 group-hover:opacity-100 select-none">⠿</div>
+              )}
+              {cycleSpan && (
+                <button onClick={cycleSpan} title={`Column span: ${span || 3}/3 — click to cycle`}
+                  className="text-gray-600 hover:text-gray-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity select-none shrink-0">{`${span || 3}/3`}</button>
+              )}
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">🔥 Incident Info</h3>
+              {isAdmin && (
+                <button
+                  onClick={toggleDefaultFire}
+                  title={isDefaultFire ? 'Remove as default fire' : 'Set as default fire'}
+                  className={`text-sm transition-colors shrink-0 ${
+                    isDefaultFire ? 'text-yellow-400 hover:text-yellow-300' : 'text-gray-600 hover:text-yellow-400'
+                  }`}
+                >
+                  {isDefaultFire ? '★' : '☆'}
+                </button>
+              )}
+              {incident.status === 'Active'
+                ? <span className="text-xs text-gray-600 italic">Click any field to edit</span>
+                : <span className="text-xs text-gray-600 italic">Closed — read only</span>}
+            </div>
+
+            {/* Incident fields — 2-column grid */}
+            <div className="p-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1">
+                <div className="col-span-2 md:col-span-4">
+                  <EditField label="Name" value={incident.name} fieldKey="name" onSave={saveField} />
+                </div>
+                <div className="col-span-2">
+                  <LocationEditField
+                    value={incident.location}
+                    latitude={incident.latitude}
+                    longitude={incident.longitude}
+                    onSave={saveField}
+                    onSaveCoords={(lat, lng, label) => {
+                      saveField('location', label)
+                      saveField('latitude', String(lat))
+                      saveField('longitude', String(lng))
+                    }}
+                  />
+                </div>
+                <EditField label="Incident Number" value={incident.incident_number} fieldKey="incident_number" onSave={saveField} />
+                <EditField label="Start Date" value={incident.start_date} fieldKey="start_date" type="date" onSave={saveField} />
+                <EditField label="Agreement Number" value={(incident as any).agreement_number} fieldKey="agreement_number" onSave={saveField} />
+                <EditField label="Resource Order #" value={(incident as any).resource_order_number} fieldKey="resource_order_number" onSave={saveField} />
+                <EditField label="Financial Code" value={(incident as any).financial_code} fieldKey="financial_code" onSave={saveField} />
+                <EditField label="Status" value={incident.status} fieldKey="status" onSave={saveField}
+                  options={[{ label: 'Active', value: 'Active' }, { label: 'Closed', value: 'Closed' }]} />
+              </div>
+            </div>
+
+            {/* Contacts — 4 columns */}
+            <div className="border-t border-gray-800">
+              <div className="grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-gray-800">
+                {[
+                  { label: 'Med Unit Leader', nameKey: 'med_unit_leader_name', emailKey: 'med_unit_leader_email', phoneKey: 'med_unit_leader_phone',
+                    name: incident.med_unit_leader_name, email: incident.med_unit_leader_email, phone: incident.med_unit_leader_phone },
+                  { label: 'Logs Contact', nameKey: 'logs_contact_name', emailKey: 'logs_contact_email', phoneKey: 'logs_contact_phone',
+                    name: incident.logs_contact_name, email: incident.logs_contact_email, phone: incident.logs_contact_phone },
+                  { label: 'Comp Claims', nameKey: 'comp_claims_name', emailKey: 'comp_claims_email', phoneKey: 'comp_claims_phone',
+                    name: incident.comp_claims_name, email: incident.comp_claims_email, phone: incident.comp_claims_phone },
+                  { label: 'Finance (OF-297)', nameKey: 'finance_contact_name', emailKey: 'finance_contact_email', phoneKey: 'finance_contact_phone',
+                    name: (incident as any).finance_contact_name, email: (incident as any).finance_contact_email, phone: (incident as any).finance_contact_phone },
+                ].map(contact => (
+                  <div key={contact.label} className="p-3 space-y-1">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{contact.label}</p>
+                      {(contact.email || contact.phone) && (
+                        <div className="flex gap-1.5">
+                          {contact.phone && (<>
+                            <a href={`tel:${contact.phone}`} className="text-green-400 hover:text-green-300 text-xs" title="Call">📞</a>
+                            <a href={`sms:${contact.phone}`} className="text-blue-400 hover:text-blue-300 text-xs" title="Text">💬</a>
+                          </>)}
+                          {contact.email && <a href={`mailto:${contact.email}`} className="text-yellow-400 hover:text-yellow-300 text-xs" title="Email">✉️</a>}
+                        </div>
+                      )}
+                    </div>
+                    <EditField label="Name" value={contact.name} fieldKey={contact.nameKey} onSave={saveField} />
+                    <EditField label="Email" value={contact.email} fieldKey={contact.emailKey} type="email" onSave={saveField} />
+                    <EditField label="Phone" value={contact.phone} fieldKey={contact.phoneKey} type="tel" onSave={saveField} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Contract upload — bottom bar */}
+            {isAdmin && (
+              <div className="border-t border-gray-800 px-4 py-3 flex items-center gap-3">
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-500 shrink-0">Contract</p>
+                {uploadingContract && <span className="text-xs text-gray-500 animate-pulse">Uploading...</span>}
+                {incident.contract_url ? (
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <a href={incident.contract_url} target="_blank" rel="noopener noreferrer"
+                      className="text-xs text-blue-400 hover:text-blue-300 truncate">
+                      📄 {incident.contract_file_name || 'View Contract'}
+                    </a>
+                    <label className="text-xs text-gray-500 hover:text-gray-300 cursor-pointer shrink-0">
+                      Replace
+                      <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleContractUpload} />
+                    </label>
+                  </div>
+                ) : (
+                  <label className="flex items-center gap-2 cursor-pointer px-3 py-1.5 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors">
+                    <span className="text-xs text-gray-400">📎 Upload Contract PDF</span>
+                    <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleContractUpload} />
+                  </label>
+                )}
+              </div>
+            )}
+          </div>
+        )
+
+      case 'units':
+        return (
+          <div className="theme-card rounded-xl border overflow-hidden flex flex-col flex-1">
+            <div className="flex items-center gap-2 px-4 py-3 border-b theme-card-header">
+              {dragHandleProps && (
+                <div {...dragHandleProps} className="text-gray-600 hover:text-gray-300 cursor-grab active:cursor-grabbing transition-colors shrink-0 opacity-0 group-hover:opacity-100 select-none">⠿</div>
+              )}
+              {cycleSpan && (
+                <button onClick={cycleSpan} title={`Column span: ${span || 3}/3 — click to cycle`}
+                  className="text-gray-600 hover:text-gray-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity select-none shrink-0">{`${span || 3}/3`}</button>
+              )}
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">🚑 Units ({incidentUnits.length})</h3>
+              {isAdmin && (
+                <button onClick={() => setAssigningUnit(v => !v)}
+                  className="text-xs px-2.5 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors">
+                  {assigningUnit ? '✕' : '+ Assign Unit'}
+                </button>
+              )}
+            </div>
+            {assigningUnit && (
+              <div className="px-4 py-3 border-b theme-card-header flex gap-2">
+                <select value={selectedUnitId} onChange={e => setSelectedUnitId(e.target.value)}
+                  className="flex-1 bg-gray-800 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500">
+                  <option value="">Select unit...</option>
+                  {availableUnits.map(u => (
+                    <option key={u.id} value={u.id}>{u.name}{(u as any).unit_type?.name ? ` (${(u as any).unit_type.name})` : ''}</option>
+                  ))}
+                </select>
+                <button onClick={assignUnit} disabled={!selectedUnitId}
+                  className="px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 rounded-lg text-sm font-semibold transition-colors">
+                  Assign
+                </button>
+              </div>
+            )}
+            {incidentUnits.length === 0 ? (
+              <p className="px-4 py-6 text-sm text-gray-600 text-center">No units assigned yet.</p>
+            ) : (
+              <div className="divide-y divide-gray-800/60">
+                {incidentUnits.map(iu => (
+                  <div key={iu.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-800/50 transition-colors group">
+                    <Link to={`/units/${iu.unit?.id}`} className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="w-9 h-9 rounded overflow-hidden shrink-0 bg-gray-700 flex items-center justify-center">
+                        {(iu.unit as any)?.photo_url ? (
+                          <img src={(iu.unit as any).photo_url} alt={iu.unit?.name || ''} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-sm">{(() => { const t = (iu.unit as any)?.unit_type?.name; return t === 'Ambulance' ? '🚑' : t === 'Med Unit' ? '🏥' : t === 'REMS' ? '🧗' : '🚐' })()}</span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{iu.unit?.name || 'Unknown'}</p>
+                        <p className="text-xs text-gray-500">{iu._crew_count} crew assigned</p>
+                      </div>
+                      {(iu.unit as any)?.unit_type?.name && (() => {
+                        const t = (iu.unit as any).unit_type.name
+                        const cls = t === 'Ambulance' ? 'bg-red-900 text-red-300' : t === 'Med Unit' ? 'bg-blue-900 text-blue-300' : 'bg-green-900 text-green-300'
+                        return <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 ${cls}`}>{t}</span>
+                      })()}
+                    </Link>
+                    {isAdmin && (
+                      <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-2 shrink-0">
+                        {activeIncidents.length > 0 && (
+                          <select className="text-xs bg-gray-700 border border-gray-600 rounded px-1.5 py-1 text-gray-300 focus:outline-none focus:ring-1 focus:ring-red-500 max-w-[130px] w-[130px]"
+                            defaultValue="" onChange={e => { if (e.target.value) reassignUnit(iu.id, e.target.value, iu.unit?.id || '', iu.unit?.name || 'unit') }}
+                            title="Move to another active incident">
+                            <option value="" disabled>Move to fire...</option>
+                            {activeIncidents.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                          </select>
+                        )}
+                        <button onClick={() => demobilizeUnit(iu.id, iu.unit?.name || 'unit')}
+                          className="text-xs px-2 py-1 bg-red-900/60 hover:bg-red-800 text-red-300 rounded transition-colors whitespace-nowrap"
+                          title="Remove from incident">Demob</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
 
       case 'deployments':
         if (!isAdmin) return null
@@ -1290,13 +1620,19 @@ export default function IncidentDetailPage() {
         const activeCrewCount = crewDeployments.filter(d => !d.released_at).length
         const totalCrewCount = crewDeployments.length
         return (
-          <div className="theme-card rounded-xl border overflow-hidden">
+          <div className="theme-card rounded-xl border overflow-hidden flex flex-col flex-1">
             <div className="flex items-center gap-2 px-4 py-3 border-b theme-card-header">
               {dragHandleProps && (
                 <div
                   {...dragHandleProps}
                   className="text-gray-600 hover:text-gray-300 cursor-grab active:cursor-grabbing transition-colors shrink-0 opacity-0 group-hover:opacity-100 select-none"
                 >⠿</div>
+              )}
+              {cycleSpan && (
+                <button onClick={cycleSpan} title={`Column span: ${span || 3}/3 — click to cycle`}
+                  className="text-gray-600 hover:text-gray-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity select-none shrink-0">
+                  {`${span || 3}/3`}
+                </button>
               )}
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">👥 Deployments</h3>
               <div className="text-right">
@@ -1338,7 +1674,16 @@ export default function IncidentDetailPage() {
                         return (
                           <tr key={dep.assignment_id} className="bg-gray-800/50">
                             <td className="px-3 py-2 text-white font-medium" colSpan={2}>
-                              {dep.employee_name} · {dep.employee_role}
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 bg-gray-700 flex items-center justify-center">
+                                  {dep.employee_headshot_url ? (
+                                    <img src={dep.employee_headshot_url} alt="" className="w-full h-full object-cover" />
+                                  ) : (
+                                    <span className="text-gray-400 text-xs font-bold">{dep.employee_name.charAt(0)}</span>
+                                  )}
+                                </div>
+                                {dep.employee_name} · {dep.employee_role}
+                              </div>
                             </td>
                             <td className="px-3 py-2 text-gray-400">{dep.unit_name}</td>
                             <td className="px-3 py-2">
@@ -1371,7 +1716,18 @@ export default function IncidentDetailPage() {
 
                       return (
                         <tr key={dep.assignment_id} className={`hover:bg-gray-800/30 transition-colors ${dep.released_at ? 'opacity-50' : ''}`}>
-                          <td className="px-3 py-2 text-white font-medium">{dep.employee_name}</td>
+                          <td className="px-3 py-2 text-white font-medium">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 bg-gray-700 flex items-center justify-center">
+                                {dep.employee_headshot_url ? (
+                                  <img src={dep.employee_headshot_url} alt="" className="w-full h-full object-cover" />
+                                ) : (
+                                  <span className="text-gray-400 text-xs font-bold">{dep.employee_name.charAt(0)}</span>
+                                )}
+                              </div>
+                              {dep.employee_name}
+                            </div>
+                          </td>
                           <td className="px-3 py-2 text-gray-400">{dep.employee_role}</td>
                           <td className="px-3 py-2 text-gray-400">{dep.unit_name}</td>
                           <td className="px-3 py-2">
@@ -1539,12 +1895,16 @@ export default function IncidentDetailPage() {
         const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0)
         const netRevenue = totalRevenue - totalPayroll - totalExpenses
         return (
-          <div className="theme-card rounded-xl border overflow-hidden">
+          <div className="theme-card rounded-xl border overflow-hidden flex flex-col flex-1">
             <div className="flex items-center gap-2 px-4 py-3 border-b theme-card-header">
               {dragHandleProps && (
                 <div {...dragHandleProps} className="text-gray-600 hover:text-gray-300 cursor-grab active:cursor-grabbing transition-colors shrink-0 opacity-0 group-hover:opacity-100 select-none">⠿</div>
               )}
-              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">💵 Unit Revenue</h3>
+              {cycleSpan && (
+                <button onClick={cycleSpan} title={`Column span: ${span || 3}/3 — click to cycle`}
+                  className="text-gray-600 hover:text-gray-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity select-none shrink-0">{`${span || 3}/3`}</button>
+              )}
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">💵 Incident Revenue</h3>
               <div className="text-right">
                 <span className="text-xl font-bold text-green-400">{fmtCurrency(totalRevenue)}</span>
                 <span className={`text-xs ml-2 font-semibold ${netRevenue >= 0 ? 'text-green-400/70' : 'text-red-400'}`}>
@@ -1646,10 +2006,14 @@ export default function IncidentDetailPage() {
         const EXPENSE_TYPES = ['Gas', 'Repairs', 'Supplies', 'Hotel', 'Food', 'Other']
         const unitOptions = incidentUnits.filter(iu => iu.unit).map(iu => ({ id: iu.unit!.id, name: (iu.unit as any)?.name || '?' }))
         return (
-          <div className="theme-card rounded-xl border overflow-hidden">
+          <div className="theme-card rounded-xl border overflow-hidden flex flex-col flex-1">
             <div className="flex items-center gap-2 px-4 py-3 border-b theme-card-header">
               {dragHandleProps && (
                 <div {...dragHandleProps} className="text-gray-600 hover:text-gray-300 cursor-grab active:cursor-grabbing transition-colors shrink-0 opacity-0 group-hover:opacity-100 select-none">⠿</div>
+              )}
+              {cycleSpan && (
+                <button onClick={cycleSpan} title={`Column span: ${span || 3}/3 — click to cycle`}
+                  className="text-gray-600 hover:text-gray-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity select-none shrink-0">{`${span || 3}/3`}</button>
               )}
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">🧾 Expenses</h3>
               <span className="text-xl font-bold text-red-400">{fmtCurrency(totalExp)}</span>
@@ -1859,6 +2223,8 @@ export default function IncidentDetailPage() {
             newHref={`/encounters/new?activeIncidentId=${activeIncidentId}`}
             newLabel="+ New PCR"
             dragHandleProps={dragHandleProps}
+            cycleSpan={cycleSpan}
+            span={span}
           >
             {/* Sub-filter for field users */}
             {isAdmin ? null : (
@@ -1917,6 +2283,8 @@ export default function IncidentDetailPage() {
             count={marCount}
             viewAllHref={`/mar?activeIncidentId=${activeIncidentId}`}
             dragHandleProps={dragHandleProps}
+            cycleSpan={cycleSpan}
+            span={span}
           >
             {marEntries.length > 0 ? (
               <>
@@ -1956,6 +2324,8 @@ export default function IncidentDetailPage() {
             newHref={`/comp-claims/new?activeIncidentId=${activeIncidentId}`}
             newLabel="+ New Claim"
             dragHandleProps={dragHandleProps}
+            cycleSpan={cycleSpan}
+            span={span}
             expandedChildren={
               filteredComps.length > 0 ? (
                 <>
@@ -1964,7 +2334,7 @@ export default function IncidentDetailPage() {
                     <span className="flex-1 min-w-0">Patient</span>
                     <span className="w-20 shrink-0">Unit</span>
                     <span className="w-20 shrink-0">Injury</span>
-                    <span className="w-20 shrink-0 text-right">Status</span>
+                    <span className="w-10 shrink-0 text-right">PDF</span>
                   </div>
                   {filteredComps.map(c => (
                     <Link key={c.id} to={`/comp-claims/${c.id}`}
@@ -1973,9 +2343,7 @@ export default function IncidentDetailPage() {
                       <span className="flex-1 min-w-0 truncate pr-1 text-xs text-white">{c.patient_name || '—'}</span>
                       <span className="w-20 shrink-0 text-xs text-gray-400">{c.unit || '—'}</span>
                       <span className="w-20 shrink-0 text-xs text-gray-400 truncate">{c.injury_type || '—'}</span>
-                      <span className={`w-20 shrink-0 text-right text-xs font-medium ${
-                        c.status === 'Complete' ? 'text-green-400' : c.status === 'Pending' ? 'text-yellow-400' : 'text-gray-400'
-                      }`}>{c.status || '—'}</span>
+                      <span className="w-10 shrink-0 text-right text-xs">{c.pdf_url ? '📄' : '⚠️'}</span>
                     </Link>
                   ))}
                 </>
@@ -1987,16 +2355,14 @@ export default function IncidentDetailPage() {
                 <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 theme-card-footer">
                   <span className="w-24 shrink-0">Date</span>
                   <span className="flex-1 min-w-0">Patient</span>
-                  <span className="w-20 shrink-0 text-right">Status</span>
+                  <span className="w-10 shrink-0 text-right">PDF</span>
                 </div>
                 {filteredComps.slice(0, 5).map(c => (
                   <Link key={c.id} to={`/comp-claims/${c.id}`}
                     className="flex items-center px-4 py-2 hover:bg-gray-800/50 transition-colors text-sm">
                     <span className="w-24 shrink-0 text-gray-400 text-xs">{c.date_of_injury || '—'}</span>
                     <span className="flex-1 min-w-0 truncate pr-1 text-xs text-white">{c.patient_name || '—'}</span>
-                    <span className={`w-20 shrink-0 text-right text-xs font-medium ${
-                      c.status === 'Complete' ? 'text-green-400' : c.status === 'Pending' ? 'text-yellow-400' : 'text-gray-400'
-                    }`}>{c.status || '—'}</span>
+                    <span className="w-10 shrink-0 text-right text-xs">{c.pdf_url ? '📄' : '⚠️'}</span>
                   </Link>
                 ))}
               </>
@@ -2016,6 +2382,8 @@ export default function IncidentDetailPage() {
             newHref={`/supply-runs/new?activeIncidentId=${activeIncidentId}`}
             newLabel="+ New Run"
             dragHandleProps={dragHandleProps}
+            cycleSpan={cycleSpan}
+            span={span}
           >
             {supplyRuns.length > 0 ? (
               <>
@@ -2054,6 +2422,8 @@ export default function IncidentDetailPage() {
               : '…'}
             viewAllHref={`/billing?activeIncidentId=${activeIncidentId}`}
             dragHandleProps={dragHandleProps}
+            cycleSpan={cycleSpan}
+            span={span}
           >
             <div className="px-4 py-3 text-sm text-gray-400">
               {billingTotal != null ? (
@@ -2073,6 +2443,8 @@ export default function IncidentDetailPage() {
             count={reorderCount ?? '…'}
             viewAllHref={`/inventory/reorder?activeIncidentId=${activeIncidentId}`}
             dragHandleProps={dragHandleProps}
+            cycleSpan={cycleSpan}
+            span={span}
             expandedChildren={
               filteredReorder.length > 0 ? (
                 <>
@@ -2133,6 +2505,8 @@ export default function IncidentDetailPage() {
             newHref={`/ics214/new?activeIncidentId=${activeIncidentId}`}
             newLabel="+ New 214"
             dragHandleProps={dragHandleProps}
+            cycleSpan={cycleSpan}
+            span={span}
           >
             {(() => {
               const filteredIcs = effectiveUnitFilter === 'All' ? ics214Rows : ics214Rows.filter(r => r.unit_name === effectiveUnitFilter)
@@ -2292,213 +2666,25 @@ export default function IncidentDetailPage() {
           </div>
         )}
 
-        {/* Incident switcher pills moved to top-left above incident card */}
+        {/* Incident switcher dropdown + unit filter — full width */}
+        {isAdmin && activeIncidents.length > 1 && (
+          <select
+            value={activeIncidentId}
+            onChange={e => setActiveIncidentId(e.target.value)}
+            className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 mb-4">
+            {activeIncidents.map(inc => (
+              <option key={inc.id} value={inc.id}>🔥 {inc.name}</option>
+            ))}
+          </select>
+        )}
 
-        {/* 2-column grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Fixed incident info header — full width */}
+        <div className="mb-4">
+          {renderCard('incident-info', {})}
+        </div>
 
-          {/* ── LEFT COLUMN ── */}
-          <div className="space-y-4">
-
-            {/* Incident switcher pills — top-left above incident card */}
-            {isAdmin && activeIncidents.length > 1 && (
-              <div className="flex gap-1.5 flex-wrap">
-                {activeIncidents.map((inc, i) => (
-                  <button key={inc.id}
-                    onClick={() => setActiveIncidentId(inc.id)}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${
-                      inc.id === activeIncidentId
-                        ? ['bg-teal-700 text-white','bg-amber-700 text-white','bg-indigo-700 text-white'][i % 3]
-                        : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                    }`}>
-                    🔥 {inc.name}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Incident Info Card */}
-            <div className="theme-card rounded-xl border overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">Incident Info</h2>
-                {incident.status === "Active" ? <span className="text-xs text-gray-600 italic">Click any field to edit</span> : <span className="text-xs text-gray-600 italic">Closed — read only</span>}
-              </div>
-              <div className="p-4 space-y-1">
-                <div className="grid grid-cols-1 gap-1">
-                  <EditField label="Name" value={incident.name} fieldKey="name" onSave={saveField} />
-                  <LocationEditField
-                    value={incident.location}
-                    latitude={incident.latitude}
-                    longitude={incident.longitude}
-                    onSave={saveField}
-                    onSaveCoords={(lat, lng, label) => {
-                      saveField('location', label)
-                      saveField('latitude', String(lat))
-                      saveField('longitude', String(lng))
-                    }}
-                  />
-                  <EditField label="Incident Number" value={incident.incident_number} fieldKey="incident_number" onSave={saveField} />
-                  <EditField label="Agreement Number" value={(incident as any).agreement_number} fieldKey="agreement_number" onSave={saveField} />
-                  <EditField label="Resource Order Number" value={(incident as any).resource_order_number} fieldKey="resource_order_number" onSave={saveField} />
-                  <EditField label="Financial Code" value={(incident as any).financial_code} fieldKey="financial_code" onSave={saveField} />
-                  <EditField label="Start Date" value={incident.start_date} fieldKey="start_date" type="date" onSave={saveField} />
-                  <EditField
-                    label="Status"
-                    value={incident.status}
-                    fieldKey="status"
-                    onSave={saveField}
-                    options={[
-                      { label: 'Active', value: 'Active' },
-                      { label: 'Closed', value: 'Closed' },
-                    ]}
-                  />
-                </div>
-
-                {isAdmin && (
-                  <div className="pt-2 border-t border-gray-800 mt-2">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Contract Document</p>
-                      {uploadingContract && <span className="text-xs text-gray-500 animate-pulse">Uploading...</span>}
-                    </div>
-                    {incident.contract_url ? (
-                      <div className="flex items-center gap-2">
-                        <a href={incident.contract_url} target="_blank" rel="noopener noreferrer"
-                          className="text-xs text-blue-400 hover:text-blue-300 truncate flex-1">
-                          📄 {incident.contract_file_name || 'View Contract'}
-                        </a>
-                        <label className="text-xs text-gray-500 hover:text-gray-300 cursor-pointer">
-                          Replace
-                          <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleContractUpload} />
-                        </label>
-                      </div>
-                    ) : (
-                      <label className="flex items-center gap-2 cursor-pointer px-3 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors">
-                        <span className="text-sm text-gray-400">📎 Upload Contract PDF</span>
-                        <input type="file" accept=".pdf,.doc,.docx" className="hidden" onChange={handleContractUpload} />
-                      </label>
-                    )}
-                  </div>
-                )}
-
-                {[
-                  { label: 'Med Unit Leader', name: incident.med_unit_leader_name, nameKey: 'med_unit_leader_name', email: incident.med_unit_leader_email, emailKey: 'med_unit_leader_email', phone: incident.med_unit_leader_phone, phoneKey: 'med_unit_leader_phone' },
-                  { label: 'Logs Contact', name: incident.logs_contact_name, nameKey: 'logs_contact_name', email: incident.logs_contact_email, emailKey: 'logs_contact_email', phone: incident.logs_contact_phone, phoneKey: 'logs_contact_phone' },
-                  { label: 'Comp Claims Contact', name: incident.comp_claims_name, nameKey: 'comp_claims_name', email: incident.comp_claims_email, emailKey: 'comp_claims_email', phone: incident.comp_claims_phone, phoneKey: 'comp_claims_phone' },
-                  { label: 'Finance Contact (OF-297)', name: (incident as any).finance_contact_name, nameKey: 'finance_contact_name', email: (incident as any).finance_contact_email, emailKey: 'finance_contact_email', phone: (incident as any).finance_contact_phone, phoneKey: 'finance_contact_phone' },
-                ].map(contact => (
-                  <div key={contact.label} className="pt-2 border-t border-gray-800 mt-2">
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{contact.label}</p>
-                      {(contact.email || contact.phone) && (
-                        <div className="flex gap-2">
-                          {contact.phone && (
-                            <>
-                              <a href={`tel:${contact.phone}`} className="text-green-400 hover:text-green-300 text-sm" title="Call">📞</a>
-                              <a href={`sms:${contact.phone}`} className="text-blue-400 hover:text-blue-300 text-sm" title="Text">💬</a>
-                            </>
-                          )}
-                          {contact.email && (
-                            <a href={`mailto:${contact.email}`} className="text-yellow-400 hover:text-yellow-300 text-sm" title="Email">✉️</a>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-1 gap-1">
-                      <EditField label="Name" value={contact.name} fieldKey={contact.nameKey} onSave={saveField} />
-                      <EditField label="Email" value={contact.email} fieldKey={contact.emailKey} type="email" onSave={saveField} />
-                      <EditField label="Phone" value={contact.phone} fieldKey={contact.phoneKey} type="tel" onSave={saveField} />
-                    </div>
-                  </div>
-                ))}
-                <div />
-              </div>
-            </div>
-
-            {/* Units Card */}
-            <div className="theme-card rounded-xl border overflow-hidden">
-              <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">Units ({incidentUnits.length})</h2>
-                {isAdmin && (
-                  <button
-                    onClick={() => setAssigningUnit(v => !v)}
-                    className="text-xs px-2.5 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-                  >
-                    {assigningUnit ? '✕' : '+ Assign Unit'}
-                  </button>
-                )}
-              </div>
-
-              {assigningUnit && (
-                <div className="px-4 py-3 border-b theme-card-header flex gap-2">
-                  <select
-                    value={selectedUnitId}
-                    onChange={e => setSelectedUnitId(e.target.value)}
-                    className="flex-1 bg-gray-800 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-                  >
-                    <option value="">Select unit...</option>
-                    {availableUnits.map(u => (
-                      <option key={u.id} value={u.id}>{u.name}{(u as any).unit_type?.name ? ` (${(u as any).unit_type.name})` : ''}</option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={assignUnit}
-                    disabled={!selectedUnitId}
-                    className="px-3 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 rounded-lg text-sm font-semibold transition-colors"
-                  >
-                    Assign
-                  </button>
-                </div>
-              )}
-
-              {incidentUnits.length === 0 ? (
-                <p className="px-4 py-6 text-sm text-gray-600 text-center">No units assigned yet.</p>
-              ) : (
-                <div className="divide-y divide-gray-800/60">
-                  {incidentUnits.map(iu => (
-                    <div key={iu.id} className="flex items-center justify-between px-4 py-3 hover:bg-gray-800/50 transition-colors group">
-                      <Link to={`/units/${iu.unit?.id}`} className="flex items-center gap-3 flex-1 min-w-0">
-                        <div>
-                          <p className="text-sm font-medium">{iu.unit?.name || 'Unknown'}</p>
-                          <p className="text-xs text-gray-500">{iu._crew_count} crew assigned</p>
-                        </div>
-                        {(iu.unit as any)?.unit_type?.name && (() => {
-                          const t = (iu.unit as any).unit_type.name
-                          const cls = t === 'Ambulance' ? 'bg-red-900 text-red-300' : t === 'Med Unit' ? 'bg-blue-900 text-blue-300' : 'bg-green-900 text-green-300'
-                          return <span className={`text-xs px-2 py-0.5 rounded-full whitespace-nowrap shrink-0 ${cls}`}>{t}</span>
-                        })()}
-                      </Link>
-                      {isAdmin && <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-2 shrink-0">
-                        {activeIncidents.length > 0 && (
-                          <select
-                            className="text-xs bg-gray-700 border border-gray-600 rounded px-1.5 py-1 text-gray-300 focus:outline-none focus:ring-1 focus:ring-red-500 max-w-[130px] w-[130px]"
-                            defaultValue=""
-                            onChange={e => { if (e.target.value) reassignUnit(iu.id, e.target.value, iu.unit?.id || '', iu.unit?.name || 'unit') }}
-                            title="Move to another active incident"
-                          >
-                            <option value="" disabled>Move to fire...</option>
-                            {activeIncidents.map(i => (
-                              <option key={i.id} value={i.id}>{i.name}</option>
-                            ))}
-                          </select>
-                        )}
-                        <button
-                          onClick={() => demobilizeUnit(iu.id, iu.unit?.name || 'unit')}
-                          className="text-xs px-2 py-1 bg-red-900/60 hover:bg-red-800 text-red-300 rounded transition-colors whitespace-nowrap"
-                          title="Remove from incident"
-                        >
-                          Demob
-                        </button>
-                      </div>}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-          </div>
-
-          {/* ── RIGHT COLUMN — Draggable Cards ── */}
-          <div>
+        {/* Draggable card dashboard */}
+        <div>
             {/* Unit filter tabs — sorted: Warehouse → Med Unit → Ambulance → REMS */}
             {/* Build unit list from ALL data ever linked to incident, not just currently assigned units */}
             <div className="flex gap-1.5 overflow-x-auto pb-2 mb-3">
@@ -2540,16 +2726,15 @@ export default function IncidentDetailPage() {
               onDragEnd={handleDragEnd}
             >
               <SortableContext items={cardOrder} strategy={verticalListSortingStrategy}>
-                <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
                   {cardOrder.map(cardId => (
-                    <SortableCard key={cardId} id={cardId}>
-                      {(dragHandleProps) => renderCard(cardId, dragHandleProps) ?? <div />}
+                    <SortableCard key={cardId} id={cardId} colSpan={getSpan(cardId)}>
+                      {(dragHandleProps) => renderCard(cardId, dragHandleProps, () => cycleCardSpan(cardId), getSpan(cardId)) ?? <div />}
                     </SortableCard>
                   ))}
                 </div>
               </SortableContext>
             </DndContext>
-          </div>
 
         </div>
 

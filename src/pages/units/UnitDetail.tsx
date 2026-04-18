@@ -114,7 +114,7 @@ export default function UnitDetailPage() {
             incident:incidents(id, name, status),
             unit_assignments(
               id, role_on_unit, released_at,
-              employee:employees(id, name, role)
+              employee:employees(id, name, role, headshot_url)
             )
           )
         `)
@@ -548,9 +548,18 @@ export default function UnitDetailPage() {
               ) : (
                 activeIU.unit_assignments.filter((ua: any) => !ua.released_at).map((ua: any) => (
                   <div key={ua.id} className="flex items-center justify-between px-4 py-2.5">
-                    <div>
-                      <p className="text-sm font-medium">{ua.employee?.name || 'Unknown'}</p>
-                      <p className="text-xs text-gray-500">{ua.employee?.role || ''}</p>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-gray-700 flex items-center justify-center">
+                        {ua.employee?.headshot_url ? (
+                          <img src={ua.employee.headshot_url} alt={ua.employee?.name || ''} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-gray-400 text-xs font-bold">{(ua.employee?.name || '?').charAt(0)}</span>
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium">{ua.employee?.name || 'Unknown'}</p>
+                        <p className="text-xs text-gray-500">{ua.employee?.role || ''}</p>
+                      </div>
                     </div>
                     {isAdmin && (
                       <button

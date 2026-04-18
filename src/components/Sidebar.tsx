@@ -517,23 +517,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </Link>
 
-      {/* Breadcrumb — current location */}
-      {(() => {
-        const activeNav = visibleNav.find(n => pathname.startsWith(n.href))
-        if (!activeNav) return null
-        const activeSub = activeNav.sub.find(s => pathname === s.href)
-        return (
-          <div className="px-4 py-2.5 border-b text-[11px] flex items-center gap-1.5 min-h-[32px]" style={{ borderColor: 'var(--color-border, #1f2937)', color: sidebarText.muted }}>
-            <span style={{ color: sidebarText.inactive }}>{activeNav.label}</span>
-            {activeSub && (
-              <>
-                <span style={{ opacity: 0.4 }}>/</span>
-                <span style={{ color: 'var(--color-primary, #dc2626)' }}>{activeSub.label}</span>
-              </>
-            )}
-          </div>
-        )
-      })()}
+      {/* Breadcrumb removed — was taking up too much space on small screens */}
 
       <div className="flex-1 overflow-y-auto py-3 space-y-1">
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -560,29 +544,29 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </DndContext>
       </div>
 
-      <div className="border-t p-4 space-y-2" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
+      <div className="border-t px-3 py-2 space-y-0.5" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
         {!roleLoading && assignment.employee && (
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center justify-between px-2 py-1">
             <div className="text-xs truncate" style={{ color: sidebarText.muted }}>
               {assignment.employee.name} · {assignment.unit?.name || 'No unit'}
             </div>
-            <button className="relative p-1 rounded-md hover:bg-white/[0.06] transition-colors" style={{ color: sidebarText.inactive }} title="Notifications">
-              <span className="w-5 h-5 flex items-center justify-center opacity-60"><SidebarIcon name="bell" /></span>
+            <button className="relative p-0.5 rounded-md hover:bg-white/[0.06] transition-colors" style={{ color: sidebarText.inactive }} title="Notifications">
+              <span className="w-4 h-4 flex items-center justify-center opacity-60"><SidebarIcon name="bell" /></span>
             </button>
           </div>
         )}
         <Link to="/documents"
-          style={{ color: sidebarText.inactive }} className="flex items-center gap-3 py-1.5 px-2.5 rounded-lg text-sm hover:bg-white/[0.04] transition-all duration-150">
-          <span className="w-6 h-6 shrink-0 flex items-center justify-center opacity-50" style={isRainbow ? { color: RAINBOW_ICON_COLORS.documents, opacity: 1 } : {}}><SidebarIcon name="documents" /></span> Policies & Procedures
+          style={{ color: sidebarText.inactive }} className="flex items-center gap-2 py-1 px-2 rounded-lg text-xs hover:bg-white/[0.04] transition-all duration-150">
+          <span className="w-5 h-5 shrink-0 flex items-center justify-center opacity-50" style={isRainbow ? { color: RAINBOW_ICON_COLORS.documents, opacity: 1 } : {}}><SidebarIcon name="documents" /></span> Policies & Procedures
         </Link>
         <Link to="/profile"
-          style={{ color: sidebarText.inactive }} className="flex items-center gap-3 py-1.5 px-2.5 rounded-lg text-sm hover:bg-white/[0.04] transition-all duration-150">
-          <span className="w-6 h-6 shrink-0 flex items-center justify-center opacity-50" style={isRainbow ? { color: RAINBOW_ICON_COLORS.profile, opacity: 1 } : {}}><SidebarIcon name="profile" /></span> My Profile
+          style={{ color: sidebarText.inactive }} className="flex items-center gap-2 py-1 px-2 rounded-lg text-xs hover:bg-white/[0.04] transition-all duration-150">
+          <span className="w-5 h-5 shrink-0 flex items-center justify-center opacity-50" style={isRainbow ? { color: RAINBOW_ICON_COLORS.profile, opacity: 1 } : {}}><SidebarIcon name="profile" /></span> My Profile
         </Link>
         {isField && (
           <Link to="/schedule/request"
-            style={{ color: sidebarText.inactive }} className="flex items-center gap-3 py-1.5 px-2.5 rounded-lg text-sm hover:bg-white/[0.04] transition-all duration-150">
-            <span className="w-6 h-6 shrink-0 flex items-center justify-center opacity-50" style={isRainbow ? { color: RAINBOW_ICON_COLORS.schedule, opacity: 1 } : {}}><SidebarIcon name="schedule" /></span> Schedule Request
+            style={{ color: sidebarText.inactive }} className="flex items-center gap-2 py-1 px-2 rounded-lg text-xs hover:bg-white/[0.04] transition-all duration-150">
+            <span className="w-5 h-5 shrink-0 flex items-center justify-center opacity-50" style={isRainbow ? { color: RAINBOW_ICON_COLORS.schedule, opacity: 1 } : {}}><SidebarIcon name="schedule" /></span> Schedule Request
           </Link>
         )}
         <button
@@ -592,13 +576,11 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             await sb.auth.signOut()
             window.location.href = '/login'
           }}
-          style={{ color: sidebarText.muted }} className="flex items-center gap-3 py-1.5 px-2.5 rounded-lg text-sm hover:bg-white/[0.04] transition-all duration-150 w-full"
+          style={{ color: sidebarText.muted }} className="flex items-center gap-2 py-1 px-2 rounded-lg text-xs hover:bg-white/[0.04] transition-all duration-150 w-full"
         >
-          <span className="w-6 h-6 shrink-0 flex items-center justify-center opacity-50" style={isRainbow ? { color: RAINBOW_ICON_COLORS.logout, opacity: 1 } : {}}><SidebarIcon name="logout" /></span> Sign Out
+          <span className="w-5 h-5 shrink-0 flex items-center justify-center opacity-50" style={isRainbow ? { color: RAINBOW_ICON_COLORS.logout, opacity: 1 } : {}}><SidebarIcon name="logout" /></span> Sign Out
         </button>
-      </div>
-      <div className="px-4 pb-3 pt-1">
-        <p className="text-[10px] text-center" style={{ color: sidebarText.muted }}>FirePCR v{APP_VERSION}</p>
+        <p className="text-[10px] text-center pt-0.5" style={{ color: sidebarText.muted }}>FirePCR v{APP_VERSION}</p>
       </div>
     </nav>
   )
