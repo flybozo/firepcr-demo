@@ -1,6 +1,6 @@
 
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -518,12 +518,13 @@ export default function FireAdminPage() {
     { id: 'supply', label: 'Supply', icon: '🧰' },
   ]
 
+  // eslint-disable-next-line react-hooks/purity
+  const applyDateFilterNow = useMemo(() => Date.now(), [dateFilter])
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const applyDateFilter = (items: any[]): any[] => {
     if (dateFilter === 'all') return items
-    const now = Date.now()
     const ms = dateFilter === '24h' ? 86400000 : dateFilter === '48h' ? 172800000 : 604800000
-    return items.filter((i: { created_at?: string | null }) => i.created_at && now - new Date(i.created_at).getTime() <= ms)
+    return items.filter((i: { created_at?: string | null }) => i.created_at && applyDateFilterNow - new Date(i.created_at).getTime() <= ms)
   }
 
   // ── Loading ──────────────────────────────────────────────────────────────

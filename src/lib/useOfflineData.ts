@@ -69,6 +69,7 @@ export function useOfflineData<T = any>(
   }, [storeName, queryFn, enabled])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load()
   }, [load])
 

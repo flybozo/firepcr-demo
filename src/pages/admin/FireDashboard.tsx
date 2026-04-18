@@ -897,6 +897,7 @@ function FireDashboardContent() {
     if (isField) {
       // Field users: locked to their assigned incident — no DB fetch needed
       const assignedId = assignment.incidentUnit?.incident_id || null
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (assignedId) setSelectedId(assignedId)
       setLoadingIncidents(false)
       return

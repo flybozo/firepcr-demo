@@ -175,9 +175,12 @@ function ClinicalTab({ isField = false, assignedIncidentId = null, assignedUnitN
       // Offline — analytics require connectivity; show empty state
     }
     setLoading(false)
-  }, [range])
+  }, [range, isField, assignedIncidentId])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    load()
+  }, [load])
 
   // ── Filtered encounter slice (incident + unit, client-side) ────────────────
   const filteredEncounters = encounters

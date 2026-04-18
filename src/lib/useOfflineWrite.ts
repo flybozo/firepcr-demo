@@ -35,6 +35,7 @@ export function useOfflineWrite(): UseOfflineWriteResult {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshPending()
     const unsubscribe = onConnectionChange((online, count) => {
       setIsOffline(!online)

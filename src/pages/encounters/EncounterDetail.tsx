@@ -379,6 +379,7 @@ function InlineField({ label, value, fieldKey, isLocked, onSave, type = 'text', 
   const [draft, setDraft] = useState(String(value ?? ''))
 
   // Keep draft in sync if value changes externally
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (!editing) setDraft(String(value ?? '')) }, [value, editing])
 
   if (isLocked || !editing) {

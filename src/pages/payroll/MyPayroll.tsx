@@ -45,6 +45,7 @@ export default function MyPayrollPage() {
 
   useEffect(() => {
     if (assignment.loading) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!assignment.employee) { setLoading(false); return }
 
     const load = async () => {

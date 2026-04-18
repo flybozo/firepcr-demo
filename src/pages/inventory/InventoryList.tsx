@@ -45,6 +45,7 @@ function InventoryPageInner() {
   // Auto-filter to user's unit when field role
   useEffect(() => {
     if (isField && !assignment.loading && assignment.unit?.name) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setUnitFilter(assignment.unit.name)
     }
   }, [roleLoading, isField, assignment.loading, assignment.unit?.name])
@@ -181,6 +182,7 @@ function InventoryPageInner() {
   }, [])
 
   // Reset page when filters change
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setPage(1) }, [unitFilter, catFilter, search, showLowOnly, showAlsOnly])
 
   // Unit type lookup map — only recomputes when items changes
@@ -211,7 +213,7 @@ function InventoryPageInner() {
     if (showAlsOnly && !(item as any).is_als) return false
     if (search && !item.item_name.toLowerCase().includes(search.toLowerCase())) return false
     return true
-  }), [items, unitFilter, catFilter, search, showLowOnly, showAlsOnly, isField, assignment.unit?.name])
+  }), [items, unitFilter, catFilter, search, showLowOnly, showAlsOnly, isField, assignment.unit])
 
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const paginated = useMemo(

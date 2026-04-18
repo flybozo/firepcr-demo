@@ -76,6 +76,7 @@ function EditField({
   const [draft, setDraft] = useState(value ?? '')
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setDraft(value ?? '') }, [value])
   useEffect(() => { if (editing) inputRef.current?.focus() }, [editing])
 

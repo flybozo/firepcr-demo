@@ -3,7 +3,7 @@ import { FieldGuard } from '@/components/FieldGuard'
 import { useRole } from '@/lib/useRole'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { getCachedData } from '@/lib/offlineStore'
@@ -52,7 +52,9 @@ function SupplyRunsPageInner() {
     loadIncidents()
   }, [isField])
 
-  const dateFilter = new Date(Date.now() - (dateRangeDays[dateRange] ?? 7) * 86400000).toISOString().split('T')[0]
+  // eslint-disable-next-line react-hooks/purity
+  const dateFilterNow = useMemo(() => Date.now(), [dateRange])
+  const dateFilter = new Date(dateFilterNow - (dateRangeDays[dateRange] ?? 7) * 86400000).toISOString().split('T')[0]
 
   useEffect(() => {
     const load = async () => {

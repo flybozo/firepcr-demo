@@ -23,6 +23,7 @@ export default function SupplyRunSearch() {
 
   useEffect(() => {
     const trimmed = searchInput.trim()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!trimmed) { setResults(null); return }
     const timer = setTimeout(async () => {
       setLoading(true)

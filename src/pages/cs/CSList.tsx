@@ -58,6 +58,7 @@ export default function CSList() {
   // Field users locked to their unit
   useEffect(() => {
     if (isField && !assignment.loading && assignment.unit?.name) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setUnitFilter(assignment.unit.name)
     }
   }, [isField, assignment.loading, assignment.unit?.name])

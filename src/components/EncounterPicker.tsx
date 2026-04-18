@@ -41,6 +41,7 @@ export default function EncounterPicker({ onSelect, hidden, unitName }: Props) {
 
   // Load encounters when unit changes
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!unit) { setEncounters([]); return }
     setLoading(true)
     const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]

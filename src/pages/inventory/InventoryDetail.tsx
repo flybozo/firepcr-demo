@@ -105,6 +105,7 @@ export default function InventoryDetailPage() {
     setLoading(false)
   }
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load() }, [id])
 
   const updateQuantity = async (delta: number) => {

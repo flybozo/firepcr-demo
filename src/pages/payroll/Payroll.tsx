@@ -46,6 +46,14 @@ function formatCurrency(n: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 }
 
+function SortIcon({ k, sortKey, sortDir }: { k: SortKey; sortKey: SortKey; sortDir: SortDir }) {
+  return (
+    <span className="ml-1 text-gray-600">
+      {sortKey === k ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
+    </span>
+  )
+}
+
 export default function AdminPayrollPage() {
   const supabase = createClient()
   const assignment = useUserAssignment()
@@ -89,6 +97,7 @@ export default function AdminPayrollPage() {
     setLoading(false)
   }, [dateRange])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load() }, [load])
 
   const isAdmin = ['MD', 'MD/DO', 'Admin'].includes(assignment?.employee?.role || '')
@@ -125,12 +134,6 @@ export default function AdminPayrollPage() {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortKey(key); setSortDir('asc') }
   }
-
-  const SortIcon = ({ k }: { k: SortKey }) => (
-    <span className="ml-1 text-gray-600">
-      {sortKey === k ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
-    </span>
-  )
 
   // Subtotals per incident
   const incidentTotals: Record<string, number> = {}
@@ -242,20 +245,20 @@ export default function AdminPayrollPage() {
           {/* Table header */}
           <div className="hidden lg:flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 theme-card-header border-b min-w-[700px]">
             <button className="flex-1 min-w-0 text-left flex items-center hover:text-gray-300 transition-colors" onClick={() => toggleSort('employee')}>
-              Employee <SortIcon k="employee" />
+              Employee <SortIcon k="employee" sortKey={sortKey} sortDir={sortDir} />
             </button>
             <span className="w-28 shrink-0">Role</span>
             <button className="w-40 shrink-0 text-left flex items-center hover:text-gray-300 transition-colors" onClick={() => toggleSort('incident')}>
-              Incident <SortIcon k="incident" />
+              Incident <SortIcon k="incident" sortKey={sortKey} sortDir={sortDir} />
             </button>
             <span className="w-24 shrink-0">Travel Date</span>
             <span className="w-24 shrink-0">Check-Out</span>
             <button className="w-16 shrink-0 text-right flex items-center justify-end hover:text-gray-300 transition-colors" onClick={() => toggleSort('days')}>
-              Days <SortIcon k="days" />
+              Days <SortIcon k="days" sortKey={sortKey} sortDir={sortDir} />
             </button>
             <span className="w-24 shrink-0 text-right">Rate/Day</span>
             <button className="w-28 shrink-0 text-right flex items-center justify-end hover:text-gray-300 transition-colors" onClick={() => toggleSort('pay')}>
-              Total Pay <SortIcon k="pay" />
+              Total Pay <SortIcon k="pay" sortKey={sortKey} sortDir={sortDir} />
             </button>
           </div>
 

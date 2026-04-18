@@ -23,6 +23,121 @@ const BODY_PART_OPTIONS = [
   'Hip', 'Leg', 'Foot', 'Multiple', 'Other',
 ]
 
+type EncounterOption = {
+  id: string; encounter_id: string
+  patient_first_name: string|null; patient_last_name: string|null
+  primary_symptom_text: string|null; date: string|null
+  unit: string|null; provider_of_record: string|null
+}
+
+type PickerEncounterItem = {
+  id: string; encounter_id: string
+  patient_first_name: string|null; patient_last_name: string|null
+  patient_dob: string|null; primary_symptom_text: string|null
+  date: string|null; unit: string|null; provider_of_record: string|null
+  incident_id: string|null
+}
+
+function EncounterPickerSection({ encounterOptions, unit, onSelect }: {
+  encounterOptions: EncounterOption[]
+  unit: string
+  onSelect: (enc: EncounterOption) => void
+}) {
+  return (
+    <div className="theme-card rounded-xl p-4 border space-y-3">
+      <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">
+        Link to Patient Encounter
+      </h2>
+      {encounterOptions.length === 0 ? (
+        <p className="text-xs text-gray-600">
+          {unit ? 'No recent encounters on this unit.' : 'Select a unit to see recent patient encounters.'}
+        </p>
+      ) : (
+        <div>
+          <label className="text-xs text-gray-400 block mb-1">Select Patient</label>
+          <select
+            className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
+            defaultValue=""
+            onChange={e => {
+              const enc = encounterOptions.find(x => x.encounter_id === e.target.value || x.id === e.target.value)
+              if (enc) onSelect(enc)
+            }}>
+            <option value="">Select patient encounter...</option>
+            {encounterOptions.map(enc => (
+              <option key={enc.id} value={enc.encounter_id || enc.id}>
+                {enc.patient_last_name
+                  ? `${enc.patient_last_name}, ${enc.patient_first_name || ''}`
+                  : 'Unknown Patient'
+                } — {enc.primary_symptom_text || 'No complaint'} ({enc.date || '—'})
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PickerByUnit({ pickerUnit, setPickerUnit, pickerEncounters, assignmentUnitName, assignmentLoading, onSelect }: {
+  pickerUnit: string
+  setPickerUnit: (v: string) => void
+  pickerEncounters: PickerEncounterItem[]
+  assignmentUnitName: string | undefined
+  assignmentLoading: boolean
+  onSelect: (enc: PickerEncounterItem) => void
+}) {
+  return (
+    <div className="bg-gray-900 rounded-xl p-4 border border-blue-900/50 space-y-3">
+      <h2 className="text-xs font-bold uppercase tracking-wide text-blue-400">
+        🔗 Link to Patient Encounter
+      </h2>
+      <div>
+        <label className="text-xs text-gray-400 block mb-1">Unit</label>
+        {assignmentUnitName && !assignmentLoading ? (
+          <div className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg">
+            <span className="text-sm text-white font-medium">{assignmentUnitName}</span>
+            <span className="text-xs text-gray-500">(your unit)</span>
+          </div>
+        ) : (
+          <select
+            value={pickerUnit}
+            onChange={e => setPickerUnit(e.target.value)}
+            className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">Select unit...</option>
+            {['RAMBO 1','RAMBO 2','RAMBO 3','RAMBO 4','The Beast','MSU 1','MSU 2','REMS 1','REMS 2'].map(u => <option key={u}>{u}</option>)}
+          </select>
+        )}
+      </div>
+      {pickerUnit && (
+        <div>
+          <label className="text-xs text-gray-400 block mb-1">Patient Encounter</label>
+          {pickerEncounters.length === 0 ? (
+            <p className="text-xs text-gray-600 py-2">No recent encounters on {pickerUnit}.</p>
+          ) : (
+            <select
+              defaultValue=""
+              onChange={e => {
+                const enc = pickerEncounters.find(x => x.encounter_id === e.target.value || x.id === e.target.value)
+                if (enc) onSelect(enc)
+              }}
+              className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">Select patient...</option>
+              {pickerEncounters.map(enc => (
+                <option key={enc.id} value={enc.encounter_id || enc.id}>
+                  {enc.patient_last_name 
+                    ? `${enc.patient_last_name}, ${enc.patient_first_name || ''}`
+                    : 'Unknown'
+                  } — {enc.primary_symptom_text || '—'} ({enc.date || '—'})
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function ToggleButton({ value, onChange }: { value: boolean | null; onChange: (v: boolean) => void }) {
   return (
     <div className="flex gap-2 mt-1">
@@ -69,69 +184,17 @@ function NewCompClaimInner() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (pickerUnit) loadPickerEncounters(pickerUnit)
   }, [pickerUnit])
 
   // Auto-fill pickerUnit from assignment
   useEffect(() => {
     if (!assignment.loading && assignment.unit?.name && !pickerUnit) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPickerUnit(assignment.unit.name)
     }
   }, [assignment.loading, assignment.unit])
-
-  const EncounterPicker = ({ onSelect }: { 
-    onSelect: (enc: typeof pickerEncounters[0]) => void 
-  }) => (
-    <div className="bg-gray-900 rounded-xl p-4 border border-blue-900/50 space-y-3">
-      <h2 className="text-xs font-bold uppercase tracking-wide text-blue-400">
-        🔗 Link to Patient Encounter
-      </h2>
-      <div>
-        <label className="text-xs text-gray-400 block mb-1">Unit</label>
-        {assignment.unit?.name && !assignment.loading ? (
-          <div className="flex items-center gap-2 px-3 py-2 bg-gray-800 rounded-lg">
-            <span className="text-sm text-white font-medium">{assignment.unit.name}</span>
-            <span className="text-xs text-gray-500">(your unit)</span>
-          </div>
-        ) : (
-          <select
-            value={pickerUnit}
-            onChange={e => setPickerUnit(e.target.value)}
-            className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="">Select unit...</option>
-            {['RAMBO 1','RAMBO 2','RAMBO 3','RAMBO 4','The Beast','MSU 1','MSU 2','REMS 1','REMS 2'].map(u => <option key={u}>{u}</option>)}
-          </select>
-        )}
-      </div>
-      {pickerUnit && (
-        <div>
-          <label className="text-xs text-gray-400 block mb-1">Patient Encounter</label>
-          {pickerEncounters.length === 0 ? (
-            <p className="text-xs text-gray-600 py-2">No recent encounters on {pickerUnit}.</p>
-          ) : (
-            <select
-              defaultValue=""
-              onChange={e => {
-                const enc = pickerEncounters.find(x => x.encounter_id === e.target.value || x.id === e.target.value)
-                if (enc) onSelect(enc)
-              }}
-              className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">Select patient...</option>
-              {pickerEncounters.map(enc => (
-                <option key={enc.id} value={enc.encounter_id || enc.id}>
-                  {enc.patient_last_name 
-                    ? `${enc.patient_last_name}, ${enc.patient_first_name || ''}`
-                    : 'Unknown'
-                  } — {enc.primary_symptom_text || '—'} ({enc.date || '—'})
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-      )}
-    </div>
-  )
-
 
   const [encounterOptions, setEncounterOptions] = useState<{id: string, encounter_id: string, patient_first_name: string|null, patient_last_name: string|null, primary_symptom_text: string|null, date: string|null, unit: string|null, provider_of_record: string|null}[]>([])
 
@@ -146,41 +209,6 @@ function NewCompClaimInner() {
     setEncounterOptions(data || [])
   }
 
-
-  // ─── Encounter picker UI ──────────────────────────────────────────────────
-  const EncounterPickerSection = ({ onSelect }: { onSelect: (enc: typeof encounterOptions[0]) => void }) => (
-    <div className="theme-card rounded-xl p-4 border space-y-3">
-      <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">
-        Link to Patient Encounter
-      </h2>
-      {encounterOptions.length === 0 ? (
-        <p className="text-xs text-gray-600">
-          {form.unit ? 'No recent encounters on this unit.' : 'Select a unit to see recent patient encounters.'}
-        </p>
-      ) : (
-        <div>
-          <label className="text-xs text-gray-400 block mb-1">Select Patient</label>
-          <select
-            className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-            defaultValue=""
-            onChange={e => {
-              const enc = encounterOptions.find(x => x.encounter_id === e.target.value || x.id === e.target.value)
-              if (enc) onSelect(enc)
-            }}>
-            <option value="">Select patient encounter...</option>
-            {encounterOptions.map(enc => (
-              <option key={enc.id} value={enc.encounter_id || enc.id}>
-                {enc.patient_last_name
-                  ? `${enc.patient_last_name}, ${enc.patient_first_name || ''}`
-                  : 'Unknown Patient'
-                } — {enc.primary_symptom_text || 'No complaint'} ({enc.date || '—'})
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-    </div>
-  )
 
   const renderEncounterPicker = (onSelect: (enc: typeof encounterOptions[0]) => void) => (
     encounterOptions.length > 0 ? (
@@ -276,6 +304,7 @@ function NewCompClaimInner() {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setForm(prev => ({
       ...prev,
       patient_dob: dobParam || prev.patient_dob,
@@ -555,6 +584,7 @@ function NewCompClaimInner() {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (form.unit) loadEncountersForUnit(form.unit)
   }, [form.unit])
 
@@ -598,7 +628,7 @@ function NewCompClaimInner() {
 
         {/* Encounter Picker */}
         {!encounterId && (
-          <EncounterPickerSection onSelect={enc => {
+          <EncounterPickerSection encounterOptions={encounterOptions} unit={form.unit} onSelect={enc => {
             const name = [enc.patient_first_name, enc.patient_last_name].filter(Boolean).join(' ')
             setForm(prev => ({
               ...prev,

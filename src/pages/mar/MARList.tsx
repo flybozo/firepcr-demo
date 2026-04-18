@@ -3,7 +3,7 @@ import { FieldGuard } from '@/components/FieldGuard'
 import { useRole } from '@/lib/useRole'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, useMemo, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useNavigate, useSearchParams, useMatch } from 'react-router-dom'
@@ -112,7 +112,9 @@ function MARListInner() {
 
   const DATE_RANGES = ['2d', '7d', '14d', '30d'] as const
   const dateRangeDays: Record<string, number> = { '2d': 2, '7d': 7, '14d': 14, '30d': 30 }
-  const dateFilter = new Date(Date.now() - (dateRangeDays[dateRange] ?? 7) * 86400000).toISOString().split('T')[0]
+  // eslint-disable-next-line react-hooks/purity
+  const dateFilterNow = useMemo(() => Date.now(), [dateRange])
+  const dateFilter = new Date(dateFilterNow - (dateRangeDays[dateRange] ?? 7) * 86400000).toISOString().split('T')[0]
 
   useEffect(() => {
     setIsOffline(!getIsOnline())

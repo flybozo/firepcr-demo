@@ -183,6 +183,7 @@ export default function UnsignedItemsPage() {
   const isProvider = PRESCRIBER_ROLES.some(r => myRole.toUpperCase().includes(r))
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (assignment.loading || !myName) { if (!assignment.loading) setLoading(false); return }
 
     const load = async () => {

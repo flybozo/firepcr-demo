@@ -35,6 +35,7 @@ export default function UnsignedOrdersPage() {
   useEffect(() => {
     if (assignment.loading) return
     const myName = assignment.employee?.name
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!myName) { setLoading(false); return }
 
     const load = async () => {

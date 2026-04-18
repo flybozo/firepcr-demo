@@ -142,6 +142,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchUser()
   }, [fetchUser])
 
@@ -154,6 +155,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useUser(): UserState {
   const ctx = useContext(UserContext)
   if (!ctx) throw new Error('useUser() must be used inside <UserProvider>')

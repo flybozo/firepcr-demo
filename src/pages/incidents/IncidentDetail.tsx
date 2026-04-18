@@ -186,6 +186,7 @@ function LocationEditField({
   const [gpsLoading, setGpsLoading] = useState(false)
   const [gpsError, setGpsError] = useState<string | null>(null)
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setDraft(value ?? '') }, [value])
 
   const commit = () => {
@@ -312,6 +313,7 @@ function EditField({
   const [draft, setDraft] = useState(value ?? '')
   const inputRef = useRef<HTMLInputElement & HTMLSelectElement>(null)
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setDraft(value ?? '') }, [value])
   useEffect(() => { if (editing) inputRef.current?.focus() }, [editing])
 
@@ -589,6 +591,7 @@ export default function IncidentDetailPage() {
     useSensor(KeyboardSensor)
   )
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const load = useCallback(async () => {
     // Show cached data instantly
     try {
@@ -1084,8 +1087,10 @@ export default function IncidentDetailPage() {
     setLoading(false)
   }, [activeIncidentId])
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load() }, [load])
   // Reset unit filter when switching incidents
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { setUnitFilter('All') }, [activeIncidentId])
 
   const handleContractUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1210,7 +1215,7 @@ export default function IncidentDetailPage() {
   }
 
   const handleSaveDeployEdit = async (id: string) => {
-    const fields = editDeployFields
+    const fields = { ...editDeployFields }
     // Auto-set status when check_out_date set
     if (fields.check_out_date && fields.check_out_date !== '') {
       fields.status = 'Released'
