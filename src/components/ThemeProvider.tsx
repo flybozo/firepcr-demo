@@ -58,7 +58,7 @@ export const THEME_FONTS: Record<string, { family: string; name: string }> = {
   neon:         { family: "'Orbitron', sans-serif", name: 'Orbitron' },
   pirate:       { family: "'Pirata One', cursive", name: 'Pirata One' },
   area51:       { family: "'Silkscreen', monospace", name: 'Silkscreen' },
-  goth:         { family: "'UnifrakturMaguntia', cursive", name: 'UnifrakturMaguntia' },
+  goth:         { family: "'Cinzel', serif", name: 'Cinzel' },
 }
 
 // ── Presets ───────────────────────────────────────────────────────────────────
@@ -663,7 +663,7 @@ function applyThemeToDom(theme: Theme) {
     doc: "'IBM Plex Sans', 'Arial', sans-serif",     // Doc — clinical monospace feel
     pirate: "'Pirata One', cursive",                   // Pirate — blackletter swashbuckler
     area51: "'Silkscreen', monospace",                  // Area 51 — retro pixel terminal
-    goth: "'UnifrakturMaguntia', cursive",              // Goth — blackletter funeral invitation
+    goth: "'Cinzel', serif",                             // Goth — dark cathedral inscriptions
   }
   const font = fontMap[theme.preset] || theme.font || "'Inter', system-ui, -apple-system, sans-serif"
   root.style.setProperty('--theme-font', font)
@@ -684,7 +684,7 @@ function applyThemeToDom(theme: Theme) {
     cowboy: 1.05,     // Rye Western display font reads slightly small
     pirate: 1.08,     // Pirata One blackletter reads small at body size
     area51: 1.12,     // Silkscreen pixel font needs a boost
-    goth: 1.08,       // UnifrakturMaguntia blackletter reads small
+    goth: 1.0,        // Cinzel reads fine at default size
   }
   const fontScale = fontScaleMap[theme.preset] || 1
   const scaleCSS = fontScale !== 1
@@ -721,7 +721,7 @@ function applyThemeToDom(theme: Theme) {
     doc: 'IBM+Plex+Sans:wght@300;400;600',
     pirate: 'Pirata+One',
     area51: 'Silkscreen:wght@400;700',
-    goth: 'UnifrakturMaguntia',
+    goth: 'Cinzel:wght@400;600;700',
   }
   const gFont = googleFonts[theme.preset]
   const linkId = 'theme-google-font'
