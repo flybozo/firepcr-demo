@@ -1,4 +1,3 @@
-
 import { FieldGuard } from '@/components/FieldGuard'
 import { useRole } from '@/lib/useRole'
 
@@ -14,6 +13,9 @@ type FormulaItem = {
   supplier: string | null
   units_per_case: number | null
   case_cost: number | null
+  unit_cost: number | null
+  image_url: string | null
+  barcode: string | null
   ndc: string | null
   concentration: string | null
   route: string | null
@@ -28,6 +30,8 @@ const CAT_COLORS: Record<string, string> = {
 }
 
 const TABS = ['Ambulance', 'Med Unit', 'REMS', 'Warehouse']
+
+const SELECT_FIELDS = 'id, item_name, category, unit_of_measure, supplier, units_per_case, case_cost, unit_cost, image_url, barcode, ndc, concentration, route'
 
 function FormularyPageInner() {
   const supabase = createClient()
@@ -44,6 +48,10 @@ function FormularyPageInner() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [newItem, setNewItem] = useState({ item_name: '', category: 'OTC', unit_of_measure: '', supplier: '', units_per_case: '', case_cost: '' })
   const [editItem, setEditItem] = useState<Partial<FormulaItem>>({})
+
+  // Inline unit_cost editing state
+  const [editingUnitCostId, setEditingUnitCostId] = useState<string | null>(null)
+  const [unitCostInput, setUnitCostInput] = useState('')
 
   useEffect(() => {
     const load = async () => {
@@ -77,7 +85,7 @@ function FormularyPageInner() {
       const { data, offline } = await loadList<FormulaItem>(
         () => supabase
           .from('formulary_templates')
-          .select('id, item_name, category, unit_of_measure, supplier, units_per_case, case_cost, ndc, concentration, route')
+          .select(SELECT_FIELDS)
           .eq('unit_type_id', unitTypes[activeTab])
           .order('category')
           .order('item_name'),
@@ -106,7 +114,7 @@ function FormularyPageInner() {
       `"${i.supplier || ''}"`,
       i.units_per_case ?? '',
       i.case_cost ?? '',
-      i.case_cost && i.units_per_case ? (i.case_cost / i.units_per_case).toFixed(4) : '',
+      getUnitCost(i) ?? '',
     ].join(','))
     const csv = [header, ...rows].join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
@@ -146,13 +154,15 @@ function FormularyPageInner() {
     alert(`Imported ${rows.length} items successfully`)
     setLoading(true)
     const { data } = await supabase.from('formulary_templates')
-      .select('id, item_name, category, unit_of_measure, supplier, units_per_case, case_cost, ndc, concentration, route')
+      .select(SELECT_FIELDS)
       .eq('unit_type_id', unitTypes[activeTab]).order('category').order('item_name')
     setItems(data || []); setLoading(false)
     e.target.value = ''
   }
 
-  const unitCost = (item: FormulaItem) => {
+  /** Returns the effective unit cost: explicit unit_cost if set, otherwise calculated */
+  const getUnitCost = (item: FormulaItem): string | null => {
+    if (item.unit_cost != null) return Number(item.unit_cost).toFixed(4)
     if (item.case_cost && item.units_per_case && item.units_per_case > 0)
       return (item.case_cost / item.units_per_case).toFixed(4)
     return null
@@ -173,7 +183,7 @@ function FormularyPageInner() {
     setShowAdd(false)
     setLoading(true)
     const { data } = await supabase.from('formulary_templates')
-      .select('id, item_name, category, unit_of_measure, supplier, units_per_case, case_cost, ndc, concentration, route')
+      .select(SELECT_FIELDS)
       .eq('unit_type_id', unitTypes[activeTab]).order('category').order('item_name')
     setItems(data || [])
     setLoading(false)
@@ -190,6 +200,14 @@ function FormularyPageInner() {
     setItems(prev => prev.map(i => i.id === id ? { ...i, ...editItem } : i))
     setEditingId(null)
     setEditItem({})
+  }
+
+  const handleUnitCostSave = async (item: FormulaItem) => {
+    const value = unitCostInput.trim() === '' ? null : parseFloat(unitCostInput)
+    if (value !== null && isNaN(value)) { setEditingUnitCostId(null); return }
+    await supabase.from('formulary_templates').update({ unit_cost: value }).eq('id', item.id)
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, unit_cost: value } : i))
+    setEditingUnitCostId(null)
   }
 
   const inputCls = 'bg-gray-800 rounded px-2 py-1 text-white text-xs focus:outline-none focus:ring-1 focus:ring-red-500 w-full'
@@ -337,12 +355,22 @@ function FormularyPageInner() {
                         onChange={e => setEditItem(p => ({ ...p, case_cost: e.target.value ? parseFloat(e.target.value) : null }))}
                         className={inputCls} />
                     </div>
-                    <div className="col-span-1 hidden md:block text-right text-xs text-gray-500">
-                      {editItem.case_cost && editItem.units_per_case
-                        ? `$${(editItem.case_cost / editItem.units_per_case).toFixed(3)}`
-                        : unitCost(item) ? `$${unitCost(item)}` : '—'}
+                    <div className="col-span-1 hidden md:block">
+                      <input type="number" step="0.0001" defaultValue={item.unit_cost ?? ''}
+                        placeholder="auto"
+                        onChange={e => setEditItem(p => ({ ...p, unit_cost: e.target.value ? parseFloat(e.target.value) : null }))}
+                        className={inputCls} title="Unit Cost (leave blank to auto-calculate)" />
                     </div>
-                    <div className="col-span-2 flex gap-1 justify-end">
+                    {/* Barcode field — shown as extra row below main grid in edit mode */}
+                    <div className="col-span-12 hidden md:grid grid-cols-2 gap-2 mt-1">
+                      <div>
+                        <label className="text-xs text-gray-500">Barcode</label>
+                        <input defaultValue={item.barcode || ''}
+                          onChange={e => setEditItem(p => ({ ...p, barcode: e.target.value || null }))}
+                          className={inputCls + ' mt-0.5'} placeholder="Barcode" />
+                      </div>
+                    </div>
+                    <div className="col-span-12 flex gap-1 justify-end mt-1">
                       <button onClick={() => handleEditSave(item.id)} className="px-2 py-1 bg-green-700 hover:bg-green-600 rounded text-xs text-white">Save</button>
                       <button onClick={() => { setEditingId(null); setEditItem({}) }} className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-gray-300">Cancel</button>
                     </div>
@@ -373,7 +401,37 @@ function FormularyPageInner() {
                     <div className="col-span-2 hidden md:block text-xs text-gray-400 truncate">{item.supplier || '—'}</div>
                     <div className="col-span-1 hidden md:block text-right text-xs text-gray-400">{item.units_per_case ?? '—'}</div>
                     <div className="col-span-1 hidden md:block text-right text-xs text-gray-400">{item.case_cost ? `$${item.case_cost.toFixed(2)}` : '—'}</div>
-                    <div className="col-span-1 hidden md:block text-right text-xs text-gray-300 font-mono">{unitCost(item) ? `$${unitCost(item)}` : '—'}</div>
+                    {/* $/Unit — inline editable */}
+                    <div className="col-span-1 hidden md:block text-right">
+                      {editingUnitCostId === item.id ? (
+                        <input
+                          type="number"
+                          step="0.0001"
+                          autoFocus
+                          value={unitCostInput}
+                          onChange={e => setUnitCostInput(e.target.value)}
+                          onBlur={() => handleUnitCostSave(item)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') handleUnitCostSave(item)
+                            if (e.key === 'Escape') setEditingUnitCostId(null)
+                          }}
+                          className="bg-gray-700 rounded px-1 py-0.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-red-500 w-20 text-right"
+                          placeholder="0.0000"
+                        />
+                      ) : (
+                        <span
+                          className="text-xs text-gray-300 font-mono cursor-pointer hover:text-white hover:underline"
+                          title="Click to set unit cost"
+                          onClick={() => {
+                            setEditingUnitCostId(item.id)
+                            setUnitCostInput(item.unit_cost != null ? String(item.unit_cost) : '')
+                          }}
+                        >
+                          {getUnitCost(item) ? `$${getUnitCost(item)}` : <span className="text-gray-600">—</span>}
+                          {item.unit_cost != null && <span className="ml-0.5 text-blue-500 text-xs" title="Custom unit cost set">●</span>}
+                        </span>
+                      )}
+                    </div>
                     <div className="col-span-2 flex gap-1 justify-end">
                       {isAdmin && activeTab !== 'Warehouse' && (
                         <>
@@ -395,10 +453,12 @@ function FormularyPageInner() {
           {filtered.length > 0 && (
             <div className="px-4 py-2 border-t border-gray-700 flex justify-between text-xs text-gray-500">
               <span>{filtered.length} items shown</span>
-              {filtered.some(i => i.case_cost) && (
+              {filtered.some(i => i.case_cost || i.unit_cost) && (
                 <span>Total catalog cost: $
                   {filtered.reduce((sum, i) => {
-                    const uc = i.case_cost && i.units_per_case ? i.case_cost / i.units_per_case : 0
+                    const uc = i.unit_cost != null
+                      ? Number(i.unit_cost)
+                      : (i.case_cost && i.units_per_case ? i.case_cost / i.units_per_case : 0)
                     return sum + uc
                   }, 0).toFixed(2)} / unit avg
                 </span>

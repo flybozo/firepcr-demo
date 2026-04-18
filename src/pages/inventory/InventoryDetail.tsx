@@ -1,5 +1,4 @@
 
-
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadSingle } from '@/lib/offlineFirst'
@@ -58,6 +57,7 @@ export default function InventoryDetailPage() {
   const id = params.id as string
 
   const [item, setItem] = useState<InventoryItem | null>(null)
+  const [template, setTemplate] = useState<any>(null)
   const [unitsCarrying, setUnitsCarrying] = useState<UnitCarrying[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -88,6 +88,17 @@ export default function InventoryDetailPage() {
     )
     setItem(inv)
     setIsOfflineData(offline)
+
+    // Load formulary template for enrichment
+    if (inv?.item_name) {
+      const { data: tmpl } = await supabase
+        .from('formulary_templates')
+        .select('*')
+        .eq('item_name', inv.item_name)
+        .limit(1)
+        .single()
+      if (tmpl) setTemplate(tmpl)
+    }
 
     // Load all units carrying same item
     if (inv?.item_name) {
@@ -152,6 +163,16 @@ export default function InventoryDetailPage() {
   const unitName = (item.incident_unit as unknown as { unit: { name: string; id: string } } | null)?.unit?.name
   const unitId = (item.incident_unit as unknown as { unit: { name: string; id: string } } | null)?.unit?.id
 
+  // Derived formulary enrichment
+  const ndc = item.barcode || template?.ndc || null
+  const barcode = item.barcode || template?.barcode || null
+  const upc = item.upc || template?.upc || null
+  const unitCost: number | null = template?.unit_cost
+    ? parseFloat(template.unit_cost)
+    : (template?.case_cost && template?.units_per_case && template.units_per_case > 0)
+      ? template.case_cost / template.units_per_case
+      : null
+
   return (
     <div className="min-h-screen bg-gray-950 text-white pb-[calc(80px+env(safe-area-inset-bottom,0px))] md:pb-8 mt-8 md:mt-0">
       <div className="p-6 md:p-8 max-w-3xl mx-auto space-y-4">
@@ -184,15 +205,31 @@ export default function InventoryDetailPage() {
 
         {/* Header */}
         <div className="theme-card rounded-xl p-4 border">
+          {/* Item image from formulary */}
+          {template?.image_url && (
+            <div className="flex justify-center mb-3">
+              <img
+                src={template.image_url}
+                alt={item.item_name}
+                className="rounded-lg max-h-48 object-contain"
+              />
+            </div>
+          )}
           <div className="flex items-start justify-between gap-3">
             <div>
               <h1 className="text-xl font-bold">{item.item_name}</h1>
               {unitName && <p className="text-gray-400 text-sm mt-0.5">{unitName}</p>}
+              {template?.concentration && (
+                <p className="text-gray-400 text-xs mt-0.5">{template.concentration}</p>
+              )}
             </div>
             <div className="flex flex-col items-end gap-1 shrink-0">
               <span className={`text-xs px-2 py-0.5 rounded-full ${CAT_COLORS[item.category] || CAT_COLORS.OTC}`}>
                 {item.category}
               </span>
+              {template?.is_als && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-900 text-blue-300">ALS</span>
+              )}
               {low && <span className="text-xs text-red-400">⚠ Low Stock</span>}
             </div>
           </div>
@@ -234,10 +271,32 @@ export default function InventoryDetailPage() {
             <Field label="Unit / Platform" value={unitName} />
             <Field label="Lot Number" value={item.lot_number} />
             <Field label="Expiration Date" value={item.expiration_date} />
-            {item.barcode && <Field label="Barcode" value={item.barcode} />}
-            {item.upc && <Field label="UPC" value={item.upc} />}
+            {template?.concentration && <Field label="Concentration" value={template.concentration} />}
+            {template?.route && <Field label="Route" value={template.route} />}
+            {ndc && <Field label="NDC" value={ndc} />}
+            {barcode && <Field label="Barcode" value={barcode} />}
+            {upc && <Field label="UPC" value={upc} />}
           </dl>
         </div>
+
+        {/* Formulary Info */}
+        {template && (template.supplier || template.case_cost || template.units_per_case || unitCost !== null) && (
+          <div className="theme-card rounded-xl p-4 border space-y-3">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Formulary Info</h2>
+            <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {template.supplier && <Field label="Supplier" value={template.supplier} />}
+              {template.case_cost != null && (
+                <Field label="Cost / Case" value={`$${Number(template.case_cost).toFixed(2)}`} />
+              )}
+              {template.units_per_case != null && (
+                <Field label="Units / Case" value={template.units_per_case} />
+              )}
+              {unitCost !== null && (
+                <Field label="Unit Cost" value={`$${unitCost.toFixed(4)}`} />
+              )}
+            </dl>
+          </div>
+        )}
 
         {/* Units carrying this item */}
         {unitsCarrying.length > 1 && (
