@@ -130,6 +130,7 @@ const NAV: NavItem[] = [
       { label: 'Chat Requests', href: '/admin/chat-requests' },
       { label: 'Company Profile', href: '/admin/company' },
       { label: 'Analytics', href: '/analytics' },
+      { label: 'Financial', href: '/admin/financial' },
       { label: 'External Dashboard', href: '/admin/fire-dashboard' },
       { label: 'Schedule', href: '/schedule' },
       { label: 'Coverage Calendar', href: '/schedule/calendar' },

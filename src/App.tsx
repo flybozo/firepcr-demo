@@ -110,6 +110,7 @@ const Admin = lazy(() => import('@/pages/admin/Admin'))
 const Announcements = lazy(() => import('@/pages/admin/Announcements'))
 const ChatRequests = lazy(() => import('@/pages/admin/ChatRequests'))
 const Company = lazy(() => import('@/pages/admin/Company'))
+const Financial = lazy(() => import('@/pages/admin/Financial'))
 const FireDashboard = lazy(() => import('@/pages/admin/FireDashboard'))
 const FireAdminDashboard = lazy(() => import('@/pages/fire-admin/FireAdminDashboard'))
 const PushNotifications = lazy(() => import('@/pages/admin/PushNotifications'))
@@ -249,6 +250,7 @@ function App() {
               <Route path="admin/chat-requests" element={<ChatRequests />} />
               <Route path="admin/company" element={<Company />} />
               <Route path="admin/fire-dashboard" element={<FireDashboard />} />
+              <Route path="admin/financial" element={<Financial />} />
             </Route>
 
             {/* Catch-all */}
