@@ -57,7 +57,7 @@ export const THEME_FONTS: Record<string, { family: string; name: string }> = {
   terminal:     { family: "'VT323', monospace", name: 'VT323' },
   neon:         { family: "'Orbitron', sans-serif", name: 'Orbitron' },
   pirate:       { family: "'Pirata One', cursive", name: 'Pirata One' },
-  area51:       { family: "'Silkscreen', monospace", name: 'Silkscreen' },
+  area51:       { family: "'Aldrich', sans-serif", name: 'Aldrich' },
   goth:         { family: "'Cinzel', serif", name: 'Cinzel' },
 }
 
@@ -662,7 +662,7 @@ function applyThemeToDom(theme: Theme) {
     hippie: "'Boogaloo', cursive",                     // Hippie — groovy 70s display
     doc: "'IBM Plex Sans', 'Arial', sans-serif",     // Doc — clinical monospace feel
     pirate: "'Pirata One', cursive",                   // Pirate — blackletter swashbuckler
-    area51: "'Silkscreen', monospace",                  // Area 51 — retro pixel terminal
+    area51: "'Aldrich', sans-serif",                     // Area 51 — angular sci-fi military
     goth: "'Cinzel', serif",                             // Goth — dark cathedral inscriptions
   }
   const font = fontMap[theme.preset] || theme.font || "'Inter', system-ui, -apple-system, sans-serif"
@@ -683,7 +683,7 @@ function applyThemeToDom(theme: Theme) {
     barbie: 1.05,     // Pacifico reads small
     cowboy: 1.05,     // Rye Western display font reads slightly small
     pirate: 1.08,     // Pirata One blackletter reads small at body size
-    area51: 1.12,     // Silkscreen pixel font needs a boost
+    area51: 1.0,      // Aldrich reads fine at default size
     goth: 1.0,        // Cinzel reads fine at default size
   }
   const fontScale = fontScaleMap[theme.preset] || 1
@@ -720,7 +720,7 @@ function applyThemeToDom(theme: Theme) {
     hippie: 'Boogaloo',
     doc: 'IBM+Plex+Sans:wght@300;400;600',
     pirate: 'Pirata+One',
-    area51: 'Silkscreen:wght@400;700',
+    area51: 'Aldrich',
     goth: 'Cinzel:wght@400;600;700',
   }
   const gFont = googleFonts[theme.preset]
