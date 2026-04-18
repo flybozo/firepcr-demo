@@ -501,15 +501,54 @@ function MessageThread({
     }
   }, [messages.length, loading])
 
-  // Realtime subscription — unique channel name per mount to avoid Supabase collision
+  // Realtime subscription + fallback polling for new messages
   const realtimeKey = useRef(`chat-msg-${channel.id}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`)
+  const realtimeActive = useRef(false)
+  const lastKnownMsgId = useRef<string | null>(null)
+
+  // Keep track of the latest message id for polling dedup
+  useEffect(() => {
+    if (messages.length > 0) {
+      lastKnownMsgId.current = messages[messages.length - 1].id
+    }
+  }, [messages])
+
   useEffect(() => {
     realtimeKey.current = `chat-msg-${channel.id}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`
   }, [channel.id])
 
+  // Helper: fetch recent messages and merge any new ones
+  const fetchAndMergeNew = useCallback(async (senderId?: string) => {
+    try {
+      const resp = await authFetch(`/api/chat/messages?channelId=${channel.id}&limit=5`)
+      if (!resp.ok) return
+      const data = await resp.json()
+      const latest = ((data.messages || []) as Record<string, unknown>[]).map(normalizeMessage)
+
+      setMessages((prev) => {
+        const existingIds = new Set(prev.map((m) => m.id))
+        const newMsgs = latest.filter((m) => !existingIds.has(m.id))
+        if (newMsgs.length === 0) return prev
+        return [...prev, ...newMsgs]
+      })
+
+      // Auto-mark as read for messages from others
+      if (senderId && senderId !== employeeId) {
+        authFetch('/api/chat/read', {
+          method: 'POST',
+          body: JSON.stringify({ channel_id: channel.id }),
+        }).catch(() => {})
+      }
+    } catch (e) {
+      // Non-fatal
+    }
+  }, [channel.id, employeeId])
+
+  // Realtime subscription
   useEffect(() => {
     const supabase = createClient()
     let sub: ReturnType<typeof supabase.channel> | null = null
+    realtimeActive.current = false
 
     try {
       sub = supabase
@@ -522,39 +561,40 @@ function MessageThread({
             table: 'chat_messages',
             filter: `channel_id=eq.${channel.id}`,
           },
-          async (payload) => {
-            const newMsg = payload.new as ChatMessage & { sender_id: string }
-
-            // Fetch full message with sender details
-            const resp = await authFetch(`/api/chat/messages?channelId=${channel.id}&limit=1`)
-            if (!resp.ok) return
-            const data = await resp.json()
-            const latest = ((data.messages || []) as Record<string, unknown>[]).map(normalizeMessage)
-
-            setMessages((prev) => {
-              const existingIds = new Set(prev.map((m) => m.id))
-              const newMsgs = latest.filter((m) => !existingIds.has(m.id))
-              return [...prev, ...newMsgs]
-            })
-
-            // Auto-mark as read if this channel is active
-            if (newMsg.sender_id !== employeeId) {
-              authFetch('/api/chat/read', {
-                method: 'POST',
-                body: JSON.stringify({ channel_id: channel.id }),
-              }).catch(() => {})
+          (payload) => {
+            const newMsg = payload.new as { sender_id: string }
+            fetchAndMergeNew(newMsg.sender_id)
           }
-        }
-      )
-      .subscribe()
+        )
+        .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            realtimeActive.current = true
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+            console.warn(`[Chat] Realtime ${status} — falling back to polling`)
+            realtimeActive.current = false
+          }
+        })
     } catch (err) {
       console.warn('[Chat] Realtime subscribe failed (non-fatal):', err)
+      realtimeActive.current = false
     }
 
     return () => {
       if (sub) supabase.removeChannel(sub)
+      realtimeActive.current = false
     }
-  }, [channel.id, employeeId])
+  }, [channel.id, employeeId, fetchAndMergeNew])
+
+  // Fallback: poll every 5s when Realtime isn't confirmed active
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!realtimeActive.current) {
+        fetchAndMergeNew()
+      }
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [fetchAndMergeNew])
 
   // Load more (pagination)
   const handleLoadMore = async () => {
@@ -587,7 +627,7 @@ function MessageThread({
     setReplyTo(null)
 
     try {
-      await authFetch('/api/chat/messages', {
+      const resp = await authFetch('/api/chat/messages', {
         method: 'POST',
         body: JSON.stringify({
           channel_id: channel.id,
@@ -595,6 +635,18 @@ function MessageThread({
           reply_to: replyId || undefined,
         }),
       })
+
+      if (resp.ok) {
+        const data = await resp.json()
+        if (data.message) {
+          const sent = normalizeMessage(data.message as Record<string, unknown>)
+          setMessages((prev) => {
+            // Avoid duplicate if Realtime already delivered it
+            if (prev.some((m) => m.id === sent.id)) return prev
+            return [...prev, sent]
+          })
+        }
+      }
     } catch (e) {
       console.error('[Chat] send failed', e)
       setInput(text)
