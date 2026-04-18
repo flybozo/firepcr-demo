@@ -15,6 +15,13 @@ type IncidentUnit = {
   unit_assignments: Assignment[]
   released_at?: string | null
 }
+type DeploymentRow = {
+  id: string
+  assigned_at: string
+  released_at: string | null
+  daily_contract_rate: number | null
+  incident: { id: string; name: string; status: string } | null
+}
 type Unit = {
   id: string
   name: string
@@ -28,7 +35,7 @@ type Unit = {
   year: number | null
   photo_url: string | null
   vehicle_subtype: string | null
-  unit_type: { name: string } | null
+  unit_type: { name: string; default_contract_rate: number | null } | null
   incident_units: IncidentUnit[]
 }
 type ChildUnit = {
@@ -65,6 +72,8 @@ export default function UnitDetailPage() {
   const [allEmployees, setAllEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [isOfflineData, setIsOfflineData] = useState(false)
+  const [deployments, setDeployments] = useState<DeploymentRow[]>([])
+  const [incidentFilter, setIncidentFilter] = useState<string>('All')
 
   // Add crew state
   const [addingTo, setAddingTo] = useState<string | null>(null)
@@ -99,8 +108,8 @@ export default function UnitDetailPage() {
         .select(`
           id, name, active, unit_status,
           vin, license_plate, plate_state, make, model, year, photo_url, vehicle_subtype,
-          unit_type:unit_types(name),
-          incident_units!inner(
+          unit_type:unit_types(name, default_contract_rate),
+          incident_units(
             id, released_at,
             incident:incidents(id, name, status),
             unit_assignments(
@@ -122,15 +131,21 @@ export default function UnitDetailPage() {
     }
     let emps: any[] | null = null
     let children: any[] | null = null
+    let depHistory: any[] | null = null
     try {
-    const [{ data: _emps }, { data: _children }] = await Promise.all([
+    const [{ data: _emps }, { data: _children }, { data: _deps }] = await Promise.all([
       supabase.from('employees').select('id, name, role').eq('status', 'Active').order('name'),
       supabase
         .from('units')
         .select('id, name, vin, license_plate, plate_state, vehicle_subtype')
         .eq('parent_unit_id', id),
+      supabase
+        .from('incident_units')
+        .select('id, assigned_at, released_at, daily_contract_rate, incident:incidents(id, name, status)')
+        .eq('unit_id', id)
+        .order('assigned_at', { ascending: false }),
     ])
-    emps = _emps; children = _children
+    emps = _emps; children = _children; depHistory = _deps
     } catch (_offlineErr) {
       // Best-effort
     }
@@ -139,6 +154,7 @@ export default function UnitDetailPage() {
     setUnit(u)
     setAllEmployees((emps || []) as Employee[])
     setChildUnits((children || []) as ChildUnit[])
+    setDeployments((depHistory || []) as DeploymentRow[])
 
     // Load vehicle documents
     const { data: docsData } = await supabase
@@ -302,7 +318,7 @@ export default function UnitDetailPage() {
     </div>
   )
 
-  const typeName = (unit.unit_type as { name: string } | null)?.name || '—'
+  const typeName = unit.unit_type?.name || '—'
   const activeIU = unit.incident_units?.find((iu: any) => iu.incident?.status === 'Active' && !iu.released_at)
   const vehicleLabel = [unit.year, unit.make, unit.model].filter(Boolean).join(' ') || null
 
@@ -581,6 +597,107 @@ export default function UnitDetailPage() {
             )}
           </div>
         )}
+
+        {/* Deployment History */}
+        {isAdmin && (() => {
+          const defaultContractRate = unit.unit_type?.default_contract_rate ?? 0
+          const currencyFmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+          const calcRow = (dep: DeploymentRow) => {
+            const rate = dep.daily_contract_rate ?? defaultContractRate
+            const start = new Date(dep.assigned_at).getTime()
+            const end = dep.released_at ? new Date(dep.released_at).getTime() : Date.now()
+            const days = Math.max(1, Math.ceil((end - start) / 86400000))
+            return { rate, days, revenue: days * rate }
+          }
+          const uniqueIncidents = Array.from(
+            new Set(deployments.map(d => d.incident?.name).filter(Boolean) as string[])
+          )
+          const filtered = incidentFilter === 'All'
+            ? deployments
+            : deployments.filter(d => d.incident?.name === incidentFilter)
+          const totalRevenue = filtered.reduce((sum, dep) => sum + calcRow(dep).revenue, 0)
+          const fmtDate = (iso: string) => {
+            const d = new Date(iso)
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+          }
+          return (
+            <div className="theme-card rounded-xl border overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 bg-gray-800">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">📊 Deployment History</h2>
+                <span className="text-sm font-semibold text-green-400">{currencyFmt.format(totalRevenue)}</span>
+              </div>
+              {deployments.length === 0 ? (
+                <p className="px-4 py-4 text-sm text-gray-600 text-center">No deployment history yet.</p>
+              ) : (
+                <>
+                  {uniqueIncidents.length > 1 && (
+                    <div className="px-4 py-2 border-b border-gray-800">
+                      <select
+                        value={incidentFilter}
+                        onChange={e => setIncidentFilter(e.target.value)}
+                        className="bg-gray-800 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-2 focus:ring-red-500"
+                      >
+                        <option value="All">All Incidents</option>
+                        {uniqueIncidents.map(name => (
+                          <option key={name} value={name}>{name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-gray-500 border-b border-gray-800">
+                          <th className="text-left px-4 py-2 font-medium">Incident</th>
+                          <th className="text-left px-4 py-2 font-medium">Mobilized</th>
+                          <th className="text-left px-4 py-2 font-medium">Demob</th>
+                          <th className="text-right px-4 py-2 font-medium">Days</th>
+                          <th className="text-right px-4 py-2 font-medium">Rate</th>
+                          <th className="text-right px-4 py-2 font-medium">Revenue</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-800">
+                        {filtered.map(dep => {
+                          const { rate, days, revenue } = calcRow(dep)
+                          const isActive = dep.incident?.status === 'Active'
+                          return (
+                            <tr key={dep.id} className="hover:bg-gray-800/50">
+                              <td className="px-4 py-2.5">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? 'bg-green-400' : 'bg-gray-600'}`} />
+                                  {dep.incident ? (
+                                    <Link to={`/incidents/${dep.incident.id}`} className="text-white hover:text-blue-300 underline underline-offset-2 truncate max-w-[140px]">
+                                      {dep.incident.name}
+                                    </Link>
+                                  ) : '—'}
+                                </div>
+                              </td>
+                              <td className="px-4 py-2.5 text-gray-300 whitespace-nowrap">{fmtDate(dep.assigned_at)}</td>
+                              <td className="px-4 py-2.5 whitespace-nowrap">
+                                {dep.released_at
+                                  ? <span className="text-gray-300">{fmtDate(dep.released_at)}</span>
+                                  : <span className="text-green-400">Active</span>}
+                              </td>
+                              <td className="px-4 py-2.5 text-right text-gray-300">{days}</td>
+                              <td className="px-4 py-2.5 text-right text-gray-300">{currencyFmt.format(rate)}</td>
+                              <td className="px-4 py-2.5 text-right text-green-300 font-semibold">{currencyFmt.format(revenue)}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t border-gray-700 bg-gray-800/50">
+                          <td colSpan={5} className="px-4 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Total</td>
+                          <td className="px-4 py-2.5 text-right text-green-400 font-bold">{currencyFmt.format(totalRevenue)}</td>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </>
+              )}
+            </div>
+          )
+        })()}
 
         {/* Inventory Summary */}
         {inventory.length > 0 && (
