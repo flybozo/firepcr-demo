@@ -1,7 +1,7 @@
 
 import { FieldGuard } from '@/components/FieldGuard'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, useMemo, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 
@@ -22,7 +22,7 @@ type CSTransaction = {
 
 const CS_DRUGS = ['Morphine Sulfate', 'Fentanyl', 'Midazolam (Versed)', 'Ketamine']
 const TRANSFER_TYPES = ['Receive', 'Transfer', 'Administer', 'Waste', 'Return', 'Audit']
-const ALL_UNITS = ['Warehouse', 'RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
+const ALL_UNITS = ['Warehouse', 'Medic 1', 'Medic 2', 'Medic 3', 'Medic 4', 'Aid 1', 'Aid 2', 'Command 1', 'Rescue 1', 'Rescue 2']
 
 const TYPE_COLORS: Record<string, string> = {
   Receive: 'bg-green-900/40 text-green-300 border border-green-700',
@@ -61,12 +61,9 @@ function AuditLogInner() {
     dateTo: searchParams.get('to') || '',
   })
 
+  const now = useMemo(() => Date.now(), [dateRange])
   const quickDateFilter = dateRange === 'All' ? null :
-    new Date(Date.now() - (dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90) * 86400000).toISOString()
-
-  useEffect(() => {
-    loadTransactions()
-  }, [filters, dateRange])
+    new Date(now - (dateRange === '7d' ? 7 : dateRange === '30d' ? 30 : 90) * 86400000).toISOString()
 
   async function loadTransactions() {
     setLoading(true)
@@ -90,6 +87,9 @@ function AuditLogInner() {
     setTotal(count || 0)
     setLoading(false)
   }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { loadTransactions() }, [filters, dateRange])
 
   function setFilter(key: string, value: string) {
     setFilters(prev => ({ ...prev, [key]: value }))

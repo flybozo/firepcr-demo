@@ -1102,7 +1102,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
   // Set card order based on unit type after enc loads (only if no saved user preference)
   useEffect(() => {
     if (enc && !savedPrefRef.current) {
-      const isAmb = enc.unit?.toUpperCase().startsWith('RAMBO')
+      const isAmb = enc.unit?.toUpperCase().startsWith('Medic')
       setCardOrder(isAmb ? AMBULANCE_DEFAULT_ORDER : MEDUNIT_DEFAULT_ORDER)
     }
   }, [enc?.id]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -1368,7 +1368,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
   const markComplete = async () => {
     if (!enc) return
     // Block completion if there are NEMSIS errors on ambulance PCRs
-    if (enc.unit?.toUpperCase().startsWith('RAMBO') && nemsisErrorCountRef.current > 0) {
+    if (enc.unit?.toUpperCase().startsWith('Medic') && nemsisErrorCountRef.current > 0) {
       const errs = nemsisErrorsRef.current
       const errorList = errs.slice(0, 3).map((e: any) => '• ' + e.message).join('\n')
       const moreMsg = nemsisErrorCountRef.current > 3 ? '\n• ...and ' + (nemsisErrorCountRef.current - 3) + ' more' : ''
@@ -1384,7 +1384,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
     setEnc(prev => prev ? { ...prev, pcr_status: 'Complete' } : prev)
 
     // Auto-generate and store NEMSIS XML for ambulance units (online only)
-    if (getIsOnline() && enc.unit?.startsWith('RAMBO')) {
+    if (getIsOnline() && enc.unit?.startsWith('Medic')) {
       try {
         const { data: { session } } = await supabase.auth.getSession()
         const xmlResp = await fetch(`/api/encounters/${id}/nemsis-export`, {
@@ -1492,11 +1492,13 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
     }
     setShowSignModal(false)
     setActionLoading(false)
+    // Refresh sidebar badge count immediately
+    try { const { refreshUnsignedCounts } = await import('@/lib/useUnsignedPCRCount'); refreshUnsignedCounts() } catch {}
   }
 
   // NEMSIS quality warnings — must be called before any early returns (hooks rule)
   const allNemsisWarnings = useNEMSISWarnings(enc ?? {} as Record<string, any>)
-  const isAmbulance = enc?.unit?.toUpperCase().startsWith('RAMBO') ?? false
+  const isAmbulance = enc?.unit?.toUpperCase().startsWith('Medic') ?? false
   const nemsisWarnings = isAmbulance ? allNemsisWarnings : []
   const nemsisErrors = nemsisWarnings.filter((w: any) => w.severity === 'error')
   const nemsisWarningCount = nemsisWarnings.filter((w: any) => w.severity === 'warning').length
@@ -1710,6 +1712,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
               </div>
               <p className="text-gray-500 text-xs mt-1">
                 {enc.encounter_id} · {enc.date} · {enc.unit}
+                {enc.crew_resource_number && <span className="text-blue-400"> · CRN: {enc.crew_resource_number}</span>}
                 {incidentName && <span className="text-orange-400"> · 🔥 {incidentName}</span>}
               </p>
             </div>
@@ -1768,7 +1771,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                                 <span>✏️</span> Edit
                               </Link>
                             )}
-                            {!isLocked && enc.unit?.toUpperCase().startsWith('RAMBO') && (
+                            {!isLocked && enc.unit?.toUpperCase().startsWith('Medic') && (
                               <>
                                 <button
                                   onClick={async () => {
@@ -2190,7 +2193,6 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                       <DraggableSection key="provider" id="provider">
                         <SectionCard title="Provider" badge={<SectionBadge section="provider" />}>
                           <InlineField label="Provider of Record" value={enc.provider_of_record} fieldKey="provider_of_record" isLocked={isLocked} onSave={saveField} type="select" options={providerOptions} />
-                          <InlineField label="Crew Resource #" value={enc.crew_resource_number} fieldKey="crew_resource_number" isLocked={isLocked} onSave={saveField} />
                           <InlineField label="PCR #" value={enc.pcr_number} fieldKey="pcr_number" isLocked={isLocked} onSave={saveField} />
                           <InlineField label="Agency" value={enc.agency_number} fieldKey="agency_number" isLocked={isLocked} onSave={saveField} type="select" options={AGENCY_OPTIONS} />
                           <Field label="Unit" value={enc.unit} />
@@ -2449,6 +2451,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
               .eq('id', noteToSign)
             setNoteToSign(null)
             loadNotes()
+            try { const { refreshUnsignedCounts } = await import('@/lib/useUnsignedPCRCount'); refreshUnsignedCounts() } catch {}
           }}
           onCancel={() => setNoteToSign(null)}
         />

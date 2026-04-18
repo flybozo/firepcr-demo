@@ -38,13 +38,13 @@ type UnitData = {
 
 const CS_UNIT_TYPE: Record<string, string> = {
   'Warehouse': 'Warehouse',
-  'RAMBO 1': 'Ambulance', 'RAMBO 2': 'Ambulance', 'RAMBO 3': 'Ambulance', 'RAMBO 4': 'Ambulance',
-  'MSU 1': 'Med Unit', 'MSU 2': 'Med Unit', 'The Beast': 'Med Unit',
-  'REMS 1': 'REMS', 'REMS 1 Trailer': 'REMS', 'REMS 2': 'REMS',
-  'Truck 1': 'REMS', 'Truck 2': 'REMS', 'Truck 3': 'REMS', 'UTV 1': 'REMS', 'UTV 2': 'REMS',
+  'Medic 1': 'Ambulance', 'Medic 2': 'Ambulance', 'Medic 3': 'Ambulance', 'Medic 4': 'Ambulance',
+  'Aid 1': 'Med Unit', 'Aid 2': 'Med Unit', 'Command 1': 'Med Unit',
+  'Rescue 1': 'Rescue', 'Rescue 1 Trailer': 'Rescue', 'Rescue 2': 'Rescue',
+  'Truck 1': 'Rescue', 'Truck 2': 'Rescue', 'Truck 3': 'Rescue', 'UTV 1': 'Rescue', 'UTV 2': 'Rescue',
 }
 
-const UNITS = ['Warehouse', 'RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
+const UNITS = ['Warehouse', 'Medic 1', 'Medic 2', 'Medic 3', 'Medic 4', 'Aid 1', 'Aid 2', 'Command 1', 'Rescue 1', 'Rescue 2']
 
 const TYPE_COLORS: Record<string, string> = {
   Receive: 'text-green-400',

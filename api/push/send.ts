@@ -137,7 +137,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             title,
             body: `<p>${body.replace(/\n/g, '<br>')}</p>`,
             ctaText: url ? 'Open in FirePCR' : undefined,
-            ctaUrl: url ? `https://ram-field-ops.vercel.app${url}` : undefined,
+            ctaUrl: url ? `https://firepcr-demo.vercel.app${url}` : undefined,
           }),
         })
         if (sent) emailsSent = emails.length

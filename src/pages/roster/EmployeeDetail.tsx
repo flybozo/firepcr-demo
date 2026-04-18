@@ -28,7 +28,7 @@ type Employee = {
   default_hours_per_day: number | null
   status: string
   rems: boolean
-  rems_capable: boolean | null
+  rescue_capable: boolean | null
   dea_license: string | null
   red_card: string | null
   red_card_year: number | null
@@ -213,7 +213,15 @@ export default function RosterDetailPage() {
         {/* Header */}
         <div className="theme-card rounded-xl p-4 border">
           <div className="flex items-start justify-between gap-3">
-            <div>
+            {/* Headshot */}
+            <div className="w-14 h-14 rounded-full overflow-hidden shrink-0 bg-gray-700 flex items-center justify-center">
+              {emp.headshot_url ? (
+                <img src={emp.headshot_url} alt={emp.name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-gray-400 text-2xl font-bold">{emp.name.charAt(0)}</span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
               <h1 className="text-xl font-bold">{emp.name}</h1>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <span className={`text-xs px-2 py-0.5 rounded-full ${ROLE_COLORS[emp.role] || ROLE_COLORS.Tech}`}>
@@ -303,26 +311,26 @@ export default function RosterDetailPage() {
         <div className="theme-card rounded-xl p-4 border space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Deployment Qualifications</h2>
           <div className="space-y-2">
-            {/* REMS Capable toggle */}
+            {/* Rescue Capable toggle */}
             <div className="flex items-center justify-between py-1.5 border-b border-gray-800">
               <div>
-                <p className="text-sm font-medium text-white">REMS Capable</p>
-                <p className="text-xs text-gray-500">Qualified for Technical Rope Rescue / REMS operations</p>
+                <p className="text-sm font-medium text-white">Rescue Capable</p>
+                <p className="text-xs text-gray-500">Qualified for Technical Rope Rescue / Rescue operations</p>
               </div>
               {canEdit ? (
                 <button
                   onClick={async () => {
-                    const newVal = !(emp as any).rems_capable
+                    const newVal = !(emp as any).rescue_capable
                     const supabase = (await import('@/lib/supabase/client')).createClient()
-                    await supabase.from('employees').update({ rems_capable: newVal, rems: newVal }).eq('id', emp.id)
-                    setEmp((prev: any) => prev ? { ...prev, rems_capable: newVal, rems: newVal } : prev)
+                    await supabase.from('employees').update({ rescue_capable: newVal, rems: newVal }).eq('id', emp.id)
+                    setEmp((prev: any) => prev ? { ...prev, rescue_capable: newVal, rems: newVal } : prev)
                   }}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${(emp as any).rems_capable ? 'bg-purple-600' : 'bg-gray-600'}`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${(emp as any).rescue_capable ? 'bg-purple-600' : 'bg-gray-600'}`}
                 >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${(emp as any).rems_capable ? 'translate-x-6' : 'translate-x-1'}`} />
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${(emp as any).rescue_capable ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               ) : (
-                <span className={`text-xs px-2 py-0.5 rounded-full ${(emp as any).rems_capable ? 'bg-purple-900 text-purple-300' : 'bg-gray-800 text-gray-500'}`}>{(emp as any).rems_capable ? 'Yes' : 'No'}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${(emp as any).rescue_capable ? 'bg-purple-900 text-purple-300' : 'bg-gray-800 text-gray-500'}`}>{(emp as any).rescue_capable ? 'Yes' : 'No'}</span>
               )}
             </div>
 

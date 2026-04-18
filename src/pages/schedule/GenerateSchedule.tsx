@@ -41,7 +41,7 @@ function expStars(level: number) {
 const UNIT_TYPE_BG: Record<string, string> = {
   'Ambulance': 'bg-red-900/40 border-red-800',
   'Med Unit':  'bg-blue-900/40 border-blue-800',
-  'REMS':      'bg-green-900/40 border-green-800',
+  'Rescue':      'bg-green-900/40 border-green-800',
   'Warehouse': 'bg-purple-900/40 border-purple-800',
 }
 

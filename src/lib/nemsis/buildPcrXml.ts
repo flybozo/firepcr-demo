@@ -52,13 +52,13 @@ import {
 
 // ─── Agency Constants ────────────────────────────────────────────────────────
 
-const AGENCY_NUMBER = 'S65-52014';
-const AGENCY_STATE_ID = 'S65-52014';
+const AGENCY_NUMBER = 'S00-00000';
+const AGENCY_STATE_ID = 'S00-00000';
 const STATE_CODE = '06';
-const AGENCY_NAME = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_COMPANY_DBA) || 'Remote Area Medicine';
-const SOFTWARE_NAME = 'RAM Field Operations';
+const AGENCY_NAME = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_COMPANY_DBA) || 'Ridgeline EMS';
+const SOFTWARE_NAME = 'FirePCR Field Operations';
 const SOFTWARE_VERSION = '1.0';
-const SOFTWARE_CREATOR = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_COMPANY_NAME) || 'Mossbrae Medical Group PC';
+const SOFTWARE_CREATOR = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_COMPANY_NAME) || 'Ridgeline Medical Group';
 // NEMSIS_VERSION constant kept for reference
 // const NEMSIS_VERSION = '3.5.1.240301CP1';
 
@@ -360,7 +360,7 @@ export function buildPcrXml(
     return vals.map(v => `<${elemName}>${mapDelay(v, kind)}</${elemName}>`).join('\n      ');
   }
 
-  const unit = String(enc.unit ?? 'RAMBO 1');
+  const unit = String(enc.unit ?? 'Medic 1');
 
   // ─── eArrest ───
   let arrestVal = enc.cardiac_arrest ?? 'No';

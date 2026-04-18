@@ -11,7 +11,7 @@ let configured = false
 
 export function ensureVapid() {
   if (!configured && VAPID_PUBLIC && VAPID_PRIVATE) {
-    webpush.setVapidDetails('mailto:codsworth@wildfiremedical.com', VAPID_PUBLIC, VAPID_PRIVATE)
+    webpush.setVapidDetails('mailto:notifications@ridgelineems.com', VAPID_PUBLIC, VAPID_PRIVATE)
     configured = true
   }
 }

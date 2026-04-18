@@ -995,7 +995,7 @@ function PCRFormInner() {
                 ) : (
                   <select className={inputCls} value={form.unit} onChange={e => set('unit', e.target.value)}>
                     <option value="">Select unit</option>
-                    {['RAMBO 1','RAMBO 2','RAMBO 3','RAMBO 4','The Beast','MSU 1','MSU 2','REMS 1','REMS 2'].map(u => (
+                    {['Medic 1','Medic 2','Medic 3','Medic 4','Command 1','Aid 1','Aid 2','Rescue 1','Rescue 2'].map(u => (
                       <option key={u} value={u}>{u}</option>
                     ))}
                   </select>
@@ -1013,10 +1013,7 @@ function PCRFormInner() {
                 <input type="text" className={inputCls} value={form.incident} onChange={e => set('incident', e.target.value)} placeholder="e.g. Park Fire" />
               )}
             </div>
-            <div>
-              <label className={labelCls}>Crew Resource Number</label>
-              <input type="text" className={inputCls} value={form.crew_resource_number} onChange={e => set('crew_resource_number', e.target.value)} placeholder="e.g. CRN-2024-001" />
-            </div>
+
             <div>
               <label className={labelCls}>Response # (CAD)</label>
               <input type="text" className={inputCls} value={form.response_number} onChange={e => set('response_number', e.target.value)} placeholder="e.g. 2024-001234" />
@@ -1108,6 +1105,10 @@ function PCRFormInner() {
             <NEMSISWarnings section="patient" warnings={nemsisWarnings} />
             <NEMSISWarnings section="scene" warnings={nemsisWarnings} />
             <p className={sectionCls}>Patient Identity</p>
+            <div>
+              <label className={labelCls}>Crew Resource Number</label>
+              <input type="text" className={inputCls} value={form.crew_resource_number} onChange={e => set('crew_resource_number', e.target.value)} placeholder="e.g. CRN-2024-001" />
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className={labelCls}>First Name</label>

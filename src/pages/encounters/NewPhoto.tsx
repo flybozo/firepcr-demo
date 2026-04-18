@@ -63,7 +63,7 @@ function PhotoUploadInner() {
             onChange={e => setPickerUnit(e.target.value)}
             className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="">Select unit...</option>
-            {['RAMBO 1','RAMBO 2','RAMBO 3','RAMBO 4','The Beast','MSU 1','MSU 2','REMS 1','REMS 2'].map(u => <option key={u}>{u}</option>)}
+            {['Medic 1','Medic 2','Medic 3','Medic 4','Command 1','Aid 1','Aid 2','Rescue 1','Rescue 2'].map(u => <option key={u}>{u}</option>)}
           </select>
         )}
       </div>
@@ -263,7 +263,6 @@ function PhotoUploadInner() {
             onClick={() => document.getElementById('photo-input')?.click()}
           >
             {preview ? (
-              // eslint-disable-next-line @next/next/no-img-element
               <img src={preview} alt="Preview" className="max-h-64 mx-auto rounded-lg object-contain" />
             ) : (
               <div className="space-y-2">

@@ -37,7 +37,7 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
     return false
   }
 
-  const from = params.from || 'FirePCR <notifications@wildfiremedical.com>'
+  const from = params.from || 'FirePCR <notifications@ridgelineems.com>'
   const to = Array.isArray(params.to) ? params.to : [params.to]
 
   try {
@@ -94,7 +94,7 @@ export function buildEmailHtml(opts: {
     </tr>
     <tr>
       <td style="padding:16px 24px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:11px">
-        ${footer || 'Remote Area Medicine &bull; Mossbrae Medical Group P.C.'}
+        ${footer || 'Ridgeline EMS &bull; Ridgeline Medical Group'}
       </td>
     </tr>
   </table>

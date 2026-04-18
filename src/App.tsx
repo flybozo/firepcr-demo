@@ -168,9 +168,8 @@ function App() {
               </Route>
               {/* Incidents */}
               <Route path="incidents/:id/shift-ticket" element={<ShiftTicket />} />
-              <Route path="incidents" element={<SplitShell basePath="/incidents"><IncidentsList /></SplitShell>}>
-                <Route path=":id" element={<IncidentDetail />} />
-              </Route>
+              <Route path="incidents" element={<IncidentsList />} />
+              <Route path="incidents/:id" element={<IncidentDetail />} />
               {/* CS */}
               <Route path="cs/overview" element={<CSOverview />} />
               <Route path="cs/transfer" element={<CSTransfer />} />

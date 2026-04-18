@@ -37,10 +37,6 @@ export default function PayRatesPage() {
   const [editHours, setEditHours] = useState('')
   const [bulkMode, setBulkMode] = useState(false)
 
-  useEffect(() => {
-    loadEmployees()
-  }, [])
-
   const loadEmployees = async () => {
     const { data } = await supabase
       .from('employees')
@@ -50,6 +46,11 @@ export default function PayRatesPage() {
     setEmployees((data as Employee[]) || [])
     setLoading(false)
   }
+
+  useEffect(() => {
+    loadEmployees()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const saveRate = async (empId: string, rate: number, hours: number) => {
     setSaving(empId)

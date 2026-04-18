@@ -5,14 +5,14 @@ export const UNIT_TYPE_COLORS: Record<string, string> = {
   'Warehouse': 'bg-purple-900 text-purple-300',
   'Med Unit':  'bg-blue-900 text-blue-300',
   'Ambulance': 'bg-red-900 text-red-300',
-  'REMS':      'bg-green-900 text-green-300',
+  'Rescue':      'bg-green-900 text-green-300',
 }
 
 export const UNIT_TYPE_EMOJI: Record<string, string> = {
   'Warehouse': '🏭',
   'Med Unit':  '🏥',
   'Ambulance': '🚑',
-  'REMS':      '🧗',
+  'Rescue':      '🧗',
 }
 
 // Active filter button color by unit type
@@ -21,7 +21,7 @@ export const UNIT_FILTER_ACTIVE: Record<string, string> = {
   'Warehouse': 'bg-purple-700 text-white',
   'Med Unit':  'bg-blue-700 text-white',
   'Ambulance': 'bg-red-700 text-white',
-  'REMS':      'bg-green-700 text-white',
+  'Rescue':      'bg-green-700 text-white',
 }
 
 // Sort order for unit types
@@ -29,7 +29,7 @@ export const UNIT_TYPE_ORDER: Record<string, number> = {
   'Warehouse': 0,
   'Med Unit':  1,
   'Ambulance': 2,
-  'REMS':      3,
+  'Rescue':      3,
 }
 
 export function unitTypeColor(typeName: string): string {

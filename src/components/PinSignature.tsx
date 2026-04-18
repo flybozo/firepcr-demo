@@ -24,7 +24,7 @@
  *     employeeName: string
  *     signedAt: string        // ISO timestamp
  *     signatureHash: string   // SHA-256(employeeId + documentContext + timestamp + pin)
- *     displayText: string     // Human-readable: "Aaron Stutz — digitally signed 4/13/2026 5:44 PM"
+ *     displayText: string     // Human-readable: "Dr. A. Mitchell — digitally signed 4/13/2026 5:44 PM"
  *   }
  */
 
@@ -230,14 +230,14 @@ export default function PinSignature({
           </div>
           <div className="flex gap-3">
             <button
-              onClick={() => { onNoPinSet ? onNoPinSet() : onCancel() }}
+              onClick={() => { if (onNoPinSet) { onNoPinSet() } else { onCancel() } }}
               className="flex-1 py-3 bg-gray-800 hover:bg-gray-700 rounded-xl text-sm font-medium transition-colors">
               {isSelf ? 'Cancel' : 'Choose Different Witness'}
             </button>
             {isSelf && (
               <button
                 onClick={() => {
-                  onNoPinSet ? onNoPinSet() : onCancel()
+                  if (onNoPinSet) { onNoPinSet() } else { onCancel() }
                   navigate('/profile')
                 }}
                 className="flex-1 py-3 bg-orange-600 hover:bg-orange-700 rounded-xl text-sm font-bold transition-colors">

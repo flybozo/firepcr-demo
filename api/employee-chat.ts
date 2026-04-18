@@ -5,7 +5,7 @@ import { rateLimit } from './_rateLimit.js'
 // Vercel Pro: max 60s, Enterprise: 900s. Needed for executive tool calls.
 // Vercel serverless
 
-// iMac Codsworth relay — admin users get full context via Tailscale
+// iMac AI Assistant relay — admin users get full context via Tailscale
 const IMAC_GATEWAY_URL = process.env.IMAC_GATEWAY_URL || 'https://aarons-imac-2.tailebc17f.ts.net'
 const REQUEST_KEYWORDS = [
   'request', 'can i', 'could i', 'i would like', 'i need approval',
@@ -24,7 +24,7 @@ function detectRequestType(message: string): 'request' | 'bug_report' | null {
   return null
 }
 
-// ── Admin relay: send message to iMac Codsworth via OpenAI-compatible endpoint ─
+// ── Admin relay: send message to iMac AI Assistant via OpenAI-compatible endpoint ─
 async function relayToImac(
   message: string,
   employee: { name: string; role: string; chat_authority?: string },
@@ -37,11 +37,11 @@ async function relayToImac(
 
     const executiveBlock = authority === 'executive' ? `
 
-EXECUTIVE AUTHORITY GRANTED — This is Aaron Stutz, MD — owner and medical director.
+EXECUTIVE AUTHORITY GRANTED — This is Dr. A. Mitchell, MD — owner and medical director.
 You have FULL executive authority for this session. Treat this exactly like a direct conversation with your boss.
 You MAY:
 - Execute shell commands (git, deploy, database operations)
-- Modify the app codebase at /tmp/ram-field-ops and push to production via git
+- Modify the app codebase at /tmp/firepcr-demo and push to production via git
 - Make direct database changes (incidents, units, employees, assignments) via psycopg2 or Supabase API
 - Send emails via gog gmail
 - Check calendars, manage files, search the web
@@ -65,8 +65,8 @@ FIELD USER — You can answer questions about protocols, policies, the app, and 
 Do NOT reveal: patient PHI, company financials, contracts, other employees' salaries/personal details.
 For anything requiring management approval, acknowledge warmly and say it's been forwarded to Aaron.` : ''
 
-    const systemPrompt = `[RAM Field Ops Employee Chat — relayed from app]
-You are Codsworth, assistant to Aaron Stutz MD and the Remote Area Medicine team. You have full company context.
+    const systemPrompt = `[FirePCR Employee Chat — relayed from app]
+You are the AI assistant for Dr. A. Mitchell MD and the Ridgeline EMS team. You have full company context.
 
 Employee chatting with you: ${employee.name} (${employee.role})
 Authority level: ${authority.toUpperCase()}
@@ -146,7 +146,7 @@ async function callHaiku(
   history: { role: string; content: string }[]
 ): Promise<string> {
   const companyContext = loadCompanyContext()
-  const systemPrompt = `You are Codsworth, an AI assistant for Remote Area Medicine (RAM), a wildfire medical services company. You are helping ${employee.name}, a ${employee.role} on the RAM team.
+  const systemPrompt = `You are the AI assistant for Ridgeline EMS (RAM), a wildfire medical services company. You are helping ${employee.name}, a ${employee.role} on the RAM team.
 
 Their current context:
 - Unit: ${unitName}
@@ -162,7 +162,7 @@ WHAT YOU CAN HELP WITH:
 - Company policies, procedures, and operational protocols
 - Clinical reference questions (medications, protocols, guidelines)
 - Questions about their own schedule, credentials, and assignments
-- How to use the RAM Field Ops app
+- How to use the FirePCR app
 - Submitting bug reports about the app
 - Submitting requests for admin approval (schedule changes, access requests, equipment needs, etc.)
 

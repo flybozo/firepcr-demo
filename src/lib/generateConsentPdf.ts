@@ -35,7 +35,7 @@ export function generateConsentToTreatPDF(data: ConsentToTreatData, logoDataUrl?
   doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255)
   doc.text('REMOTE AREA MEDICINE', W / 2, 22, { align: 'center' })
   doc.setFontSize(8); doc.setFont('helvetica', 'normal')
-  doc.text(`${data.agency_name || import.meta.env.VITE_COMPANY_NAME || 'Mossbrae Medical Group P.C.'}  |  Medical Director: ${data.provider_name}`, W / 2, 38, { align: 'center' })
+  doc.text(`${data.agency_name || import.meta.env.VITE_COMPANY_NAME || 'Ridgeline Medical Group'}  |  Medical Director: ${data.provider_name}`, W / 2, 38, { align: 'center' })
   doc.setTextColor(0, 0, 0)
   y = 72
 
@@ -62,7 +62,7 @@ export function generateConsentToTreatPDF(data: ConsentToTreatData, logoDataUrl?
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5)
 
   const paragraphs = [
-    `I, ${data.patient_name}, hereby consent to emergency medical treatment and care provided by ${import.meta.env.VITE_COMPANY_DBA || 'Remote Area Medicine'} (${import.meta.env.VITE_COMPANY_NAME || 'Mossbrae Medical Group P.C.'}) personnel, including physicians, physician assistants, nurse practitioners, registered nurses, EMTs, and paramedics.`,
+    `I, ${data.patient_name}, hereby consent to emergency medical treatment and care provided by ${import.meta.env.VITE_COMPANY_DBA || 'Ridgeline EMS'} (${import.meta.env.VITE_COMPANY_NAME || 'Ridgeline Medical Group'}) personnel, including physicians, physician assistants, nurse practitioners, registered nurses, EMTs, and paramedics.`,
     '',
     '1. NATURE OF TREATMENT: I consent to examination, assessment, and emergency medical treatment as deemed necessary by the treating provider(s), including vital sign monitoring, wound care, medication administration, IV access, airway management, and patient transport.',
     '',
@@ -113,7 +113,7 @@ export function generateConsentToTreatPDF(data: ConsentToTreatData, logoDataUrl?
 
   // ── Footer ────────────────────────────────────────────────────────────────
   doc.setFontSize(7); doc.setTextColor(160, 160, 160)
-  doc.text(`${import.meta.env.VITE_COMPANY_DBA || 'Remote Area Medicine'} — Consent to Treat Form`, W / 2, 778, { align: 'center' })
+  doc.text(`${import.meta.env.VITE_COMPANY_DBA || 'Ridgeline EMS'} — Consent to Treat Form`, W / 2, 778, { align: 'center' })
   doc.text(`Generated: ${new Date().toLocaleDateString()}  |  ${data.consent_id}`, W / 2, 788, { align: 'center' })
 
   return doc
