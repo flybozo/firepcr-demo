@@ -478,47 +478,58 @@ function MessageThread({
     }
   }, [messages.length, loading])
 
-  // Realtime subscription
+  // Realtime subscription — unique channel name per mount to avoid Supabase collision
+  const realtimeKey = useRef(`chat-msg-${channel.id}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`)
+  useEffect(() => {
+    realtimeKey.current = `chat-msg-${channel.id}-${Date.now()}-${Math.random().toString(36).slice(2,6)}`
+  }, [channel.id])
+
   useEffect(() => {
     const supabase = createClient()
-    const sub = supabase
-      .channel(`chat-messages-${channel.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_messages',
-          filter: `channel_id=eq.${channel.id}`,
-        },
-        async (payload) => {
-          const newMsg = payload.new as ChatMessage & { sender_id: string }
+    let sub: ReturnType<typeof supabase.channel> | null = null
 
-          // Fetch full message with sender details
-          const resp = await authFetch(`/api/chat/messages?channelId=${channel.id}&limit=1`)
-          if (!resp.ok) return
-          const data = await resp.json()
-          const latest: ChatMessage[] = data.messages || []
+    try {
+      sub = supabase
+        .channel(realtimeKey.current)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'chat_messages',
+            filter: `channel_id=eq.${channel.id}`,
+          },
+          async (payload) => {
+            const newMsg = payload.new as ChatMessage & { sender_id: string }
 
-          setMessages((prev) => {
-            const existingIds = new Set(prev.map((m) => m.id))
-            const newMsgs = latest.filter((m) => !existingIds.has(m.id))
-            return [...prev, ...newMsgs]
-          })
+            // Fetch full message with sender details
+            const resp = await authFetch(`/api/chat/messages?channelId=${channel.id}&limit=1`)
+            if (!resp.ok) return
+            const data = await resp.json()
+            const latest: ChatMessage[] = data.messages || []
 
-          // Auto-mark as read if this channel is active
-          if (newMsg.sender_id !== employeeId) {
-            authFetch('/api/chat/read', {
-              method: 'POST',
-              body: JSON.stringify({ channel_id: channel.id }),
-            }).catch(() => {})
+            setMessages((prev) => {
+              const existingIds = new Set(prev.map((m) => m.id))
+              const newMsgs = latest.filter((m) => !existingIds.has(m.id))
+              return [...prev, ...newMsgs]
+            })
+
+            // Auto-mark as read if this channel is active
+            if (newMsg.sender_id !== employeeId) {
+              authFetch('/api/chat/read', {
+                method: 'POST',
+                body: JSON.stringify({ channel_id: channel.id }),
+              }).catch(() => {})
           }
         }
       )
       .subscribe()
+    } catch (err) {
+      console.warn('[Chat] Realtime subscribe failed (non-fatal):', err)
+    }
 
     return () => {
-      supabase.removeChannel(sub)
+      if (sub) supabase.removeChannel(sub)
     }
   }, [channel.id, employeeId])
 
