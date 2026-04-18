@@ -574,6 +574,7 @@ export default function IncidentDetailPage() {
   const [showAddExpense, setShowAddExpense] = useState(false)
   const [expenseForm, setExpenseForm] = useState({ type: 'Gas', amount: '', description: '', date: new Date().toISOString().split('T')[0], unitId: '' })
   const [expenseReceipt, setExpenseReceipt] = useState<File | null>(null)
+  const [expenseNoReceiptReason, setExpenseNoReceiptReason] = useState('')
   const [expenseSubmitting, setExpenseSubmitting] = useState(false)
   const expenseReceiptRef = useRef<HTMLInputElement>(null)
   // Contract rate editing
@@ -969,7 +970,7 @@ export default function IncidentDetailPage() {
       try {
         const { data } = await supabaseClient
           .from('incident_expenses')
-          .select('id, expense_type, amount, description, expense_date, unit_id, employee_id, created_by, receipt_url, employees(name)')
+          .select('id, expense_type, amount, description, expense_date, unit_id, employee_id, created_by, receipt_url, no_receipt_reason, employees(name)')
           .eq('incident_id', activeIncidentId)
           .order('expense_date', { ascending: false })
           .limit(100)
@@ -1687,7 +1688,9 @@ export default function IncidentDetailPage() {
                               if (data?.signedUrl) window.open(data.signedUrl, '_blank')
                             }} className="text-xs text-blue-400 hover:text-blue-300" title="View receipt">🧃</button>
                           ) : (
-                            <span className="text-gray-700 text-xs">—</span>
+                            <span className="text-gray-600 text-xs italic" title={(exp as any).no_receipt_reason || 'No receipt'}>
+                              {(exp as any).no_receipt_reason === "I'm a knucklehead" ? '🤦' : '—'}
+                            </span>
                           )}
                         </td>
                         {isAdmin && (
@@ -1766,11 +1769,30 @@ export default function IncidentDetailPage() {
                     </div>
                     <p className="text-xs text-gray-600 mt-1">JPG, PNG, or PDF</p>
                   </div>
+                  {/* No-receipt reason — required when no receipt attached */}
+                  {!expenseReceipt && (
+                    <div className="col-span-2">
+                      <label className="text-xs text-gray-500 block mb-1">No receipt? Reason required</label>
+                      <select value={expenseNoReceiptReason} onChange={e => setExpenseNoReceiptReason(e.target.value)}
+                        className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500">
+                        <option value="">Select reason...</option>
+                        <option value="Lost">Lost</option>
+                        <option value="Vendor did not provide">Vendor did not provide</option>
+                        <option value="Destroyed">Destroyed</option>
+                        <option value="I'm a knucklehead">I'm a knucklehead</option>
+                      </select>
+                    </div>
+                  )}
                 </div>
                 <p className="text-xs text-gray-500">Logged by: <span className="text-white">{assignment.employee?.name || 'Unknown'}</span></p>
                 <div className="flex gap-2">
                   <button onClick={async () => {
                     if (!expenseForm.amount) return
+                    // Require receipt OR reason
+                    if (!expenseReceipt && !expenseNoReceiptReason) {
+                      alert('Please attach a receipt or select a reason for no receipt.')
+                      return
+                    }
                     setExpenseSubmitting(true)
                     // Upload receipt if attached
                     let receiptPath: string | null = null
@@ -1791,10 +1813,12 @@ export default function IncidentDetailPage() {
                       employee_id: assignment.employee?.id || null,
                       created_by: assignment.employee?.name || 'Unknown',
                       receipt_url: receiptPath,
+                      no_receipt_reason: receiptPath ? null : expenseNoReceiptReason || null,
                     })
                     setShowAddExpense(false)
                     setExpenseForm({ type: 'Gas', amount: '', description: '', date: new Date().toISOString().split('T')[0], unitId: '' })
                     setExpenseReceipt(null)
+                    setExpenseNoReceiptReason('')
                     if (expenseReceiptRef.current) expenseReceiptRef.current.value = ''
                     setExpenseSubmitting(false)
                     load()

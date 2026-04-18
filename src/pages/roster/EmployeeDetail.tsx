@@ -109,6 +109,7 @@ export default function RosterDetailPage() {
   const [generatingQr, setGeneratingQr] = useState(false)
   const [qrUrl, setQrUrl] = useState<string | null>(null)
   const [togglingStatus, setTogglingStatus] = useState(false)
+  const [empExpenses, setEmpExpenses] = useState<{ id: string; expense_type: string; amount: number; description: string | null; expense_date: string; receipt_url: string | null; no_receipt_reason: string | null; incidents?: { name: string } | null }[]>([])
 
   const toggleStatus = async () => {
     if (!emp || !isAdmin) return
@@ -146,7 +147,7 @@ export default function RosterDetailPage() {
         }
       } catch {}
       const { data: empData, offline } = await loadSingle<Employee>(
-        () => supabase.from('employees').select('id, name, role, app_role, status, wf_email, email, phone, personal_email, personal_phone, home_address, emergency_contact_name, emergency_contact_phone, emergency_contact_relationship, headshot_url, date_of_birth, ram_id, auth_user_id, qr_code_url, bls, acls, pals, itls, paramedic_license, ambulance_driver_cert, medical_license, s130, s190, l180, ics100, ics200, ics700, ics800, dea_license, ssv_lemsa, npi').eq('id', id).single() as any,
+        () => supabase.from('employees').select('id, name, role, app_role, status, wf_email, email, phone, personal_email, personal_phone, home_address, emergency_contact_name, emergency_contact_phone, emergency_contact_relationship, headshot_url, date_of_birth, auth_user_id, qr_code_url, daily_rate, default_hours_per_day, bls, acls, pals, itls, paramedic_license, ambulance_driver_cert, medical_license, s130, s190, l180, ics100, ics200, ics700, ics800, dea_license, ssv_lemsa, npi').eq('id', id).single() as any,
         'employees',
         id
       )
@@ -157,6 +158,16 @@ export default function RosterDetailPage() {
         try {
           const { data: credData } = await supabase.from('employee_credentials').select('*').eq('employee_id', id).order('cert_type')
           setCreds(credData || [])
+        } catch {}
+        // Load expenses for this employee (admin only)
+        try {
+          const { data: expData } = await supabase
+            .from('incident_expenses')
+            .select('id, expense_type, amount, description, expense_date, receipt_url, no_receipt_reason, incidents:incidents(name)')
+            .eq('employee_id', id)
+            .order('expense_date', { ascending: false })
+            .limit(100)
+          setEmpExpenses((expData as any[]) || [])
         } catch {}
       }
       setLoading(false)
@@ -463,6 +474,71 @@ export default function RosterDetailPage() {
             </p>
           )}
         </div>
+
+        {/* Employee Expenses — admin only */}
+        {isAdmin && empExpenses.length > 0 && (
+          <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--color-card-bg, #111827)', borderColor: 'var(--color-border, #1f2937)' }}>
+            <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ backgroundColor: 'var(--color-header-bg, #030712)', borderColor: 'var(--color-border, #1f2937)' }}>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">🧂 Expense History</h3>
+              <span className="text-sm font-bold text-red-400">
+                {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(
+                  empExpenses.reduce((s, e) => s + (e.amount || 0), 0)
+                )}
+              </span>
+            </div>
+            <div className="overflow-x-auto" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
+                    <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Date</th>
+                    <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Incident</th>
+                    <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Type</th>
+                    <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Description</th>
+                    <th className="text-right px-3 py-2 text-gray-500 font-semibold uppercase">Amount</th>
+                    <th className="px-2 py-2 text-center text-gray-500 font-semibold uppercase">🧃</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
+                  {empExpenses.map(exp => {
+                    const incName = (exp.incidents as any)?.name || (Array.isArray(exp.incidents) ? (exp.incidents as any[])[0]?.name : null) || '—'
+                    return (
+                      <tr key={exp.id} className="hover:bg-gray-800/30 transition-colors">
+                        <td className="px-3 py-2 text-gray-400">{exp.expense_date}</td>
+                        <td className="px-3 py-2 text-white truncate max-w-[120px]">{incName}</td>
+                        <td className="px-3 py-2">
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                            exp.expense_type === 'Gas' ? 'bg-yellow-900/60 text-yellow-300' :
+                            exp.expense_type === 'Hotel' ? 'bg-purple-900/60 text-purple-300' :
+                            exp.expense_type === 'Repairs' ? 'bg-red-900/60 text-red-300' :
+                            exp.expense_type === 'Food' ? 'bg-orange-900/60 text-orange-300' :
+                            exp.expense_type === 'Supplies' ? 'bg-blue-900/60 text-blue-300' :
+                            'bg-gray-700 text-gray-300'
+                          }`}>{exp.expense_type}</span>
+                        </td>
+                        <td className="px-3 py-2 text-gray-300 truncate max-w-[150px]">{exp.description || '—'}</td>
+                        <td className="px-3 py-2 text-right font-medium text-red-400">
+                          {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(exp.amount)}
+                        </td>
+                        <td className="px-2 py-2 text-center">
+                          {exp.receipt_url ? (
+                            <button onClick={async () => {
+                              const { data } = await supabase.storage.from('documents').createSignedUrl(exp.receipt_url!, 3600)
+                              if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+                            }} className="text-xs text-blue-400 hover:text-blue-300" title="View receipt">🧃</button>
+                          ) : (
+                            <span className="text-gray-600 text-xs italic" title={exp.no_receipt_reason || 'No receipt'}>
+                              {exp.no_receipt_reason === "I'm a knucklehead" ? '🤦' : '—'}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
