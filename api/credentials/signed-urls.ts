@@ -37,16 +37,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         // Extract the storage path from whatever format the URL is in
         let storagePath: string | null = null
 
-        if (fileUrl.startsWith('credentials/')) {
-          // Relative path: credentials/<uuid>/<filename>
+        if (fileUrl.startsWith('http')) {
+          if (fileUrl.includes('/storage/v1/object/')) {
+            // Full Supabase URL — extract path after bucket name
+            const match = fileUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/credentials\/(.+)/)
+            if (match) storagePath = match[1]
+          }
+          // Google Drive / Sheets links — skip, no signed URL possible
+          // (these are returned as-is in file_url for admin reference)
+        } else if (fileUrl.startsWith('credentials/')) {
+          // Prefixed relative path: credentials/<uuid>/<filename>
           storagePath = fileUrl.replace(/^credentials\//, '')
-        } else if (fileUrl.includes('/storage/v1/object/')) {
-          // Full Supabase URL — extract path after bucket name
-          const match = fileUrl.match(/\/storage\/v1\/object\/(?:public|sign)\/credentials\/(.+)/)
-          if (match) storagePath = match[1]
+        } else if (fileUrl.includes('/')) {
+          // Plain relative path: <employee_uuid>/<filename> — most common format
+          storagePath = fileUrl
         }
-        // Google Drive / Sheets links — skip, no signed URL possible
-        // (these are returned as-is in file_url for admin reference)
 
         if (storagePath) {
           const { data: signed, error: signErr } = await supabase.storage

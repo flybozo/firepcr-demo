@@ -77,7 +77,7 @@ export default function ProfilePage() {
           if (cached) setEmployee(cached)
         } catch {}
         const { data } = await loadSingle(
-          () => supabase.from('employees').select('id, name, role, app_role, status, wf_email, email, phone, personal_email, personal_phone, home_address, emergency_contact_name, emergency_contact_phone, emergency_contact_relationship, headshot_url, date_of_birth, ram_id, auth_user_id').eq('id', assignment.employee!.id).single() as any,
+          () => supabase.from('employees').select('id, name, role, app_role, status, wf_email, email, phone, personal_email, personal_phone, home_address, emergency_contact_name, emergency_contact_phone, emergency_contact_relationship, headshot_url, date_of_birth, auth_user_id').eq('id', assignment.employee!.id).single() as any,
           'employees',
           assignment.employee!.id
         )
@@ -216,7 +216,8 @@ export default function ProfilePage() {
     const { data, error: upErr } = await supabase.storage.from('credentials').upload(path, file, { upsert: false, contentType })
     if (upErr) { setError('Upload failed: ' + upErr.message); setUploadingCred(false); return }
 
-    const fileUrl = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/credentials/${path}`
+    // Store relative path (employee_id/filename) — signed-URL endpoint expects this format
+    const fileUrl = path
     await supabase.from('employee_credentials').insert({
       employee_id: employee.id,
       cert_type: certType,
