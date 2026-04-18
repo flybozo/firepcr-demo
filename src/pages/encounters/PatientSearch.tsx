@@ -128,7 +128,7 @@ export default function PatientSearchPage() {
                 type="text"
                 value={unitFilter}
                 onChange={e => setUnitFilter(e.target.value)}
-                placeholder="Unit (e.g. Medic 1)"
+                placeholder="Unit (e.g. RAMBO 1)"
                 className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:ring-1 focus:ring-red-500 placeholder-gray-600"
               />
             )}

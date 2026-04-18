@@ -554,7 +554,7 @@ export default function FireAdminPage() {
   }
 
   const org = data.org
-  const orgName = org?.dba || org?.name || 'Ridgeline EMS'
+  const orgName = org?.dba || org?.name || 'Remote Area Medicine'
   const inc = data.incident
 
   return (

@@ -104,7 +104,7 @@ function PickerByUnit({ pickerUnit, setPickerUnit, pickerEncounters, assignmentU
             onChange={e => setPickerUnit(e.target.value)}
             className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             <option value="">Select unit...</option>
-            {['Medic 1','Medic 2','Medic 3','Medic 4','Command 1','Aid 1','Aid 2','Rescue 1','Rescue 2'].map(u => <option key={u}>{u}</option>)}
+            {['RAMBO 1','RAMBO 2','RAMBO 3','RAMBO 4','The Beast','MSU 1','MSU 2','REMS 1','REMS 2'].map(u => <option key={u}>{u}</option>)}
           </select>
         )}
       </div>
@@ -297,7 +297,7 @@ function NewCompClaimInner() {
   })
 
   useEffect(() => {
-    fetch('/firepcr-logo.png')
+    fetch('https://kfkpvazkikpuwatthtow.supabase.co/storage/v1/object/public/headshots/ram-logo.png')
       .then(r => r.blob())
       .then(blob => { const reader = new FileReader(); reader.onload = () => setLogoDataUrl(reader.result as string); reader.readAsDataURL(blob) })
       .catch(() => {})
@@ -677,7 +677,7 @@ function NewCompClaimInner() {
           </div>
           <div>
             <label className={labelCls}>Unit</label>
-            <input type="text" className={inputCls} value={form.unit} onChange={e => set('unit', e.target.value)} placeholder="e.g. Medic 2" />
+            <input type="text" className={inputCls} value={form.unit} onChange={e => set('unit', e.target.value)} placeholder="e.g. RAMBO 2" />
           </div>
           <div>
             <label className={labelCls}>Time Employee Began Work</label>

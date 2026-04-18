@@ -174,7 +174,7 @@ export default function ICS214DetailPage() {
   const [showAddPersonnel, setShowAddPersonnel] = useState(false)
   const [newPersonName, setNewPersonName] = useState('')
   const [newPersonPos, setNewPersonPos] = useState('')
-  const [newPersonAgency, setNewPersonAgency] = useState(import.meta.env.VITE_COMPANY_DBA || 'Ridgeline EMS')
+  const [newPersonAgency, setNewPersonAgency] = useState(import.meta.env.VITE_COMPANY_DBA || 'Remote Area Medicine')
 
   // Closeout
   const [showCloseout, setShowCloseout] = useState(false)
@@ -275,7 +275,7 @@ export default function ICS214DetailPage() {
     if (data) setPersonnel(prev => [...prev, data as Personnel])
     setNewPersonName('')
     setNewPersonPos('')
-    setNewPersonAgency(import.meta.env.VITE_COMPANY_DBA || 'Ridgeline EMS')
+    setNewPersonAgency(import.meta.env.VITE_COMPANY_DBA || 'Remote Area Medicine')
     setShowAddPersonnel(false)
   }
 

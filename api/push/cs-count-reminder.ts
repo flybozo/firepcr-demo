@@ -173,7 +173,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           <p>Please complete your CS count as soon as possible.</p>
         `,
         ctaText: 'Complete CS Count',
-        ctaUrl: 'https://firepcr-demo.vercel.app/cs/count',
+        ctaUrl: 'https://ram-field-ops.vercel.app/cs/count',
       }),
     })
     if (sent) emailsSent++

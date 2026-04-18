@@ -1,5 +1,5 @@
 /**
- * Chat.tsx — FirePCR Team Chat
+ * Chat.tsx — RAM Field Ops Team Chat
  *
  * Two-panel layout (channel list + message thread), built from scratch
  * since chat has unique layout needs (pinned input, custom scroll).

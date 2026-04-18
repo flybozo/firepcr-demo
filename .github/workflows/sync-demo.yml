@@ -1,0 +1,57 @@
+name: Sync White-Label Demo
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '.github/workflows/sync-demo.yml'  # Don't re-trigger on workflow edits
+  workflow_dispatch:  # Manual trigger from GitHub UI
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout production repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Clone demo repo
+        env:
+          DEMO_REPO_PAT: ${{ secrets.DEMO_REPO_PAT }}
+        run: |
+          git clone https://x-access-token:${DEMO_REPO_PAT}@github.com/flybozo/firepcr-demo.git ./firepcr-demo
+
+      - name: Configure git for demo repo
+        run: |
+          cd ./firepcr-demo
+          git config user.name "sync-bot"
+          git config user.email "sync-bot@firepcr.com"
+
+      - name: Run white-label sync
+        env:
+          PROD_DIR: ${{ github.workspace }}
+          DEMO_CLONE_DIR: ./firepcr-demo
+        run: |
+          chmod +x ./scripts/sync-to-demo.sh
+          ./scripts/sync-to-demo.sh --ci
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Demo Sync Results" >> $GITHUB_STEP_SUMMARY
+          cd ./firepcr-demo
+          if git diff --quiet HEAD~1 HEAD 2>/dev/null; then
+            echo "✅ No changes — demo was already in sync" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ Synced to demo repo" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Commit:** $(git log --oneline -1)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**Files changed:**" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            git diff --stat HEAD~1 HEAD 2>/dev/null | tail -5 >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi

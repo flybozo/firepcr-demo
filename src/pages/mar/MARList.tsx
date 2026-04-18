@@ -41,7 +41,7 @@ function getUnitType(name: string): string {
   const n = name.toLowerCase()
   if (n.startsWith('rambo')) return 'Ambulance'
   if (n.startsWith('msu') || n === 'the beast') return 'Med Unit'
-  if (n.startsWith('rems')) return 'Rescue'
+  if (n.startsWith('rems')) return 'REMS'
   return 'Warehouse'
 }
 

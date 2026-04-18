@@ -1606,7 +1606,7 @@ export default function IncidentDetailPage() {
                         {(iu.unit as any)?.photo_url ? (
                           <img src={(iu.unit as any).photo_url} alt={iu.unit?.name || ''} className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-sm">{(() => { const t = (iu.unit as any)?.unit_type?.name; return t === 'Ambulance' ? '🚑' : t === 'Med Unit' ? '🏥' : t === 'Rescue' ? '🧗' : '🚐' })()}</span>
+                          <span className="text-sm">{(() => { const t = (iu.unit as any)?.unit_type?.name; return t === 'Ambulance' ? '🚑' : t === 'Med Unit' ? '🏥' : t === 'REMS' ? '🧗' : '🚐' })()}</span>
                         )}
                       </div>
                       <div>
@@ -2719,8 +2719,8 @@ export default function IncidentDetailPage() {
             {/* Build unit list from ALL data ever linked to incident, not just currently assigned units */}
             <div className="flex gap-1.5 overflow-x-auto pb-2 mb-3">
               {(() => {
-                const unitTypeOrderMap: Record<string, number> = { 'Warehouse': 0, 'Med Unit': 1, 'Ambulance': 2, 'Rescue': 3 }
-                const unitTypeColorMap: Record<string, string> = { 'Warehouse': 'bg-purple-700 text-white', 'Med Unit': 'bg-blue-700 text-white', 'Ambulance': 'bg-red-700 text-white', 'Rescue': 'bg-green-700 text-white' }
+                const unitTypeOrderMap: Record<string, number> = { 'Warehouse': 0, 'Med Unit': 1, 'Ambulance': 2, 'REMS': 3 }
+                const unitTypeColorMap: Record<string, string> = { 'Warehouse': 'bg-purple-700 text-white', 'Med Unit': 'bg-blue-700 text-white', 'Ambulance': 'bg-red-700 text-white', 'REMS': 'bg-green-700 text-white' }
                 // Collect all unique units from encounters, MAR, supply runs that ever appeared for this incident
                 const unitsFromData = new Set<string>()
                 encounters.forEach(enc => { if (enc.unit) unitsFromData.add(enc.unit) })

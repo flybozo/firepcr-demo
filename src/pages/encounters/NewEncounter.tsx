@@ -149,7 +149,7 @@ function NewEncounterInner() {
   const handleContinue = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.unit_id) return
-    const isAmbulance = form.unit_type === 'Ambulance' || form.unit_name.startsWith('Medic')
+    const isAmbulance = form.unit_type === 'Ambulance' || form.unit_name.startsWith('RAMBO')
     const path = isAmbulance ? 'pcr' : 'simple'
     const params = new URLSearchParams({
       unitId: form.unit_id,
@@ -176,7 +176,7 @@ function NewEncounterInner() {
   )
 
   const selectedUnit = units.find(u => u.id === form.unit_id)
-  const isAmbulance = form.unit_type === 'Ambulance' || form.unit_name.startsWith('Medic')
+  const isAmbulance = form.unit_type === 'Ambulance' || form.unit_name.startsWith('RAMBO')
 
   return (
     <div className="p-4 md:p-8 max-w-lg mx-auto mt-8 md:mt-0 pb-16">
@@ -203,7 +203,7 @@ function NewEncounterInner() {
             ) : (
               <select value={form.unit_id} onChange={e => handleUnitChange(e.target.value)} className={inputCls}>
                 <option value="">Select unit...</option>
-                {['Med Unit', 'Ambulance', 'Rescue'].map(type => {
+                {['Med Unit', 'Ambulance', 'REMS'].map(type => {
                   const typeUnits = displayedUnits.filter(u => (u.unit_type as any)?.name === type)
                   if (!typeUnits.length) return null
                   return (

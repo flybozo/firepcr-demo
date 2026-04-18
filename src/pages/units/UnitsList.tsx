@@ -34,14 +34,14 @@ const TYPE_COLORS: Record<string, string> = {
   'Warehouse': 'bg-purple-900 text-purple-300',
   'Med Unit':  'bg-blue-900 text-blue-300',
   'Ambulance': 'bg-red-900 text-red-300',
-  'Rescue':      'bg-green-900 text-green-300',
+  'REMS':      'bg-green-900 text-green-300',
 }
 
 const TYPE_EMOJI: Record<string, string> = {
   'Warehouse': '🏭',
   'Med Unit':  '🏥',
   'Ambulance': '🚑',
-  'Rescue':      '🧗',
+  'REMS':      '🧗',
 }
 
 // Sort order: Warehouse first, then Med Unit, then Ambulance, then REMS
@@ -49,7 +49,7 @@ const TYPE_ORDER: Record<string, number> = {
   'Warehouse': 0,
   'Med Unit':  1,
   'Ambulance': 2,
-  'Rescue':      3,
+  'REMS':      3,
 }
 
 function UnitsPageInner() {
@@ -72,8 +72,8 @@ function UnitsPageInner() {
       if (cached.length > 0) {
         // Sort cached units same as network result
         const sorted = (cached as Unit[]).sort((a, b) => {
-          const aType = (a.unit_type as any)?.name || 'Rescue'
-          const bType = (b.unit_type as any)?.name || 'Rescue'
+          const aType = (a.unit_type as any)?.name || 'REMS'
+          const bType = (b.unit_type as any)?.name || 'REMS'
           const orderDiff = (TYPE_ORDER[aType] ?? 99) - (TYPE_ORDER[bType] ?? 99)
           if (orderDiff !== 0) return orderDiff
           return a.name.localeCompare(b.name)
@@ -99,8 +99,8 @@ function UnitsPageInner() {
       'units'
     )
     const sorted = unitResult.data.sort((a, b) => {
-      const aType = (a.unit_type as any)?.name || 'Rescue'
-      const bType = (b.unit_type as any)?.name || 'Rescue'
+      const aType = (a.unit_type as any)?.name || 'REMS'
+      const bType = (b.unit_type as any)?.name || 'REMS'
       const orderDiff = (TYPE_ORDER[aType] ?? 99) - (TYPE_ORDER[bType] ?? 99)
       if (orderDiff !== 0) return orderDiff
       return a.name.localeCompare(b.name)

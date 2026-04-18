@@ -1,6 +1,6 @@
 // hooks/useNEMSISWarnings.ts
 // NEMSIS 3.5.1 National Schematron — all 172 warnings + 16 errors
-// Mapped to FirePCR PCR form state fields
+// Mapped to RAM Field Ops PCR form state fields
 
 export interface NEMSISWarning {
   id: string

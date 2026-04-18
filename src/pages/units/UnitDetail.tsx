@@ -57,7 +57,7 @@ type InventoryItem = {
 const TYPE_COLORS: Record<string, string> = {
   'Ambulance': 'bg-red-900 text-red-300',
   'Med Unit': 'bg-blue-900 text-blue-300',
-  'Rescue': 'bg-green-900 text-green-300',
+  'REMS': 'bg-green-900 text-green-300',
 }
 
 export default function UnitDetailPage() {

@@ -82,7 +82,7 @@ function ChatRequestsPageInner() {
       })
       .eq('id', reviewModal.request.id)
 
-    // If approving a bug report, notify AI Assistant via API
+    // If approving a bug report, notify Codsworth via API
     if (reviewModal.action === 'approved' && reviewModal.request.request_type === 'bug_report') {
       try {
         await authFetch('/api/notify-bug', {
@@ -116,7 +116,7 @@ function ChatRequestsPageInner() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Chat Requests & Bug Reports</h1>
         <p className="text-gray-400 text-sm mt-1">
-          Requests and bug reports submitted by employees via the AI Assistant chat
+          Requests and bug reports submitted by employees via the Codsworth chat
         </p>
       </div>
 

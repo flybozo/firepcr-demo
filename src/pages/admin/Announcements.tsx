@@ -7,7 +7,7 @@ import { authFetch } from '@/lib/authFetch'
 
 // ── Push Notification constants ───────────────────────────────────────────────
 const PUSH_ROLES = ['EMT', 'Paramedic', 'RN', 'NP', 'PA', 'MD', 'DO', 'Tech']
-const PUSH_UNITS = ['Medic 1', 'Medic 2', 'Medic 3', 'Medic 4', 'Aid 1', 'Aid 2', 'Command 1', 'Rescue 1', 'Rescue 2']
+const PUSH_UNITS = ['RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
 
 type Announcement = {
   id: string

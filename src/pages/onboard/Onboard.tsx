@@ -48,11 +48,11 @@ interface FormData {
 
 const TOTAL_STEPS = 7
 
-const APP_TITLE = import.meta.env.VITE_APP_TITLE || 'FirePCR'
-const COMPANY = import.meta.env.VITE_COMPANY_DBA || 'Ridgeline EMS'
+const APP_TITLE = import.meta.env.VITE_APP_TITLE || 'RAM Field Ops'
+const COMPANY = import.meta.env.VITE_COMPANY_DBA || 'Remote Area Medicine'
 const LOGO_URL =
   import.meta.env.VITE_LOGO_URL ||
-  '/firepcr-logo.png'
+  'https://kfkpvazkikpuwatthtow.supabase.co/storage/v1/object/public/headshots/ram-logo.png'
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10)

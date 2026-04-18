@@ -1,7 +1,7 @@
 // FirePCR Service Worker v11 — Vite SPA
 // Caches index.html + all JS/CSS assets for true offline
 
-const CACHE_NAME = 'firepcr-v14';
+const CACHE_NAME = 'firepcr-v13';
 
 // Install: cache the app shell
 self.addEventListener('install', (event) => {

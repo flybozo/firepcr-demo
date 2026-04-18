@@ -29,7 +29,7 @@ const CAT_COLORS: Record<string, string> = {
   RE: 'bg-green-900 text-green-300',
 }
 
-const TABS = ['Ambulance', 'Med Unit', 'Rescue', 'Warehouse']
+const TABS = ['Ambulance', 'Med Unit', 'REMS', 'Warehouse']
 
 const SELECT_FIELDS = 'id, item_name, category, unit_of_measure, supplier, units_per_case, case_cost, unit_cost, image_url, barcode, ndc, concentration, route'
 

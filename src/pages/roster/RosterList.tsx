@@ -69,7 +69,7 @@ export default function RosterPage() {
       const { data, offline } = await loadList<Employee>(
         () => supabase
           .from('employees')
-          .select('id, name, role, email, wf_email, phone, status, rems, bls, acls, paramedic_license, medical_license, ambulance_driver_cert, s130, s190, l180, ics100, ics200, ics700, ics800, headshot_url, rescue_capable, red_card, red_card_year, dea_license, ssv_lemsa')
+          .select('id, name, role, email, wf_email, phone, status, rems, bls, acls, paramedic_license, medical_license, ambulance_driver_cert, s130, s190, l180, ics100, ics200, ics700, ics800, headshot_url, rems_capable, red_card, red_card_year, dea_license, ssv_lemsa')
           .order('name'),
         'employees'
       )
@@ -206,8 +206,8 @@ export default function RosterPage() {
                         className={`text-[10px] px-1 py-0.5 rounded font-bold ${(emp as any).red_card ? 'bg-red-900/70 text-red-300' : 'bg-gray-800 text-gray-600'}`}>
                         🔴{(emp as any).red_card_year ? String((emp as any).red_card_year).slice(2) : ''}
                       </span>
-                      <span title={(emp as any).rescue_capable ? 'Rescue Capable' : 'Not Rescue Capable'}
-                        className={`text-[10px] px-1 py-0.5 rounded font-bold ${(emp as any).rescue_capable ? 'bg-purple-900/60 text-purple-300' : 'bg-gray-800 text-gray-600'}`}>
+                      <span title={(emp as any).rems_capable ? 'REMS Capable' : 'Not REMS Capable'}
+                        className={`text-[10px] px-1 py-0.5 rounded font-bold ${(emp as any).rems_capable ? 'bg-purple-900/60 text-purple-300' : 'bg-gray-800 text-gray-600'}`}>
                         REMS
                       </span>
                       {['MD','MD/DO','NP','PA'].includes(emp.role) && (
