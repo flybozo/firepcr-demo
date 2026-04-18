@@ -169,6 +169,24 @@ function formatDeployDate(d: string | null) {
   })
 }
 
+// Acuity pill styling — matches EncountersList and FireDashboard
+function acuityPillClass(acuity: string | null): string {
+  if (!acuity) return 'bg-gray-800 text-gray-400'
+  const a = acuity.toLowerCase()
+  if (a.includes('red') || a.includes('immediate') || a.includes('critical')) return 'bg-red-900/60 text-red-300 border border-red-700/40'
+  if (a.includes('yellow') || a.includes('delayed') || a.includes('emergent')) return 'bg-yellow-900/60 text-yellow-300 border border-yellow-700/40'
+  if (a.includes('green') || a.includes('minor') || a.includes('routine') || a.includes('lower')) return 'bg-green-900/60 text-green-300 border border-green-700/40'
+  if (a.includes('black') || a.includes('dead') || a.includes('expectant')) return 'bg-gray-900 text-gray-500 border border-gray-700'
+  return 'bg-gray-800 text-gray-400'
+}
+
+// Patient initials for privacy in compact views
+function patientInitials(first: string | null, last: string | null): string {
+  const f = first?.trim()?.[0]?.toUpperCase() || ''
+  const l = last?.trim()?.[0]?.toUpperCase() || ''
+  return f || l ? `${f}${l}` : '—'
+}
+
 function fmtCurrency(n: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
 }
@@ -2283,25 +2301,33 @@ export default function IncidentDetailPage() {
               return filteredEncs.length > 0 ? (
               <>
                 <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 theme-card-footer">
-                  <span className="w-20 shrink-0">Date</span>
-                  <span className="flex-1 min-w-0">Patient</span>
-                  <span className="w-24 shrink-0 hidden sm:block">Unit</span>
-                  <span className="w-16 shrink-0 text-right">Acuity</span>
+                  <span className="w-16 shrink-0">Date</span>
+                  <span className="w-10 shrink-0 text-center">Pt</span>
+                  <span className="flex-1 min-w-0 hidden sm:block">Unit</span>
+                  <span className="w-20 shrink-0 text-right">Acuity</span>
                 </div>
-                {filteredEncs.map(enc => (
+                {filteredEncs.map(enc => {
+                  const acuityRaw = (enc as any).initial_acuity || ''
+                  const acuityLabel = acuityRaw.split(' ')[0] || '—'
+                  return (
                   <Link
                     key={enc.id}
                     to={`/encounters/${enc.id}`}
                     className="flex items-center px-4 py-2 hover:bg-gray-800/50 transition-colors text-sm"
                   >
-                    <span className="w-20 shrink-0 text-gray-400 text-xs">{enc.date || '—'}</span>
-                    <span className="flex-1 min-w-0 truncate pr-1">
-                      {[enc.patient_last_name, enc.patient_first_name].filter(Boolean).join(', ') || 'Unknown'}
+                    <span className="w-16 shrink-0 text-gray-400 text-xs">{enc.date || '—'}</span>
+                    <span className="w-10 shrink-0 text-center text-xs font-medium">
+                      {patientInitials(enc.patient_first_name, enc.patient_last_name)}
                     </span>
-                    <span className="w-24 shrink-0 text-gray-400 text-xs truncate hidden sm:block">{enc.unit || '—'}</span>
-                    <span className="w-16 shrink-0 text-right text-xs text-gray-400">{(enc as any).initial_acuity?.split(' ')[0] || '—'}</span>
+                    <span className="flex-1 min-w-0 text-gray-400 text-xs truncate hidden sm:block">{enc.unit || '—'}</span>
+                    <span className="w-20 shrink-0 text-right">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${acuityPillClass(acuityRaw)}`}>
+                        {acuityLabel}
+                      </span>
+                    </span>
                   </Link>
-                ))}
+                  )
+                })}
               </>
             ) : (
               <p className="text-center text-gray-600 text-sm py-4">No encounters recorded</p>
@@ -2371,7 +2397,7 @@ export default function IncidentDetailPage() {
                     <span className="w-10 shrink-0 text-right">PDF</span>
                   </div>
                   {filteredComps.map(c => (
-                    <Link key={c.id} to={`/comp-claims/${c.id}`}
+                    <Link key={c.id} to={`/comp-claims?activeIncidentId=${activeIncidentId}`}
                       className="flex items-center px-4 py-2 hover:bg-gray-800/50 transition-colors text-sm">
                       <span className="w-24 shrink-0 text-gray-400 text-xs">{c.date_of_injury || '—'}</span>
                       <span className="flex-1 min-w-0 truncate pr-1 text-xs text-white">{c.patient_name || '—'}</span>
@@ -2392,7 +2418,7 @@ export default function IncidentDetailPage() {
                   <span className="w-10 shrink-0 text-right">PDF</span>
                 </div>
                 {filteredComps.slice(0, 5).map(c => (
-                  <Link key={c.id} to={`/comp-claims/${c.id}`}
+                  <Link key={c.id} to={`/comp-claims?activeIncidentId=${activeIncidentId}`}
                     className="flex items-center px-4 py-2 hover:bg-gray-800/50 transition-colors text-sm">
                     <span className="w-24 shrink-0 text-gray-400 text-xs">{c.date_of_injury || '—'}</span>
                     <span className="flex-1 min-w-0 truncate pr-1 text-xs text-white">{c.patient_name || '—'}</span>
