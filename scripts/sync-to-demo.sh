@@ -138,7 +138,9 @@ apply_sed \
 apply_sed \
   -e 's/wildfiremedical\.com/ridgelineems.com/g' \
   -e 's/ram-field-ops\.vercel\.app/firepcr-demo.vercel.app/g' \
-  -e 's|https://github\.com/flybozo/ram-field-ops|https://github.com/flybozo/firepcr-demo|g'
+  -e 's|https://github\.com/flybozo/ram-field-ops|https://github.com/flybozo/firepcr-demo|g' \
+  -e 's|/tmp/ram-field-ops|/tmp/firepcr-demo|g' \
+  -e 's/ram-field-ops/firepcr-demo/g'
 
 # ── Unit Names (order: longer first) ─────────────────────────
 apply_sed \
