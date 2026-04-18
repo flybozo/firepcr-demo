@@ -305,6 +305,11 @@ function SortableNavItem({
               <SidebarIcon name={item.icon} />
             </span>
             <span>{item.label}</span>
+            {item.icon === 'chat' && chatUnread && chatUnread > 0 ? (
+              <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold leading-none">
+                {chatUnread > 99 ? '99+' : chatUnread}
+              </span>
+            ) : null}
           </Link>
         ) : (
           <button

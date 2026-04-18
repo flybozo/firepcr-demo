@@ -45,7 +45,7 @@ export const THEME_FONTS: Record<string, { family: string; name: string }> = {
   rainbow:      { family: "'Nunito', sans-serif", name: 'Nunito' },
   douchebag:    { family: "'Anton', sans-serif", name: 'Anton' },
   prepper:      { family: "'Courier Prime', monospace", name: 'Courier Prime' },
-  patriot:      { family: "'EB Garamond', 'Garamond', serif", name: 'EB Garamond' },
+  patriot:      { family: "'Instrument Serif', 'Garamond', serif", name: 'Instrument Serif' },
   sunworshipper:{ family: "'Playfair Display', serif", name: 'Playfair Display' },
   grandma:      { family: "'Lato', sans-serif", name: 'Lato' },
   surfer:       { family: "'Comfortaa', cursive", name: 'Comfortaa' },
@@ -573,7 +573,7 @@ function applyThemeToDom(theme: Theme) {
     rainbow: "'Nunito', 'Arial', sans-serif",         // Rainbow — friendly rounded
     douchebag: "'Anton', 'Impact', sans-serif",      // Douchebag — bold condensed impact
     prepper: "'Courier Prime', 'Courier New', monospace", // Prepper — clean field manual
-    patriot: "'EB Garamond', 'Garamond', serif",      // Patriot — presidential serif
+    patriot: "'Instrument Serif', 'Garamond', serif",  // Patriot — elegant presidential serif
     // Light themes
     sunworshipper: "'Playfair Display', serif",       // Sun Worshipper — elegant serif
     grandma: "'Lato', 'Arial', sans-serif",          // Grandma — soft clean sans
@@ -613,7 +613,7 @@ function applyThemeToDom(theme: Theme) {
     rainbow: 'Nunito:wght@400;600;700',
     douchebag: 'Anton',
     prepper: 'Courier+Prime:wght@400;700',
-    patriot: 'EB+Garamond:wght@400;500;600;700',
+    patriot: 'Instrument+Serif:ital@0;1',
     // Light
     sunworshipper: 'Playfair+Display:wght@400;700',
     grandma: 'Lato:wght@300;400;700',
