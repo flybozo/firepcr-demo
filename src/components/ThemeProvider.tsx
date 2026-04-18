@@ -46,7 +46,7 @@ export const THEME_FONTS: Record<string, { family: string; name: string }> = {
   douchebag:    { family: "'Anton', sans-serif", name: 'Anton' },
   prepper:      { family: "'Courier Prime', monospace", name: 'Courier Prime' },
   patriot:      { family: "'Instrument Serif', 'Garamond', serif", name: 'Instrument Serif' },
-  sunworshipper:{ family: "'Playfair Display', serif", name: 'Playfair Display' },
+  cowboy:       { family: "'Rye', cursive", name: 'Rye' },
   grandma:      { family: "'Lato', sans-serif", name: 'Lato' },
   surfer:       { family: "'Comfortaa', cursive", name: 'Comfortaa' },
   elgaucho:     { family: "'Righteous', cursive", name: 'Righteous' },
@@ -281,24 +281,24 @@ export const THEME_PRESETS: Record<string, { label: string; description: string;
       danger: '#b22234',
     },
   },
-  sunworshipper: {
-    label: '☀️ Sun Worshipper',
-    description: 'Golden hour, all day',
+  cowboy: {
+    label: '🤠 Cowboy',
+    description: 'Saddle up, partner',
     colors: {
-      primary: '#d4a017',
-      primaryHover: '#b8860b',
-      secondary: '#e8912d',
-      accent: '#f5c842',
-      headerBg: '#f5e8c0',
-      cardBg: '#fef9e7',
-      pageBg: '#fffdf5',
-      sidebarBg: '#f5e6b8',
-      text: '#3d2e0a',
-      textMuted: '#8b7335',
-      border: '#e8d5a3',
-      success: '#5a8f29',
-      warning: '#d4a017',
-      danger: '#c0392b',
+      primary: '#c17f3e',
+      primaryHover: '#a3682f',
+      secondary: '#8b6839',
+      accent: '#d4a95a',
+      headerBg: '#2a1f14',
+      cardBg: '#32251a',
+      pageBg: '#1e150e',
+      sidebarBg: '#1a120b',
+      text: '#e8d5b5',
+      textMuted: '#9c8569',
+      border: '#4a3728',
+      success: '#6b8e3a',
+      warning: '#c17f3e',
+      danger: '#8b2500',
     },
   },
   grandma: {
@@ -591,7 +591,7 @@ function applyThemeToDom(theme: Theme) {
     prepper: "'Courier Prime', 'Courier New', monospace", // Prepper — clean field manual
     patriot: "'Instrument Serif', 'Garamond', serif",  // Patriot — elegant presidential serif
     // Light themes
-    sunworshipper: "'Playfair Display', serif",       // Sun Worshipper — elegant serif
+    cowboy: "'Rye', cursive",                         // Cowboy — old Western saloon
     grandma: "'Lato', 'Arial', sans-serif",          // Grandma — soft clean sans
     surfer: "'Comfortaa', cursive",                  // Surfer — rounded casual
     elgaucho: "'Righteous', cursive",                // El Gaucho — bold display
@@ -615,6 +615,7 @@ function applyThemeToDom(theme: Theme) {
     terminal: 1.15,   // VT323 pixel font reads small
     hippie: 1.05,     // Boogaloo display font reads slightly small
     barbie: 1.05,     // Pacifico reads small
+    cowboy: 1.05,     // Rye Western display font reads slightly small
   }
   const fontScale = fontScaleMap[theme.preset] || 1
   const scaleCSS = fontScale !== 1
@@ -642,7 +643,7 @@ function applyThemeToDom(theme: Theme) {
     prepper: 'Courier+Prime:wght@400;700',
     patriot: 'Instrument+Serif:ital@0;1',
     // Light
-    sunworshipper: 'Playfair+Display:wght@400;700',
+    cowboy: 'Rye',
     grandma: 'Lato:wght@300;400;700',
     surfer: 'Comfortaa:wght@400;600;700',
     elgaucho: 'Righteous',
