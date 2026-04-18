@@ -51,7 +51,7 @@ export const THEME_FONTS: Record<string, { family: string; name: string }> = {
   surfer:       { family: "'Comfortaa', cursive", name: 'Comfortaa' },
   elgaucho:     { family: "'Righteous', cursive", name: 'Righteous' },
   overcast:     { family: "'Source Sans 3', sans-serif", name: 'Source Sans 3' },
-  hippie:       { family: "'Caveat', cursive", name: 'Caveat' },
+  hippie:       { family: "'Boogaloo', cursive", name: 'Boogaloo' },
   doc:          { family: "'IBM Plex Sans', sans-serif", name: 'IBM Plex Sans' },
   cyborg:       { family: "'Share Tech Mono', monospace", name: 'Share Tech Mono' },
   terminal:     { family: "'VT323', monospace", name: 'VT323' },
@@ -596,7 +596,7 @@ function applyThemeToDom(theme: Theme) {
     surfer: "'Comfortaa', cursive",                  // Surfer — rounded casual
     elgaucho: "'Righteous', cursive",                // El Gaucho — bold display
     overcast: "'Source Sans 3', 'Arial', sans-serif", // Overcast — corporate clean
-    hippie: "'Caveat', cursive",                     // Hippie — clean handwritten readable
+    hippie: "'Boogaloo', cursive",                     // Hippie — clean handwritten readable
     doc: "'IBM Plex Sans', 'Arial', sans-serif",     // Doc — clinical monospace feel
   }
   const font = fontMap[theme.preset] || theme.font || "'Inter', system-ui, -apple-system, sans-serif"
@@ -613,7 +613,7 @@ function applyThemeToDom(theme: Theme) {
   // Per-theme font size scaling (some display/pixel fonts need a boost)
   const fontScaleMap: Record<string, number> = {
     terminal: 1.15,   // VT323 pixel font reads small
-    hippie: 1.05,     // Caveat handwriting reads small
+    hippie: 1.05,     // Boogaloo display font reads slightly small
     barbie: 1.05,     // Pacifico reads small
   }
   const fontScale = fontScaleMap[theme.preset] || 1
@@ -647,7 +647,7 @@ function applyThemeToDom(theme: Theme) {
     surfer: 'Comfortaa:wght@400;600;700',
     elgaucho: 'Righteous',
     overcast: 'Source+Sans+3:wght@300;400;600',
-    hippie: 'Caveat:wght@400;600;700',
+    hippie: 'Boogaloo',
     doc: 'IBM+Plex+Sans:wght@300;400;600',
   }
   const gFont = googleFonts[theme.preset]
