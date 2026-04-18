@@ -1,5 +1,5 @@
 
-
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -45,7 +45,7 @@ export const THEME_FONTS: Record<string, { family: string; name: string }> = {
   rainbow:      { family: "'Nunito', sans-serif", name: 'Nunito' },
   douchebag:    { family: "'Anton', sans-serif", name: 'Anton' },
   prepper:      { family: "'Courier Prime', monospace", name: 'Courier Prime' },
-  patriot:      { family: "'Libre Baskerville', serif", name: 'Libre Baskerville' },
+  patriot:      { family: "'EB Garamond', 'Garamond', serif", name: 'EB Garamond' },
   sunworshipper:{ family: "'Playfair Display', serif", name: 'Playfair Display' },
   grandma:      { family: "'Lato', sans-serif", name: 'Lato' },
   surfer:       { family: "'Comfortaa', cursive", name: 'Comfortaa' },
@@ -268,11 +268,11 @@ export const THEME_PRESETS: Record<string, { label: string; description: string;
       primary: '#b22234',
       primaryHover: '#8b1a29',
       secondary: '#3c3b6e',
-      accent: '#b22234',
+      accent: '#c9a84c',
       headerBg: '#ffffff',
       cardBg: '#f5f5f5',
       pageBg: '#ffffff',
-      sidebarBg: '#3c3b6e',
+      sidebarBg: '#2a2a5a',
       text: '#1a1a2e',
       textMuted: '#5c5c7a',
       border: '#d4d4d8',
@@ -573,7 +573,7 @@ function applyThemeToDom(theme: Theme) {
     rainbow: "'Nunito', 'Arial', sans-serif",         // Rainbow — friendly rounded
     douchebag: "'Anton', 'Impact', sans-serif",      // Douchebag — bold condensed impact
     prepper: "'Courier Prime', 'Courier New', monospace", // Prepper — clean field manual
-    patriot: "'Libre Baskerville', serif",            // Patriot — classic serif
+    patriot: "'EB Garamond', 'Garamond', serif",      // Patriot — presidential serif
     // Light themes
     sunworshipper: "'Playfair Display', serif",       // Sun Worshipper — elegant serif
     grandma: "'Lato', 'Arial', sans-serif",          // Grandma — soft clean sans
@@ -613,7 +613,7 @@ function applyThemeToDom(theme: Theme) {
     rainbow: 'Nunito:wght@400;600;700',
     douchebag: 'Anton',
     prepper: 'Courier+Prime:wght@400;700',
-    patriot: 'Libre+Baskerville:wght@400;700',
+    patriot: 'EB+Garamond:wght@400;500;600;700',
     // Light
     sunworshipper: 'Playfair+Display:wght@400;700',
     grandma: 'Lato:wght@300;400;700',

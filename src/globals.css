@@ -230,6 +230,12 @@ input[type="datetime-local"] {
   display: block !important;
 }
 
+/* Text selection — use theme primary so it never obscures text on dark backgrounds */
+::selection {
+  background: color-mix(in srgb, var(--color-primary, #3b82f6) 35%, transparent);
+  color: inherit;
+}
+
 /* Preserve explicit color utility classes (don't let theme overrides stomp them) */
 .text-blue-400 { color: #60a5fa !important; }
 .text-red-400 { color: var(--theme-primary, #f87171) !important; }

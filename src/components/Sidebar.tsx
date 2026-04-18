@@ -34,7 +34,7 @@ const NAV: NavItem[] = [
   },
   {
     icon: 'encounters',
-    label: 'Patient Encounters',
+    label: 'Encounters',
     href: '/encounters',
     directLink: true,
     sub: [
@@ -66,7 +66,7 @@ const NAV: NavItem[] = [
       { label: 'Formulary Templates', href: '/formulary' },
       { label: 'Reorder Report', href: '/inventory/reorder' },
       { label: 'Burn Rate', href: '/inventory/burnrate' },
-      { label: 'Billing Report', href: '/billing' },
+      { label: 'Itemized Billing', href: '/billing' },
     ],
   },
   {
@@ -149,7 +149,7 @@ function loadOrder(labels: string[]): string[] {
 
 // ── Sortable nav item ────────────────────────────────────────────────────────
 function SortableNavItem({
-  item, isAdmin, isField, pathname, expanded, toggle, onNavigate, assignment, roleLoading, getHref, badges, isRainbow,
+  item, isAdmin, isField, pathname, expanded, toggle, onNavigate, assignment, roleLoading, getHref, badges, isRainbow, sidebarText,
 }: {
   item: NavItem & { _disabled?: boolean }
   isAdmin: boolean
@@ -163,6 +163,7 @@ function SortableNavItem({
   getHref: (item: NavItem) => string
   badges?: Record<string, { charts: number; notes: number; mar: number; total: number }>
   isRainbow?: boolean
+  sidebarText?: { inactive: string; muted: string }
 }) {
   const [showBadgeDetail, setShowBadgeDetail] = useState(false)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -221,7 +222,7 @@ function SortableNavItem({
                   : 'hover:bg-white/[0.04]'
               }`}
               style={{
-                color: isActive ? '#fff' : 'var(--color-text-muted, #9ca3af)',
+                color: isActive ? '#fff' : (sidebarText?.inactive || 'var(--color-text-muted, #9ca3af)'),
                 ...(isActive ? {
                   backgroundColor: 'color-mix(in srgb, var(--color-primary, #374151) 15%, transparent)',
                   border: '1px solid color-mix(in srgb, var(--color-primary, #374151) 30%, transparent)',
@@ -279,7 +280,7 @@ function SortableNavItem({
                 : 'hover:bg-white/[0.04]'
             }`}
             style={{
-              color: isActive ? '#fff' : 'var(--color-text-muted, #9ca3af)',
+              color: isActive ? '#fff' : (sidebarText?.inactive || 'var(--color-text-muted, #9ca3af)'),
               ...(isActive ? {
                 backgroundColor: 'color-mix(in srgb, var(--color-primary, #374151) 15%, transparent)',
                 border: '1px solid color-mix(in srgb, var(--color-primary, #374151) 30%, transparent)',
@@ -300,7 +301,7 @@ function SortableNavItem({
                 : 'hover:bg-white/[0.04]'
             }`}
             style={{
-              color: isActive ? '#fff' : 'var(--color-text-muted, #9ca3af)',
+              color: isActive ? '#fff' : (sidebarText?.inactive || 'var(--color-text-muted, #9ca3af)'),
               ...(isActive ? {
                 backgroundColor: 'color-mix(in srgb, var(--color-primary, #374151) 15%, transparent)',
                 border: '1px solid color-mix(in srgb, var(--color-primary, #374151) 30%, transparent)',
@@ -355,7 +356,7 @@ function SortableNavItem({
               className={`block py-1.5 px-3 text-[13px] rounded-md transition-all duration-150 ${
                 pathname === item.href ? '' : 'hover:bg-white/[0.04]'
               }`}
-              style={pathname === item.href ? { color: 'var(--color-primary, #f87171)' } : { color: 'var(--color-text-muted, #6b7280)' }}
+              style={pathname === item.href ? { color: 'var(--color-primary, #f87171)' } : { color: sidebarText?.muted || 'var(--color-text-muted, #6b7280)' }}
             >
               {isField && (item.href === '/incidents' || item.href === '/units') ? 'My ' : 'View All'}
               {isField && item.href === '/incidents' ? 'Incident' : isField && item.href === '/units' ? 'Unit' : ''}
@@ -369,7 +370,7 @@ function SortableNavItem({
               className={`block py-1.5 px-3 text-[13px] rounded-md transition-all duration-150 ${
                 pathname === sub.href ? '' : 'hover:bg-white/[0.04]'
               }`}
-              style={pathname === sub.href ? { color: 'var(--color-primary, #f87171)' } : { color: 'var(--color-text-muted, #6b7280)' }}
+              style={pathname === sub.href ? { color: 'var(--color-primary, #f87171)' } : { color: sidebarText?.muted || 'var(--color-text-muted, #6b7280)' }}
             >
               {sub.label}
             </Link>
@@ -382,6 +383,20 @@ function SortableNavItem({
 
 type OrgBranding = { name: string; dba: string | null; logo_url: string | null }
 
+// Detect if sidebar needs light text (dark sidebar bg on light-page themes like Patriot)
+function getSidebarTextColors(): { inactive: string; muted: string } {
+  if (typeof document === 'undefined') return { inactive: 'var(--color-text-muted, #9ca3af)', muted: 'var(--color-text-muted, #6b7280)' }
+  const sidebarBg = getComputedStyle(document.documentElement).getPropertyValue('--color-sidebar-bg').trim()
+  if (!sidebarBg || !sidebarBg.startsWith('#') || sidebarBg.length < 7) return { inactive: 'var(--color-text-muted, #9ca3af)', muted: 'var(--color-text-muted, #6b7280)' }
+  const hex = sidebarBg.replace('#', '')
+  const r = parseInt(hex.slice(0, 2), 16)
+  const g = parseInt(hex.slice(2, 4), 16)
+  const b = parseInt(hex.slice(4, 6), 16)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  if (luminance < 0.45) return { inactive: '#b0b0c8', muted: '#8080a0' }
+  return { inactive: 'var(--color-text-muted, #9ca3af)', muted: 'var(--color-text-muted, #6b7280)' }
+}
+
 // ── Main sidebar ─────────────────────────────────────────────────────────────
 export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const location = useLocation()
@@ -391,6 +406,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const unsignedCounts = useUnsignedCounts()
   const { theme } = useTheme()
   const isRainbow = theme.preset === 'rainbow'
+  const sidebarText = getSidebarTextColors()
   const [org, setOrg] = useState<OrgBranding | null>(null)
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true)
 
@@ -517,8 +533,9 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 assignment={assignment}
                 roleLoading={roleLoading}
                 getHref={getHref}
-                badges={{ 'Patient Encounters': unsignedCounts }}
+                badges={{ 'Encounters': unsignedCounts }}
                 isRainbow={isRainbow}
+                sidebarText={sidebarText}
               />
             ))}
           </SortableContext>
@@ -527,21 +544,21 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       <div className="border-t p-4 space-y-2" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
         {!roleLoading && assignment.employee && (
-          <div className="text-xs text-gray-600 truncate mb-2">
+          <div className="text-xs truncate mb-2" style={{ color: sidebarText.muted }}>
             {assignment.employee.name} · {assignment.unit?.name || 'No unit'}
           </div>
         )}
         <Link to="/documents"
-          style={{ color: "var(--color-text-muted, #9ca3af)" }} className="flex items-center gap-3 py-1.5 px-2.5 rounded-lg text-sm hover:bg-white/[0.04] transition-all duration-150">
+          style={{ color: sidebarText.inactive }} className="flex items-center gap-3 py-1.5 px-2.5 rounded-lg text-sm hover:bg-white/[0.04] transition-all duration-150">
           <span className="w-6 h-6 shrink-0 flex items-center justify-center opacity-50" style={isRainbow ? { color: RAINBOW_ICON_COLORS.documents, opacity: 1 } : {}}><SidebarIcon name="documents" /></span> Policies & Procedures
         </Link>
         <Link to="/profile"
-          style={{ color: "var(--color-text-muted, #9ca3af)" }} className="flex items-center gap-3 py-1.5 px-2.5 rounded-lg text-sm hover:bg-white/[0.04] transition-all duration-150">
+          style={{ color: sidebarText.inactive }} className="flex items-center gap-3 py-1.5 px-2.5 rounded-lg text-sm hover:bg-white/[0.04] transition-all duration-150">
           <span className="w-6 h-6 shrink-0 flex items-center justify-center opacity-50" style={isRainbow ? { color: RAINBOW_ICON_COLORS.profile, opacity: 1 } : {}}><SidebarIcon name="profile" /></span> My Profile
         </Link>
         {isField && (
           <Link to="/schedule/request"
-            style={{ color: "var(--color-text-muted, #9ca3af)" }} className="flex items-center gap-3 py-1.5 px-2.5 rounded-lg text-sm hover:bg-white/[0.04] transition-all duration-150">
+            style={{ color: sidebarText.inactive }} className="flex items-center gap-3 py-1.5 px-2.5 rounded-lg text-sm hover:bg-white/[0.04] transition-all duration-150">
             <span className="w-6 h-6 shrink-0 flex items-center justify-center opacity-50" style={isRainbow ? { color: RAINBOW_ICON_COLORS.schedule, opacity: 1 } : {}}><SidebarIcon name="schedule" /></span> Schedule Request
           </Link>
         )}
@@ -552,13 +569,13 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             await sb.auth.signOut()
             window.location.href = '/login'
           }}
-          style={{ color: "var(--color-text-muted, #6b7280)" }} className="flex items-center gap-3 py-1.5 px-2.5 rounded-lg text-sm hover:bg-white/[0.04] transition-all duration-150 w-full"
+          style={{ color: sidebarText.muted }} className="flex items-center gap-3 py-1.5 px-2.5 rounded-lg text-sm hover:bg-white/[0.04] transition-all duration-150 w-full"
         >
           <span className="w-6 h-6 shrink-0 flex items-center justify-center opacity-50" style={isRainbow ? { color: RAINBOW_ICON_COLORS.logout, opacity: 1 } : {}}><SidebarIcon name="logout" /></span> Sign Out
         </button>
       </div>
       <div className="px-4 pb-3 pt-1">
-        <p className="text-[10px] text-center" style={{ color: 'var(--color-text-muted, #6b7280)' }}>FirePCR v{APP_VERSION}</p>
+        <p className="text-[10px] text-center" style={{ color: sidebarText.muted }}>FirePCR v{APP_VERSION}</p>
       </div>
     </nav>
   )
