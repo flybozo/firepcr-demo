@@ -44,6 +44,7 @@ echo "▸ Preserving demo-only files → $DEMO_PRESERVE_DIR"
 for f in \
   .env.production \
   public/firepcr-logo.svg \
+  public/firepcr-logo.png \
   public/icons/icon-192.png \
   public/icons/icon-192.svg \
   public/icons/icon-512.png \
@@ -204,7 +205,7 @@ apply_sed \
 
 # ── Logo URLs → local FirePCR logo ───────────────────────────
 apply_sed \
-  -e 's|https://kfkpvazkikpuwatthtow\.supabase\.co/storage/v1/object/public/headshots/ram-logo\.png|/firepcr-logo.svg|g'
+  -e 's|https://kfkpvazkikpuwatthtow\.supabase\.co/storage/v1/object/public/headshots/ram-logo\.png|/firepcr-logo.png|g'
 
 # Also remove the ram-logo.svg/png from public if copied over
 rm -f "$DEMO_DIR/public/ram-logo.svg" "$DEMO_DIR/public/ram-logo.png"
