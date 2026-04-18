@@ -487,7 +487,7 @@ function DraggableSection({ id, children }: { id: string; children: React.ReactN
 
 function SectionCard({ title, children, badge }: { title: string; children: React.ReactNode; badge?: React.ReactNode }) {
   return (
-    <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3 min-w-0 overflow-hidden">
+    <div className="theme-card rounded-xl p-4 border space-y-3 min-w-0 overflow-hidden">
       <div className="flex items-center justify-between">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">{title}</h2>
         {badge && <span>{badge}</span>}
@@ -1694,7 +1694,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
         )}
 
         {/* Header card */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
+        <div className="theme-card rounded-xl p-4 border">
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="flex gap-2 items-start flex-wrap mb-0.5">
@@ -1732,8 +1732,8 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                   case 'actions':
                     return (
                       <DraggableSection key="actions" id="actions">
-                        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-                          <div className="px-4 py-2.5 bg-gray-800 border-b border-gray-700">
+                        <div className="theme-card rounded-xl border overflow-hidden">
+                          <div className="px-4 py-2.5 theme-card-header border-b">
                             <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Chart Actions</p>
                           </div>
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3">
@@ -1807,8 +1807,8 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                   case 'mar':
                     return (
                       <DraggableSection key="mar" id="mar">
-                        <div className="bg-gray-900 rounded-xl border border-gray-800">
-                          <div className="flex items-center justify-between px-4 py-3 bg-gray-800 border-b border-gray-700">
+                        <div className="theme-card rounded-xl border">
+                          <div className="flex items-center justify-between px-4 py-3 theme-card-header border-b">
                             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
                               Medications Administered
                               {marEntries.length > 0 && <span className="ml-2 text-gray-600 font-normal normal-case">({marEntries.length})</span>}
@@ -1928,7 +1928,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                   case 'vitals':
                     return (
                       <DraggableSection key="vitals" id="vitals">
-                        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
+                        <div className="theme-card rounded-xl p-4 border space-y-3">
                           <div className="flex items-center justify-between">
                             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Vitals Trend</h2>
                             <button onClick={() => setShowAddVitals(v => !v)}
@@ -1954,8 +1954,8 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                   case 'photos':
                     return (
                       <DraggableSection key="photos" id="photos">
-                        <div className="bg-gray-900 rounded-xl border border-gray-800">
-                          <div className="flex items-center justify-between px-4 py-3 bg-gray-800 border-b border-gray-700">
+                        <div className="theme-card rounded-xl border">
+                          <div className="flex items-center justify-between px-4 py-3 theme-card-header border-b">
                             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
                               Photos {photos.length > 0 && <span className="text-gray-600 font-normal normal-case ml-1">({photos.length})</span>}
                             </h2>
@@ -1994,8 +1994,8 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                   case 'procedures':
                     return (
                       <DraggableSection key="procedures" id="procedures">
-                        <div className="bg-gray-900 rounded-xl border border-gray-800">
-                          <div className="flex items-center justify-between px-4 py-3 bg-gray-800 border-b border-gray-700">
+                        <div className="theme-card rounded-xl border">
+                          <div className="flex items-center justify-between px-4 py-3 theme-card-header border-b">
                             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
                               Procedures {procedures.length > 0 && <span className="text-gray-600 font-normal normal-case ml-1">({procedures.length})</span>}
                             </h2>
@@ -2167,7 +2167,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                   case 'narrative':
                     return (
                       <DraggableSection key="narrative" id="narrative">
-                        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+                        <div className="theme-card rounded-xl border overflow-hidden">
                           <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
                             <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">📋 Clinical Narrative</h2>
                             <button onClick={() => setNarrativeExpanded(true)}
@@ -2201,7 +2201,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                   case 'ama':
                     return (
                       <DraggableSection key="ama" id="ama">
-                        <div className="bg-gray-900 rounded-xl border border-gray-800">
+                        <div className="theme-card rounded-xl border">
                           <div className="flex items-center justify-between px-4 py-3">
                             <button onClick={() => setShowConsentForms(v => !v)} className="flex items-center gap-2 text-left flex-1">
                               <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
@@ -2249,7 +2249,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                   case 'comp':
                     return (
                       <DraggableSection key="comp" id="comp">
-                        <div className="bg-gray-900 rounded-xl border border-gray-800">
+                        <div className="theme-card rounded-xl border">
                           <div className="flex items-center justify-between px-4 py-3">
                             <button onClick={() => setShowCompClaims(v => !v)} className="flex items-center gap-2 text-left flex-1">
                               <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
@@ -2296,8 +2296,8 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
         </DndContext>
 
         {/* ── Progress Notes ── */}
-        <div id="notes" className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-700 bg-slate-800/90">
+        <div id="notes" className="theme-card rounded-xl border overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b theme-card-header">
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300">
               📝 Progress Notes {progressNotes.length > 0 && <span className="text-gray-500 font-normal normal-case ml-1">({progressNotes.length})</span>}
             </h3>
@@ -2309,7 +2309,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
             )}
           </div>
           {showNoteForm && (
-            <div className="p-4 border-b border-gray-800 bg-gray-800/40 space-y-3">
+            <div className="p-4 border-b theme-card-header space-y-3">
               <textarea
                 value={noteDraft}
                 onChange={e => setNoteDraft(e.target.value)}

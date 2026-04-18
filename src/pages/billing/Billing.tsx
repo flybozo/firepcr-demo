@@ -217,7 +217,7 @@ function BillingPageInner() {
         </div>
 
         {/* Controls */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 space-y-4">
+        <div className="theme-card rounded-xl border p-4 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="sm:col-span-1 space-y-1">
               <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Incident</label>
@@ -265,7 +265,7 @@ function BillingPageInner() {
           <div className="space-y-4">
 
             {/* Report header */}
-            <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+            <div className="theme-card rounded-xl border p-4 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
               <div>
                 <h2 className="text-lg font-bold">{selectedIncident.name}</h2>
                 <p className="text-sm text-gray-400">
@@ -290,7 +290,7 @@ function BillingPageInner() {
             </div>
 
             {/* Supply Runs */}
-            <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+            <div className="theme-card rounded-xl border overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Supply Runs</h3>
                 <span className="text-sm font-semibold text-white">{fmt(supplySubtotal)}</span>
@@ -301,7 +301,7 @@ function BillingPageInner() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-xs uppercase tracking-wide text-gray-600 bg-gray-800/30">
+                      <tr className="text-xs uppercase tracking-wide text-gray-600 theme-card-footer">
                         <th className="px-4 py-2 text-left">Date</th>
                         <th className="px-4 py-2 text-left">Unit</th>
                         <th className="px-4 py-2 text-left">Item</th>
@@ -332,7 +332,7 @@ function BillingPageInner() {
             </div>
 
             {/* MAR */}
-            <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+            <div className="theme-card rounded-xl border overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Medication Administrations (MAR)</h3>
                 <span className="text-sm font-semibold text-white">{fmt(marSubtotal)}</span>
@@ -343,7 +343,7 @@ function BillingPageInner() {
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
-                      <tr className="text-xs uppercase tracking-wide text-gray-600 bg-gray-800/30">
+                      <tr className="text-xs uppercase tracking-wide text-gray-600 theme-card-footer">
                         <th className="px-4 py-2 text-left">Date</th>
                         <th className="px-4 py-2 text-left">Unit</th>
                         <th className="px-4 py-2 text-left">Item</th>
@@ -378,7 +378,7 @@ function BillingPageInner() {
             </div>
 
             {/* Summary footer */}
-            <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+            <div className="theme-card rounded-xl border p-4">
               <div className="flex flex-col sm:flex-row gap-4 sm:gap-8 items-end justify-end text-right">
                 <div>
                   <p className="text-xs text-gray-500 uppercase tracking-wider">Supply Runs Subtotal</p>

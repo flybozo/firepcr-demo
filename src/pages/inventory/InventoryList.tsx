@@ -326,9 +326,9 @@ function InventoryPageInner() {
       ) : (
         <>
           {/* Table */}
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="theme-card rounded-xl border overflow-hidden">
             {/* Header */}
-            <div className="flex items-center px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800">
+            <div className="flex items-center px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header">
               <span className="flex-1 min-w-0">Item</span>
               <span className="w-20 text-center hidden md:block">Unit</span>
               <span className="w-10 text-center">Cat</span>

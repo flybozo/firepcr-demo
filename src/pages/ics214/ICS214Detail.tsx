@@ -458,7 +458,7 @@ export default function ICS214DetailPage() {
         <div className="space-y-4">
 
           {/* Header Card */}
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="theme-card rounded-xl border overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
               <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">ICS 214 Header</h2>
               <span className="text-xs text-gray-600 italic">Click to edit</span>
@@ -496,7 +496,7 @@ export default function ICS214DetailPage() {
           </div>
 
           {/* Personnel Section */}
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="theme-card rounded-xl border overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
               <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">
                 Personnel ({personnel.length})
@@ -513,7 +513,7 @@ export default function ICS214DetailPage() {
             </p>
 
             {showAddPersonnel && (
-              <form onSubmit={addPersonnel} className="px-4 py-3 border-b border-gray-800 bg-gray-800/30 space-y-2">
+              <form onSubmit={addPersonnel} className="px-4 py-3 border-b theme-card-header space-y-2">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <input
                     type="text"
@@ -549,7 +549,7 @@ export default function ICS214DetailPage() {
             ) : (
               <div className="divide-y divide-gray-800/60">
                 {/* Header row */}
-                <div className="flex px-4 py-2 text-xs font-semibold uppercase tracking-wider text-gray-600 bg-gray-800/30">
+                <div className="flex px-4 py-2 text-xs font-semibold uppercase tracking-wider text-gray-600 theme-card-footer">
                   <span className="flex-1">Name</span>
                   <span className="w-36 hidden sm:block">ICS Position</span>
                   <span className="w-40 hidden sm:block">Home Agency</span>
@@ -566,7 +566,7 @@ export default function ICS214DetailPage() {
           </div>
 
           {/* Activity Log */}
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="theme-card rounded-xl border overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
               <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">
                 Activity Log ({activities.filter(a => a.activity_type !== 'system').length} entries)
@@ -684,7 +684,7 @@ export default function ICS214DetailPage() {
 
           {/* PDF Section (Closed) */}
           {header.status === 'Closed' && (
-            <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 flex items-center gap-3 flex-wrap">
+            <div className="theme-card rounded-xl border p-4 flex items-center gap-3 flex-wrap">
               <div className="flex-1">
                 <p className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">PDF Document</p>
                 {signedPdfUrl ? (

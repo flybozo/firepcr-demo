@@ -323,12 +323,12 @@ function MARListInner() {
             No entries recorded yet.
           </div>
         ) : (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="theme-card rounded-xl border overflow-hidden">
             {/* Horizontally scrollable on mobile - each row stays single-line */}
             <div className="overflow-x-auto">
               <div className="min-w-[740px]">
                 {/* Header */}
-                <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-slate-800/90">
+                <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header">
                   <span className="w-20 shrink-0">Date</span>
                   <span className="w-20 shrink-0">Patient</span>
                   <span className="flex-1 min-w-[120px]">Medication</span>

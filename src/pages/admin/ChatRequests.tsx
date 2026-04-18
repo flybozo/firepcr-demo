@@ -141,7 +141,7 @@ function ChatRequestsPageInner() {
       {loading ? (
         <div className="space-y-3">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-gray-900 rounded-xl border border-gray-800 h-24 animate-pulse" />
+            <div key={i} className="theme-card rounded-xl border h-24 animate-pulse" />
           ))}
         </div>
       ) : filtered.length === 0 ? (

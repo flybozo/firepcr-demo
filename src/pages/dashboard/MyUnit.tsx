@@ -315,7 +315,7 @@ export default function MyUnitDashboard() {
         {/* Row 1 — Shift + Incident stat cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* My Shift */}
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+          <div className="theme-card rounded-xl border p-4">
             <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">My Shift</p>
             <p className="text-sm text-gray-300 mb-3">{today}</p>
             {crew.length > 0 ? (
@@ -333,7 +333,7 @@ export default function MyUnitDashboard() {
           </div>
 
           {/* Active Incident */}
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+          <div className="theme-card rounded-xl border p-4">
             <p className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Active Incident</p>
             <p className="text-base font-semibold text-white">{incidentName}</p>
             {assignment.incident && (
@@ -350,8 +350,8 @@ export default function MyUnitDashboard() {
         {/* Row 2 — Recent Encounters + CS On Hand + MAR + Supply Runs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Recent Encounters */}
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-gray-800">
+          <div className="theme-card rounded-xl border overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b theme-card-header">
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300">Recent Encounters</h3>
               <Link to={`/encounters?unit=${encodeURIComponent(unitName)}`} className="text-xs text-gray-400 hover:text-white">
                 View all →
@@ -388,8 +388,8 @@ export default function MyUnitDashboard() {
           </div>
 
           {/* CS On Hand */}
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-gray-800">
+          <div className="theme-card rounded-xl border overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b theme-card-header">
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300">CS On Hand</h3>
               <Link to="/cs" className="text-xs text-gray-400 hover:text-white">View all →</Link>
             </div>
@@ -406,8 +406,8 @@ export default function MyUnitDashboard() {
           </div>
 
           {/* MAR — Recent Medications */}
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-gray-800">
+          <div className="theme-card rounded-xl border overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b theme-card-header">
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300">Medications Administered</h3>
               <Link to="/mar" className="text-xs text-gray-400 hover:text-white">View all →</Link>
             </div>
@@ -428,8 +428,8 @@ export default function MyUnitDashboard() {
           </div>
 
           {/* Supply Runs */}
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-gray-800">
+          <div className="theme-card rounded-xl border overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-3 border-b theme-card-header">
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300">Supply Runs</h3>
               <Link to="/supply-runs" className="text-xs text-gray-400 hover:text-white">View all →</Link>
             </div>
@@ -489,7 +489,7 @@ export default function MyUnitDashboard() {
         {/* Row 4 — Low Stock Alert */}
         {lowStock.length > 0 && (
           <div className="bg-gray-900 rounded-xl border border-yellow-800/50 overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 bg-gray-800">
+            <div className="flex items-center justify-between px-4 py-3 border-b theme-card-header">
               <h3 className="text-xs font-bold uppercase tracking-wider text-yellow-500">⚠️ Low Stock</h3>
               <Link to="/inventory/reorder" className="text-xs text-gray-400 hover:text-white">View all →</Link>
             </div>

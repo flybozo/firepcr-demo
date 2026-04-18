@@ -131,7 +131,7 @@ function ReorderPageInner() {
         </div>
 
         {/* Filters */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+        <div className="theme-card rounded-xl border p-4">
           <div className="flex flex-wrap gap-3 items-end">
             <div className="space-y-1">
               <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Unit</label>
@@ -171,11 +171,11 @@ function ReorderPageInner() {
         {/* Summary */}
         {!loading && (
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 text-center">
+            <div className="theme-card rounded-xl border p-4 text-center">
               <p className="text-3xl font-bold text-red-400">{totalLow}</p>
               <p className="text-xs text-gray-500 uppercase tracking-wider mt-1">Items Below Par</p>
             </div>
-            <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 text-center">
+            <div className="theme-card rounded-xl border p-4 text-center">
               <p className="text-3xl font-bold text-yellow-400">{unitsAffected}</p>
               <p className="text-xs text-gray-500 uppercase tracking-wider mt-1">Units Affected</p>
             </div>
@@ -188,12 +188,12 @@ function ReorderPageInner() {
             <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-8 text-center">
+          <div className="theme-card rounded-xl border p-8 text-center">
             <p className="text-gray-500 text-sm">No items below par level — great job! 🎉</p>
           </div>
         ) : (
           Object.entries(grouped).map(([unitName, unitItems]) => (
-            <div key={unitName} className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+            <div key={unitName} className="theme-card rounded-xl border overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between bg-gray-800/40">
                 <h3 className="text-sm font-bold text-white">{unitName}</h3>
                 <span className="text-xs text-gray-500">{unitItems.length} item{unitItems.length !== 1 ? 's' : ''}</span>

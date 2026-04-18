@@ -229,19 +229,19 @@ export default function ICS214ListPage() {
             <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : rows.length === 0 ? (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-12 text-center">
+          <div className="theme-card rounded-xl border p-12 text-center">
             <p className="text-gray-500 text-sm mb-4">No ICS 214 logs found.</p>
             <Link to="/ics214/new" className="text-red-400 hover:text-red-300 text-sm underline">
               Create your first 214 →
             </Link>
           </div>
         ) : (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="theme-card rounded-xl border overflow-hidden">
             {/* Desktop table */}
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-800 bg-gray-800/50">
+                  <tr className="border-b theme-card-header">
                     <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">214 ID</th>
                     <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">Date</th>
                     <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">Unit</th>

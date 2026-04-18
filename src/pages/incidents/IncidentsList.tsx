@@ -118,8 +118,8 @@ function IncidentsPageInner() {
             )}
           </div>
         ) : (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-x-auto">
-            <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60 min-w-[480px]">
+          <div className="theme-card rounded-xl border overflow-x-auto">
+            <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header min-w-[480px]">
               <span className="flex-1 min-w-[120px]">Incident Name</span>
               <span className="w-24 shrink-0 hidden sm:block">Start Date</span>
               <span className="w-40 shrink-0 hidden md:block">Location</span>

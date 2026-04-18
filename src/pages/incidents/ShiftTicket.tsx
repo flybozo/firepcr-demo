@@ -185,7 +185,7 @@ export default function ShiftTicketPage() {
         </div>
 
         {/* Fields 1-6: Top identification */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 space-y-4">
+        <div className="theme-card rounded-xl border p-4 space-y-4">
           <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Identification</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
@@ -216,7 +216,7 @@ export default function ShiftTicketPage() {
         </div>
 
         {/* Fields 7-10: Equipment */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 space-y-4">
+        <div className="theme-card rounded-xl border p-4 space-y-4">
           <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Equipment</h2>
           <div>
             <label className={labelCls}>Select Unit</label>
@@ -250,7 +250,7 @@ export default function ShiftTicketPage() {
         </div>
 
         {/* Fields 12-14: Checkboxes */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 space-y-4">
+        <div className="theme-card rounded-xl border p-4 space-y-4">
           <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Options</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <div>
@@ -290,7 +290,7 @@ export default function ShiftTicketPage() {
         </div>
 
         {/* Fields 15-21: Equipment shift rows */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 space-y-3">
+        <div className="theme-card rounded-xl border p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Equipment Log (Fields 15–21)</h2>
             <button onClick={() => setShiftRows(prev => [...prev, emptyShiftRow()])}
@@ -327,7 +327,7 @@ export default function ShiftTicketPage() {
         </div>
 
         {/* Fields 22-29: Personnel rows */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 space-y-3">
+        <div className="theme-card rounded-xl border p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Personnel Log (Fields 22–29)</h2>
             <button onClick={() => setPersonnelRows(prev => [...prev, emptyPersonnelRow()])}
@@ -366,14 +366,14 @@ export default function ShiftTicketPage() {
         </div>
 
         {/* Field 30: Remarks */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 space-y-2">
+        <div className="theme-card rounded-xl border p-4 space-y-2">
           <label className={labelCls}>30. Remarks — equipment breakdown, operating issues, other notes</label>
           <textarea value={remarks} onChange={e => setRemarks(e.target.value)}
             className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-1 focus:ring-red-500 h-20 resize-none" />
         </div>
 
         {/* Fields 31-34: Signatures */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 space-y-4">
+        <div className="theme-card rounded-xl border p-4 space-y-4">
           <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Signatures (Fields 31–34)</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">

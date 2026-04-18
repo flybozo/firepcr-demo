@@ -150,14 +150,14 @@ export default function MyPayrollPage() {
 
         {/* No active deployment message */}
         {!activeDeployment && (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 text-center">
+          <div className="theme-card rounded-xl border p-6 text-center">
             <p className="text-gray-500 text-sm">No active deployment</p>
           </div>
         )}
 
         {/* Past Deployments */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-          <div className="px-4 py-3 border-b border-gray-800 bg-gray-800 flex items-center justify-between">
+        <div className="theme-card rounded-xl border overflow-hidden">
+          <div className="px-4 py-3 border-b theme-card-header flex items-center justify-between">
             <h2 className="text-xs font-bold uppercase tracking-wider text-gray-300">Deployment History</h2>
             <span className="text-xs text-gray-500">{deployments.length} total</span>
           </div>
@@ -166,7 +166,7 @@ export default function MyPayrollPage() {
           ) : (
             <>
               {/* Table header */}
-              <div className="hidden sm:flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 bg-gray-800/30 border-b border-gray-800/60">
+              <div className="hidden sm:flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 theme-card-header border-b/60">
                 <span className="flex-1 min-w-0">Incident</span>
                 <span className="w-24 shrink-0">Travel Date</span>
                 <span className="w-24 shrink-0">Check-Out</span>
@@ -224,7 +224,7 @@ export default function MyPayrollPage() {
 
         {/* Grand Total */}
         {deployments.length > 0 && (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 flex items-center justify-between">
+          <div className="theme-card rounded-xl border p-4 flex items-center justify-between">
             <div>
               <p className="text-xs text-gray-500 uppercase tracking-wide font-bold">Grand Total</p>
               <p className="text-xs text-gray-600 mt-0.5">All deployments · {deployments.length} assignment{deployments.length !== 1 ? 's' : ''}</p>

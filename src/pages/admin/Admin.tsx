@@ -80,14 +80,14 @@ function AdminDashboardPageInner() {
       {loading ? (
         <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-8">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="bg-gray-900 rounded-xl p-4 border border-gray-800 animate-pulse h-20" />
+            <div key={i} className="theme-card rounded-xl p-4 border animate-pulse h-20" />
           ))}
         </div>
       ) : (
         <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-8">
           {stats.map(s => (
             <Link key={s.href} to={s.href}
-              className="bg-gray-900 rounded-xl p-4 border border-gray-800 hover:border-gray-600 transition-colors text-center">
+              className="theme-card rounded-xl p-4 border hover:border-gray-600 transition-colors text-center">
               <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
               <p className="text-xs text-gray-500 mt-1 leading-tight">{s.label}</p>
             </Link>

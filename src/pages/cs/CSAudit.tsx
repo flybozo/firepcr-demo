@@ -231,7 +231,7 @@ function AuditLogInner() {
                 </thead>
                 <tbody>
                   {transactions.map(t => (
-                    <tr key={t.id} className="border-b border-gray-800/50 hover:bg-gray-800/30" title={t.notes || undefined}>
+                    <tr key={t.id} className="border-b border-gray-800/50 hover:theme-card-footer" title={t.notes || undefined}>
                       <td className="py-2 pr-3 text-gray-400 whitespace-nowrap">{formatDate(t.created_at)}</td>
                       <td className="py-2 pr-3">
                         <span className={`px-2 py-0.5 rounded text-xs font-medium ${TYPE_COLORS[(t.transfer_type || t.transaction_type) ?? ""] || 'text-gray-400'}`}>

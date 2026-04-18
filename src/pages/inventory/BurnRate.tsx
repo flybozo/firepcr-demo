@@ -157,8 +157,8 @@ export default function BurnRatePage() {
           <p className="text-gray-500 text-sm">No items with active burn rate found.<br />Burn rate requires MAR or supply run activity in the last 7 days.</p>
         </div>
       ) : (
-        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-          <div className="flex items-center px-4 py-2 bg-gray-800 border-b border-gray-700 text-xs font-semibold uppercase tracking-wide text-gray-500">
+        <div className="theme-card rounded-xl border overflow-hidden">
+          <div className="flex items-center px-4 py-2 theme-card-header border-b text-xs font-semibold uppercase tracking-wide text-gray-500">
             <span className="flex-1 min-w-0">Item</span>
             <span className="w-20 shrink-0 hidden sm:block">Unit</span>
             <span className="w-16 shrink-0 text-right">In Stock</span>

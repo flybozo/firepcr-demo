@@ -105,7 +105,7 @@ function PushNotificationsInner() {
         </div>
 
         {/* CS Count Reminder Settings */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+        <div className="theme-card rounded-xl p-4 border space-y-4">
           <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">CS Count Reminder Settings</h2>
           <div className="flex items-center justify-between">
             <div>
@@ -164,7 +164,7 @@ function PushNotificationsInner() {
         </div>
 
         {/* Compose */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+        <div className="theme-card rounded-xl p-4 border space-y-4">
           <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Compose Notification</h2>
           <div>
             <label className={labelCls}>Title *</label>
@@ -231,7 +231,7 @@ function PushNotificationsInner() {
         </div>
 
         {/* History */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800">
+        <div className="theme-card rounded-xl border">
           <div className="px-4 py-3 border-b border-gray-800">
             <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Recent Notifications</h2>
           </div>

@@ -212,7 +212,7 @@ function HandbookSigningTracker() {
       </button>
       {open && (
         <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+          <div className="theme-card rounded-xl border p-4">
             <h3 className="text-xs font-bold text-green-400 uppercase tracking-wide mb-3">✅ Signed ({acks.length})</h3>
             {acks.length === 0 ? <p className="text-xs text-gray-600">None yet</p> : (
               <div className="space-y-1.5">
@@ -225,7 +225,7 @@ function HandbookSigningTracker() {
               </div>
             )}
           </div>
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+          <div className="theme-card rounded-xl border p-4">
             <h3 className="text-xs font-bold text-red-400 uppercase tracking-wide mb-3">⏳ Not Yet Signed ({unsigned.length})</h3>
             {unsigned.length === 0 ? <p className="text-xs text-green-500">All employees have signed! ✓</p> : (
               <div className="space-y-1.5">

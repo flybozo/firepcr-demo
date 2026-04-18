@@ -181,7 +181,7 @@ export default function AnnouncementsPage() {
         </div>
 
         {/* Create Form */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+        <div className="theme-card rounded-xl p-4 border space-y-4">
           <h2 className="text-sm font-bold uppercase tracking-wide text-gray-400">New Announcement</h2>
           <div>
             <label className={labelCls}>Message *</label>
@@ -301,7 +301,7 @@ export default function AnnouncementsPage() {
           {loading ? (
             <p className="text-gray-600 text-sm">Loading...</p>
           ) : announcements.length === 0 ? (
-            <div className="bg-gray-900 rounded-xl p-6 text-center border border-gray-800">
+            <div className="theme-card rounded-xl p-6 text-center border">
               <p className="text-gray-500">No announcements yet.</p>
             </div>
           ) : (
@@ -361,7 +361,7 @@ export default function AnnouncementsPage() {
           </div>
 
           {/* CS Count Reminder Settings */}
-          <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+          <div className="theme-card rounded-xl p-4 border space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wide text-gray-400">CS Count Reminder Settings</h3>
             <div className="flex items-center justify-between">
               <div>
@@ -407,7 +407,7 @@ export default function AnnouncementsPage() {
           </div>
 
           {/* Compose */}
-          <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+          <div className="theme-card rounded-xl p-4 border space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wide text-gray-400">Compose Notification</h3>
             <div><label className={labelCls}>Title *</label>
               <input className={inputCls} value={pushForm.title} onChange={e => setPushForm(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Morning Briefing" /></div>
@@ -450,7 +450,7 @@ export default function AnnouncementsPage() {
           </div>
 
           {/* History */}
-          <div className="bg-gray-900 rounded-xl border border-gray-800">
+          <div className="theme-card rounded-xl border">
             <div className="px-4 py-3 border-b border-gray-800">
               <h3 className="text-xs font-bold uppercase tracking-wide text-gray-400">Recent Notifications</h3>
             </div>

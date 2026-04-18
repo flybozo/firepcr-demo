@@ -601,7 +601,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
           {filteredEncounters.length === 0 ? <Empty text="No encounters for this period" /> : (
             <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
               <div className="overflow-x-auto">
-              <div className="grid grid-cols-[72px_72px_52px_100px_1fr_140px_80px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60 min-w-[640px]">
+              <div className="grid grid-cols-[72px_72px_52px_100px_1fr_140px_80px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header min-w-[640px]">
                 <span>ID</span><span>Date</span><span>Age</span><span>Agency</span><span>Chief Complaint</span><span>CC / OSHA</span><span>Acuity</span>
               </div>
               {filteredEncounters.map(enc => {
@@ -647,7 +647,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
           {data.ics214s.length === 0 ? <Empty text="No ICS 214s for this incident" /> : (
             <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
               <div className="overflow-x-auto">
-              <div className="grid grid-cols-[90px_1fr_1fr_80px_60px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60 min-w-[420px]">
+              <div className="grid grid-cols-[90px_1fr_1fr_80px_60px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header min-w-[420px]">
                 <span>Date</span><span>Unit</span><span>Leader</span><span>Status</span><span>PDF</span>
               </div>
               {data.ics214s.map(form => (
@@ -701,7 +701,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
 
               {/* Summary table */}
               <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-                <div className="grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
+                <div className="grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header">
                   <span>Item</span><span>Total Qty</span><span>Unit</span>
                 </div>
                 {data.supply_aggregated.map((item, idx) => (

@@ -470,7 +470,7 @@ export default function SupplyRunDetailPage() {
         )}
 
         {/* Header */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
+        <div className="theme-card rounded-xl p-4 border">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h1 className="text-xl font-bold">Supply Run</h1>
@@ -491,7 +491,7 @@ export default function SupplyRunDetailPage() {
         </div>
 
         {/* ── Barcode Scan Section ── */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+        <div className="theme-card rounded-xl border overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
             <div className="flex items-center gap-2">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Barcode Scanner</h2>
@@ -522,7 +522,7 @@ export default function SupplyRunDetailPage() {
           </div>
 
           {scanMode && (
-            <div className="p-4 space-y-3 bg-gray-800/30">
+            <div className="p-4 space-y-3 theme-card-footer">
               <div className="flex items-center gap-3">
                 <div className="flex-1">
                   <label className={labelCls}>Scan Barcode</label>
@@ -574,7 +574,7 @@ export default function SupplyRunDetailPage() {
         </div>
 
         {/* ── Items ── */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+        <div className="theme-card rounded-xl border overflow-hidden">
           <div className="flex items-center justify-between p-4 border-b border-gray-800">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
               Items ({items.length})
@@ -596,7 +596,7 @@ export default function SupplyRunDetailPage() {
 
           {/* Manual Add Item Form */}
           {showAddForm && (
-            <div className="p-4 border-b border-gray-800 bg-gray-800/50 space-y-3">
+            <div className="p-4 border-b theme-card-header space-y-3">
               <p className="text-xs font-semibold text-gray-300 uppercase tracking-wide">Add Item from Formulary</p>
               <div>
                 <label className={labelCls}>Item</label>

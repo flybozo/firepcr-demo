@@ -213,7 +213,7 @@ export default function GenerateSchedulePage() {
         </div>
 
         {/* Config panel */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-5 space-y-5">
+        <div className="theme-card rounded-xl border p-5 space-y-5">
           <h2 className="text-sm font-bold uppercase tracking-wide text-gray-400">Schedule Parameters</h2>
 
           {/* Date range */}

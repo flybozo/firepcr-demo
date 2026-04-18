@@ -5,6 +5,28 @@
 
 /* Prevent iOS Safari auto-zoom on focus (requires font-size >= 16px) */
 input, select, textarea { font-size: max(16px, 1em); }
+
+/* Theme-aware card system — uses CSS vars from ThemeProvider */
+.theme-card {
+  background-color: var(--color-card-bg, #111827);
+  border-color: var(--color-border, #1f2937);
+}
+.theme-card-header {
+  background-color: var(--color-header-bg, #030712);
+  border-color: var(--color-border, #1f2937);
+}
+.theme-card-body {
+  background-color: var(--color-card-bg, #111827);
+}
+.theme-border {
+  border-color: var(--color-border, #1f2937);
+}
+.theme-card-footer {
+  background-color: color-mix(in srgb, var(--color-header-bg, #030712) 30%, transparent);
+}
+.theme-subheader {
+  background-color: color-mix(in srgb, var(--color-header-bg, #030712) 50%, transparent);
+}
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 

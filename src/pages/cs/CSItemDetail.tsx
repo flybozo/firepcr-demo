@@ -116,12 +116,12 @@ export default function CSItemDetail() {
       <div className="px-5 py-4 space-y-5">
         {/* Quantity */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
+          <div className="theme-card rounded-xl p-4 border">
             <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">On Hand</p>
             <p className={`text-3xl font-bold ${low ? 'text-red-400' : 'text-white'}`}>{item.quantity}</p>
             {item.unit_of_measure && <p className="text-xs text-gray-600 mt-0.5">{item.unit_of_measure}</p>}
           </div>
-          <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
+          <div className="theme-card rounded-xl p-4 border">
             <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Par Level</p>
             <p className="text-3xl font-bold text-gray-400">{item.par_qty}</p>
             {low && <p className="text-xs text-red-400 mt-0.5">↓ Below par</p>}
@@ -168,7 +168,7 @@ export default function CSItemDetail() {
           ) : (
             <div className="space-y-2">
               {transactions.map(tx => (
-                <div key={tx.id} className="bg-gray-900 rounded-lg border border-gray-800 px-3 py-2 text-xs">
+                <div key={tx.id} className="theme-card rounded-lg border px-3 py-2 text-xs">
                   <div className="flex items-center justify-between gap-2 mb-1">
                     <span className="text-gray-400">{tx.date} {tx.time}</span>
                     <div className="flex gap-1">

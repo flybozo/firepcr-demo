@@ -103,7 +103,7 @@ function PhotoUploadInner() {
 
   // ─── Encounter picker UI ──────────────────────────────────────────────────
   const EncounterPickerSection = ({ onSelect }: { onSelect: (enc: typeof encounterOptions[0]) => void }) => (
-    <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
+    <div className="theme-card rounded-xl p-4 border space-y-3">
       <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">
         Link to Patient Encounter
       </h2>
@@ -253,7 +253,7 @@ function PhotoUploadInner() {
           setSelectedUUID(enc.id)
         }} />
       )}
-            <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+            <div className="theme-card rounded-xl p-4 border space-y-4">
           {/* Drag-drop / file input */}
           <div
             onDrop={onDrop}

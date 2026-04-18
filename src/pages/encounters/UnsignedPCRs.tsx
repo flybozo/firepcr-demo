@@ -108,13 +108,13 @@ export default function UnsignedPCRsPage() {
 
         {/* All clear */}
         {encounters.length === 0 ? (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-12 text-center">
+          <div className="theme-card rounded-xl border p-12 text-center">
             <p className="text-5xl mb-4">✅</p>
             <p className="text-white font-medium">All caught up!</p>
             <p className="text-gray-500 text-sm mt-1">You have no unsigned patient encounters.</p>
           </div>
         ) : (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="theme-card rounded-xl border overflow-hidden">
             {/* Column headers */}
             <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 bg-slate-800/90">
               <span className="w-24 shrink-0">Date</span>

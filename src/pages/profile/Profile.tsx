@@ -289,7 +289,7 @@ export default function ProfilePage() {
       <p className="text-gray-400 text-sm mb-6">{form.name || employee.name} · {employee.role} · {employee.wf_email || employee.email}</p>
 
       {/* Headshot */}
-      <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 mb-4 space-y-3">
+      <div className="theme-card rounded-xl p-4 border mb-4 space-y-3">
         <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Headshot</h2>
         <div className="flex items-center gap-4">
           {employee.headshot_url ? (
@@ -310,7 +310,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Name & DOB */}
-      <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 mb-4 space-y-4">
+      <div className="theme-card rounded-xl p-4 border mb-4 space-y-4">
         <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Personal Information</h2>
         <div>
           <label className={labelCls}>Full Name</label>
@@ -324,7 +324,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Contact Info */}
-      <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 mb-4 space-y-4">
+      <div className="theme-card rounded-xl p-4 border mb-4 space-y-4">
         <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Contact Information</h2>
         <p className="text-xs text-gray-500">This information is private — only visible to administrators.</p>
         <div>
@@ -346,7 +346,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Emergency Contact */}
-      <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 mb-4 space-y-4">
+      <div className="theme-card rounded-xl p-4 border mb-4 space-y-4">
         <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Emergency Contact</h2>
         <p className="text-xs text-gray-500">Private — only visible to administrators.</p>
         <div>
@@ -364,7 +364,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Push Notifications */}
-      <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+      <div className="theme-card rounded-xl border p-4">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Push Notifications</h2>
@@ -400,7 +400,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Credential Wallet */}
-      <div className="bg-gray-900 rounded-xl border border-gray-800 mb-4 overflow-hidden">
+      <div className="theme-card rounded-xl border mb-4 overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
           <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">My Credential Wallet</h2>
           <span className="text-xs text-gray-600">{creds.length} file{creds.length !== 1 ? 's' : ''}</span>
@@ -481,7 +481,7 @@ export default function ProfilePage() {
       </div>
 
       {/* Credential Upload */}
-      <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 mb-4 space-y-3">
+      <div className="theme-card rounded-xl p-4 border mb-4 space-y-3">
         <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Upload Credentials</h2>
         <p className="text-xs text-gray-500">Upload photos or PDFs of your certifications. You'll be asked what type of credential you're uploading.</p>
         
@@ -699,7 +699,7 @@ function PinSetupSection({ employeeId }: { employeeId: string | undefined }) {
   }
 
   return (
-    <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5 space-y-4 mt-2">
+    <div className="theme-card rounded-2xl border p-5 space-y-4 mt-2">
       <div>
         <h2 className="font-bold text-sm uppercase tracking-wide text-gray-400">Signing PIN</h2>
         <p className="text-xs text-gray-500 mt-1">

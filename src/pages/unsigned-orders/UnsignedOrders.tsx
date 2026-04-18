@@ -76,12 +76,12 @@ export default function UnsignedOrdersPage() {
         <div>
           <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Patient Encounters ({charts.length})</h2>
           {charts.length === 0 ? (
-            <div className="bg-gray-900 rounded-xl border border-gray-800 p-8 text-center">
+            <div className="theme-card rounded-xl border p-8 text-center">
               <p className="text-4xl mb-3">✅</p>
               <p className="text-gray-500 text-sm">All your charts are signed.</p>
             </div>
           ) : (
-            <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden divide-y divide-gray-800/50">
+            <div className="theme-card rounded-xl border overflow-hidden divide-y divide-gray-800/50">
               <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 bg-slate-800/90">
                 <span className="w-24 shrink-0">Date</span>
                 <span className="flex-1 min-w-0">Patient</span>
@@ -110,7 +110,7 @@ export default function UnsignedOrdersPage() {
         {notes.length > 0 && (
           <div>
             <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Progress Notes ({notes.length})</h2>
-            <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden divide-y divide-gray-800/50">
+            <div className="theme-card rounded-xl border overflow-hidden divide-y divide-gray-800/50">
               {notes.map(n => (
                 <Link key={n.id} to={`/encounters/${n.encounter_id}#notes`}
                   className="flex items-start gap-3 px-4 py-3 hover:bg-gray-800 transition-colors">

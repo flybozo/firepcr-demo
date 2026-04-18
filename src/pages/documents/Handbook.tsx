@@ -100,7 +100,7 @@ export default function HandbookAcknowledgmentPage() {
         )}
 
         {/* Handbook preview + link */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 space-y-3">
+        <div className="theme-card rounded-xl border p-4 space-y-3">
           <h2 className="text-sm font-bold uppercase tracking-wide text-gray-400">Step 1 — Read the Handbook</h2>
           <p className="text-sm text-gray-300">
             Before signing, please read the full Employee Handbook. Click below to open it:
@@ -112,7 +112,7 @@ export default function HandbookAcknowledgmentPage() {
         </div>
 
         {/* Acknowledgment text */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 space-y-3">
+        <div className="theme-card rounded-xl border p-4 space-y-3">
           <h2 className="text-sm font-bold uppercase tracking-wide text-gray-400">Step 2 — Review & Confirm</h2>
           <div className="bg-gray-800/60 rounded-lg p-4 text-xs text-gray-300 leading-relaxed space-y-2">
             <p>
@@ -145,7 +145,7 @@ export default function HandbookAcknowledgmentPage() {
         </div>
 
         {/* Step 3 — PIN Sign */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 space-y-3">
+        <div className="theme-card rounded-xl border p-4 space-y-3">
           <h2 className="text-sm font-bold uppercase tracking-wide text-gray-400">Step 3 — Sign</h2>
           <p className="text-xs text-gray-500">Confirm your identity with your signing PIN to complete the acknowledgment.</p>
           <div className="flex items-center gap-2 text-xs text-gray-500">

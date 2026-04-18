@@ -262,11 +262,11 @@ export default function HRCredentialsPage() {
         ) : filtered.length === 0 ? (
           <div className="text-center py-12 text-gray-500">No employees match this filter.</div>
         ) : (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="theme-card rounded-xl border overflow-hidden">
             {/* Scrollable table wrapper for mobile */}
             <div className="overflow-x-auto">
             {/* Table header */}
-            <div className="flex items-center px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/50" style={{ minWidth: '700px' }}>
+            <div className="flex items-center px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header" style={{ minWidth: '700px' }}>
               <span className="w-36 shrink-0">Name</span>
               <span className="w-20 shrink-0">Role</span>
               <span className="w-28 shrink-0 hidden md:block">Exp</span>
@@ -392,7 +392,7 @@ export default function HRCredentialsPage() {
 
         {/* Summary footer */}
         {!loading && total > 0 && (
-          <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 grid grid-cols-3 gap-4 text-center">
+          <div className="theme-card rounded-xl p-4 border grid grid-cols-3 gap-4 text-center">
             <div>
               <p className="text-2xl font-bold text-green-400">{fullyCredentialed}</p>
               <p className="text-xs text-gray-500">Fully Credentialed</p>

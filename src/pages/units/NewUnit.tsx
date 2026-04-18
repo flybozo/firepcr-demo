@@ -109,7 +109,7 @@ export default function NewUnitPage() {
       <form onSubmit={handleSubmit} className="space-y-4">
 
         {/* Basic info */}
-        <div className="bg-gray-900 rounded-xl p-4 space-y-4 border border-gray-800">
+        <div className="theme-card rounded-xl p-4 space-y-4 border">
           <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Unit Info</h2>
           <div>
             <label className={labelClass}>Unit Name *</label>
@@ -130,7 +130,7 @@ export default function NewUnitPage() {
         </div>
 
         {/* Vehicle details */}
-        <div className="bg-gray-900 rounded-xl p-4 space-y-4 border border-gray-800">
+        <div className="theme-card rounded-xl p-4 space-y-4 border">
           <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Vehicle Details</h2>
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-1">
@@ -171,7 +171,7 @@ export default function NewUnitPage() {
 
         {/* REMS cluster */}
         {form.unitType === 'REMS' && (
-          <div className="bg-gray-900 rounded-xl p-4 space-y-4 border border-gray-800">
+          <div className="theme-card rounded-xl p-4 space-y-4 border">
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">REMS Cluster</h2>
               <label className="flex items-center gap-2 cursor-pointer">

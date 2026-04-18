@@ -208,9 +208,9 @@ function SupplyRunsPageInner() {
           <p className="text-gray-500 text-sm">{unitFilter !== 'All' ? 'No matching supply runs.' : 'No supply runs yet.'}</p>
         </div>
       ) : (
-        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-x-auto">
+        <div className="theme-card rounded-xl border overflow-x-auto">
           {/* Header */}
-          <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800 min-w-[540px]">
+          <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header min-w-[540px]">
             <span className="w-24 shrink-0">Date</span>
             <span className="w-28 shrink-0">Unit</span>
             <span className="flex-1 min-w-[100px]">Incident</span>

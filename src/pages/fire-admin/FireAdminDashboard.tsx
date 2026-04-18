@@ -281,12 +281,12 @@ function PatientLogTab({ data, code, logEvent }: { data: DashboardData; code: st
 
       {Object.entries(byUnit).map(([unitName, encs]) => (
         <div key={unitName} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-gray-800 bg-gray-800/40">
+          <div className="px-4 py-2.5 border-b theme-card-header">
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">🚑 {unitName} — {encs.length} patient{encs.length !== 1 ? 's' : ''}</h3>
           </div>
           <div className="overflow-x-auto">
           {/* Column headers: ID | Date | Age | Agency | Chief Complaint | Disposition | CC/OSHA | Supervisor | Acuity */}
-          <div className="grid grid-cols-[60px_60px_44px_90px_1fr_100px_110px_110px_72px] gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60 min-w-[760px]">
+          <div className="grid grid-cols-[60px_60px_44px_90px_1fr_100px_110px_110px_72px] gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header min-w-[760px]">
             <span>ID</span><span>Date</span><span>Age</span><span>Agency</span><span>Chief Complaint</span><span>Disposition</span><span>CC / OSHA</span><span>Supervisor</span><span>Acuity</span>
           </div>
           <div className="divide-y divide-gray-800/50 min-w-[760px]">
@@ -392,7 +392,7 @@ function ICS214Tab({ data, code, logEvent }: { data: DashboardData; code: string
               <span className="text-xs text-gray-600 font-normal">{forms.length} log{forms.length !== 1 ? 's' : ''}</span>
             </h3>
             <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-              <div className="grid grid-cols-[90px_1fr_100px_100px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
+              <div className="grid grid-cols-[90px_1fr_100px_100px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header">
                 <span>Date</span>
                 <span>Prepared By</span>
                 <span>Status</span>
@@ -457,11 +457,11 @@ function SupplyTab({ data }: { data: DashboardData }) {
         </ResponsiveContainer>
       </div>
       <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-        <div className="grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/60">
+        <div className="grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header">
           <span>Item</span><span className="text-right">Total Qty</span><span className="text-right">Unit</span>
         </div>
         {items.map(item => (
-          <div key={item.item_name} className="grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-2 border-b border-gray-800/50 text-sm items-center hover:bg-gray-800/30">
+          <div key={item.item_name} className="grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-2 border-b border-gray-800/50 text-sm items-center hover:theme-card-footer">
             <span className="text-xs text-white truncate">{item.item_name}</span>
             <span className="text-right text-xs font-mono text-blue-300">{item.total_qty}</span>
             <span className="text-right text-xs text-gray-400">{item.unit || '—'}</span>

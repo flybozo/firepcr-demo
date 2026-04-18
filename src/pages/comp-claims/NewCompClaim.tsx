@@ -149,7 +149,7 @@ function NewCompClaimInner() {
 
   // ─── Encounter picker UI ──────────────────────────────────────────────────
   const EncounterPickerSection = ({ onSelect }: { onSelect: (enc: typeof encounterOptions[0]) => void }) => (
-    <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
+    <div className="theme-card rounded-xl p-4 border space-y-3">
       <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">
         Link to Patient Encounter
       </h2>
@@ -629,7 +629,7 @@ function NewCompClaimInner() {
         )}
 
         {/* ── SECTION 1: Incident Info ── */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+        <div className="theme-card rounded-xl p-4 border space-y-4">
           <p className={sectionCls}>Section 1 — Incident Information</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -656,7 +656,7 @@ function NewCompClaimInner() {
         </div>
 
         {/* ── SECTION 2: Patient/Employee ── */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+        <div className="theme-card rounded-xl p-4 border space-y-4">
           <p className={sectionCls}>Section 2 — Patient / Employee</p>
           <div>
             <label className={labelCls}>Patient / Employee Name *</label>
@@ -699,7 +699,7 @@ function NewCompClaimInner() {
         </div>
 
         {/* ── SECTION 3: Injury Details ── */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+        <div className="theme-card rounded-xl p-4 border space-y-4">
           <p className={sectionCls}>Section 3 — Injury Details</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -728,7 +728,7 @@ function NewCompClaimInner() {
         </div>
 
         {/* ── SECTION 4: Clinical ── */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+        <div className="theme-card rounded-xl p-4 border space-y-4">
           <p className={sectionCls}>Section 4 — Clinical</p>
           <div>
             <label className={labelCls}>Clinical Impression</label>
@@ -796,7 +796,7 @@ function NewCompClaimInner() {
         </div>
 
         {/* ── SECTION 5: Witnesses ── */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+        <div className="theme-card rounded-xl p-4 border space-y-4">
           <p className={sectionCls}>Section 5 — Witnesses</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -811,7 +811,7 @@ function NewCompClaimInner() {
         </div>
 
         {/* ── SECTION 6: Claims Coordinator ── */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+        <div className="theme-card rounded-xl p-4 border space-y-4">
           <p className={sectionCls}>Section 6 — Claims Coordinator</p>
           <div>
             <label className={labelCls}>Coordinator Name</label>
@@ -830,7 +830,7 @@ function NewCompClaimInner() {
         </div>
 
         {/* ── SECTION 7: Employer ── */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+        <div className="theme-card rounded-xl p-4 border space-y-4">
           <p className={sectionCls}>Section 7 — Employer</p>
           <div>
             <label className={labelCls}>Employer Name</label>
@@ -843,7 +843,7 @@ function NewCompClaimInner() {
         </div>
 
         {/* ── SECTION 8: Notes ── */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
+        <div className="theme-card rounded-xl p-4 border space-y-3">
           <p className={sectionCls}>Section 8 — Notes</p>
           <textarea className={`${inputCls} h-28 resize-none`} value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Additional notes, observations, follow-up actions..." />
         </div>

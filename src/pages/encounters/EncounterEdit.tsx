@@ -362,7 +362,7 @@ function EditEncounterInner() {
         </div>
 
         {/* ── HEADER (read-only) ── */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
+        <div className="theme-card rounded-xl p-4 border space-y-3">
           <p className={sectionCls}>Encounter Header (read-only)</p>
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
@@ -385,7 +385,7 @@ function EditEncounterInner() {
         </div>
 
         {/* ── PATIENT INFO ── */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+        <div className="theme-card rounded-xl p-4 border space-y-4">
           <p className={sectionCls}>Patient Information</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -448,7 +448,7 @@ function EditEncounterInner() {
         </div>
 
         {/* ── ASSESSMENT ── */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+        <div className="theme-card rounded-xl p-4 border space-y-4">
           <p className={sectionCls}>Assessment</p>
           <div>
             <label className={labelCls}>Chief Complaint</label>
@@ -509,7 +509,7 @@ function EditEncounterInner() {
         </div>
 
         {/* ── VITALS ── */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+        <div className="theme-card rounded-xl p-4 border space-y-4">
           <p className={sectionCls}>Vitals</p>
           <div className="grid grid-cols-3 gap-3">
             <div>
@@ -605,7 +605,7 @@ function EditEncounterInner() {
         </div>
 
         {/* ── DISPOSITION ── */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+        <div className="theme-card rounded-xl p-4 border space-y-4">
           <p className={sectionCls}>Disposition</p>
           <div>
             <label className={labelCls}>Transport Method</label>
@@ -646,7 +646,7 @@ function EditEncounterInner() {
         </div>
 
         {/* ── NOTES ── */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
+        <div className="theme-card rounded-xl p-4 border space-y-3">
           <p className={sectionCls}>Notes / Narrative</p>
           <textarea
             className={`${inputCls} h-36 resize-none`}

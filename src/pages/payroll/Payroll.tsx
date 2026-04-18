@@ -238,9 +238,9 @@ export default function AdminPayrollPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-x-auto">
+        <div className="theme-card rounded-xl border overflow-x-auto">
           {/* Table header */}
-          <div className="hidden lg:flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 bg-gray-800 border-b border-gray-700 min-w-[700px]">
+          <div className="hidden lg:flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 theme-card-header border-b min-w-[700px]">
             <button className="flex-1 min-w-0 text-left flex items-center hover:text-gray-300 transition-colors" onClick={() => toggleSort('employee')}>
               Employee <SortIcon k="employee" />
             </button>
@@ -291,7 +291,7 @@ export default function AdminPayrollPage() {
 
         {/* Grand Total */}
         {sorted.length > 0 && (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 flex items-center justify-between">
+          <div className="theme-card rounded-xl border p-4 flex items-center justify-between">
             <div>
               <p className="text-xs text-gray-500 uppercase tracking-wide font-bold">Grand Total</p>
               <p className="text-xs text-gray-600 mt-0.5">

@@ -186,7 +186,7 @@ export default function RosterPage() {
           {activeEmployees.length === 0 ? (
             <p className="text-center text-gray-600 py-8">No active employees found.</p>
           ) : (
-          <div className="bg-gray-900 rounded-xl overflow-hidden border border-gray-800">
+          <div className="theme-card rounded-xl overflow-hidden border">
             {/* Header */}
             <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700">
               <span className="flex-1 min-w-0">Name</span>

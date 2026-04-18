@@ -232,7 +232,7 @@ export default function ScheduleCalendarPage() {
         {/* Controls */}
         <div className="flex flex-wrap items-center gap-3">
           {/* Month nav */}
-          <div className="flex items-center gap-2 bg-gray-900 rounded-xl px-3 py-2 border border-gray-800">
+          <div className="flex items-center gap-2 theme-card rounded-xl px-3 py-2 border">
             <button onClick={prevMonth} className="text-gray-400 hover:text-white transition-colors px-1">‹</button>
             <span className="text-sm font-semibold w-36 text-center">{MONTH_NAMES[month]} {year}</span>
             <button onClick={nextMonth} className="text-gray-400 hover:text-white transition-colors px-1">›</button>
@@ -266,7 +266,7 @@ export default function ScheduleCalendarPage() {
         </div>
 
         {/* Calendar grid */}
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden">
+        <div className="theme-card rounded-2xl border overflow-hidden">
           {/* Day headers */}
           <div className="grid grid-cols-7 border-b border-gray-800">
             {DAY_NAMES.map(d => (
@@ -328,7 +328,7 @@ export default function ScheduleCalendarPage() {
 
         {/* Selected day detail panel */}
         {selectedDay && (
-          <div className="bg-gray-900 rounded-2xl border border-gray-800 p-5 space-y-3">
+          <div className="theme-card rounded-2xl border p-5 space-y-3">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-white">
                 {new Date(selectedDay + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}

@@ -376,7 +376,7 @@ function CSOverviewPageInner() {
                   </thead>
                   <tbody>
                     {transactions.map(t => (
-                      <tr key={t.id} className="border-b border-gray-800/50 hover:bg-gray-800/30">
+                      <tr key={t.id} className="border-b border-gray-800/50 hover:theme-card-footer">
                         <td className="py-2 pr-3 text-gray-400">{formatDate(t.created_at)}</td>
                         <td className={`py-2 pr-3 font-medium ${TYPE_COLORS[t.transfer_type] || 'text-gray-400'}`}>{t.transfer_type}</td>
                         <td className="py-2 pr-3 text-white">{t.drug_name}</td>

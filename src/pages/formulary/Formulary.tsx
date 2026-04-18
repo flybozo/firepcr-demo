@@ -292,7 +292,7 @@ function FormularyPageInner() {
       {loading ? (
         <p className="text-gray-500 text-sm">Loading...</p>
       ) : (
-        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+        <div className="theme-card rounded-xl border overflow-hidden">
           {/* Header */}
           <div className="grid grid-cols-12 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700">
             <span className="col-span-4">Item</span>

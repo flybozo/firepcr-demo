@@ -411,7 +411,7 @@ function StatCard({
         <div className="flex-1 overflow-y-auto">
           {expandedChildren || children}
         </div>
-        <div className="px-6 py-3 border-t flex items-center gap-2" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
+        <div className="px-6 py-3 border-t flex items-center gap-2" className="theme-border">
           {viewAllHref && (
             <Link to={viewAllHref} className="text-xs text-gray-400 hover:text-white transition-colors">View all →</Link>
           )}
@@ -428,9 +428,9 @@ function StatCard({
   return (
     <>
     {expandedOverlay}
-    <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--color-card-bg, #111827)', borderColor: 'var(--color-border, #1f2937)' }}>
+    <div className="theme-card rounded-xl border overflow-hidden">
       {/* Card header — uses theme header color */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ backgroundColor: 'var(--color-header-bg, #030712)', borderColor: 'var(--color-border, #1f2937)' }}>
+      <div className="flex items-center gap-2 px-4 py-3 border-b theme-card-header">
         {dragHandleProps && (
           <div
             {...dragHandleProps}
@@ -458,7 +458,7 @@ function StatCard({
           {children}
         </div>
       )}
-      <div className="flex items-center gap-2 px-4 py-2" style={{ backgroundColor: 'color-mix(in srgb, var(--color-header-bg, #030712) 30%, transparent)' }}>
+      <div className="flex items-center gap-2 px-4 py-2 theme-card-footer">
         {viewAllHref && (
           <Link to={viewAllHref} className="text-xs text-gray-400 hover:text-white transition-colors">
             View all →
@@ -1285,8 +1285,8 @@ export default function IncidentDetailPage() {
         const activeCrewCount = crewDeployments.filter(d => !d.released_at).length
         const totalCrewCount = crewDeployments.length
         return (
-          <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--color-card-bg, #111827)', borderColor: 'var(--color-border, #1f2937)' }}>
-            <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ backgroundColor: 'var(--color-header-bg, #030712)', borderColor: 'var(--color-border, #1f2937)' }}>
+          <div className="theme-card rounded-xl border overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b theme-card-header">
               {dragHandleProps && (
                 <div
                   {...dragHandleProps}
@@ -1307,7 +1307,7 @@ export default function IncidentDetailPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-xs" style={{ minWidth: '700px' }}>
                   <thead>
-                    <tr className="border-b border-gray-800 bg-gray-800/30">
+                    <tr className="border-b theme-card-header">
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Employee</th>
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Role</th>
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Unit</th>
@@ -1442,7 +1442,7 @@ export default function IncidentDetailPage() {
 
             {/* Add Deployment Form */}
             {showAddDeployment && (
-              <form onSubmit={handleAddDeployment} className="border-t border-gray-800 p-4 space-y-3 bg-gray-800/30">
+              <form onSubmit={handleAddDeployment} className="border-t border-gray-800 p-4 space-y-3 theme-card-footer">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Add Deployment</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2">
@@ -1492,7 +1492,7 @@ export default function IncidentDetailPage() {
               </form>
             )}
 
-            <div className="flex items-center gap-2 px-4 py-2 bg-gray-800/30">
+            <div className="flex items-center gap-2 px-4 py-2 theme-card-footer">
               <div className="flex-1" />
               {!showAddDeployment && (
                 <button onClick={() => setShowAddDeployment(true)}
@@ -1534,8 +1534,8 @@ export default function IncidentDetailPage() {
         const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0)
         const netRevenue = totalRevenue - totalPayroll - totalExpenses
         return (
-          <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--color-card-bg, #111827)', borderColor: 'var(--color-border, #1f2937)' }}>
-            <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ backgroundColor: 'var(--color-header-bg, #030712)', borderColor: 'var(--color-border, #1f2937)' }}>
+          <div className="theme-card rounded-xl border overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b theme-card-header">
               {dragHandleProps && (
                 <div {...dragHandleProps} className="text-gray-600 hover:text-gray-300 cursor-grab active:cursor-grabbing transition-colors shrink-0 opacity-0 group-hover:opacity-100 select-none">⠿</div>
               )}
@@ -1551,7 +1551,7 @@ export default function IncidentDetailPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="border-b bg-opacity-30" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
+                    <tr className="border-b bg-opacity-30" className="theme-border">
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Unit</th>
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Type</th>
                       <th className="text-right px-3 py-2 text-gray-500 font-semibold uppercase">Rate/Day</th>
@@ -1559,7 +1559,7 @@ export default function IncidentDetailPage() {
                       <th className="text-right px-3 py-2 text-gray-500 font-semibold uppercase">Revenue</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
+                  <tbody className="divide-y" className="theme-border">
                     {revenueUnits.map(u => {
                       const isActive = !u.released_at
                       const isEditingRate = editingRateIuId === u.id
@@ -1608,7 +1608,7 @@ export default function IncidentDetailPage() {
                     })}
                   </tbody>
                   <tfoot>
-                    <tr className="border-t" style={{ borderColor: 'var(--color-border, #1f2937)', backgroundColor: 'var(--color-header-bg, #030712)' }}>
+                    <tr className="border-t" className="theme-card-header">
                       <td colSpan={3} className="px-3 py-2 text-right text-xs font-bold uppercase text-gray-400">Gross Revenue</td>
                       <td className="px-3 py-2 text-right text-sm font-bold text-white">{totalUnitDays} days</td>
                       <td className="px-3 py-2 text-right text-sm font-bold text-green-400">{fmtCurrency(totalRevenue)}</td>
@@ -1621,7 +1621,7 @@ export default function IncidentDetailPage() {
                       <td colSpan={3} className="px-3 py-1 text-right text-xs text-gray-500">− Expenses</td>
                       <td colSpan={2} className="px-3 py-1 text-right text-xs text-red-400">{fmtCurrency(totalExpenses)}</td>
                     </tr>
-                    <tr className="border-t" style={{ borderColor: 'var(--color-border, #1f2937)', backgroundColor: 'var(--color-header-bg, #030712)' }}>
+                    <tr className="border-t" className="theme-card-header">
                       <td colSpan={3} className="px-3 py-2 text-right text-xs font-bold uppercase text-gray-300">Net Revenue</td>
                       <td colSpan={2} className={`px-3 py-2 text-right text-sm font-bold ${netRevenue >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmtCurrency(netRevenue)}</td>
                     </tr>
@@ -1641,8 +1641,8 @@ export default function IncidentDetailPage() {
         const EXPENSE_TYPES = ['Gas', 'Repairs', 'Supplies', 'Hotel', 'Food', 'Other']
         const unitOptions = incidentUnits.filter(iu => iu.unit).map(iu => ({ id: iu.unit!.id, name: (iu.unit as any)?.name || '?' }))
         return (
-          <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--color-card-bg, #111827)', borderColor: 'var(--color-border, #1f2937)' }}>
-            <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ backgroundColor: 'var(--color-header-bg, #030712)', borderColor: 'var(--color-border, #1f2937)' }}>
+          <div className="theme-card rounded-xl border overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b theme-card-header">
               {dragHandleProps && (
                 <div {...dragHandleProps} className="text-gray-600 hover:text-gray-300 cursor-grab active:cursor-grabbing transition-colors shrink-0 opacity-0 group-hover:opacity-100 select-none">⠿</div>
               )}
@@ -1654,7 +1654,7 @@ export default function IncidentDetailPage() {
               <div className="overflow-x-auto" style={{ maxHeight: '220px', overflowY: 'auto' }}>
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="border-b" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
+                    <tr className="border-b" className="theme-border">
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Date</th>
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Type</th>
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Description</th>
@@ -1664,7 +1664,7 @@ export default function IncidentDetailPage() {
                       {isAdmin && <th className="px-2 py-2"></th>}
                     </tr>
                   </thead>
-                  <tbody className="divide-y" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
+                  <tbody className="divide-y" className="theme-border">
                     {expenses.map(exp => (
                       <tr key={exp.id} className="hover:bg-gray-800/30 transition-colors">
                         <td className="px-3 py-2 text-gray-400">{exp.expense_date}</td>
@@ -1715,7 +1715,7 @@ export default function IncidentDetailPage() {
 
             {/* Add Expense Form */}
             {showAddExpense && (
-              <div className="border-t p-4 space-y-3" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
+              <div className="border-t p-4 space-y-3" className="theme-border">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Log Expense</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -1832,7 +1832,7 @@ export default function IncidentDetailPage() {
               </div>
             )}
 
-            <div className="flex items-center gap-2 px-4 py-2" style={{ backgroundColor: 'color-mix(in srgb, var(--color-header-bg, #030712) 30%, transparent)' }}>
+            <div className="flex items-center gap-2 px-4 py-2 theme-card-footer">
               <div className="flex-1" />
               {!showAddExpense && (
                 <button onClick={() => setShowAddExpense(true)}
@@ -1877,7 +1877,7 @@ export default function IncidentDetailPage() {
               })
               return filteredEncs.length > 0 ? (
               <>
-                <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 bg-gray-800/30">
+                <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 theme-card-footer">
                   <span className="w-20 shrink-0">Date</span>
                   <span className="flex-1 min-w-0">Patient</span>
                   <span className="w-24 shrink-0 hidden sm:block">Unit</span>
@@ -1915,7 +1915,7 @@ export default function IncidentDetailPage() {
           >
             {marEntries.length > 0 ? (
               <>
-                <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 bg-gray-800/30">
+                <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 theme-card-footer">
                   <span className="w-20 shrink-0">Date</span>
                   <span className="flex-1 min-w-0">Med</span>
                   <span className="w-24 shrink-0 text-right">Unit</span>
@@ -1954,7 +1954,7 @@ export default function IncidentDetailPage() {
             expandedChildren={
               filteredComps.length > 0 ? (
                 <>
-                  <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 bg-gray-800/30">
+                  <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 theme-card-footer">
                     <span className="w-24 shrink-0">Date</span>
                     <span className="flex-1 min-w-0">Patient</span>
                     <span className="w-20 shrink-0">Unit</span>
@@ -1979,7 +1979,7 @@ export default function IncidentDetailPage() {
           >
             {filteredComps.length > 0 ? (
               <>
-                <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 bg-gray-800/30">
+                <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 theme-card-footer">
                   <span className="w-24 shrink-0">Date</span>
                   <span className="flex-1 min-w-0">Patient</span>
                   <span className="w-20 shrink-0 text-right">Status</span>
@@ -2014,7 +2014,7 @@ export default function IncidentDetailPage() {
           >
             {supplyRuns.length > 0 ? (
               <>
-                <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 bg-gray-800/30">
+                <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 theme-card-footer">
                   <span className="w-24 shrink-0">Date</span>
                   <span className="flex-1 min-w-0">Unit</span>
                   <span className="w-16 shrink-0 text-right">Items</span>
@@ -2071,7 +2071,7 @@ export default function IncidentDetailPage() {
             expandedChildren={
               filteredReorder.length > 0 ? (
                 <>
-                  <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 bg-gray-800/30">
+                  <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 theme-card-footer">
                     <span className="flex-1 min-w-0">Item</span>
                     <span className="w-20 shrink-0">Unit</span>
                     <span className="w-14 shrink-0 text-right">Qty</span>
@@ -2091,7 +2091,7 @@ export default function IncidentDetailPage() {
           >
             {filteredReorder.length > 0 ? (
               <>
-                <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 bg-gray-800/30">
+                <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 theme-card-footer">
                   <span className="flex-1 min-w-0">Item</span>
                   <span className="w-14 shrink-0 text-right">Qty</span>
                   <span className="w-14 shrink-0 text-right">Par</span>
@@ -2134,7 +2134,7 @@ export default function IncidentDetailPage() {
               if (filteredIcs.length === 0) return <p className="text-center text-gray-600 text-sm py-4">No 214 logs for this unit/incident</p>
               return (
                 <>
-                  <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 bg-gray-800/30">
+                  <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 theme-card-footer">
                     <span className="flex-1 min-w-0">214 ID</span>
                     <span className="w-24 shrink-0">Unit</span>
                     <span className="w-16 shrink-0 text-right">Status</span>
@@ -2313,7 +2313,7 @@ export default function IncidentDetailPage() {
             )}
 
             {/* Incident Info Card */}
-            <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+            <div className="theme-card rounded-xl border overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">Incident Info</h2>
                 {incident.status === "Active" ? <span className="text-xs text-gray-600 italic">Click any field to edit</span> : <span className="text-xs text-gray-600 italic">Closed — read only</span>}
@@ -2410,7 +2410,7 @@ export default function IncidentDetailPage() {
             </div>
 
             {/* Units Card */}
-            <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+            <div className="theme-card rounded-xl border overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">Units ({incidentUnits.length})</h2>
                 {isAdmin && (
@@ -2424,7 +2424,7 @@ export default function IncidentDetailPage() {
               </div>
 
               {assigningUnit && (
-                <div className="px-4 py-3 border-b border-gray-800 bg-gray-800/50 flex gap-2">
+                <div className="px-4 py-3 border-b theme-card-header flex gap-2">
                   <select
                     value={selectedUnitId}
                     onChange={e => setSelectedUnitId(e.target.value)}

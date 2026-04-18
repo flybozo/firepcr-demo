@@ -190,7 +190,7 @@ function NewEncounterInner() {
       <form onSubmit={handleContinue} className="space-y-4">
 
         {/* Unit & Incident */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+        <div className="theme-card rounded-xl p-4 border space-y-4">
           <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Unit & Incident</h2>
 
           <div>
@@ -233,7 +233,7 @@ function NewEncounterInner() {
         </div>
 
         {/* Date / Time / Crew */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4 overflow-hidden">
+        <div className="theme-card rounded-xl p-4 border space-y-4 overflow-hidden">
           <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Date, Time & Crew</h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

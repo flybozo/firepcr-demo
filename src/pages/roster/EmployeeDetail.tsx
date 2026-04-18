@@ -225,7 +225,7 @@ export default function RosterDetailPage() {
         )}
 
         {/* Header */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
+        <div className="theme-card rounded-xl p-4 border">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h1 className="text-xl font-bold">{emp.name}</h1>
@@ -272,7 +272,7 @@ export default function RosterDetailPage() {
         </div>
 
         {/* Personal info */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
+        <div className="theme-card rounded-xl p-4 border space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Personal</h2>
           <dl className="grid grid-cols-1 gap-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -300,7 +300,7 @@ export default function RosterDetailPage() {
         </div>
 
         {/* Medical Credentials */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-1">
+        <div className="theme-card rounded-xl p-4 border space-y-1">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Medical Credentials</h2>
           <CredRow label="BLS" value={emp.bls} />
           <CredRow label="ACLS" value={emp.acls} />
@@ -314,7 +314,7 @@ export default function RosterDetailPage() {
         </div>
 
         {/* Wildland Certs */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-1">
+        <div className="theme-card rounded-xl p-4 border space-y-1">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Wildland Certifications</h2>
           <CredRow label="S-130" value={emp.s130} />
           <CredRow label="S-190" value={emp.s190} />
@@ -327,7 +327,7 @@ export default function RosterDetailPage() {
         </div>
 
         {/* Red Card & Deployment Status */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
+        <div className="theme-card rounded-xl p-4 border space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Deployment Qualifications</h2>
           <div className="space-y-2">
             {/* REMS Capable toggle */}
@@ -408,7 +408,7 @@ export default function RosterDetailPage() {
         </div>
 
         {/* Credential Documents */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
+        <div className="theme-card rounded-xl p-4 border space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Credential Documents</h2>
             <div className="flex gap-2">
@@ -432,7 +432,7 @@ export default function RosterDetailPage() {
             <p className="text-gray-600 text-sm text-center py-4">No credential documents on file.</p>
           ) : (
             <div className="rounded-lg overflow-hidden border border-gray-800">
-              <div className="flex items-center px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/50">
+              <div className="flex items-center px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header">
                 <span className="flex-1">Cert Type</span>
                 <span className="w-28 shrink-0 hidden sm:block">Issued</span>
                 <span className="w-28 shrink-0 hidden sm:block">Expires</span>
@@ -464,7 +464,7 @@ export default function RosterDetailPage() {
         </div>
 
         {/* QR Code Section */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
+        <div className="theme-card rounded-xl p-4 border space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">QR Code</h2>
 
           {qrUrl ? (

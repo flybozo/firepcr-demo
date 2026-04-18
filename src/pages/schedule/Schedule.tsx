@@ -70,7 +70,7 @@ function CalendarGrid({ deployments, units }: {
       </div>
 
       {/* Grid */}
-      <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+      <div className="theme-card rounded-xl border overflow-hidden">
         {/* Day headers */}
         <div className="grid grid-cols-7 border-b border-gray-700">
           {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (
@@ -351,7 +351,7 @@ export default function SchedulePage() {
         {activeTab === 'requests' && (<>
 
         {/* Submit form — everyone */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-5 space-y-4">
+        <div className="theme-card rounded-xl border p-5 space-y-4">
           <h2 className="text-sm font-bold uppercase tracking-wide text-gray-400">New Request</h2>
 
           {/* Type toggle */}
@@ -439,12 +439,12 @@ export default function SchedulePage() {
           {loading ? (
             <p className="text-gray-600 text-sm">Loading...</p>
           ) : filteredRequests.length === 0 ? (
-            <div className="bg-gray-900 rounded-xl p-8 text-center border border-gray-800">
+            <div className="theme-card rounded-xl p-8 text-center border">
               <p className="text-gray-500 text-sm">No requests{adminFilter !== 'all' ? ` with status "${adminFilter}"` : ''}.</p>
             </div>
           ) : (
             filteredRequests.map(r => (
-              <div key={r.id} className="bg-gray-900 rounded-xl border border-gray-800 p-4 space-y-3">
+              <div key={r.id} className="theme-card rounded-xl border p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="space-y-1.5">
                     {isAdmin && (

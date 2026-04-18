@@ -182,7 +182,7 @@ export default function InventoryDetailPage() {
         })()}
 
         {/* Header */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
+        <div className="theme-card rounded-xl p-4 border">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h1 className="text-xl font-bold">{item.item_name}</h1>
@@ -198,7 +198,7 @@ export default function InventoryDetailPage() {
         </div>
 
         {/* Quantity editor */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
+        <div className="theme-card rounded-xl p-4 border space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Quantity</h2>
           <div className="flex items-center gap-4">
             <button
@@ -225,7 +225,7 @@ export default function InventoryDetailPage() {
         </div>
 
         {/* Details */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
+        <div className="theme-card rounded-xl p-4 border space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Details</h2>
           <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <Field label="Category" value={item.category} />
@@ -240,13 +240,13 @@ export default function InventoryDetailPage() {
 
         {/* Units carrying this item */}
         {unitsCarrying.length > 1 && (
-          <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
+          <div className="theme-card rounded-xl p-4 border space-y-3">
             <div>
               <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Units Carrying This Item</h2>
               <p className="text-xs text-gray-600 mt-0.5">Items may appear on multiple units</p>
             </div>
             <div className="rounded-lg overflow-hidden border border-gray-800">
-              <div className="flex items-center px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800/50">
+              <div className="flex items-center px-3 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header">
                 <span className="flex-1">Unit</span>
                 <span className="w-24 text-right">Qty on Hand</span>
               </div>
@@ -271,7 +271,7 @@ export default function InventoryDetailPage() {
 
         {/* Link to unit inventory */}
         {unitId && (
-          <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
+          <div className="theme-card rounded-xl p-4 border">
             <Link to={`/inventory?unitId=${unitId}`}
               className="text-blue-400 hover:text-blue-300 text-sm underline">
               → View all inventory for {unitName}

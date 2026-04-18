@@ -5,7 +5,7 @@ export default function ChecklistStubPage() {
     <div className="p-6 md:p-8 max-w-lg mt-8 md:mt-0">
       <h1 className="text-2xl font-bold mb-2">Daily Unit Checklist</h1>
       <p className="text-gray-400 text-sm mb-4">Complete the daily equipment and CS count checklist for your unit.</p>
-      <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-2">
+      <div className="theme-card rounded-xl p-4 border space-y-2">
         <p className="text-gray-500 text-sm">Templates seeded (84 items total):</p>
         <ul className="text-xs text-gray-400 space-y-1 ml-4">
           <li>🚑 Ambulance: CS Count, Vehicle, Equipment, Comms (25 items)</li>

@@ -70,7 +70,7 @@ function CompClaimsInner() {
       {loading ? <p className="text-gray-500 text-sm">Loading...</p> : claims.length === 0 ? (
         <p className="text-center text-gray-600 py-12">No comp claims{incidentId ? ' for this incident' : ''}.</p>
       ) : (
-        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+        <div className="theme-card rounded-xl border overflow-hidden">
           <div className="divide-y divide-gray-800">
             {claims.map(c => (
               <div key={c.id} className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-gray-800/50">

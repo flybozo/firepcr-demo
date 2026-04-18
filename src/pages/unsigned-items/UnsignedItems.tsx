@@ -68,14 +68,14 @@ function statusBadge(status: string | null) {
 
 function ChartsSection({ charts }: { charts: UnsignedChart[] }) {
   if (charts.length === 0) return (
-    <div className="bg-gray-900 rounded-xl border border-gray-800 p-8 text-center">
+    <div className="theme-card rounded-xl border p-8 text-center">
       <p className="text-3xl mb-2">✅</p>
       <p className="text-gray-500 text-sm">All charts signed.</p>
     </div>
   )
 
   return (
-    <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+    <div className="theme-card rounded-xl border overflow-hidden">
       <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 bg-slate-800/90">
         <span className="w-24 shrink-0">Date</span>
         <span className="flex-1 min-w-0">Patient</span>
@@ -111,7 +111,7 @@ function OrphanNotesSection({ notes }: { notes: UnsignedNote[] }) {
   if (notes.length === 0) return null
 
   return (
-    <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+    <div className="theme-card rounded-xl border overflow-hidden">
       <div className="divide-y divide-gray-800/50">
         {notes.map(n => (
           <Link key={n.id} to={`/encounters/${n.encounter_uuid || n.encounter_id}#notes`}
@@ -132,14 +132,14 @@ function OrphanNotesSection({ notes }: { notes: UnsignedNote[] }) {
 
 function MARSection({ entries }: { entries: UnsignedMAR[] }) {
   if (entries.length === 0) return (
-    <div className="bg-gray-900 rounded-xl border border-gray-800 p-8 text-center">
+    <div className="theme-card rounded-xl border p-8 text-center">
       <p className="text-3xl mb-2">✅</p>
       <p className="text-gray-500 text-sm">All medication orders co-signed.</p>
     </div>
   )
 
   return (
-    <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+    <div className="theme-card rounded-xl border overflow-hidden">
       <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 bg-slate-800/90">
         <span className="w-24 shrink-0">Date</span>
         <span className="w-28 shrink-0">Patient</span>
@@ -292,7 +292,7 @@ export default function UnsignedItemsPage() {
 
         {/* All clear */}
         {grandTotal === 0 ? (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-12 text-center">
+          <div className="theme-card rounded-xl border p-12 text-center">
             <p className="text-5xl mb-4">✅</p>
             <p className="text-white font-medium">All caught up!</p>
             <p className="text-gray-500 text-sm mt-1">Nothing needs your signature right now.</p>

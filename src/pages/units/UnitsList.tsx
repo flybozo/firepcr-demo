@@ -217,9 +217,9 @@ function UnitsPageInner() {
       ) : filteredUnits.length === 0 ? (
         <p className="text-center text-gray-600 py-8">No units found.</p>
       ) : (
-        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-x-auto">
+        <div className="theme-card rounded-xl border overflow-x-auto">
           {/* Header */}
-          <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 bg-gray-800 min-w-[760px]">
+          <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header min-w-[760px]">
             <span className="w-32 shrink-0">Unit</span>
             <span className="w-24 shrink-0 hidden sm:block">Type</span>
             <span className="w-36 shrink-0 hidden lg:block font-mono">VIN</span>

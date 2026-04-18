@@ -236,7 +236,7 @@ function AddInventoryInner() {
           </div>
         </div>
 
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-4">
+        <div className="theme-card rounded-xl p-4 border space-y-4">
           {/* Unit */}
           <p className={sectionCls}>Unit & Item</p>
           <div>

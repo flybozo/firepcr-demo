@@ -110,7 +110,7 @@ export default function PatientSearchPage() {
         </div>
 
         {/* Search input */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 space-y-3">
+        <div className="theme-card rounded-xl border p-4 space-y-3">
           <input
             ref={inputRef}
             type="text"
@@ -169,7 +169,7 @@ export default function PatientSearchPage() {
         )}
 
         {!loading && searched && results.length === 0 && (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 p-10 text-center">
+          <div className="theme-card rounded-xl border p-10 text-center">
             <p className="text-3xl mb-3">🔍</p>
             <p className="text-white font-medium">No records found</p>
             <p className="text-gray-500 text-sm mt-1">Try a different name, complaint, or date range</p>
@@ -179,9 +179,9 @@ export default function PatientSearchPage() {
         {!loading && results.length > 0 && (
           <div className="space-y-1">
             <p className="text-xs text-gray-500 px-1">{results.length} record{results.length !== 1 ? 's' : ''} found</p>
-            <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+            <div className="theme-card rounded-xl border overflow-hidden">
               {/* Header */}
-              <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 bg-slate-800/90 border-b border-gray-700">
+              <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 theme-card-header border-b">
                 <span className="w-24 shrink-0">Date</span>
                 <span className="flex-1 min-w-0">Patient</span>
                 <span className="w-24 shrink-0 hidden sm:block">Unit</span>

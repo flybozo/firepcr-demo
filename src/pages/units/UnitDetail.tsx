@@ -335,7 +335,7 @@ export default function UnitDetailPage() {
         )}
 
         {/* Header */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
+        <div className="theme-card rounded-xl p-4 border">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h1 className="text-xl font-bold">{unit.name}</h1>
@@ -371,7 +371,7 @@ export default function UnitDetailPage() {
         </div>
 
         {/* Vehicle Details */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+        <div className="theme-card rounded-xl border overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 bg-gray-800">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Vehicle Details</h2>
             {!editingVehicle && isAdmin && (
@@ -485,7 +485,7 @@ export default function UnitDetailPage() {
 
         {/* Cluster Components (REMS child units) */}
         {childUnits.length > 0 && (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="theme-card rounded-xl border overflow-hidden">
             <div className="px-4 py-3 bg-gray-800">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Cluster Components</h2>
             </div>
@@ -511,7 +511,7 @@ export default function UnitDetailPage() {
 
         {/* Crew */}
         {activeIU && (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="theme-card rounded-xl border overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 bg-gray-800">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Crew</h2>
               {(() => { const activeCrew = activeIU.unit_assignments.filter((ua: any) => !ua.released_at); return isAdmin && activeCrew.length < 4 ? (
@@ -584,7 +584,7 @@ export default function UnitDetailPage() {
 
         {/* Inventory Summary */}
         {inventory.length > 0 && (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="theme-card rounded-xl border overflow-hidden">
             <div className="flex items-center justify-between px-4 py-3 bg-gray-800">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">CS / Rx Inventory</h2>
               <Link to={`/inventory?unit=${unit.name}`}
@@ -611,13 +611,13 @@ export default function UnitDetailPage() {
 
         {/* No active incident */}
         {!activeIU && (
-          <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 text-center text-gray-600 text-sm">
+          <div className="theme-card rounded-xl p-4 border text-center text-gray-600 text-sm">
             Not currently deployed to an active incident.
           </div>
         )}
 
         {/* Vehicle Documents */}
-        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+        <div className="theme-card rounded-xl border overflow-hidden">
           <div className="px-4 py-3 bg-gray-800 flex items-center justify-between">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Vehicle Documents</h2>
             <span className="text-xs text-gray-600">{vehicleDocs.length} files</span>

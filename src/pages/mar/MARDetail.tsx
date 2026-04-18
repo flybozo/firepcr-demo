@@ -314,7 +314,7 @@ export default function MARDetailPage() {
         )}
 
         {/* Header */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
+        <div className="theme-card rounded-xl p-4 border">
           <div className="flex items-start justify-between gap-3">
             <div>
               <h1 className="text-xl font-bold">{entry.item_name || 'Unknown Medication'}</h1>
@@ -358,7 +358,7 @@ export default function MARDetailPage() {
         </div>
 
         {/* Administration Details */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
+        <div className="theme-card rounded-xl p-4 border space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Administration</h2>
           <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <Field label="Route" value={entry.medication_route || entry.route} />
@@ -381,7 +381,7 @@ export default function MARDetailPage() {
         </div>
 
         {/* Drug Info */}
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
+        <div className="theme-card rounded-xl p-4 border space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Drug Info</h2>
           <dl className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             <Field label="Lot Number" value={entry.lot_number} />
@@ -457,7 +457,7 @@ export default function MARDetailPage() {
 
         {/* Linked Encounter */}
         {(encounterUUID || entry.encounter_id) && (
-          <div className="bg-gray-900 rounded-xl p-4 border border-gray-800">
+          <div className="theme-card rounded-xl p-4 border">
             <Link to={`/encounters/${encounterUUID || entry.encounter_id}`}
               className="text-blue-400 hover:text-blue-300 text-sm underline flex items-center gap-1">
               → View linked patient encounter
@@ -468,7 +468,7 @@ export default function MARDetailPage() {
 
         {/* Notes */}
         {entry.notes && (
-          <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-2">
+          <div className="theme-card rounded-xl p-4 border space-y-2">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Notes</h2>
             <p className="text-sm text-white whitespace-pre-wrap">{entry.notes}</p>
           </div>
@@ -494,7 +494,7 @@ export default function MARDetailPage() {
                 ⛔ Void This Entry
               </button>
             ) : showVoidPin ? (
-              <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+              <div className="theme-card rounded-xl border p-4">
                 <PinSignature
                   label={`Void ${isCS ? 'Controlled Substance' : 'MAR'} Entry`}
                   mode="self"

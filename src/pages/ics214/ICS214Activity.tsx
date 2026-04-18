@@ -85,7 +85,7 @@ export default function AddActivityPage() {
         </div>
 
         {header && (
-          <div className="bg-gray-900 rounded-xl border border-gray-800 px-4 py-3 mb-5">
+          <div className="theme-card rounded-xl border px-4 py-3 mb-5">
             <p className="text-xs text-gray-500 font-mono">{header.ics214_id}</p>
             <p className="text-sm text-white font-semibold">{header.unit_name} — {header.incident_name}</p>
           </div>

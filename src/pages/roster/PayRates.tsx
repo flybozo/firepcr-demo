@@ -137,10 +137,10 @@ export default function PayRatesPage() {
             <span className="text-xs text-gray-600">{byRole[role].length} employees</span>
             <span className="text-xs text-gray-600 ml-auto">Default: {ROLE_DEFAULTS[role] ? `$${ROLE_DEFAULTS[role]}/day` : '—'}</span>
           </div>
-          <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+          <div className="theme-card rounded-xl border overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-800 bg-gray-800/30">
+                <tr className="border-b theme-card-header">
                   <th className="text-left px-4 py-2 text-xs text-gray-500 font-semibold uppercase">Name</th>
                   <th className="text-right px-4 py-2 text-xs text-gray-500 font-semibold uppercase">Daily Rate</th>
                   <th className="text-right px-4 py-2 text-xs text-gray-500 font-semibold uppercase">Hourly</th>
