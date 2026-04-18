@@ -16,9 +16,16 @@ type Employee = {
   email: string | null
   wf_email: string | null
   phone: string | null
-  dob: string | null
-  address: string | null
-  emergency_contact: string | null
+  date_of_birth: string | null
+  personal_email: string | null
+  personal_phone: string | null
+  home_address: string | null
+  emergency_contact_name: string | null
+  emergency_contact_phone: string | null
+  emergency_contact_relationship: string | null
+  headshot_url: string | null
+  daily_rate: number | null
+  default_hours_per_day: number | null
   status: string
   rems: boolean
   rems_capable: boolean | null
@@ -268,17 +275,27 @@ export default function RosterDetailPage() {
         <div className="bg-gray-900 rounded-xl p-4 border border-gray-800 space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Personal</h2>
           <dl className="grid grid-cols-1 gap-3">
-            {/* Emails full-width — too long to share a row on mobile */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="Personal Email" value={emp.email} />
+              <Field label="Personal Email" value={emp.personal_email || emp.email} />
               <Field label="WF Email" value={emp.wf_email} />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <Field label="Phone" value={emp.phone} />
-              <Field label="DOB" value={emp.dob} />
-              <Field label="Address" value={emp.address} />
-              <Field label="Emergency Contact" value={emp.emergency_contact} />
+              <Field label="Personal Phone" value={emp.personal_phone} />
+              <Field label="DOB" value={emp.date_of_birth} />
             </div>
+            <Field label="Home Address" value={emp.home_address} />
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Field label="Emergency Contact" value={emp.emergency_contact_name} />
+              <Field label="Emergency Phone" value={emp.emergency_contact_phone} />
+              <Field label="Relationship" value={emp.emergency_contact_relationship} />
+            </div>
+            {isAdmin && (
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-800">
+                <Field label="Daily Rate" value={emp.daily_rate ? `$${emp.daily_rate.toLocaleString()}` : null} />
+                <Field label="Hours/Day" value={emp.default_hours_per_day ? String(emp.default_hours_per_day) : '16'} />
+              </div>
+            )}
           </dl>
         </div>
 
@@ -476,7 +493,7 @@ export default function RosterDetailPage() {
         </div>
 
         {/* Employee Expenses — admin only */}
-        {isAdmin && empExpenses.length > 0 && (
+        {isAdmin && (
           <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--color-card-bg, #111827)', borderColor: 'var(--color-border, #1f2937)' }}>
             <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ backgroundColor: 'var(--color-header-bg, #030712)', borderColor: 'var(--color-border, #1f2937)' }}>
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">🧂 Expense History</h3>
@@ -486,7 +503,10 @@ export default function RosterDetailPage() {
                 )}
               </span>
             </div>
-            <div className="overflow-x-auto" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+            {empExpenses.length === 0 && (
+              <p className="px-4 py-6 text-sm text-gray-600 text-center">No expenses logged for this employee.</p>
+            )}
+            {empExpenses.length > 0 && <div className="overflow-x-auto" style={{ maxHeight: '300px', overflowY: 'auto' }}>
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
@@ -536,7 +556,7 @@ export default function RosterDetailPage() {
                   })}
                 </tbody>
               </table>
-            </div>
+            </div>}
           </div>
         )}
 
