@@ -58,7 +58,7 @@ export const THEME_FONTS: Record<string, { family: string; name: string }> = {
   neon:         { family: "'Orbitron', sans-serif", name: 'Orbitron' },
   pirate:       { family: "'Pirata One', cursive", name: 'Pirata One' },
   area51:       { family: "'Silkscreen', monospace", name: 'Silkscreen' },
-  tacotruck:    { family: "'Lilita One', sans-serif", name: 'Lilita One' },
+  goth:         { family: "'UnifrakturMaguntia', cursive", name: 'UnifrakturMaguntia' },
 }
 
 // ── Presets ───────────────────────────────────────────────────────────────────
@@ -524,24 +524,24 @@ export const THEME_PRESETS: Record<string, { label: string; description: string;
       danger: '#ff1744',
     },
   },
-  tacotruck: {
-    label: '🌮 Taco Truck',
-    description: 'Best tacos in town, güey',
+  goth: {
+    label: '🖤 Goth',
+    description: 'The void stares back',
     colors: {
-      primary: '#e8412e',
-      primaryHover: '#c43525',
-      secondary: '#f5a623',
-      accent: '#4caf50',
-      headerBg: '#fef3d0',
-      cardBg: '#fffbea',
-      pageBg: '#fff8e1',
-      sidebarBg: '#f5e6b8',
-      text: '#3e2723',
-      textMuted: '#8d6e63',
-      border: '#e8d5a3',
-      success: '#4caf50',
-      warning: '#f5a623',
-      danger: '#e8412e',
+      primary: '#8b0000',
+      primaryHover: '#a00000',
+      secondary: '#4a0028',
+      accent: '#c41e3a',
+      headerBg: '#0a0a0a',
+      cardBg: '#0f0f0f',
+      pageBg: '#050505',
+      sidebarBg: '#030303',
+      text: '#b8b8b8',
+      textMuted: '#555555',
+      border: '#1a1a1a',
+      success: '#2e4a2e',
+      warning: '#8b6508',
+      danger: '#8b0000',
     },
   },
 }
@@ -663,7 +663,7 @@ function applyThemeToDom(theme: Theme) {
     doc: "'IBM Plex Sans', 'Arial', sans-serif",     // Doc — clinical monospace feel
     pirate: "'Pirata One', cursive",                   // Pirate — blackletter swashbuckler
     area51: "'Silkscreen', monospace",                  // Area 51 — retro pixel terminal
-    tacotruck: "'Lilita One', sans-serif",              // Taco Truck — hand-painted Mexican signage
+    goth: "'UnifrakturMaguntia', cursive",              // Goth — blackletter funeral invitation
   }
   const font = fontMap[theme.preset] || theme.font || "'Inter', system-ui, -apple-system, sans-serif"
   root.style.setProperty('--theme-font', font)
@@ -684,7 +684,7 @@ function applyThemeToDom(theme: Theme) {
     cowboy: 1.05,     // Rye Western display font reads slightly small
     pirate: 1.08,     // Pirata One blackletter reads small at body size
     area51: 1.12,     // Silkscreen pixel font needs a boost
-    tacotruck: 1.05,  // Lilita One display font reads slightly small
+    goth: 1.08,       // UnifrakturMaguntia blackletter reads small
   }
   const fontScale = fontScaleMap[theme.preset] || 1
   const scaleCSS = fontScale !== 1
@@ -721,7 +721,7 @@ function applyThemeToDom(theme: Theme) {
     doc: 'IBM+Plex+Sans:wght@300;400;600',
     pirate: 'Pirata+One',
     area51: 'Silkscreen:wght@400;700',
-    tacotruck: 'Lilita+One',
+    goth: 'UnifrakturMaguntia',
   }
   const gFont = googleFonts[theme.preset]
   const linkId = 'theme-google-font'
