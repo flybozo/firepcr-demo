@@ -518,6 +518,17 @@ export function useTheme() {
 
 // ── CSS variable application ──────────────────────────────────────────────────
 
+/** Returns '#000000' or '#ffffff' depending on which contrasts better with the given hex color */
+function getContrastText(hex: string): string {
+  const h = hex.replace('#', '')
+  const r = parseInt(h.substring(0, 2), 16)
+  const g = parseInt(h.substring(2, 4), 16)
+  const b = parseInt(h.substring(4, 6), 16)
+  // W3C relative luminance
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.5 ? '#000000' : '#ffffff'
+}
+
 function applyThemeToDom(theme: Theme) {
   const root = document.documentElement
   const c = theme.colors
@@ -550,6 +561,11 @@ function applyThemeToDom(theme: Theme) {
   root.style.setProperty('--theme-border', c.border)
   root.style.setProperty('--theme-text', c.text)
   root.style.setProperty('--theme-text-muted', c.textMuted)
+
+  // Compute contrasting text color for primary backgrounds (buttons, active tabs, badges)
+  const primaryText = getContrastText(c.primary)
+  root.style.setProperty('--color-primary-text', primaryText)
+  root.style.setProperty('--theme-primary-text', primaryText)
 
   // Update page background on body
   document.body.style.backgroundColor = c.pageBg

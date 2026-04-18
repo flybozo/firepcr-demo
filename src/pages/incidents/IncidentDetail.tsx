@@ -740,7 +740,11 @@ export default function IncidentDetailPage() {
   }
 
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement required to start drag — lets taps/clicks pass through to links
+      },
+    }),
     useSensor(KeyboardSensor)
   )
 

@@ -176,11 +176,11 @@ input, select, textarea { font-size: max(16px, 1em); }
 .divide-gray-800 > :not(:last-child) { border-color: var(--theme-border, #1f2937) !important; }
 .divide-gray-800\/60 > :not(:last-child) { border-color: color-mix(in srgb, var(--theme-border, #1f2937) 60%, transparent) !important; }
 
-/* Primary buttons */
-.bg-red-600 { background-color: var(--theme-primary, #dc2626) !important; }
-.bg-red-700 { background-color: var(--theme-primary-hover, #b91c1c) !important; }
-.hover\:bg-red-700:hover { background-color: var(--theme-primary-hover, #b91c1c) !important; }
-.hover\:bg-red-600:hover { background-color: var(--theme-primary, #dc2626) !important; }
+/* Primary buttons — use computed contrast text for readability */
+.bg-red-600 { background-color: var(--theme-primary, #dc2626) !important; color: var(--theme-primary-text, #ffffff) !important; }
+.bg-red-700 { background-color: var(--theme-primary-hover, #b91c1c) !important; color: var(--theme-primary-text, #ffffff) !important; }
+.hover\:bg-red-700:hover { background-color: var(--theme-primary-hover, #b91c1c) !important; color: var(--theme-primary-text, #ffffff) !important; }
+.hover\:bg-red-600:hover { background-color: var(--theme-primary, #dc2626) !important; color: var(--theme-primary-text, #ffffff) !important; }
 
 /* Primary text */
 .text-red-400 { color: var(--theme-primary, #dc2626) !important; }
