@@ -66,6 +66,29 @@ type Employee = { id: string; name: string; headshot_url?: string | null; role?:
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/** Supabase FK joins can return {name:...} or [{name:...}]. Normalize both. */
+function normalizeSender(sender: unknown): Sender {
+  if (!sender) return { id: 'unknown', name: 'Unknown' }
+  if (Array.isArray(sender)) return normalizeSender(sender[0])
+  const s = sender as Record<string, unknown>
+  return { id: (s.id as string) || 'unknown', name: (s.name as string) || 'Unknown', headshot_url: (s.headshot_url as string | null) ?? null }
+}
+
+function normalizeReply(reply: unknown): ReplyMessage | null {
+  if (!reply) return null
+  if (Array.isArray(reply)) return normalizeReply(reply[0])
+  const r = reply as Record<string, unknown>
+  return { id: (r.id as string) || '', content: (r.content as string) || '', sender: normalizeSender(r.sender) }
+}
+
+function normalizeMessage(raw: Record<string, unknown>): ChatMessage {
+  return {
+    ...raw as unknown as ChatMessage,
+    sender: normalizeSender(raw.sender),
+    reply_message: normalizeReply(raw.reply_message),
+  }
+}
+
 function relativeTime(isoString: string): string {
   const date = new Date(isoString)
   const now = new Date()
@@ -442,7 +465,7 @@ function MessageThread({
       const resp = await authFetch(`/api/chat/messages?${params}`)
       if (!resp.ok) throw new Error('Failed to load messages')
       const data = await resp.json()
-      return (data.messages || []) as ChatMessage[]
+      return ((data.messages || []) as Record<string, unknown>[]).map(normalizeMessage)
     } catch (e) {
       console.error('[Chat] loadMessages', e)
       return []
@@ -506,7 +529,7 @@ function MessageThread({
             const resp = await authFetch(`/api/chat/messages?channelId=${channel.id}&limit=1`)
             if (!resp.ok) return
             const data = await resp.json()
-            const latest: ChatMessage[] = data.messages || []
+            const latest = ((data.messages || []) as Record<string, unknown>[]).map(normalizeMessage)
 
             setMessages((prev) => {
               const existingIds = new Set(prev.map((m) => m.id))
