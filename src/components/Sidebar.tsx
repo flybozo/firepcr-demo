@@ -13,13 +13,14 @@ import {
   SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { SidebarIcon } from './SidebarIcons'
 
 type SubItem = { label: string; href: string }
 type NavItem = { icon: string; label: string; href: string; sub: SubItem[]; adminOnly?: boolean; onlineOnly?: boolean; directLink?: boolean }
 
 const NAV: NavItem[] = [
   {
-    icon: '🔥',
+    icon: 'incidents',
     label: 'Incidents',
     href: '/incidents',
     directLink: true,
@@ -31,7 +32,7 @@ const NAV: NavItem[] = [
     adminOnly: false,
   },
   {
-    icon: '📋',
+    icon: 'encounters',
     label: 'Patient Encounters',
     href: '/encounters',
     directLink: true,
@@ -45,7 +46,7 @@ const NAV: NavItem[] = [
     ],
   },
   {
-    icon: '🚑',
+    icon: 'units',
     label: 'Units',
     href: '/units',
     directLink: true,
@@ -54,9 +55,8 @@ const NAV: NavItem[] = [
     ],
     adminOnly: false,
   },
-
   {
-    icon: '📦',
+    icon: 'inventory',
     label: 'Inventory',
     href: '/inventory',
     directLink: true,
@@ -69,7 +69,7 @@ const NAV: NavItem[] = [
     ],
   },
   {
-    icon: '🔐',
+    icon: 'cs',
     label: 'CS System',
     href: '/cs',
     directLink: true,
@@ -83,7 +83,7 @@ const NAV: NavItem[] = [
     ],
   },
   {
-    icon: '🛒',
+    icon: 'supply',
     label: 'Supply Runs',
     href: '/supply-runs',
     directLink: true,
@@ -93,7 +93,7 @@ const NAV: NavItem[] = [
     ],
   },
   {
-    icon: '👥',
+    icon: 'roster',
     label: 'Employee Roster',
     href: '/roster',
     directLink: true,
@@ -104,18 +104,15 @@ const NAV: NavItem[] = [
     ],
     adminOnly: false,
   },
-
-
   {
-    icon: '💰',
+    icon: 'payroll',
     label: 'Payroll',
     href: '/payroll',
     directLink: true,
     sub: [{ label: 'My Payroll', href: '/payroll/my' }],
   },
-
   {
-    icon: '⚙️',
+    icon: 'admin',
     label: 'Admin',
     href: '/admin',
     directLink: true,
@@ -127,7 +124,7 @@ const NAV: NavItem[] = [
       { label: 'External Dashboard', href: '/admin/fire-dashboard' },
       { label: 'Schedule', href: '/schedule' },
       { label: 'Coverage Calendar', href: '/schedule/calendar' },
-      { label: '⚡ Generate Schedule', href: '/schedule/generate' },
+      { label: 'Generate Schedule', href: '/schedule/generate' },
       { label: 'Contacts', href: '/contacts' },
     ],
     adminOnly: true,
@@ -211,10 +208,19 @@ function SortableNavItem({
             <Link
               to={href}
               onClick={onNavigate}
-              style={isActive ? { color: '#fff', backgroundColor: 'var(--color-primary, #374151)' } : { color: 'var(--color-text-muted, #9ca3af)' }}
-              className="flex-1 flex items-center gap-3 pl-0 py-3 text-sm font-medium transition-colors hover:opacity-80"
+              className={`flex-1 flex items-center gap-3 pl-2 py-2 text-[13px] font-medium rounded-lg mx-1 transition-all duration-150 ${
+                isActive
+                  ? 'text-white'
+                  : 'hover:bg-white/[0.04]'
+              }`}
+              style={{
+                color: isActive ? '#fff' : 'var(--color-text-muted, #9ca3af)',
+                ...(isActive ? { backgroundColor: 'color-mix(in srgb, var(--color-primary, #374151) 25%, transparent)' } : {}),
+              }}
             >
-              <span className="text-base">{item.icon}</span>
+              <span className={`w-5 h-5 shrink-0 flex items-center justify-center transition-colors ${isActive ? 'opacity-100' : 'opacity-60'}`} style={isActive ? { color: 'var(--color-primary, #dc2626)' } : {}}>
+                <SidebarIcon name={item.icon} />
+              </span>
               <span>{item.label}</span>
               {badges && badges[item.label] && badges[item.label].total > 0 && (
                 <span className="relative">
@@ -257,20 +263,38 @@ function SortableNavItem({
           <Link
             to={href}
             onClick={onNavigate}
-            style={isActive ? { color: '#fff', backgroundColor: 'var(--color-primary, #374151)' } : { color: 'var(--color-text-muted, #9ca3af)' }}
-            className={`flex-1 flex items-center gap-3 pr-4 py-3 text-sm font-medium transition-colors hover:opacity-80`}
+            className={`flex-1 flex items-center gap-3 pl-2 pr-4 py-2 text-[13px] font-medium rounded-lg mx-1 transition-all duration-150 ${
+              isActive
+                ? 'text-white'
+                : 'hover:bg-white/[0.04]'
+            }`}
+            style={{
+              color: isActive ? '#fff' : 'var(--color-text-muted, #9ca3af)',
+              ...(isActive ? { backgroundColor: 'color-mix(in srgb, var(--color-primary, #374151) 25%, transparent)' } : {}),
+            }}
           >
-            <span className="text-base">{item.icon}</span>
+            <span className={`w-5 h-5 shrink-0 flex items-center justify-center transition-colors ${isActive ? 'opacity-100' : 'opacity-60'}`} style={isActive ? { color: 'var(--color-primary, #dc2626)' } : {}}>
+              <SidebarIcon name={item.icon} />
+            </span>
             <span>{item.label}</span>
           </Link>
         ) : (
           <button
             onClick={() => toggle(item.label)}
-            style={isActive ? { color: '#fff', backgroundColor: 'var(--color-primary, #374151)' } : { color: 'var(--color-text-muted, #9ca3af)' }}
-            className={`flex-1 flex items-center justify-between pr-4 py-3 text-sm font-medium transition-colors hover:opacity-80`}
+            className={`flex-1 flex items-center justify-between pl-2 pr-4 py-2 text-[13px] font-medium rounded-lg mx-1 transition-all duration-150 ${
+              isActive
+                ? 'text-white'
+                : 'hover:bg-white/[0.04]'
+            }`}
+            style={{
+              color: isActive ? '#fff' : 'var(--color-text-muted, #9ca3af)',
+              ...(isActive ? { backgroundColor: 'color-mix(in srgb, var(--color-primary, #374151) 25%, transparent)' } : {}),
+            }}
           >
             <div className="flex items-center gap-3">
-              <span className="text-base">{item.icon}</span>
+              <span className={`w-5 h-5 shrink-0 flex items-center justify-center transition-colors ${isActive ? 'opacity-100' : 'opacity-60'}`} style={isActive ? { color: 'var(--color-primary, #dc2626)' } : {}}>
+                <SidebarIcon name={item.icon} />
+              </span>
               <span>{item.label}</span>
               {badges && badges[item.label] && badges[item.label].total > 0 && (
                 <span className="relative">
@@ -307,13 +331,15 @@ function SortableNavItem({
       </div>
 
       {isExpanded && (
-        <div style={{ backgroundColor: 'color-mix(in srgb, var(--color-sidebar-bg, #0a0a0a) 85%, var(--color-primary, #dc2626) 5%)' }}>
+        <div className="ml-8 mr-2 mb-1">
           {!item.directLink && (
             <Link
               to={href}
               onClick={onNavigate}
-              style={pathname === item.href ? { color: 'var(--color-primary, #f87171)' } : { color: 'var(--color-text-muted, #9ca3af)' }}
-              className="flex items-center gap-2 px-10 py-2 text-xs transition-colors hover:opacity-80"
+              className={`block py-1.5 px-3 text-xs rounded-md transition-all duration-150 ${
+                pathname === item.href ? '' : 'hover:bg-white/[0.04]'
+              }`}
+              style={pathname === item.href ? { color: 'var(--color-primary, #f87171)' } : { color: 'var(--color-text-muted, #6b7280)' }}
             >
               {isField && (item.href === '/incidents' || item.href === '/units') ? 'My ' : 'View All'}
               {isField && item.href === '/incidents' ? 'Incident' : isField && item.href === '/units' ? 'Unit' : ''}
@@ -324,10 +350,12 @@ function SortableNavItem({
               key={sub.href}
               to={sub.href}
               onClick={onNavigate}
-              style={pathname === sub.href ? { color: 'var(--color-primary, #f87171)' } : { color: 'var(--color-text-muted, #9ca3af)' }}
-              className="flex items-center gap-2 px-10 py-2 text-xs transition-colors hover:opacity-80"
+              className={`block py-1.5 px-3 text-xs rounded-md transition-all duration-150 ${
+                pathname === sub.href ? '' : 'hover:bg-white/[0.04]'
+              }`}
+              style={pathname === sub.href ? { color: 'var(--color-primary, #f87171)' } : { color: 'var(--color-text-muted, #6b7280)' }}
             >
-              + {sub.label}
+              {sub.label}
             </Link>
           ))}
         </div>
@@ -485,17 +513,17 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           </div>
         )}
         <Link to="/documents"
-          style={{ color: "var(--color-text-muted, #9ca3af)" }} className="flex items-center gap-3 text-sm hover:opacity-80 transition-colors">
-          <span>📋</span> Policies & Procedures
+          style={{ color: "var(--color-text-muted, #9ca3af)" }} className="flex items-center gap-3 py-1.5 px-2 rounded-lg text-[13px] hover:bg-white/[0.04] transition-all duration-150">
+          <span className="w-5 h-5 shrink-0 flex items-center justify-center opacity-50"><SidebarIcon name="documents" /></span> Policies & Procedures
         </Link>
         <Link to="/profile"
-          style={{ color: "var(--color-text-muted, #9ca3af)" }} className="flex items-center gap-3 text-sm hover:opacity-80 transition-colors">
-          <span>👤</span> My Profile
+          style={{ color: "var(--color-text-muted, #9ca3af)" }} className="flex items-center gap-3 py-1.5 px-2 rounded-lg text-[13px] hover:bg-white/[0.04] transition-all duration-150">
+          <span className="w-5 h-5 shrink-0 flex items-center justify-center opacity-50"><SidebarIcon name="profile" /></span> My Profile
         </Link>
         {isField && (
           <Link to="/schedule/request"
-            style={{ color: "var(--color-text-muted, #9ca3af)" }} className="flex items-center gap-3 text-sm hover:opacity-80 transition-colors">
-            <span>📅</span> Schedule Request
+            style={{ color: "var(--color-text-muted, #9ca3af)" }} className="flex items-center gap-3 py-1.5 px-2 rounded-lg text-[13px] hover:bg-white/[0.04] transition-all duration-150">
+            <span className="w-5 h-5 shrink-0 flex items-center justify-center opacity-50"><SidebarIcon name="schedule" /></span> Schedule Request
           </Link>
         )}
         <button
@@ -505,9 +533,9 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             await sb.auth.signOut()
             window.location.href = '/login'
           }}
-          style={{ color: "var(--color-text-muted, #6b7280)" }} className="flex items-center gap-3 text-sm hover:opacity-70 transition-colors w-full"
+          style={{ color: "var(--color-text-muted, #6b7280)" }} className="flex items-center gap-3 py-1.5 px-2 rounded-lg text-[13px] hover:bg-white/[0.04] transition-all duration-150 w-full"
         >
-          <span>🚪</span> Sign Out
+          <span className="w-5 h-5 shrink-0 flex items-center justify-center opacity-50"><SidebarIcon name="logout" /></span> Sign Out
         </button>
       </div>
       <div className="px-4 pb-3 pt-1">

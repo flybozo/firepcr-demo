@@ -1,0 +1,47 @@
+// Stencil-style sidebar icons — thin stroke, no fill, consistent 20×20 viewBox
+// Matches the modern sidebar aesthetic of OpenClaw / Vercel / Supabase
+
+const iconProps = { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const }
+
+export const SidebarIcon = ({ name }: { name: string }) => {
+  switch (name) {
+    case 'incidents':
+      // Flame
+      return <svg {...iconProps}><path d="M12 22c4.97 0 8-3.58 8-8 0-6-8-12-8-12S4 8 4 14c0 4.42 3.03 8 8 8z" /><path d="M12 22c-2.21 0-4-1.79-4-4 0-3 4-6 4-6s4 3 4 6c0 2.21-1.79 4-4 4z" /></svg>
+    case 'encounters':
+      // Clipboard with heart
+      return <svg {...iconProps}><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" /><rect x="9" y="3" width="6" height="4" rx="1" /><path d="M12 18v-6" /><path d="M9 15h6" /></svg>
+    case 'units':
+      // Ambulance / truck
+      return <svg {...iconProps}><path d="M5 17h2m4 0h2m4 0h2" /><rect x="1" y="6" width="15" height="11" rx="2" /><path d="M16 9h4l3 4v4h-7V9z" /><circle cx="7" cy="17" r="2" /><circle cx="19" cy="17" r="2" /></svg>
+    case 'inventory':
+      // Package / box
+      return <svg {...iconProps}><path d="M21 8l-9.5-5.5L2 8l9.5 5.5L21 8z" /><path d="M2 8v8l9.5 5.5L21 16V8" /><path d="M11.5 13.5V21" /><path d="M6.5 10.5l9.5-5.5" /></svg>
+    case 'cs':
+      // Shield with lock
+      return <svg {...iconProps}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><rect x="10" y="11" width="4" height="4" rx="1" /><path d="M12 11V9a1 1 0 0 0-1-1h0a1 1 0 0 0-1 1v2" /></svg>
+    case 'supply':
+      // Shopping cart
+      return <svg {...iconProps}><circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" /><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" /></svg>
+    case 'roster':
+      // Users / people
+      return <svg {...iconProps}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+    case 'payroll':
+      // Dollar sign in circle
+      return <svg {...iconProps}><circle cx="12" cy="12" r="10" /><path d="M16 8h-3a2 2 0 1 0 0 4h2a2 2 0 1 1 0 4H8" /><path d="M12 18V6" /></svg>
+    case 'admin':
+      // Sliders / settings
+      return <svg {...iconProps}><line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" /></svg>
+    // Footer icons
+    case 'documents':
+      return <svg {...iconProps}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
+    case 'profile':
+      return <svg {...iconProps}><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+    case 'schedule':
+      return <svg {...iconProps}><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+    case 'logout':
+      return <svg {...iconProps}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
+    default:
+      return <svg {...iconProps}><circle cx="12" cy="12" r="10" /></svg>
+  }
+}
