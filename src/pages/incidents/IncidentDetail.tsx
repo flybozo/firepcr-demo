@@ -1114,7 +1114,7 @@ export default function IncidentDetailPage() {
             {/* Crew Deployment Table — derived from unit_assignments + deployment_records */}
             {crewDeployments.length > 0 && (
               <div className="overflow-x-auto">
-                <table className="w-full text-xs" style={{ minWidth: '600px' }}>
+                <table className="w-full text-xs" style={{ minWidth: '700px' }}>
                   <thead>
                     <tr className="border-b border-gray-800 bg-gray-800/30">
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Employee</th>
@@ -1122,8 +1122,8 @@ export default function IncidentDetailPage() {
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Unit</th>
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Status</th>
                       <th className="text-right px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Rate</th>
-                      <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Travel</th>
-                      <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Check-Out</th>
+                      <th className="text-right px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Days</th>
+                      <th className="text-right px-3 py-2 text-gray-500 font-semibold uppercase tracking-wide">Owed</th>
                       <th className="px-3 py-2"></th>
                     </tr>
                   </thead>
@@ -1131,6 +1131,10 @@ export default function IncidentDetailPage() {
                     {crewDeployments.map(dep => {
                       const isActive = !dep.released_at
                       const isEditing = editingDeployId === dep.deployment_id
+                      // Calculate days: from travel_date (or incident start) to check_out or today
+                      const startDate = dep.travel_date || incident?.start_date || null
+                      const days = startDate ? calcDays(startDate, dep.check_out_date) : 0
+                      const owed = days * dep.daily_rate
 
                       if (isEditing && dep.deployment_id) {
                         return (
@@ -1153,16 +1157,8 @@ export default function IncidentDetailPage() {
                                 onChange={e => setEditDeployFields(f => ({ ...f, daily_rate: parseFloat(e.target.value) || 0 }))}
                                 className={inputCls + ' w-20 text-right'} />
                             </td>
-                            <td className="px-3 py-2">
-                              <input type="date" defaultValue={dep.travel_date ?? ''}
-                                onChange={e => setEditDeployFields(f => ({ ...f, travel_date: e.target.value }))}
-                                className={inputCls} />
-                            </td>
-                            <td className="px-3 py-2">
-                              <input type="date" defaultValue={dep.check_out_date ?? ''}
-                                onChange={e => setEditDeployFields(f => ({ ...f, check_out_date: e.target.value || null }))}
-                                className={inputCls} />
-                            </td>
+                            <td className="px-3 py-2 text-right text-gray-400">{days}{isActive && '+'}</td>
+                            <td className="px-3 py-2 text-right text-green-400">{fmtCurrency(owed)}{isActive && '+'}</td>
                             <td className="px-3 py-2">
                               <div className="flex gap-1">
                                 <button onClick={() => handleSaveDeployEdit(dep.deployment_id!)}
@@ -1194,8 +1190,14 @@ export default function IncidentDetailPage() {
                             {dep.daily_rate > 0 ? fmtCurrency(dep.daily_rate) : <span className="text-gray-600">—</span>}
                             <span className="text-gray-600 text-xs">/d</span>
                           </td>
-                          <td className="px-3 py-2 text-gray-400">{dep.travel_date ? formatDeployDate(dep.travel_date) : <span className="text-gray-600">—</span>}</td>
-                          <td className="px-3 py-2 text-gray-400">{dep.check_out_date ? formatDeployDate(dep.check_out_date) : <span className="text-gray-600">—</span>}</td>
+                          <td className="px-3 py-2 text-right font-medium">
+                            {days > 0 ? days : <span className="text-gray-600">—</span>}
+                            {isActive && days > 0 && <span className="ml-0.5 text-gray-500 text-xs">+</span>}
+                          </td>
+                          <td className="px-3 py-2 text-right font-semibold text-green-400">
+                            {owed > 0 ? fmtCurrency(owed) : <span className="text-gray-600">—</span>}
+                            {isActive && owed > 0 && <span className="ml-0.5 text-gray-500 text-xs">+</span>}
+                          </td>
                           <td className="px-3 py-2">
                             <div className="flex gap-1">
                               {dep.deployment_id ? (
@@ -1214,6 +1216,26 @@ export default function IncidentDetailPage() {
                       )
                     })}
                   </tbody>
+                  {/* Totals footer */}
+                  <tfoot>
+                    <tr className="border-t border-gray-700 bg-gray-800/50">
+                      <td colSpan={5} className="px-3 py-2 text-right text-xs font-bold uppercase tracking-wide text-gray-400">Total Payroll</td>
+                      <td className="px-3 py-2 text-right text-sm font-bold text-white">
+                        {crewDeployments.reduce((sum, dep) => {
+                          const start = dep.travel_date || incident?.start_date || null
+                          return sum + (start ? calcDays(start, dep.check_out_date) : 0)
+                        }, 0)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-sm font-bold text-green-400">
+                        {fmtCurrency(crewDeployments.reduce((sum, dep) => {
+                          const start = dep.travel_date || incident?.start_date || null
+                          const d = start ? calcDays(start, dep.check_out_date) : 0
+                          return sum + (d * dep.daily_rate)
+                        }, 0))}
+                      </td>
+                      <td className="px-3 py-2"></td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             )}

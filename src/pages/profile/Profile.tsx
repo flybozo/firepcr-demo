@@ -42,6 +42,8 @@ export default function ProfilePage() {
   const [showCredUpload, setShowCredUpload] = useState(false)
   const [creds, setCreds] = useState<any[]>([])
   const [credSignedUrls, setCredSignedUrls] = useState<Record<string, string>>({})
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [previewName, setPreviewName] = useState('')
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
 
@@ -257,7 +259,8 @@ export default function ProfilePage() {
   if (!employee) return <div className="p-8 text-gray-500">No employee record found for your account.</div>
 
   return (
-    <div className="p-6 md:p-8 max-w-lg mt-8 md:mt-0 pb-20">
+    <div className="flex gap-6">
+    <div className={`p-6 md:p-8 mt-8 md:mt-0 pb-20 transition-all ${previewUrl ? 'max-w-md' : 'max-w-lg'}`}>
 
       {/* Unassigned banner — only shown to field users with no active unit assignment */}
       {showUnassignedBanner && (
@@ -433,9 +436,18 @@ export default function ProfilePage() {
                   <div className="flex gap-1.5 shrink-0">
                     {url ? (
                       <>
-                        <a href={url} target="_blank" rel="noopener noreferrer"
+                        <button
+                          onClick={() => {
+                            // Desktop: open in preview pane; mobile: open new tab
+                            if (window.innerWidth >= 768) {
+                              setPreviewUrl(url)
+                              setPreviewName(c.file_name || c.cert_type || 'Document')
+                            } else {
+                              window.open(url, '_blank')
+                            }
+                          }}
                           className="text-xs px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors font-medium"
-                          title="View">View</a>
+                          title="View">View</button>
                         <button
                           onClick={async () => {
                             try {
@@ -526,6 +538,32 @@ export default function ProfilePage() {
 
       {/* Appearance / Theme Section */}
       <AppearanceSection />
+    </div>
+
+    {/* Document Preview Panel — desktop only */}
+    {previewUrl && (
+      <div className="hidden md:flex flex-col flex-1 min-w-0 mt-8 sticky top-8 h-[calc(100vh-6rem)]">
+        <div className="flex items-center gap-2 px-4 py-2 bg-gray-900 border border-gray-800 rounded-t-xl">
+          <span className="text-xs font-bold uppercase tracking-wide text-gray-400 flex-1 truncate">{previewName}</span>
+          <a href={previewUrl} target="_blank" rel="noopener noreferrer"
+            className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-gray-300 transition-colors">↗ New Tab</a>
+          <button onClick={() => { setPreviewUrl(null); setPreviewName('') }}
+            className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-gray-300 transition-colors">✕ Close</button>
+        </div>
+        {/\.(jpg|jpeg|png|webp|heic)$/i.test(previewName) ? (
+          <div className="flex-1 bg-gray-950 border border-t-0 border-gray-800 rounded-b-xl overflow-auto flex items-center justify-center p-4">
+            <img src={previewUrl} alt={previewName} className="max-w-full max-h-full object-contain rounded" style={{ imageOrientation: 'from-image' }} />
+          </div>
+        ) : (
+          <iframe
+            src={previewUrl}
+            title={previewName}
+            className="flex-1 bg-white border border-t-0 border-gray-800 rounded-b-xl"
+          />
+        )}
+      </div>
+    )}
+
     </div>
   )
 }
