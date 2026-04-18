@@ -1715,7 +1715,8 @@ export default function IncidentDetailPage() {
                       }
 
                       return (
-                        <tr key={dep.assignment_id} className={`hover:bg-gray-800/30 transition-colors ${dep.released_at ? 'opacity-50' : ''}`}>
+                        <tr key={dep.assignment_id} className={`hover:bg-gray-800/30 transition-colors cursor-pointer ${dep.released_at ? 'opacity-50' : ''}`}
+                          onClick={() => navigate(`/roster/${dep.employee_id}`)}>
                           <td className="px-3 py-2 text-white font-medium">
                             <div className="flex items-center gap-2">
                               <div className="w-7 h-7 rounded-full overflow-hidden shrink-0 bg-gray-700 flex items-center justify-center">
@@ -1725,7 +1726,7 @@ export default function IncidentDetailPage() {
                                   <span className="text-gray-400 text-xs font-bold">{dep.employee_name.charAt(0)}</span>
                                 )}
                               </div>
-                              {dep.employee_name}
+                              <span className="hover:text-blue-400 transition-colors">{dep.employee_name}</span>
                             </div>
                           </td>
                           <td className="px-3 py-2 text-gray-400">{dep.employee_role}</td>
@@ -1752,7 +1753,7 @@ export default function IncidentDetailPage() {
                             {owed > 0 ? fmtCurrency(owed) : <span className="text-gray-600">—</span>}
                             {isActive && owed > 0 && <span className="ml-0.5 text-gray-500 text-xs">+</span>}
                           </td>
-                          <td className="px-3 py-2">
+                          <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
                             <div className="flex gap-1">
                               {dep.deployment_id ? (
                                 <>
@@ -1929,10 +1930,11 @@ export default function IncidentDetailPage() {
                       const isActive = !u.released_at
                       const isEditingRate = editingRateIuId === u.id
                       return (
-                        <tr key={u.id} className={`hover:bg-gray-800/30 transition-colors ${u.released_at ? 'opacity-50' : ''}`}>
-                          <td className="px-3 py-2 text-white font-medium">{(u.unit as any)?.name || '?'}</td>
+                        <tr key={u.id} className={`hover:bg-gray-800/30 transition-colors cursor-pointer ${u.released_at ? 'opacity-50' : ''}`}
+                          onClick={() => u.unit?.id && navigate(`/units/${u.unit.id}`)}>
+                          <td className="px-3 py-2 text-white font-medium"><span className="hover:text-blue-400 transition-colors">{(u.unit as any)?.name || '?'}</span></td>
                           <td className="px-3 py-2 text-gray-400">{u.typeName}</td>
-                          <td className="px-3 py-2 text-right">
+                          <td className="px-3 py-2 text-right" onClick={e => e.stopPropagation()}>
                             {isEditingRate ? (
                               <div className="flex items-center justify-end gap-1">
                                 <span className="text-gray-500">$</span>
@@ -2035,7 +2037,8 @@ export default function IncidentDetailPage() {
                   </thead>
                   <tbody className="divide-y theme-border">
                     {expenses.map(exp => (
-                      <tr key={exp.id} className="hover:bg-gray-800/30 transition-colors">
+                      <tr key={exp.id} className="hover:bg-gray-800/30 transition-colors cursor-pointer"
+                        onClick={() => exp.employee_id && navigate(`/roster/${exp.employee_id}`)}>
                         <td className="px-3 py-2 text-gray-400">{exp.expense_date}</td>
                         <td className="px-3 py-2 text-white">
                           <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
@@ -2050,7 +2053,7 @@ export default function IncidentDetailPage() {
                         <td className="px-3 py-2 text-gray-300 truncate max-w-[150px]">{exp.description || '—'}</td>
                         <td className="px-3 py-2 text-gray-400 truncate max-w-[100px]">{(exp.employees as any)?.name || exp.created_by || '—'}</td>
                         <td className="px-3 py-2 text-right font-medium text-red-400">{fmtCurrency(exp.amount)}</td>
-                        <td className="px-2 py-2 text-center">
+                        <td className="px-2 py-2 text-center" onClick={e => e.stopPropagation()}>
                           {exp.receipt_url ? (
                             <button onClick={async () => {
                               const { data } = await supabase.storage.from('documents').createSignedUrl(exp.receipt_url!, 3600)
@@ -2063,7 +2066,7 @@ export default function IncidentDetailPage() {
                           )}
                         </td>
                         {isAdmin && (
-                          <td className="px-2 py-2">
+                          <td className="px-2 py-2" onClick={e => e.stopPropagation()}>
                             <button onClick={async () => {
                               if (!confirm('Delete this expense?')) return
                               await supabase.from('incident_expenses').delete().eq('id', exp.id)
@@ -2455,12 +2458,12 @@ export default function IncidentDetailPage() {
                     <span className="w-14 shrink-0 text-right">Par</span>
                   </div>
                   {filteredReorder.map(r => (
-                    <div key={r.id} className="flex items-center px-4 py-1.5 text-xs hover:bg-gray-800/50 transition-colors">
-                      <span className="flex-1 min-w-0 truncate pr-1 text-white">{r.item_name}</span>
+                    <Link key={r.id} to={`/inventory/${r.id}`} className="flex items-center px-4 py-1.5 text-xs hover:bg-gray-800/50 transition-colors cursor-pointer">
+                      <span className="flex-1 min-w-0 truncate pr-1 text-white hover:text-blue-400 transition-colors">{r.item_name}</span>
                       <span className="w-20 shrink-0 text-gray-400">{r.unit_name}</span>
                       <span className={`w-14 shrink-0 text-right font-medium ${r.quantity === 0 ? 'text-red-400' : 'text-yellow-400'}`}>{r.quantity}</span>
                       <span className="w-14 shrink-0 text-right text-gray-500">{r.par_qty}</span>
-                    </div>
+                    </Link>
                   ))}
                 </>
               ) : undefined
@@ -2474,11 +2477,11 @@ export default function IncidentDetailPage() {
                   <span className="w-14 shrink-0 text-right">Par</span>
                 </div>
                 {filteredReorder.slice(0, 5).map(r => (
-                  <div key={r.id} className="flex items-center px-4 py-1.5 text-xs hover:bg-gray-800/50 transition-colors">
-                    <span className="flex-1 min-w-0 truncate pr-1 text-white">{r.item_name}</span>
+                  <Link key={r.id} to={`/inventory/${r.id}`} className="flex items-center px-4 py-1.5 text-xs hover:bg-gray-800/50 transition-colors cursor-pointer">
+                    <span className="flex-1 min-w-0 truncate pr-1 text-white hover:text-blue-400 transition-colors">{r.item_name}</span>
                     <span className={`w-14 shrink-0 text-right font-medium ${r.quantity === 0 ? 'text-red-400' : 'text-yellow-400'}`}>{r.quantity}</span>
                     <span className="w-14 shrink-0 text-right text-gray-500">{r.par_qty}</span>
-                  </div>
+                  </Link>
                 ))}
               </>
             ) : (
