@@ -16,7 +16,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 async function listChannels(req: VercelRequest, res: VercelResponse) {
-  const { employee } = await requireEmployee(req)
+  const { employee, isAdmin } = await requireEmployee(req)
   const supabase = createServiceClient()
 
   // Get all channel IDs this employee is a member of, with last_read_at
@@ -26,6 +26,38 @@ async function listChannels(req: VercelRequest, res: VercelResponse) {
     .eq('employee_id', employee.id)
 
   if (mErr) throw new Error(mErr.message)
+
+  // Admin: auto-join any channels they're not yet a member of
+  if (isAdmin) {
+    const { data: allChannels } = await supabase
+      .from('chat_channels')
+      .select('id')
+
+    if (allChannels?.length) {
+      const memberSet = new Set((memberships || []).map((m) => m.channel_id))
+      const toJoin = allChannels
+        .filter((c) => !memberSet.has(c.id))
+        .map((c) => ({
+          channel_id: c.id,
+          employee_id: employee.id,
+          role: 'admin' as const,
+        }))
+
+      if (toJoin.length > 0) {
+        await supabase.from('chat_members').insert(toJoin)
+        // Re-fetch memberships now that we've joined new channels
+        const { data: refreshed } = await supabase
+          .from('chat_members')
+          .select('channel_id, last_read_at, role')
+          .eq('employee_id', employee.id)
+        if (refreshed) {
+          memberships!.length = 0
+          memberships!.push(...refreshed)
+        }
+      }
+    }
+  }
+
   if (!memberships?.length) return res.status(200).json({ channels: [] })
 
   const channelIds = memberships.map((m) => m.channel_id)
@@ -72,8 +104,30 @@ async function listChannels(req: VercelRequest, res: VercelResponse) {
     }
   }
 
+  // ── Resolve DM display names per-viewer ──────────────────────────────────
+  const directChannelIds = (channels || []).filter((ch) => ch.type === 'direct').map((ch) => ch.id)
+  const dmNameMap: Record<string, string> = {}
+  if (directChannelIds.length > 0) {
+    const { data: dmMembers } = await supabase
+      .from('chat_members')
+      .select('channel_id, employee:employees!employee_id(id, name)')
+      .in('channel_id', directChannelIds)
+
+    const byChannel: Record<string, string[]> = {}
+    for (const m of dmMembers || []) {
+      const emp = m.employee as unknown as { id: string; name: string } | null
+      if (!emp) continue
+      if (!byChannel[m.channel_id]) byChannel[m.channel_id] = []
+      if (emp.id !== employee.id) byChannel[m.channel_id].push(emp.name)
+    }
+    for (const [chId, names] of Object.entries(byChannel)) {
+      if (names.length > 0) dmNameMap[chId] = names.join(', ')
+    }
+  }
+
   const result = (channels || []).map((ch) => ({
     ...ch,
+    name: dmNameMap[ch.id] || ch.name,
     last_message: lastMsgMap[ch.id] || null,
     unread_count: unreadCounts[ch.id] || 0,
     my_role: membershipMap[ch.id]?.role || 'member',
@@ -133,7 +187,21 @@ async function createChannel(req: VercelRequest, res: VercelResponse) {
             .eq('type', 'direct')
             .single()
           if (ch) {
-            return res.status(200).json({ channel: ch, existing: true })
+            // Resolve DM name per-viewer: show the other person's name
+            const { data: chMembers } = await supabase
+              .from('chat_members')
+              .select('employee:employees!employee_id(id, name)')
+              .eq('channel_id', channelId)
+
+            const otherNames = (chMembers || [])
+              .map((m) => m.employee as unknown as { id: string; name: string } | null)
+              .filter((e) => e && e.id !== employee.id)
+              .map((e) => e!.name)
+
+            return res.status(200).json({
+              channel: { ...ch, name: otherNames.length > 0 ? otherNames.join(', ') : ch.name },
+              existing: true,
+            })
           }
         }
       }

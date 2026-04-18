@@ -137,7 +137,39 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // ── 5. Return full channel list ──────────────────────────────────────────
+    // ── 5. Admin: auto-join ALL existing channels ────────────────────────────
+    if (isAdmin) {
+      // Fetch all channels
+      const { data: allChannels } = await supabase
+        .from('chat_channels')
+        .select('id')
+
+      if (allChannels?.length) {
+        const allChannelIds = allChannels.map((c) => c.id)
+
+        // Check which ones admin is already a member of
+        const { data: existingAdmin } = await supabase
+          .from('chat_members')
+          .select('channel_id')
+          .eq('employee_id', employee.id)
+          .in('channel_id', allChannelIds)
+
+        const existingAdminSet = new Set((existingAdmin || []).map((m) => m.channel_id))
+        const adminNewMemberships = allChannelIds
+          .filter((id) => !existingAdminSet.has(id))
+          .map((channel_id) => ({
+            channel_id,
+            employee_id: employee.id,
+            role: 'admin' as const,
+          }))
+
+        if (adminNewMemberships.length > 0) {
+          await supabase.from('chat_members').insert(adminNewMemberships)
+        }
+      }
+    }
+
+    // ── 6. Return full channel list ──────────────────────────────────────────
     const { data: memberships } = await supabase
       .from('chat_members')
       .select('channel_id, last_read_at, role')
@@ -182,8 +214,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    // ── Resolve DM display names per-viewer ─────────────────────────────────
+    const directChannelIds = (channels || []).filter((ch) => ch.type === 'direct').map((ch) => ch.id)
+    const dmNameMap: Record<string, string> = {}
+    if (directChannelIds.length > 0) {
+      const { data: dmMembers } = await supabase
+        .from('chat_members')
+        .select('channel_id, employee:employees!employee_id(id, name)')
+        .in('channel_id', directChannelIds)
+
+      // Group members by channel, pick names that aren't the current user
+      const byChannel: Record<string, string[]> = {}
+      for (const m of dmMembers || []) {
+        const emp = m.employee as unknown as { id: string; name: string } | null
+        if (!emp) continue
+        if (!byChannel[m.channel_id]) byChannel[m.channel_id] = []
+        if (emp.id !== employee.id) byChannel[m.channel_id].push(emp.name)
+      }
+      for (const [chId, names] of Object.entries(byChannel)) {
+        if (names.length > 0) dmNameMap[chId] = names.join(', ')
+      }
+    }
+
     const result = (channels || []).map((ch) => ({
       ...ch,
+      name: dmNameMap[ch.id] || ch.name, // Override DM names with other participant's name
       last_message: lastMsgMap[ch.id] || null,
       unread_count: unreadCounts[ch.id] || 0,
       my_role: membershipMap[ch.id]?.role || 'member',
