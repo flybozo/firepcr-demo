@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { requireEmployee, HttpError } from '../_auth.js'
 import { createServiceClient } from '../_supabase.js'
 import { validateBody } from '../_validate.js'
+import { rateLimit } from '../_rateLimit.js'
 import { ensureVapid } from '../_vapid.js'
 import webpush from 'web-push'
 
@@ -79,6 +80,14 @@ async function getMessages(req: VercelRequest, res: VercelResponse) {
 
 async function sendMessage(req: VercelRequest, res: VercelResponse) {
   const { employee } = await requireEmployee(req)
+
+  // Rate limit: 30 messages per minute per employee
+  const rl = rateLimit(`chat-msg:${employee.id}`, 30, 60_000)
+  if (!rl.ok) {
+    res.setHeader('Retry-After', String(Math.ceil((rl.retryAfterMs || 60000) / 1000)))
+    return res.status(429).json({ error: 'Too many messages. Please wait a moment.' })
+  }
+
   const supabase = createServiceClient()
 
   validateBody(req.body, [

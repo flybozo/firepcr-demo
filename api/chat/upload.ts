@@ -1,12 +1,21 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { requireEmployee, HttpError } from '../_auth.js'
 import { createServiceClient } from '../_supabase.js'
+import { rateLimit } from '../_rateLimit.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
 
   try {
     const { employee } = await requireEmployee(req)
+
+    // Rate limit: 10 uploads per minute per employee
+    const rl = rateLimit(`chat-upload:${employee.id}`, 10, 60_000)
+    if (!rl.ok) {
+      res.setHeader('Retry-After', String(Math.ceil((rl.retryAfterMs || 60000) / 1000)))
+      return res.status(429).json({ error: 'Too many uploads. Please wait a moment.' })
+    }
+
     const supabase = createServiceClient()
 
     const channelId = req.query.channelId as string
