@@ -56,6 +56,7 @@ export const THEME_FONTS: Record<string, { family: string; name: string }> = {
   cyborg:       { family: "'Share Tech Mono', monospace", name: 'Share Tech Mono' },
   terminal:     { family: "'VT323', monospace", name: 'VT323' },
   neon:         { family: "'Orbitron', sans-serif", name: 'Orbitron' },
+  pirate:       { family: "'Pirata One', cursive", name: 'Pirata One' },
 }
 
 // ── Presets ───────────────────────────────────────────────────────────────────
@@ -481,6 +482,26 @@ export const THEME_PRESETS: Record<string, { label: string; description: string;
       danger: '#ff0055',
     },
   },
+  pirate: {
+    label: '☠️ Pirate',
+    description: 'Yarr, dead men tell no tales',
+    colors: {
+      primary: '#c9a84c',
+      primaryHover: '#a88a3a',
+      secondary: '#4a7c8f',
+      accent: '#d4a937',
+      headerBg: '#1a1410',
+      cardBg: '#241c15',
+      pageBg: '#120e0a',
+      sidebarBg: '#0d0a07',
+      text: '#d9c9a8',
+      textMuted: '#8a7a5e',
+      border: '#3a2e22',
+      success: '#2e8b57',
+      warning: '#c9a84c',
+      danger: '#8b1a1a',
+    },
+  },
 }
 
 export const DEFAULT_THEME: Theme = {
@@ -596,8 +617,9 @@ function applyThemeToDom(theme: Theme) {
     surfer: "'Comfortaa', cursive",                  // Surfer — rounded casual
     elgaucho: "'Righteous', cursive",                // El Gaucho — bold display
     overcast: "'Source Sans 3', 'Arial', sans-serif", // Overcast — corporate clean
-    hippie: "'Boogaloo', cursive",                     // Hippie — clean handwritten readable
+    hippie: "'Boogaloo', cursive",                     // Hippie — groovy 70s display
     doc: "'IBM Plex Sans', 'Arial', sans-serif",     // Doc — clinical monospace feel
+    pirate: "'Pirata One', cursive",                   // Pirate — blackletter swashbuckler
   }
   const font = fontMap[theme.preset] || theme.font || "'Inter', system-ui, -apple-system, sans-serif"
   root.style.setProperty('--theme-font', font)
@@ -616,6 +638,7 @@ function applyThemeToDom(theme: Theme) {
     hippie: 1.05,     // Boogaloo display font reads slightly small
     barbie: 1.05,     // Pacifico reads small
     cowboy: 1.05,     // Rye Western display font reads slightly small
+    pirate: 1.08,     // Pirata One blackletter reads small at body size
   }
   const fontScale = fontScaleMap[theme.preset] || 1
   const scaleCSS = fontScale !== 1
@@ -650,6 +673,7 @@ function applyThemeToDom(theme: Theme) {
     overcast: 'Source+Sans+3:wght@300;400;600',
     hippie: 'Boogaloo',
     doc: 'IBM+Plex+Sans:wght@300;400;600',
+    pirate: 'Pirata+One',
   }
   const gFont = googleFonts[theme.preset]
   const linkId = 'theme-google-font'
