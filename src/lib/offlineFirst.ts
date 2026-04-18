@@ -41,8 +41,9 @@ export async function loadList<T = any>(
       }
       return { data: result, offline: false }
     } catch {
-      // Network failed but we have cache — return cached
-      return { data: cachedData, offline: true, stale: true }
+      // Only report as offline if the browser actually has no connection
+      const actuallyOffline = typeof navigator !== 'undefined' && !navigator.onLine
+      return { data: cachedData, offline: actuallyOffline, stale: true }
     }
   }
 
@@ -91,7 +92,10 @@ export async function loadSingle<T = any>(
       }
       return { data, offline: false }
     } catch {
-      return { data: cachedData, offline: true, stale: true }
+      // Only report as offline if the browser actually has no connection
+      // Query errors (RLS, column mismatch, etc.) shouldn't show offline banner
+      const actuallyOffline = typeof navigator !== 'undefined' && !navigator.onLine
+      return { data: cachedData, offline: actuallyOffline, stale: true }
     }
   }
 
