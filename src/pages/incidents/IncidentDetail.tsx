@@ -95,6 +95,7 @@ type SupplyRunRow = {
 const DEFAULT_CARD_ORDER = [
   'deployments',
   'unit-revenue',
+  'expenses',
   'encounters',
   'mar',
   'comp-claims',
@@ -568,6 +569,11 @@ export default function IncidentDetailPage() {
   // ICS 214
   const [ics214Rows, setIcs214Rows] = useState<{ ics214_id: string; unit_name: string; op_date: string; status: string }[]>([])
 
+  // Expenses
+  const [expenses, setExpenses] = useState<{ id: string; expense_type: string; amount: number; description: string | null; expense_date: string; unit_id: string | null; employee_id: string | null; created_by: string | null; employees?: { name: string } | null }[]>([])
+  const [showAddExpense, setShowAddExpense] = useState(false)
+  const [expenseForm, setExpenseForm] = useState({ type: 'Gas', amount: '', description: '', date: new Date().toISOString().split('T')[0], unitId: '' })
+  const [expenseSubmitting, setExpenseSubmitting] = useState(false)
   // Contract rate editing
   const [editingRateIuId, setEditingRateIuId] = useState<string | null>(null)
   const [editRateVal, setEditRateVal] = useState('')
@@ -954,6 +960,19 @@ export default function IncidentDetailPage() {
         setReorderCount(0)
         setReorderRows([])
       }
+    })()
+
+    // Load expenses
+    ;(async () => {
+      try {
+        const { data } = await supabaseClient
+          .from('incident_expenses')
+          .select('id, expense_type, amount, description, expense_date, unit_id, employee_id, created_by, employees(name)')
+          .eq('incident_id', activeIncidentId)
+          .order('expense_date', { ascending: false })
+          .limit(100)
+        setExpenses((data as any[]) || [])
+      } catch { setExpenses([]) }
     })()
 
     // ICS 214 logs for this incident
@@ -1502,6 +1521,15 @@ export default function IncidentDetailPage() {
         })
         const totalRevenue = revenueUnits.reduce((s, u) => s + u.revenue, 0)
         const totalUnitDays = revenueUnits.reduce((s, u) => s + u.days, 0)
+        // Net revenue = gross - payroll - expenses
+        const totalPayroll = crewDeployments.reduce((sum, dep) => {
+          const start = dep.travel_date || (dep.assigned_at ? dep.assigned_at.split('T')[0] : null) || incident?.start_date || null
+          const end = dep.released_at ? dep.released_at.split('T')[0] : null
+          const d = start ? calcDays(start, end) : 0
+          return sum + (d * dep.daily_rate)
+        }, 0)
+        const totalExpenses = expenses.reduce((s, e) => s + (e.amount || 0), 0)
+        const netRevenue = totalRevenue - totalPayroll - totalExpenses
         return (
           <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--color-card-bg, #111827)', borderColor: 'var(--color-border, #1f2937)' }}>
             <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ backgroundColor: 'var(--color-header-bg, #030712)', borderColor: 'var(--color-border, #1f2937)' }}>
@@ -1509,7 +1537,12 @@ export default function IncidentDetailPage() {
                 <div {...dragHandleProps} className="text-gray-600 hover:text-gray-300 cursor-grab active:cursor-grabbing transition-colors shrink-0 opacity-0 group-hover:opacity-100 select-none">⠿</div>
               )}
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">💵 Unit Revenue</h3>
-              <span className="text-xl font-bold text-green-400">{fmtCurrency(totalRevenue)}</span>
+              <div className="text-right">
+                <span className="text-xl font-bold text-green-400">{fmtCurrency(totalRevenue)}</span>
+                <span className={`text-xs ml-2 font-semibold ${netRevenue >= 0 ? 'text-green-400/70' : 'text-red-400'}`}>
+                  (net {fmtCurrency(netRevenue)})
+                </span>
+              </div>
             </div>
             {revenueUnits.length > 0 && (
               <div className="overflow-x-auto">
@@ -1573,9 +1606,21 @@ export default function IncidentDetailPage() {
                   </tbody>
                   <tfoot>
                     <tr className="border-t" style={{ borderColor: 'var(--color-border, #1f2937)', backgroundColor: 'var(--color-header-bg, #030712)' }}>
-                      <td colSpan={3} className="px-3 py-2 text-right text-xs font-bold uppercase text-gray-400">Total</td>
-                      <td className="px-3 py-2 text-right text-sm font-bold text-white">{totalUnitDays}</td>
+                      <td colSpan={3} className="px-3 py-2 text-right text-xs font-bold uppercase text-gray-400">Gross Revenue</td>
+                      <td className="px-3 py-2 text-right text-sm font-bold text-white">{totalUnitDays} days</td>
                       <td className="px-3 py-2 text-right text-sm font-bold text-green-400">{fmtCurrency(totalRevenue)}</td>
+                    </tr>
+                    <tr style={{ backgroundColor: 'var(--color-header-bg, #030712)' }}>
+                      <td colSpan={3} className="px-3 py-1 text-right text-xs text-gray-500">− Payroll</td>
+                      <td colSpan={2} className="px-3 py-1 text-right text-xs text-red-400">{fmtCurrency(totalPayroll)}</td>
+                    </tr>
+                    <tr style={{ backgroundColor: 'var(--color-header-bg, #030712)' }}>
+                      <td colSpan={3} className="px-3 py-1 text-right text-xs text-gray-500">− Expenses</td>
+                      <td colSpan={2} className="px-3 py-1 text-right text-xs text-red-400">{fmtCurrency(totalExpenses)}</td>
+                    </tr>
+                    <tr className="border-t" style={{ borderColor: 'var(--color-border, #1f2937)', backgroundColor: 'var(--color-header-bg, #030712)' }}>
+                      <td colSpan={3} className="px-3 py-2 text-right text-xs font-bold uppercase text-gray-300">Net Revenue</td>
+                      <td colSpan={2} className={`px-3 py-2 text-right text-sm font-bold ${netRevenue >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmtCurrency(netRevenue)}</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -1584,6 +1629,152 @@ export default function IncidentDetailPage() {
             {revenueUnits.length === 0 && (
               <p className="px-4 py-6 text-sm text-gray-600 text-center">No units assigned</p>
             )}
+          </div>
+        )
+      }
+
+      case 'expenses': {
+        const totalExp = expenses.reduce((s, e) => s + (e.amount || 0), 0)
+        const EXPENSE_TYPES = ['Gas', 'Repairs', 'Supplies', 'Hotel', 'Food', 'Other']
+        const unitOptions = incidentUnits.filter(iu => iu.unit).map(iu => ({ id: iu.unit!.id, name: (iu.unit as any)?.name || '?' }))
+        return (
+          <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--color-card-bg, #111827)', borderColor: 'var(--color-border, #1f2937)' }}>
+            <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ backgroundColor: 'var(--color-header-bg, #030712)', borderColor: 'var(--color-border, #1f2937)' }}>
+              {dragHandleProps && (
+                <div {...dragHandleProps} className="text-gray-600 hover:text-gray-300 cursor-grab active:cursor-grabbing transition-colors shrink-0 opacity-0 group-hover:opacity-100 select-none">⠿</div>
+              )}
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">🧾 Expenses</h3>
+              <span className="text-xl font-bold text-red-400">{fmtCurrency(totalExp)}</span>
+            </div>
+
+            {expenses.length > 0 && (
+              <div className="overflow-x-auto" style={{ maxHeight: '220px', overflowY: 'auto' }}>
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
+                      <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Date</th>
+                      <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Type</th>
+                      <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Description</th>
+                      <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">By</th>
+                      <th className="text-right px-3 py-2 text-gray-500 font-semibold uppercase">Amount</th>
+                      {isAdmin && <th className="px-2 py-2"></th>}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
+                    {expenses.map(exp => (
+                      <tr key={exp.id} className="hover:bg-gray-800/30 transition-colors">
+                        <td className="px-3 py-2 text-gray-400">{exp.expense_date}</td>
+                        <td className="px-3 py-2 text-white">
+                          <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
+                            exp.expense_type === 'Gas' ? 'bg-yellow-900/60 text-yellow-300' :
+                            exp.expense_type === 'Hotel' ? 'bg-purple-900/60 text-purple-300' :
+                            exp.expense_type === 'Repairs' ? 'bg-red-900/60 text-red-300' :
+                            exp.expense_type === 'Food' ? 'bg-orange-900/60 text-orange-300' :
+                            exp.expense_type === 'Supplies' ? 'bg-blue-900/60 text-blue-300' :
+                            'bg-gray-700 text-gray-300'
+                          }`}>{exp.expense_type}</span>
+                        </td>
+                        <td className="px-3 py-2 text-gray-300 truncate max-w-[150px]">{exp.description || '—'}</td>
+                        <td className="px-3 py-2 text-gray-400 truncate max-w-[100px]">{(exp.employees as any)?.name || exp.created_by || '—'}</td>
+                        <td className="px-3 py-2 text-right font-medium text-red-400">{fmtCurrency(exp.amount)}</td>
+                        {isAdmin && (
+                          <td className="px-2 py-2">
+                            <button onClick={async () => {
+                              if (!confirm('Delete this expense?')) return
+                              await supabase.from('incident_expenses').delete().eq('id', exp.id)
+                              setExpenses(prev => prev.filter(e => e.id !== exp.id))
+                            }} className="text-xs text-red-500 hover:text-red-400">✕</button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {expenses.length === 0 && !showAddExpense && (
+              <p className="px-4 py-6 text-sm text-gray-600 text-center">No expenses logged</p>
+            )}
+
+            {/* Add Expense Form */}
+            {showAddExpense && (
+              <div className="border-t p-4 space-y-3" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
+                <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Log Expense</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Type</label>
+                    <select value={expenseForm.type} onChange={e => setExpenseForm(f => ({ ...f, type: e.target.value }))}
+                      className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500">
+                      {EXPENSE_TYPES.map(t => <option key={t}>{t}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Amount ($)</label>
+                    <input type="number" step="0.01" value={expenseForm.amount}
+                      onChange={e => setExpenseForm(f => ({ ...f, amount: e.target.value }))}
+                      placeholder="0.00" required
+                      className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Date</label>
+                    <input type="date" value={expenseForm.date}
+                      onChange={e => setExpenseForm(f => ({ ...f, date: e.target.value }))}
+                      className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 block mb-1">Unit (optional)</label>
+                    <select value={expenseForm.unitId} onChange={e => setExpenseForm(f => ({ ...f, unitId: e.target.value }))}
+                      className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500">
+                      <option value="">None</option>
+                      {unitOptions.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <label className="text-xs text-gray-500 block mb-1">Description</label>
+                    <input type="text" value={expenseForm.description}
+                      onChange={e => setExpenseForm(f => ({ ...f, description: e.target.value }))}
+                      placeholder="What was this expense for?"
+                      className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={async () => {
+                    if (!expenseForm.amount) return
+                    setExpenseSubmitting(true)
+                    await supabase.from('incident_expenses').insert({
+                      incident_id: activeIncidentId,
+                      expense_type: expenseForm.type,
+                      amount: parseFloat(expenseForm.amount) || 0,
+                      description: expenseForm.description || null,
+                      expense_date: expenseForm.date,
+                      unit_id: expenseForm.unitId || null,
+                      employee_id: assignment.employee?.id || null,
+                      created_by: assignment.employee?.name || 'Unknown',
+                    })
+                    setShowAddExpense(false)
+                    setExpenseForm({ type: 'Gas', amount: '', description: '', date: new Date().toISOString().split('T')[0], unitId: '' })
+                    setExpenseSubmitting(false)
+                    load()
+                  }} disabled={expenseSubmitting || !expenseForm.amount}
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 rounded-lg text-sm font-semibold transition-colors">
+                    {expenseSubmitting ? 'Saving...' : 'Log Expense'}
+                  </button>
+                  <button onClick={() => setShowAddExpense(false)}
+                    className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors">Cancel</button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 px-4 py-2" style={{ backgroundColor: 'color-mix(in srgb, var(--color-header-bg, #030712) 30%, transparent)' }}>
+              <div className="flex-1" />
+              {!showAddExpense && (
+                <button onClick={() => setShowAddExpense(true)}
+                  className="text-xs px-2.5 py-1 bg-red-600 hover:bg-red-700 rounded-lg font-semibold transition-colors">
+                  + Log Expense
+                </button>
+              )}
+            </div>
           </div>
         )
       }
