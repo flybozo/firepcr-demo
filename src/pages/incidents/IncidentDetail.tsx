@@ -411,7 +411,7 @@ function StatCard({
         <div className="flex-1 overflow-y-auto">
           {expandedChildren || children}
         </div>
-        <div className="px-6 py-3 border-t flex items-center gap-2" className="theme-border">
+        <div className="px-6 py-3 border-t theme-border flex items-center gap-2">
           {viewAllHref && (
             <Link to={viewAllHref} className="text-xs text-gray-400 hover:text-white transition-colors">View all →</Link>
           )}
@@ -1551,7 +1551,7 @@ export default function IncidentDetailPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="border-b bg-opacity-30" className="theme-border">
+                    <tr className="border-b bg-opacity-30 theme-border">
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Unit</th>
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Type</th>
                       <th className="text-right px-3 py-2 text-gray-500 font-semibold uppercase">Rate/Day</th>
@@ -1559,7 +1559,7 @@ export default function IncidentDetailPage() {
                       <th className="text-right px-3 py-2 text-gray-500 font-semibold uppercase">Revenue</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y" className="theme-border">
+                  <tbody className="divide-y theme-border">
                     {revenueUnits.map(u => {
                       const isActive = !u.released_at
                       const isEditingRate = editingRateIuId === u.id
@@ -1608,7 +1608,7 @@ export default function IncidentDetailPage() {
                     })}
                   </tbody>
                   <tfoot>
-                    <tr className="border-t" className="theme-card-header">
+                    <tr className="border-t theme-card-header">
                       <td colSpan={3} className="px-3 py-2 text-right text-xs font-bold uppercase text-gray-400">Gross Revenue</td>
                       <td className="px-3 py-2 text-right text-sm font-bold text-white">{totalUnitDays} days</td>
                       <td className="px-3 py-2 text-right text-sm font-bold text-green-400">{fmtCurrency(totalRevenue)}</td>
@@ -1621,7 +1621,7 @@ export default function IncidentDetailPage() {
                       <td colSpan={3} className="px-3 py-1 text-right text-xs text-gray-500">− Expenses</td>
                       <td colSpan={2} className="px-3 py-1 text-right text-xs text-red-400">{fmtCurrency(totalExpenses)}</td>
                     </tr>
-                    <tr className="border-t" className="theme-card-header">
+                    <tr className="border-t theme-card-header">
                       <td colSpan={3} className="px-3 py-2 text-right text-xs font-bold uppercase text-gray-300">Net Revenue</td>
                       <td colSpan={2} className={`px-3 py-2 text-right text-sm font-bold ${netRevenue >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmtCurrency(netRevenue)}</td>
                     </tr>
@@ -1654,7 +1654,7 @@ export default function IncidentDetailPage() {
               <div className="overflow-x-auto" style={{ maxHeight: '220px', overflowY: 'auto' }}>
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="border-b" className="theme-border">
+                    <tr className="border-b theme-border">
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Date</th>
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Type</th>
                       <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Description</th>
@@ -1664,7 +1664,7 @@ export default function IncidentDetailPage() {
                       {isAdmin && <th className="px-2 py-2"></th>}
                     </tr>
                   </thead>
-                  <tbody className="divide-y" className="theme-border">
+                  <tbody className="divide-y theme-border">
                     {expenses.map(exp => (
                       <tr key={exp.id} className="hover:bg-gray-800/30 transition-colors">
                         <td className="px-3 py-2 text-gray-400">{exp.expense_date}</td>
@@ -1715,7 +1715,7 @@ export default function IncidentDetailPage() {
 
             {/* Add Expense Form */}
             {showAddExpense && (
-              <div className="border-t p-4 space-y-3" className="theme-border">
+              <div className="border-t p-4 space-y-3 theme-border">
                 <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Log Expense</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
