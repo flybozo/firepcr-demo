@@ -110,14 +110,14 @@ export default function RosterPage() {
 
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="space-y-3">
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search employees..."
-            className="flex-1 min-w-0 bg-gray-900 border border-gray-800 rounded-xl px-4 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 placeholder-gray-600" />
-          <div className="flex gap-1.5 shrink-0">
+            className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 placeholder-gray-600" />
+          <div className="flex gap-1.5 flex-wrap">
             {roles.map(r => (
               <button key={r} onClick={() => setRoleFilter(r)}
-                className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${roleFilter === r ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${roleFilter === r ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
                 {r}
               </button>
             ))}

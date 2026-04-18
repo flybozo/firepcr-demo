@@ -610,7 +610,18 @@ function applyThemeToDom(theme: Theme) {
     styleEl.id = styleId
     document.head.appendChild(styleEl)
   }
-  styleEl.textContent = `*, *::before, *::after { font-family: ${font} !important; }`
+  // Per-theme font size scaling (some display/pixel fonts need a boost)
+  const fontScaleMap: Record<string, number> = {
+    terminal: 1.15,   // VT323 pixel font reads small
+    hippie: 1.05,     // Caveat handwriting reads small
+    barbie: 1.05,     // Pacifico reads small
+  }
+  const fontScale = fontScaleMap[theme.preset] || 1
+  const scaleCSS = fontScale !== 1
+    ? `html { font-size: ${fontScale * 100}% !important; }`
+    : ''
+
+  styleEl.textContent = `*, *::before, *::after { font-family: ${font} !important; } ${scaleCSS}`
 
   // Load Google Fonts for special themes
   const googleFonts: Record<string, string> = {
