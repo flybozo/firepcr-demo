@@ -2,8 +2,8 @@
 
 **App:** https://ram-field-ops.vercel.app (staging)  
 **Repo:** https://github.com/flybozo/ram-field-ops  
-**Last updated:** 2026-04-18 09:55 PDT  
-**Current version:** v1.8.5
+**Last updated:** 2026-04-18 15:45 PDT  
+**Current version:** v1.9.1
 
 ---
 
@@ -70,6 +70,13 @@ ram-field-ops/
 │   ├── incident-access/          # Fire admin dashboard (external access)
 │   │   ├── index.ts              # Access code auth + dashboard data
 │   │   └── download.ts           # Signed URL generation for PDFs
+│   ├── chat/                     # Team chat API
+│   │   ├── channels.ts           # List/create channels (admin sees all)
+│   │   ├── ensure-channels.ts    # Lazy-create channels on chat open
+│   │   ├── messages.ts           # Send/get messages + push notifications
+│   │   ├── read.ts               # Mark channel as read
+│   │   ├── members.ts            # List/add channel members
+│   │   └── upload.ts             # File upload metadata
 │   ├── employee-chat.ts          # Employee ↔ AI chat relay
 │   └── health.ts                 # Health check
 ├── public/
@@ -82,6 +89,8 @@ ram-field-ops/
 │   │   ├── InactivityLock.tsx    # 30-min inactivity auto-lock
 │   │   ├── PinSignature.tsx      # PIN-based document signing
 │   │   ├── Sidebar.tsx           # Main nav (draggable, role-aware, badge counts)
+│   │   ├── BottomTabBar.tsx      # Mobile bottom nav (badge counts)
+│   │   ├── ChatBubble.tsx        # AI assistant bubble (draggable)
 │   │   ├── UpdateBanner.tsx      # New version detection + reload prompt
 │   │   └── SplitShell.tsx        # Desktop split-pane layout
 │   ├── contexts/
@@ -93,6 +102,7 @@ ram-field-ops/
 │   │   ├── pushNotifications.ts  # Client-side push subscribe/unsubscribe
 │   │   ├── useRole.ts            # Role hook (admin vs field)
 │   │   ├── useUnsignedPCRCount.ts # Badge: unsigned charts + notes + MAR
+│   │   └── useChatUnread.ts      # Badge: unread chat message counts (Realtime)
 │   │   ├── generateConsentPdf.ts # Consent to Treat PDF builder
 │   │   ├── generateAMApdf.ts     # AMA/Refusal PDF builder
 │   │   └── nemsis/
@@ -108,6 +118,7 @@ ram-field-ops/
 │       ├── ics214/               # ICS 214 ops logs
 │       ├── incidents/            # Incident management
 │       ├── analytics/            # Charts & metrics
+│       ├── chat/                 # Team chat (channels + messaging)
 │       ├── admin/                # Admin dashboard + push notifications
 │       ├── unsigned-items/       # Unified unsigned items view
 │       ├── fire-admin/           # External fire admin dashboard
@@ -217,6 +228,9 @@ All controlled substance movements are logged in `cs_transactions`:
 | `employees_sync` | PII-stripped view for client sync |
 | `employee_credentials` | Credential documents |
 | `employee_chats` | Employee ↔ AI chat |
+| `chat_channels` | Team chat channels (company/incident/unit/direct) |
+| `chat_members` | Channel membership + last_read_at |
+| `chat_messages` | Team chat messages (text/image/file/system) |
 | `organizations` | Multi-org support (branding) |
 
 ---
@@ -365,7 +379,81 @@ CRON_SECRET (CS reminder endpoint auth)
 - Unit photos: shown on units list (32px), incident dashboard units card (36px)
 - All via `headshot_url` / `photo_url` columns in employees/units tables
 
-## 14. Key Design Decisions
+## 14. Team Chat Architecture
+
+### Overview
+Two separate chat systems coexist:
+1. **AI Chat (ChatBubble)** — floating bubble, employee ↔ Codsworth/Haiku via `employee_chats` table
+2. **Team Chat** — full channel-based messaging between employees via `chat_channels/members/messages`
+
+### Channel Types
+| Type | Auto-created | Members | Purpose |
+|------|-------------|---------|--------|
+| `company` | First admin opens chat | All employees | Company-wide announcements |
+| `incident` | Employee opens chat while assigned to fire | All crew on that incident | Fire-specific coordination |
+| `unit` | Employee opens chat while assigned to unit | All crew on that unit | Unit-level comms |
+| `direct` | User starts a DM | 2 participants (deduped) | 1:1 messaging |
+
+### Admin Visibility
+- Admin users are **auto-joined to ALL channels** (including DMs) on chat open
+- Both `ensure-channels.ts` and `channels.ts` handle this
+- Admins get `role: 'admin'` on auto-joined channels
+
+### DM Name Resolution
+- DM channel `name` stored in DB is from creator's perspective
+- Both API routes resolve display name per-viewer: query `chat_members` → `employees`, show the OTHER participant's name
+
+### Message Delivery
+- **Sender sees own message immediately** — API response appended to state
+- **Other users see messages via 3-second polling** — unconditional `setInterval`
+- **Supabase Realtime subscription** exists as bonus layer (fires faster when working)
+- `fetchAndMergeNew()` helper fetches last 5 messages, deduplicates against existing IDs
+
+### File Upload
+- **Direct client → Supabase Storage** (bypasses Vercel API)
+- Client uploads to `chat-files` bucket via Supabase JS `storage.upload()`
+- Then sends a message with `file_url` pointing to the public URL
+- Storage bucket: `chat-files` (public read, authenticated upload)
+- Max file size: 10MB (client-side check)
+
+### Push Notifications
+- Sent on every new message via `sendPushNotifications()` in `messages.ts`
+- Filters out sender's subscriptions (DB query + client-side double-filter)
+- Service worker suppresses chat notifications when app is in foreground
+- Auto-cleans expired subscriptions (410 Gone)
+
+### Unread Badges
+- `useChatUnread` hook: Supabase Realtime `INSERT` on `chat_messages`
+- Badges: Sidebar "Team Chat" (red), BottomTabBar "More" tab (red), "💬 Chat" sheet item (red)
+- Unsigned encounter badges remain orange for visual distinction
+
+### Security
+- All 6 API routes require JWT auth via `requireEmployee()`
+- RLS on all 3 chat tables (channel membership scoped)
+- Rate limiting: 30 messages/min, 10 uploads/min per employee
+- Input validation: content max 4000 chars, UUIDs validated
+
+### Database
+```sql
+chat_channels (id, type, name, description, incident_id, unit_id, created_by, created_at, updated_at)
+chat_members (id, channel_id, employee_id, role, joined_at, last_read_at)
+chat_messages (id, channel_id, sender_id, content, message_type, file_url, file_name, reply_to, edited_at, deleted_at, created_at)
+```
+Storage bucket: `chat-files` (public, authenticated upload)
+
+---
+
+## 15. Theme System
+
+- CSS variables applied by `ThemeProvider.tsx`, overridden globally in `globals.css`
+- `getContrastText(hex)` computes W3C luminance → black/white for `--color-primary-text`
+- Primary buttons force `color: var(--theme-primary-text)` for readability
+- Per-theme font scaling via `fontScaleMap` (Terminal 115%, Hippie 105%)
+- 21 themes total (dark, light, special)
+
+---
+
+## 16. Key Design Decisions
 
 - **Vite over Next.js** — client-side PWA doesn't need SSR; 1s builds vs 30s
 - **Formulary = source of truth** — inventory items locked to templates per unit type
@@ -374,3 +462,7 @@ CRON_SECRET (CS reminder endpoint auth)
 - **Soft deletes** — legal retention requirements for clinical records
 - **Resend for email** — SaaS-ready, per-domain sending, scales to multi-tenant
 - **Web Push over native** — works on Android + iOS (16.4+), no app store needed
+- **Polling over pure Realtime for chat** — Supabase Realtime unreliable; 3s polling is simple and guaranteed
+- **Direct Supabase Storage upload** — bypasses Vercel's 4.5MB body limit and parsing quirks
+- **Auto-contrast text** — computed per-theme via luminance; scales to any palette
+- **DnD activation distance** — 8px threshold lets taps pass through to links on touch devices
