@@ -181,12 +181,14 @@ function LocationEditField({
   latitude,
   longitude,
   onSave,
+  readOnly = false,
 }: {
   value: string | null | undefined
   latitude: number | null | undefined
   longitude: number | null | undefined
   onSave: (key: string, val: string) => void
   onSaveCoords: (lat: number, lng: number, label: string) => void
+  readOnly?: boolean
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value ?? '')
@@ -239,6 +241,21 @@ function LocationEditField({
   }
 
   const hasCoords = latitude != null && longitude != null
+
+  if (readOnly) {
+    return (
+      <div className="flex flex-col gap-0.5 px-1.5 py-1">
+        <span className="text-xs text-gray-500">Location</span>
+        <span className={`text-sm ${value ? 'text-white' : 'text-gray-600 italic'}`}>{value || '—'}</span>
+        {hasCoords && (
+          <a href={`https://maps.google.com/?q=${latitude},${longitude}`} target="_blank" rel="noopener noreferrer"
+            className="text-xs text-blue-500 hover:text-blue-400 flex items-center gap-1">
+            📍 {latitude}, {longitude} — Open in Maps
+          </a>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-0.5 px-1.5 py-1">
@@ -308,6 +325,7 @@ function EditField({
   type = 'text',
   onSave,
   options,
+  readOnly = false,
 }: {
   label: string
   value: string | null | undefined
@@ -315,6 +333,7 @@ function EditField({
   type?: string
   onSave: (key: string, val: string) => void
   options?: { label: string; value: string }[]
+  readOnly?: boolean
 }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value ?? '')
@@ -364,6 +383,15 @@ function EditField({
           onKeyDown={handleKey}
           className="bg-gray-800 text-white text-sm rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-red-500 min-w-0"
         />
+      </div>
+    )
+  }
+
+  if (readOnly) {
+    return (
+      <div className="flex flex-col gap-0.5 px-1.5 py-1">
+        <span className="text-xs text-gray-500">{label}</span>
+        <span className={`text-sm ${value ? 'text-white' : 'text-gray-600 italic'}`}>{value || '—'}</span>
       </div>
     )
   }
@@ -1415,7 +1443,6 @@ export default function IncidentDetailPage() {
     switch (cardId) {
 
       case 'incident-info':
-        if (!isAdmin) return null
         return (
           <div className="theme-card rounded-xl border overflow-hidden">
             {/* Header */}
@@ -1428,34 +1455,34 @@ export default function IncidentDetailPage() {
                   className="text-gray-600 hover:text-gray-300 text-xs opacity-0 group-hover:opacity-100 transition-opacity select-none shrink-0">{`${span || 3}/3`}</button>
               )}
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">🔥 Incident Info</h3>
-              {isAdmin && (
-                <button
-                  onClick={toggleDefaultFire}
-                  title={isDefaultFire ? 'Remove as default fire' : 'Set as default fire'}
-                  className={`text-sm transition-colors shrink-0 ${
-                    isDefaultFire ? 'text-yellow-400 hover:text-yellow-300' : 'text-gray-600 hover:text-yellow-400'
-                  }`}
-                >
-                  {isDefaultFire ? '★' : '☆'}
-                </button>
-              )}
-              {incident.status === 'Active'
+              <button
+                onClick={toggleDefaultFire}
+                title={isDefaultFire ? 'Remove as default fire' : 'Set as default fire'}
+                className={`text-sm transition-colors shrink-0 ${
+                  isDefaultFire ? 'text-yellow-400 hover:text-yellow-300' : 'text-gray-600 hover:text-yellow-400'
+                }`}
+              >
+                {isDefaultFire ? '★' : '☆'}
+              </button>
+              {isAdmin && incident.status === 'Active'
                 ? <span className="text-xs text-gray-600 italic">Click any field to edit</span>
-                : <span className="text-xs text-gray-600 italic">Closed — read only</span>}
+                : incident.status !== 'Active'
+                  ? <span className="text-xs text-gray-600 italic">Closed — read only</span>
+                  : null}
             </div>
 
             {/* Incident fields — 2-column grid */}
             <div className="p-4">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1">
                 <div className="col-span-2 md:col-span-4">
-                  <EditField label="Name" value={incident.name} fieldKey="name" onSave={saveField} />
+                  <EditField label="Name" value={incident.name} fieldKey="name" readOnly={!isAdmin} onSave={saveField} />
                 </div>
                 <div className="col-span-2">
                   <LocationEditField
                     value={incident.location}
                     latitude={incident.latitude}
                     longitude={incident.longitude}
-                    onSave={saveField}
+                    readOnly={!isAdmin} onSave={saveField}
                     onSaveCoords={(lat, lng, label) => {
                       saveField('location', label)
                       saveField('latitude', String(lat))
@@ -1463,12 +1490,12 @@ export default function IncidentDetailPage() {
                     }}
                   />
                 </div>
-                <EditField label="Incident Number" value={incident.incident_number} fieldKey="incident_number" onSave={saveField} />
-                <EditField label="Start Date" value={incident.start_date} fieldKey="start_date" type="date" onSave={saveField} />
-                <EditField label="Agreement Number" value={(incident as any).agreement_number} fieldKey="agreement_number" onSave={saveField} />
-                <EditField label="Resource Order #" value={(incident as any).resource_order_number} fieldKey="resource_order_number" onSave={saveField} />
-                <EditField label="Financial Code" value={(incident as any).financial_code} fieldKey="financial_code" onSave={saveField} />
-                <EditField label="Status" value={incident.status} fieldKey="status" onSave={saveField}
+                <EditField label="Incident Number" value={incident.incident_number} fieldKey="incident_number" readOnly={!isAdmin} onSave={saveField} />
+                <EditField label="Start Date" value={incident.start_date} fieldKey="start_date" type="date" readOnly={!isAdmin} onSave={saveField} />
+                <EditField label="Agreement Number" value={(incident as any).agreement_number} fieldKey="agreement_number" readOnly={!isAdmin} onSave={saveField} />
+                <EditField label="Resource Order #" value={(incident as any).resource_order_number} fieldKey="resource_order_number" readOnly={!isAdmin} onSave={saveField} />
+                <EditField label="Financial Code" value={(incident as any).financial_code} fieldKey="financial_code" readOnly={!isAdmin} onSave={saveField} />
+                <EditField label="Status" value={incident.status} fieldKey="status" readOnly={!isAdmin} onSave={saveField}
                   options={[{ label: 'Active', value: 'Active' }, { label: 'Closed', value: 'Closed' }]} />
               </div>
             </div>
@@ -1499,9 +1526,9 @@ export default function IncidentDetailPage() {
                         </div>
                       )}
                     </div>
-                    <EditField label="Name" value={contact.name} fieldKey={contact.nameKey} onSave={saveField} />
-                    <EditField label="Email" value={contact.email} fieldKey={contact.emailKey} type="email" onSave={saveField} />
-                    <EditField label="Phone" value={contact.phone} fieldKey={contact.phoneKey} type="tel" onSave={saveField} />
+                    <EditField label="Name" value={contact.name} fieldKey={contact.nameKey} readOnly={!isAdmin} onSave={saveField} />
+                    <EditField label="Email" value={contact.email} fieldKey={contact.emailKey} type="email" readOnly={!isAdmin} onSave={saveField} />
+                    <EditField label="Phone" value={contact.phone} fieldKey={contact.phoneKey} type="tel" readOnly={!isAdmin} onSave={saveField} />
                   </div>
                 ))}
               </div>
