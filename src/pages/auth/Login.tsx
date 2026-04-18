@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 
 export default function LoginPage() {
   const supabase = createClient()
@@ -63,6 +63,12 @@ export default function LoginPage() {
           </button>
         </form>
         <p className="text-center text-xs text-gray-600">Contact your administrator to reset your password.</p>
+        <p className="text-center text-xs text-gray-600 mt-2">
+          New employee?{' '}
+          <Link to="/onboard" className="text-gray-400 hover:text-white underline transition-colors">
+            Complete your onboarding form →
+          </Link>
+        </p>
       </div>
     </div>
   )

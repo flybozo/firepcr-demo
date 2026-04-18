@@ -7,6 +7,7 @@ import AppLayout from '@/layouts/AppLayout'
 
 // Eagerly loaded (needed immediately / on every page)
 import Login from '@/pages/auth/Login'
+import Onboard from '@/pages/onboard/Onboard'
 
 // Lazy-loaded routes
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
@@ -127,6 +128,8 @@ function App() {
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/login" element={<Login />} />
+          {/* Self-service employee onboarding — no auth required */}
+          <Route path="/onboard" element={<Onboard />} />
           {/* External fire admin dashboard — no auth required */}
           <Route path="/fire-admin/:code" element={<FireAdminDashboard />} />
 
