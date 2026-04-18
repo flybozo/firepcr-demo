@@ -39,6 +39,69 @@ export default function ChatBubble() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
+  // ── Draggable bubble state ───────────────────────────────────────────────
+  const STORAGE_KEY = 'chatBubblePos'
+  const getDefaultPos = () => ({ right: 24, bottom: 24 }) // CSS px from edges (before safe-area)
+  const [bubblePos, setBubblePos] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      return saved ? JSON.parse(saved) : getDefaultPos()
+    } catch { return getDefaultPos() }
+  })
+  const dragRef = useRef<{
+    active: boolean
+    startX: number
+    startY: number
+    startRight: number
+    startBottom: number
+    moved: boolean
+  } | null>(null)
+  const bubbleRef = useRef<HTMLButtonElement>(null)
+
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
+    // Only primary button
+    if (e.button !== 0) return
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+    dragRef.current = {
+      active: true,
+      startX: e.clientX,
+      startY: e.clientY,
+      startRight: bubblePos.right,
+      startBottom: bubblePos.bottom,
+      moved: false,
+    }
+  }, [bubblePos])
+
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    const d = dragRef.current
+    if (!d?.active) return
+    const dx = e.clientX - d.startX
+    const dy = e.clientY - d.startY
+    // Require 6px movement to count as drag (prevents jitter on tap)
+    if (!d.moved && Math.abs(dx) < 6 && Math.abs(dy) < 6) return
+    d.moved = true
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    const size = 56 // bubble diameter
+    const newRight = Math.max(8, Math.min(vw - size - 8, d.startRight - dx))
+    const newBottom = Math.max(8, Math.min(vh - size - 8, d.startBottom + dy))
+    setBubblePos({ right: newRight, bottom: newBottom })
+  }, [])
+
+  const onPointerUp = useCallback((e: React.PointerEvent) => {
+    const d = dragRef.current
+    if (!d) return
+    ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
+    if (d.moved) {
+      // Save position
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(bubblePos)) } catch {}
+    } else {
+      // It was a tap — open chat
+      setOpen(true)
+    }
+    dragRef.current = null
+  }, [bubblePos])
+
   // ── Poll a pending message until complete/error or timeout ───────────────
   const startPolling = useCallback((pendingMessageId: string) => {
     // Clear any existing interval for this message
@@ -388,17 +451,26 @@ export default function ChatBubble() {
 
   return (
     <>
-      {/* Floating bubble button */}
+      {/* Floating draggable bubble button */}
       <button
-        onClick={() => setOpen(true)}
+        ref={bubbleRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
         aria-label="Open AI Assistant chat"
-        className={`fixed bottom-[calc(56px+env(safe-area-inset-bottom,0px)+16px)] md:bottom-6 right-6 z-50 w-14 h-14 rounded-full bg-red-600 hover:bg-red-500 shadow-lg hover:shadow-red-600/30 flex items-center justify-center transition-all duration-300 ${
+        style={{
+          position: 'fixed',
+          right: bubblePos.right,
+          bottom: `calc(${bubblePos.bottom}px + env(safe-area-inset-bottom, 0px))`,
+          touchAction: 'none', // prevent scroll while dragging
+        }}
+        className={`z-50 w-14 h-14 rounded-full bg-red-600 hover:bg-red-500 shadow-lg hover:shadow-red-600/30 flex items-center justify-center transition-opacity transition-transform duration-300 select-none ${
           mounted ? 'scale-100 opacity-100' : 'scale-0 opacity-0'
-        } ${open ? 'pointer-events-none opacity-0 scale-75' : ''}`}
+        } ${open ? 'pointer-events-none opacity-0 scale-75' : ''} ${dragRef.current?.moved ? 'cursor-grabbing' : 'cursor-grab'}`}
       >
         {/* Speech bubble SVG */}
         <svg
-          className="w-6 h-6 text-white"
+          className="w-6 h-6 text-white pointer-events-none"
           fill="currentColor"
           viewBox="0 0 24 24"
           xmlns="http://www.w3.org/2000/svg"
