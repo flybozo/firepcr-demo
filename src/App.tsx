@@ -70,6 +70,7 @@ const RosterList = lazy(() => import('@/pages/roster/RosterList'))
 const NewEmployee = lazy(() => import('@/pages/roster/NewEmployee'))
 const HRCredentials = lazy(() => import('@/pages/roster/HRCredentials'))
 const EmployeeDetail = lazy(() => import('@/pages/roster/EmployeeDetail'))
+const PayRates = lazy(() => import('@/pages/roster/PayRates'))
 
 // Schedule
 const Schedule = lazy(() => import('@/pages/schedule/Schedule'))
@@ -216,6 +217,7 @@ function App() {
               <Route path="units/new" element={<NewUnit />} />
               <Route path="roster/new" element={<NewEmployee />} />
               <Route path="roster/hr" element={<HRCredentials />} />
+              <Route path="roster/pay-rates" element={<PayRates />} />
               <Route path="cs/receive" element={<CSReceive />} />
               <Route path="cs/audit" element={<CSAudit />} />
               <Route path="inventory/add" element={<InventoryAdd />} />

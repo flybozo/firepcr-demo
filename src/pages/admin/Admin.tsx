@@ -59,6 +59,7 @@ function AdminDashboardPageInner() {
     { icon: '📢', label: 'Announcements', desc: 'Manage ticker announcements', href: '/admin/announcements' },
     { icon: '👥', label: 'Employee Roster', desc: 'View & manage all employees', href: '/roster' },
     { icon: '📋', label: 'HR Credentials', desc: 'Credential compliance tracker', href: '/roster/hr' },
+    { icon: '💰', label: 'Pay Rates', desc: 'Set default daily rates by employee', href: '/roster/pay-rates' },
     { icon: '✍️', label: 'Unsigned Orders', desc: 'Review & sign pending orders', href: '/unsigned-orders' },
     { icon: '📦', label: 'Reorder Report', desc: 'Items below par across all units', href: '/inventory/reorder' },
     { icon: '📄', label: 'Policies & Procedures', desc: 'Upload & manage documents', href: '/documents' },

@@ -130,12 +130,14 @@ type CrewDeployment = {
   employee_role: string
   unit_name: string
   daily_rate: number
+  hours_per_day: number
   released_at: string | null
-  // From deployment_records (if exists)
+  assigned_at: string | null
+  // From unit_assignment or deployment_records
   deployment_id: string | null
   travel_date: string | null
-  check_in_date: string | null
-  check_out_date: string | null
+  check_in_at: string | null
+  check_out_at: string | null
   deploy_status: string
   notes: string | null
 }
@@ -843,7 +845,7 @@ export default function IncidentDetailPage() {
           allIUIds.length > 0
             ? supabaseClient
                 .from('unit_assignments')
-                .select('id, employee_id, incident_unit_id, released_at, employees(id, name, role, daily_rate)')
+                .select('id, employee_id, incident_unit_id, assigned_at, released_at, daily_rate_override, hours_per_day, travel_date, check_in_at, check_out_at, notes, employees(id, name, role, daily_rate, default_hours_per_day)')
                 .in('incident_unit_id', allIUIds)
             : Promise.resolve({ data: [] }),
           // Deployment records (payroll layer)
@@ -877,20 +879,25 @@ export default function IncidentDetailPage() {
           const emp = ua.employees || {}
           const iu = iuMap.get(ua.incident_unit_id)
           const dep = depByEmployee.get(ua.employee_id)
+          // Rate priority: assignment override > deployment_record > employee default
+          const rate = ua.daily_rate_override ?? dep?.daily_rate ?? emp.daily_rate ?? 0
+          const hours = ua.hours_per_day ?? emp.default_hours_per_day ?? 16
           return {
             assignment_id: ua.id,
             employee_id: ua.employee_id,
             employee_name: emp.name || '?',
             employee_role: emp.role || '?',
             unit_name: iu?.unitName || '?',
-            daily_rate: dep?.daily_rate ?? emp.daily_rate ?? 0,
+            daily_rate: rate,
+            hours_per_day: hours,
             released_at: ua.released_at || iu?.released || null,
+            assigned_at: ua.assigned_at || null,
             deployment_id: dep?.id || null,
-            travel_date: dep?.travel_date || null,
-            check_in_date: dep?.check_in_date || null,
-            check_out_date: dep?.check_out_date || ua.released_at || null,
+            travel_date: ua.travel_date || dep?.travel_date || null,
+            check_in_at: ua.check_in_at || dep?.checked_in_at || null,
+            check_out_at: ua.check_out_at || dep?.checked_out_at || null,
             deploy_status: ua.released_at ? 'Released' : (dep?.status || 'On Scene'),
-            notes: dep?.notes || null,
+            notes: ua.notes || dep?.notes || null,
           }
         })
         // Sort: active first, then by name
@@ -1135,9 +1142,11 @@ export default function IncidentDetailPage() {
                     {crewDeployments.map(dep => {
                       const isActive = !dep.released_at
                       const isEditing = editingDeployId === dep.deployment_id
-                      // Calculate days: from travel_date (or incident start) to check_out or today
-                      const startDate = dep.travel_date || incident?.start_date || null
-                      const days = startDate ? calcDays(startDate, dep.check_out_date) : 0
+                      // Calculate days: from travel_date or assigned_at to released_at or today
+                      const startDate = dep.travel_date || (dep.assigned_at ? dep.assigned_at.split('T')[0] : null) || incident?.start_date || null
+                      const endDate = dep.released_at ? dep.released_at.split('T')[0] : null
+                      const days = startDate ? calcDays(startDate, endDate) : 0
+                      const totalHours = days * dep.hours_per_day
                       const owed = days * dep.daily_rate
 
                       if (isEditing && dep.deployment_id) {
@@ -1221,25 +1230,28 @@ export default function IncidentDetailPage() {
                     })}
                   </tbody>
                   {/* Totals footer */}
-                  <tfoot>
-                    <tr className="border-t border-gray-700 bg-gray-800/50">
-                      <td colSpan={5} className="px-3 py-2 text-right text-xs font-bold uppercase tracking-wide text-gray-400">Total Payroll</td>
-                      <td className="px-3 py-2 text-right text-sm font-bold text-white">
-                        {crewDeployments.reduce((sum, dep) => {
-                          const start = dep.travel_date || incident?.start_date || null
-                          return sum + (start ? calcDays(start, dep.check_out_date) : 0)
-                        }, 0)}
-                      </td>
-                      <td className="px-3 py-2 text-right text-sm font-bold text-green-400">
-                        {fmtCurrency(crewDeployments.reduce((sum, dep) => {
-                          const start = dep.travel_date || incident?.start_date || null
-                          const d = start ? calcDays(start, dep.check_out_date) : 0
-                          return sum + (d * dep.daily_rate)
-                        }, 0))}
-                      </td>
-                      <td className="px-3 py-2"></td>
-                    </tr>
-                  </tfoot>
+                  {(() => {
+                    let totalDays = 0, totalHrs = 0, totalOwed = 0
+                    for (const dep of crewDeployments) {
+                      const start = dep.travel_date || (dep.assigned_at ? dep.assigned_at.split('T')[0] : null) || incident?.start_date || null
+                      const end = dep.released_at ? dep.released_at.split('T')[0] : null
+                      const d = start ? calcDays(start, end) : 0
+                      totalDays += d
+                      totalHrs += d * dep.hours_per_day
+                      totalOwed += d * dep.daily_rate
+                    }
+                    return (
+                      <tfoot>
+                        <tr className="border-t border-gray-700 bg-gray-800/50">
+                          <td colSpan={4} className="px-3 py-2 text-right text-xs font-bold uppercase tracking-wide text-gray-400">Totals</td>
+                          <td className="px-3 py-2 text-right text-xs text-gray-400">{totalHrs.toLocaleString()} hrs</td>
+                          <td className="px-3 py-2 text-right text-sm font-bold text-white">{totalDays}</td>
+                          <td className="px-3 py-2 text-right text-sm font-bold text-green-400">{fmtCurrency(totalOwed)}</td>
+                          <td className="px-3 py-2"></td>
+                        </tr>
+                      </tfoot>
+                    )
+                  })()}
                 </table>
               </div>
             )}
