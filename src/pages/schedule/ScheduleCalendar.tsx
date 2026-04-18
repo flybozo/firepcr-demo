@@ -215,7 +215,7 @@ export default function ScheduleCalendarPage() {
   const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white mt-8 md:mt-0 pb-20">
+    <div className="bg-gray-950 text-white mt-8 md:mt-0 pb-8">
       <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-4">
 
         {/* Header */}

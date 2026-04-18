@@ -225,7 +225,7 @@ function AddInventoryInner() {
   )
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white pb-24 mt-8 md:mt-0">
+    <div className="bg-gray-950 text-white pb-8 mt-8 md:mt-0">
       <div className="max-w-lg mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">

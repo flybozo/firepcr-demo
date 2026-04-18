@@ -181,7 +181,7 @@ function EncountersInner() {
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white pb-[calc(80px+env(safe-area-inset-bottom,0px))] md:pb-8">
+    <div className="bg-gray-950 text-white pb-8">
       <div className="p-4 md:p-6 space-y-4">
         <div className="flex items-center justify-between pt-2">
           <div>

@@ -95,7 +95,7 @@ export default function RosterPage() {
   const filtered = [...activeEmployees, ...inactiveEmployees]
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white pb-[calc(80px+env(safe-area-inset-bottom,0px))] md:pb-8 mt-8 md:mt-0">
+    <div className="bg-gray-950 text-white pb-8 mt-8 md:mt-0">
       <div className="p-4 md:p-6 space-y-4 overflow-x-auto">
         {isOfflineData && (
           <div className="bg-amber-900/30 border border-amber-700 rounded-lg px-3 py-2 text-amber-300 text-xs">

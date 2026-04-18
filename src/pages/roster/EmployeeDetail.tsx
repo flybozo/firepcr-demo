@@ -199,7 +199,7 @@ export default function RosterDetailPage() {
   )
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white pb-[calc(80px+env(safe-area-inset-bottom,0px))] md:pb-8 mt-8 md:mt-0">
+    <div className="bg-gray-950 text-white pb-8 mt-8 md:mt-0">
       <div className="p-6 md:p-8 max-w-3xl mx-auto space-y-4">
 
         <Link to="/roster" className="text-gray-500 hover:text-gray-300 text-sm">← Roster</Link>

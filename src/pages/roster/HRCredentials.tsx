@@ -205,7 +205,7 @@ export default function HRCredentialsPage() {
     }`
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white pb-[calc(80px+env(safe-area-inset-bottom,0px))] md:pb-8">
+    <div className="bg-gray-950 text-white pb-8">
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between pt-2">

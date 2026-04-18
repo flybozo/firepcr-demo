@@ -290,7 +290,7 @@ export default function SchedulePage() {
   const pendingCount = requests.filter(r => r.status === 'pending').length
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white mt-8 md:mt-0 pb-20">
+    <div className="bg-gray-950 text-white mt-8 md:mt-0 pb-8">
       <div className="max-w-3xl mx-auto p-6 space-y-6">
 
         {/* Header */}

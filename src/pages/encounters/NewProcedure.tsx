@@ -292,7 +292,7 @@ function ProcedureNewInner() {
   const lbl = 'block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1'
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white pb-[calc(80px+env(safe-area-inset-bottom,0px))] md:pb-8 mt-8 md:mt-0">
+    <div className="bg-gray-950 text-white pb-8 mt-8 md:mt-0">
       <div className="max-w-lg mx-auto p-6 space-y-4">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate(-1)} className="text-gray-500 hover:text-white text-sm">← Back</button>

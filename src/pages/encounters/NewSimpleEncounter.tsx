@@ -309,7 +309,7 @@ function SimpleEHRInner() {
   const readonlyClass = "w-full mt-1 bg-gray-700 rounded-lg px-3 py-2 text-white text-sm border border-gray-600"
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white pb-20">
+    <div className="bg-gray-950 text-white pb-8">
       <div className="max-w-lg mx-auto p-6 space-y-5">
         <div className="pt-4">
           <h1 className="text-2xl font-bold">Patient Encounter</h1>

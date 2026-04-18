@@ -170,7 +170,7 @@ export default function ShiftTicketPage() {
   if (loading) return <div className="p-8 text-gray-500">Loading...</div>
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white mt-8 md:mt-0 pb-20">
+    <div className="bg-gray-950 text-white mt-8 md:mt-0 pb-8">
       <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-5">
 
         {/* Header */}
