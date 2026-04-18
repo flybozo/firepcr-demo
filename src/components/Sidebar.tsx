@@ -99,7 +99,6 @@ const NAV: NavItem[] = [
     href: '/roster',
     directLink: true,
     sub: [
-      { label: 'New Employee', href: '/roster/new' },
       { label: 'HR Credentials', href: '/roster/hr' },
       { label: 'Pay Rates', href: '/roster/pay-rates' },
     ],

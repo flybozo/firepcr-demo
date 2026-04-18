@@ -5,7 +5,6 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
-import { Link } from 'react-router-dom'
 import { useNavigate, useMatch } from 'react-router-dom'
 
 type Employee = {
@@ -108,12 +107,7 @@ export default function RosterPage() {
             <h1 className="text-xl font-bold">Employee Roster</h1>
             <p className="text-gray-500 text-xs">{activeEmployees.length} active · {inactiveEmployees.length} inactive</p>
           </div>
-          {isAdmin && (
-            <Link to="/roster/new"
-              className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors">
-              + New
-            </Link>
-          )}
+
         </div>
 
         <div className="flex items-center gap-3">
