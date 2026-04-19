@@ -53,13 +53,13 @@ export function queryIncidentName(id: string) {
     .single()
 }
 
-/** Get units with incident assignments */
+/** Get units with incident assignments (for encounter creation) */
 export function queryUnitsWithIncidents() {
   return createClient()
     .from('units')
-    .select('id, name, incident_units(id, released_at, incident:incidents(id, name, status))')
+    .select('id, name, unit_type:unit_types(name), incident_units(id, released_at, incident:incidents(id, name, status))')
     .eq('active', true)
-    .eq('is_storage', false)
+    .neq('name', 'Warehouse')
     .order('name')
 }
 

@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { useNavigate, useMatch } from 'react-router-dom'
+import { PageHeader, EmptyState, LoadingSkeleton } from '@/components/ui'
 
 type Employee = {
   id: string
@@ -102,13 +103,10 @@ export default function RosterPage() {
             📦 Showing cached data — changes will sync when back online
           </div>
         )}
-        <div className="flex items-center justify-between pt-2">
-          <div>
-            <h1 className="text-xl font-bold">Employee Roster</h1>
-            <p className="text-gray-500 text-xs">{activeEmployees.length} active · {inactiveEmployees.length} inactive</p>
-          </div>
-
-        </div>
+        <PageHeader
+          title="Employee Roster"
+          subtitle={`${activeEmployees.length} active · ${inactiveEmployees.length} inactive`}
+        />
 
         <div className="space-y-3">
           <input value={search} onChange={e => setSearch(e.target.value)}
@@ -125,12 +123,12 @@ export default function RosterPage() {
         </div>
 
         {loading ? (
-          <p className="text-gray-500">Loading...</p>
+          <LoadingSkeleton rows={8} header />
         ) : (
           <>
           {/* ── Active employees ── */}
           {activeEmployees.length === 0 ? (
-            <p className="text-center text-gray-600 py-8">No active employees found.</p>
+            <EmptyState icon="👥" message="No active employees found." className="py-8" />
           ) : (
           <div className="theme-card rounded-xl border overflow-x-auto">
             {/* Header row — use CSS grid matching the data rows */}

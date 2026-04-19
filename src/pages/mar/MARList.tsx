@@ -6,6 +6,7 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useEffect, useState, useMemo, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
+import { PageHeader, EmptyState, LoadingSkeleton } from '@/components/ui'
 import { useNavigate, useSearchParams, useMatch } from 'react-router-dom'
 import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
 import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
@@ -202,15 +203,14 @@ function MARListInner() {
   return (
     <div className="bg-gray-950 text-white pb-8">
       <div className="p-4 md:p-6 space-y-4">
-        <div className="flex items-center justify-between pt-2">
-          <div>
-            <h1 className="text-xl font-bold">💊 MAR</h1>
-            <p className="text-gray-500 text-xs">Medication Administration Record · {entries.length} entries</p>
-          </div>
-          <Link to="/mar/new"
-            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors">
-            + New
-          </Link>
+        <PageHeader
+          title="💊 MAR"
+          subtitle={`Medication Administration Record · ${entries.length} entries`}
+          actions={
+            <Link to="/mar/new" className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors">+ New</Link>
+          }
+        />
+        <div>
         </div>
 
         {isOffline && (
@@ -319,11 +319,9 @@ function MARListInner() {
         )}
 
         {loading ? (
-          <div className="text-center py-12 text-gray-500">Loading...</div>
+          <LoadingSkeleton rows={5} header />
         ) : filtered.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            No entries recorded yet.
-          </div>
+          <EmptyState icon="💊" message="No entries recorded yet." />
         ) : (
           <div className="theme-card rounded-xl border overflow-hidden">
             {/* Horizontally scrollable on mobile - each row stays single-line */}

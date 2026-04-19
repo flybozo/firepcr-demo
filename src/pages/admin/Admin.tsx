@@ -4,6 +4,7 @@ import { FieldGuard } from '@/components/FieldGuard'
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { StatCard, PageHeader, LoadingSkeleton } from '@/components/ui'
 
 type Stat = { label: string; value: number; href: string; color: string }
 
@@ -71,10 +72,7 @@ function AdminDashboardPageInner() {
 
   return (
     <div className="p-6 md:p-8 max-w-4xl mt-8 md:mt-0">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-        <p className="text-gray-400 text-sm mt-1">System overview and administrative functions</p>
-      </div>
+      <PageHeader title="Admin Dashboard" subtitle="System overview and administrative functions" className="mb-6" />
 
       {/* Stats */}
       {loading ? (
@@ -86,11 +84,7 @@ function AdminDashboardPageInner() {
       ) : (
         <div className="grid grid-cols-3 md:grid-cols-6 gap-3 mb-8">
           {stats.map(s => (
-            <Link key={s.href} to={s.href}
-              className="theme-card rounded-xl p-4 border hover:border-gray-600 transition-colors text-center">
-              <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-xs text-gray-500 mt-1 leading-tight">{s.label}</p>
-            </Link>
+            <StatCard key={s.href} value={s.value} label={s.label} color={s.color} href={s.href} />
           ))}
         </div>
       )}

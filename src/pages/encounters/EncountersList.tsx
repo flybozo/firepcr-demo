@@ -7,6 +7,7 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { queryActiveIncidentsForEncounters } from '@/lib/services/encounters'
+import { PageHeader, EmptyState, LoadingSkeleton } from '@/components/ui'
 import { useNavigate, useSearchParams, useMatch } from 'react-router-dom'
 import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
 import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
@@ -184,16 +185,13 @@ function EncountersInner() {
   return (
     <div className="bg-gray-950 text-white pb-8">
       <div className="p-4 md:p-6 space-y-4">
-        <div className="flex items-center justify-between pt-2">
-          <div>
-            <h1 className="text-xl font-bold">Patient Encounters</h1>
-            <p className="text-gray-500 text-xs">{filtered.length} records</p>
-          </div>
-          <Link to="/encounters/new"
-            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors">
-            + New
-          </Link>
-        </div>
+        <PageHeader
+          title="Patient Encounters"
+          subtitle={`${filtered.length} records`}
+          actions={
+            <Link to="/encounters/new" className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors">+ New</Link>
+          }
+        />
 
         {isOffline && (
           <div className="bg-red-950/60 border border-red-800 rounded-xl px-4 py-3 text-red-300 text-sm flex items-center gap-2">
@@ -300,12 +298,12 @@ function EncountersInner() {
         />
 
         {loading ? (
-          <div className="text-center text-gray-500 py-12">Loading...</div>
+          <LoadingSkeleton rows={5} header />
         ) : filtered.length === 0 ? (
-          <div className="text-center text-gray-500 py-12">
-            <p className="text-4xl mb-4">📋</p>
-            <p>{search || unitFilter !== 'All' ? 'No matches found.' : 'No encounters yet.'}</p>
-          </div>
+          <EmptyState
+            icon="📋"
+            message={search || unitFilter !== 'All' ? 'No matches found.' : 'No encounters yet.'}
+          />
         ) : (
           <>
             <div className="theme-card rounded-xl overflow-hidden border">

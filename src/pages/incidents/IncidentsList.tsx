@@ -6,6 +6,7 @@ import { loadList } from '@/lib/offlineFirst'
 import { useNavigate, useSearchParams, useMatch } from 'react-router-dom'
 import { Suspense } from 'react'
 import { queryIncidentsList } from '@/lib/services/incidents'
+import { PageHeader, EmptyState } from '@/components/ui'
 
 type Incident = {
   id: string
@@ -80,18 +81,13 @@ function IncidentsPageInner() {
       <div className="p-4 md:p-6 space-y-4">
 
         {/* Header */}
-        <div className="flex items-center justify-between pt-2">
-          <div>
-            <h1 className="text-xl font-bold">Incidents</h1>
-            <p className="text-gray-500 text-xs">
-              {incidents.filter(i => i.status === 'Active').length} active · {incidents.filter(i => i.status === 'Closed').length} closed
-            </p>
-          </div>
-          <Link to="/incidents/new"
-            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors">
-            + New
-          </Link>
-        </div>
+        <PageHeader
+          title="Incidents"
+          subtitle={`${incidents.filter(i => i.status === 'Active').length} active · ${incidents.filter(i => i.status === 'Closed').length} closed`}
+          actions={
+            <Link to="/incidents/new" className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors">+ New</Link>
+          }
+        />
 
         {/* Tab bar */}
         <div className="flex gap-2">
@@ -118,13 +114,12 @@ function IncidentsPageInner() {
         {loading ? (
           <div className="text-center text-gray-500 py-12">Loading...</div>
         ) : filtered.length === 0 ? (
-          <div className="text-center text-gray-500 py-12">
-            <p className="text-4xl mb-4">{tab === 'Active' ? '🔥' : '📁'}</p>
-            <p>{search ? 'No matches.' : `No ${tab.toLowerCase()} incidents.`}</p>
-            {tab === 'Active' && !search && (
-              <Link to="/incidents/new" className="text-red-400 underline text-sm mt-2 block">Create one</Link>
-            )}
-          </div>
+          <EmptyState
+            icon={tab === 'Active' ? '🔥' : '📁'}
+            message={search ? 'No matches.' : `No ${tab.toLowerCase()} incidents.`}
+            actionHref={tab === 'Active' && !search ? '/incidents/new' : undefined}
+            actionLabel="Create one"
+          />
         ) : (
           <div className="theme-card rounded-xl border overflow-x-auto">
             <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header min-w-[480px]">

@@ -4,6 +4,7 @@ import { useRole } from '@/lib/useRole'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 
 import { useEffect, useState, useMemo } from 'react'
+import { PageHeader, EmptyState, LoadingSkeleton } from '@/components/ui'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { getCachedData } from '@/lib/offlineStore'
@@ -117,16 +118,14 @@ function SupplyRunsPageInner() {
           📶 Showing cached data — changes will sync when back online
         </div>
       )}
-      <div className="flex items-center justify-between mb-4 mt-8 md:mt-0">
-        <div>
-          <h1 className="text-xl font-bold">Supply Runs</h1>
-          <p className="text-gray-500 text-xs mt-0.5">{filtered.length} of {runs.length} runs</p>
-        </div>
-        <Link to="/supply-runs/new"
-          className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors">
-          + New Run
-        </Link>
-      </div>
+      <PageHeader
+        title="Supply Runs"
+        subtitle={`${filtered.length} of ${runs.length} runs`}
+        actions={
+          <Link to="/supply-runs/new" className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors">+ New Run</Link>
+        }
+        className="mb-4 mt-8 md:mt-0"
+      />
 
       {/* Filters */}
       <div className="space-y-2 mb-4">
@@ -203,12 +202,9 @@ function SupplyRunsPageInner() {
       </div>
 
       {loading ? (
-        <p className="text-gray-500 text-sm">Loading...</p>
+        <LoadingSkeleton rows={5} header />
       ) : filtered.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-4xl mb-3">🚚</p>
-          <p className="text-gray-500 text-sm">{unitFilter !== 'All' ? 'No matching supply runs.' : 'No supply runs yet.'}</p>
-        </div>
+        <EmptyState icon="🚚" message={unitFilter !== 'All' ? 'No matching supply runs.' : 'No supply runs yet.'} />
       ) : (
         <div className="theme-card rounded-xl border overflow-x-auto">
           {/* Header */}
