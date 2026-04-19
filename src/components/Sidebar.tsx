@@ -127,7 +127,7 @@ const NAV: NavItem[] = [
     directLink: true,
     sub: [
       { label: 'Announcements & Push', href: '/admin/announcements' },
-      { label: 'Chat Requests', href: '/admin/chat-requests' },
+      { label: 'AI Requests', href: '/admin/chat-requests' },
       { label: 'Company Profile', href: '/admin/company' },
       { label: 'Analytics', href: '/analytics' },
       { label: 'Financial', href: '/admin/financial' },

@@ -114,7 +114,7 @@ function ChatRequestsPageInner() {
   return (
     <div className="p-6 md:p-8 max-w-4xl mt-8 md:mt-0">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Chat Requests & Bug Reports</h1>
+        <h1 className="text-2xl font-bold">AI Requests & Bug Reports</h1>
         <p className="text-gray-400 text-sm mt-1">
           Requests and bug reports submitted by employees via the Codsworth chat
         </p>

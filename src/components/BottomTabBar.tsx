@@ -94,7 +94,7 @@ const TABS: Tab[] = [
 // Admin sub-items for the second-level sheet
 const ADMIN_SUB_ITEMS: SubItem[] = [
   { label: 'Announcements & Push', href: '/admin/announcements', icon: 'announcements' },
-  { label: 'Chat Requests', href: '/admin/chat-requests', icon: 'chat-requests' },
+  { label: 'AI Requests', href: '/admin/chat-requests', icon: 'chat-requests' },
   { label: 'Company Profile', href: '/admin/company', icon: 'company' },
   { label: 'Analytics', href: '/analytics', icon: 'analytics' },
   { label: 'Financial', href: '/admin/financial', icon: 'financial' },
