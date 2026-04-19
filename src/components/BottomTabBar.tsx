@@ -5,9 +5,11 @@ import { useRole } from '@/lib/useRole'
 import { useUnsignedCounts } from '@/lib/useUnsignedPCRCount'
 import { useChatUnread } from '@/hooks/useChatUnread'
 import { useUserAssignment } from '@/lib/useUserAssignment'
+import { SidebarIcon } from './SidebarIcons'
 
 type Tab = {
-  icon: string
+  icon: string      // SidebarIcon name for the tab bar
+  iconEmoji?: string // fallback emoji for bottom sheets
   label: string
   href: string
   adminOnly?: boolean
@@ -16,7 +18,7 @@ type Tab = {
 
 const TABS: Tab[] = [
   {
-    icon: '🔥',
+    icon: 'incidents',
     label: 'Incidents',
     href: '/incidents',
     subItems: [
@@ -26,7 +28,7 @@ const TABS: Tab[] = [
     ],
   },
   {
-    icon: '📋',
+    icon: 'encounters',
     label: 'Encounters',
     href: '/encounters',
     subItems: [
@@ -37,7 +39,7 @@ const TABS: Tab[] = [
     ],
   },
   {
-    icon: '🔐',
+    icon: 'cs',
     label: 'CS',
     href: '/cs',
     subItems: [
@@ -49,7 +51,7 @@ const TABS: Tab[] = [
     ],
   },
   {
-    icon: '📦',
+    icon: 'inventory',
     label: 'Supply',
     href: '/inventory',
     subItems: [
@@ -60,7 +62,7 @@ const TABS: Tab[] = [
     ],
   },
   {
-    icon: '👥',
+    icon: 'roster',
     label: 'Roster',
     href: '/roster',
     adminOnly: true,
@@ -71,7 +73,7 @@ const TABS: Tab[] = [
     ],
   },
   {
-    icon: '•••',
+    icon: 'more',
     label: 'More',
     href: '/more',
     subItems: [
@@ -209,7 +211,7 @@ export default function BottomTabBar() {
               onClick={() => setSheetTab(null)}
               className="flex items-center gap-3 px-5 py-3.5 text-base text-gray-300 hover:bg-gray-800/60 transition-colors"
             >
-              <span>{activeSheet.icon}</span>
+              <span className="w-5 h-5 flex items-center justify-center"><SidebarIcon name={activeSheet.icon} /></span>
               <span>View All {activeSheet.label}</span>
             </Link>
             {activeSheet.subItems
@@ -308,12 +310,12 @@ export default function BottomTabBar() {
                     className="flex flex-col items-center justify-center gap-0.5 w-full h-full"
                     style={{ color: 'inherit' }}
                   >
-                    <span className="text-xl leading-none">{tab.icon === '•••' ? '⋯' : tab.icon}</span>
+                    <span className="w-6 h-6 flex items-center justify-center"><SidebarIcon name={tab.icon} /></span>
                     <span className="text-xs font-medium leading-none">{tab.label}</span>
                   </Link>
                 ) : (
                   <>
-                    <span className="text-xl leading-none">{tab.icon === '•••' ? '⋯' : tab.icon}</span>
+                    <span className="w-6 h-6 flex items-center justify-center"><SidebarIcon name={tab.icon} /></span>
                     <span className="text-xs font-medium leading-none">{tab.label}</span>
                   </>
                 )}
