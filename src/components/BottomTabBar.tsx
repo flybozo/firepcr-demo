@@ -7,13 +7,14 @@ import { useChatUnread } from '@/hooks/useChatUnread'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { SidebarIcon } from './SidebarIcons'
 
+type SubItem = { label: string; href: string; icon?: string; adminOnly?: boolean; fieldOnly?: boolean }
+
 type Tab = {
   icon: string      // SidebarIcon name for the tab bar
-  iconEmoji?: string // fallback emoji for bottom sheets
   label: string
   href: string
   adminOnly?: boolean
-  subItems?: { label: string; href: string; adminOnly?: boolean; fieldOnly?: boolean }[]
+  subItems?: SubItem[]
 }
 
 const TABS: Tab[] = [
@@ -77,31 +78,31 @@ const TABS: Tab[] = [
     label: 'More',
     href: '/more',
     subItems: [
-      { label: '🚑 Units', href: '/units' },
-      { label: '📊 Analytics', href: '/analytics' },
-      { label: '🔥 External Dashboard', href: '/admin/fire-dashboard' },
-      { label: '💰 Payroll', href: '/payroll' },
-      { label: '📋 Documents', href: '/documents' },
-      { label: '💬 Chat', href: '/chat' },
-      { label: '👤 Profile', href: '/profile' },
-      { label: '📅 Schedule Request', href: '/schedule/request', fieldOnly: true },
-      { label: '⚙️ Admin', href: '/admin', adminOnly: true },
+      { label: 'Units', href: '/units', icon: 'units' },
+      { label: 'Analytics', href: '/analytics', icon: 'analytics' },
+      { label: 'External Dashboard', href: '/admin/fire-dashboard', icon: 'fire-dashboard' },
+      { label: 'Payroll', href: '/payroll', icon: 'payroll' },
+      { label: 'Documents', href: '/documents', icon: 'documents' },
+      { label: 'Chat', href: '/chat', icon: 'chat' },
+      { label: 'Profile', href: '/profile', icon: 'profile' },
+      { label: 'Schedule Request', href: '/schedule/request', icon: 'schedule', fieldOnly: true },
+      { label: 'Admin', href: '/admin', icon: 'admin', adminOnly: true },
     ],
   },
 ]
 
 // Admin sub-items for the second-level sheet
-const ADMIN_SUB_ITEMS = [
-  { label: '📣 Announcements & Push', href: '/admin/announcements' },
-  { label: '💬 Chat Requests', href: '/admin/chat-requests' },
-  { label: '🏢 Company Profile', href: '/admin/company' },
-  { label: '📊 Analytics', href: '/analytics' },
-  { label: '💵 Financial', href: '/admin/financial' },
-  { label: '🔥 External Dashboard', href: '/admin/fire-dashboard' },
-  { label: '📅 Schedule', href: '/schedule' },
-  { label: '📆 Coverage Calendar', href: '/schedule/calendar' },
-  { label: '⚡ Generate Schedule', href: '/schedule/generate' },
-  { label: '📞 Contacts', href: '/contacts' },
+const ADMIN_SUB_ITEMS: SubItem[] = [
+  { label: 'Announcements & Push', href: '/admin/announcements', icon: 'announcements' },
+  { label: 'Chat Requests', href: '/admin/chat-requests', icon: 'chat-requests' },
+  { label: 'Company Profile', href: '/admin/company', icon: 'company' },
+  { label: 'Analytics', href: '/analytics', icon: 'analytics' },
+  { label: 'Financial', href: '/admin/financial', icon: 'financial' },
+  { label: 'External Dashboard', href: '/admin/fire-dashboard', icon: 'fire-dashboard' },
+  { label: 'Schedule', href: '/schedule', icon: 'schedule' },
+  { label: 'Coverage Calendar', href: '/schedule/calendar', icon: 'calendar' },
+  { label: 'Generate Schedule', href: '/schedule/generate', icon: 'generate' },
+  { label: 'Contacts', href: '/contacts', icon: 'contacts' },
 ]
 
 export default function BottomTabBar() {
@@ -174,7 +175,7 @@ export default function BottomTabBar() {
               onClick={closeAll}
               className="flex items-center gap-3 px-5 py-3.5 text-base text-gray-300 hover:bg-gray-800/60 transition-colors"
             >
-              <span>⚙️</span>
+              <span className="w-5 h-5 flex items-center justify-center opacity-60"><SidebarIcon name="admin" /></span>
               <span>Admin Home</span>
             </Link>
             {ADMIN_SUB_ITEMS.map(sub => (
@@ -184,7 +185,7 @@ export default function BottomTabBar() {
                 onClick={closeAll}
                 className="flex items-center gap-3 px-5 py-3.5 text-base text-gray-400 hover:bg-gray-800/60 transition-colors"
               >
-                <span className="text-gray-600">›</span>
+                <span className="w-5 h-5 flex items-center justify-center opacity-60">{sub.icon ? <SidebarIcon name={sub.icon} /> : <span className="text-gray-600">›</span>}</span>
                 <span>{sub.label}</span>
               </Link>
             ))}
@@ -229,7 +230,7 @@ export default function BottomTabBar() {
                       onClick={() => { setSheetTab(null); setShowAdminSheet(true) }}
                       className="flex items-center gap-3 px-5 py-3.5 text-base text-gray-400 hover:bg-gray-800/60 transition-colors w-full text-left"
                     >
-                      <span className="text-gray-600">›</span>
+                      <span className="w-5 h-5 flex items-center justify-center opacity-60">{sub.icon ? <SidebarIcon name={sub.icon} /> : <span className="text-gray-600">›</span>}</span>
                       <span>{sub.label}</span>
                       <span className="ml-auto text-gray-600 text-xs">›</span>
                     </button>
@@ -246,7 +247,7 @@ export default function BottomTabBar() {
                     onClick={() => setSheetTab(null)}
                     className="flex items-center gap-3 px-5 py-3.5 text-base text-gray-400 hover:bg-gray-800/60 transition-colors"
                   >
-                    <span className="text-gray-600">›</span>
+                    <span className="w-5 h-5 flex items-center justify-center opacity-60">{sub.icon ? <SidebarIcon name={sub.icon} /> : <span className="text-gray-600">›</span>}</span>
                     <span>{sub.label}</span>
                     {sub.href === '/chat' && chatUnread > 0 && (
                       <span className="ml-auto inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold leading-none">
@@ -266,7 +267,7 @@ export default function BottomTabBar() {
                 }}
                 className="flex items-center gap-3 px-5 py-3.5 text-base text-red-400 hover:bg-gray-800/60 transition-colors w-full border-t border-gray-800 mt-1"
               >
-                <span>🚪</span>
+                <span className="w-5 h-5 flex items-center justify-center opacity-60"><SidebarIcon name="logout" /></span>
                 <span>Sign Out</span>
               </button>
             )}
