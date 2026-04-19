@@ -1642,18 +1642,22 @@ export default function IncidentDetailPage() {
                       })()}
                     </Link>
                     {isAdmin && (
-                      <div className="flex items-center gap-1 md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-2 shrink-0">
-                        {activeIncidents.length > 0 && (
-                          <select className="text-xs bg-gray-700 border border-gray-600 rounded px-1.5 py-1 text-gray-300 focus:outline-none focus:ring-1 focus:ring-red-500 max-w-[130px] w-[130px]"
-                            defaultValue="" onChange={e => { if (e.target.value) reassignUnit(iu.id, e.target.value, iu.unit?.id || '', iu.unit?.name || 'unit') }}
-                            title="Move to another active incident">
-                            <option value="" disabled>Move to fire...</option>
-                            {activeIncidents.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
-                          </select>
-                        )}
-                        <button onClick={() => demobilizeUnit(iu.id, iu.unit?.name || 'unit')}
-                          className="text-xs px-2 py-1 bg-red-900/60 hover:bg-red-800 text-red-300 rounded transition-colors whitespace-nowrap"
-                          title="Remove from incident">Demob</button>
+                      <div className="md:opacity-0 md:group-hover:opacity-100 transition-opacity ml-2 shrink-0">
+                        <select className="text-xs bg-gray-700 border border-gray-600 rounded px-1.5 py-1 text-gray-300 focus:outline-none focus:ring-1 focus:ring-red-500 max-w-[150px] w-[150px]"
+                          defaultValue="" onChange={e => {
+                            const val = e.target.value
+                            if (val === '__demob__') {
+                              demobilizeUnit(iu.id, iu.unit?.name || 'unit')
+                            } else if (val) {
+                              reassignUnit(iu.id, val, iu.unit?.id || '', iu.unit?.name || 'unit')
+                            }
+                            e.target.value = ''
+                          }}
+                          title="Move or demobilize unit">
+                          <option value="" disabled>Actions...</option>
+                          {activeIncidents.map(i => <option key={i.id} value={i.id}>Move → {i.name}</option>)}
+                          <option value="__demob__" className="text-red-400">⛔ Demobilize</option>
+                        </select>
                       </div>
                     )}
                   </div>
