@@ -468,7 +468,7 @@ export default function ChatBubble() {
           mounted ? 'scale-100 opacity-100' : 'scale-0 opacity-0'
         } ${open ? 'pointer-events-none opacity-0 scale-75' : ''} ${dragRef.current?.moved ? 'cursor-grabbing' : 'cursor-grab'}`}
       >
-        {/* Brain SVG — stencil style */}
+        {/* Brain SVG — Lucide-style bilateral brain */}
         <svg
           className="w-7 h-7 text-white pointer-events-none"
           fill="none"
@@ -478,13 +478,12 @@ export default function ChatBubble() {
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <path d="M12 2a5 5 0 0 1 4.9 4.1A4 4 0 0 1 20 10a4 4 0 0 1-1.5 3.1A3.5 3.5 0 0 1 17 17a3.5 3.5 0 0 1-2.1-.7A4 4 0 0 1 12 18" />
-          <path d="M12 2a5 5 0 0 0-4.9 4.1A4 4 0 0 0 4 10a4 4 0 0 0 1.5 3.1A3.5 3.5 0 0 0 7 17a3.5 3.5 0 0 0 2.1-.7A4 4 0 0 0 12 18" />
-          <path d="M12 18v4" />
-          <path d="M8 10h.01" />
-          <path d="M16 10h.01" />
-          <path d="M12 14a2 2 0 0 0 2-2" />
-          <path d="M12 14a2 2 0 0 1-2-2" />
+          <path d="M9.5 2a3.5 3.5 0 0 0-3.4 2.7A3 3 0 0 0 3 7.5a3 3 0 0 0 .7 1.9A3.5 3.5 0 0 0 3 12a3.5 3.5 0 0 0 1.2 2.6A3.5 3.5 0 0 0 4 16.5a3.5 3.5 0 0 0 3.5 3.5h1a1 1 0 0 0 1-1V5.5A3.5 3.5 0 0 0 9.5 2z" />
+          <path d="M14.5 2a3.5 3.5 0 0 1 3.4 2.7A3 3 0 0 1 21 7.5a3 3 0 0 1-.7 1.9A3.5 3.5 0 0 1 21 12a3.5 3.5 0 0 1-1.2 2.6 3.5 3.5 0 0 1 .2 2.9 3.5 3.5 0 0 1-3.5 2.5h-1a1 1 0 0 1-1-1V5.5A3.5 3.5 0 0 1 14.5 2z" />
+          <path d="M6 12.5h3" />
+          <path d="M15 12.5h3" />
+          <path d="M6.5 8.5h2" />
+          <path d="M15.5 8.5h2" />
         </svg>
       </button>
 
