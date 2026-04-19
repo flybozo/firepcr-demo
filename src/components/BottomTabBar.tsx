@@ -69,7 +69,6 @@ const TABS: Tab[] = [
     adminOnly: true,
     subItems: [
       { label: 'Employee Roster', href: '/roster' },
-      { label: 'New Employee', href: '/roster/new' },
       { label: 'HR Credentials', href: '/roster/hr' },
     ],
   },
