@@ -311,12 +311,12 @@ export default function BottomTabBar() {
                     style={{ color: 'inherit' }}
                   >
                     <span className="w-7 h-7 flex items-center justify-center"><SidebarIcon name={tab.icon} /></span>
-                    <span className="text-[11px] font-medium leading-none">{tab.label}</span>
+                    <span className="text-[13px] font-medium leading-none">{tab.label}</span>
                   </Link>
                 ) : (
                   <>
                     <span className="w-7 h-7 flex items-center justify-center"><SidebarIcon name={tab.icon} /></span>
-                    <span className="text-[11px] font-medium leading-none">{tab.label}</span>
+                    <span className="text-[13px] font-medium leading-none">{tab.label}</span>
                   </>
                 )}
                 {badge && (
