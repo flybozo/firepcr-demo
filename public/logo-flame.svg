@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Layered stencil flames — thin strokes, subtle offset -->
+  <!-- Layer 1 (back): blue -->
+  <path d="M60 114c-20 0-32-14.4-32-32 0-24 32-48 32-48s32 24 32 48c0 17.6-12 32-32 32z"
+    stroke="#3b82f6" stroke-width="2.5" fill="none" transform="translate(-3, -1)" />
+  <path d="M60 114c-9 0-16-7.2-16-16 0-12 16-24 16-24s16 12 16 24c0 8.8-7 16-16 16z"
+    stroke="#3b82f6" stroke-width="2" fill="none" transform="translate(-3, -1)" />
+
+  <!-- Layer 2 (middle): orange -->
+  <path d="M64 114c-20 0-32-14.4-32-32 0-24 32-48 32-48s32 24 32 48c0 17.6-12 32-32 32z"
+    stroke="#f97316" stroke-width="2.5" fill="none" />
+  <path d="M64 114c-9 0-16-7.2-16-16 0-12 16-24 16-24s16 12 16 24c0 8.8-7 16-16 16z"
+    stroke="#f97316" stroke-width="2" fill="none" />
+
+  <!-- Layer 3 (front): red -->
+  <path d="M68 114c-20 0-32-14.4-32-32 0-24 32-48 32-48s32 24 32 48c0 17.6-12 32-32 32z"
+    stroke="#dc2626" stroke-width="2.5" fill="none" transform="translate(3, 1)" />
+  <path d="M68 114c-9 0-16-7.2-16-16 0-12 16-24 16-24s16 12 16 24c0 8.8-7 16-16 16z"
+    stroke="#dc2626" stroke-width="2" fill="none" transform="translate(3, 1)" />
+</svg>

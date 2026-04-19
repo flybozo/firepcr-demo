@@ -310,13 +310,13 @@ export default function BottomTabBar() {
                     className="flex flex-col items-center justify-center gap-0.5 w-full h-full"
                     style={{ color: 'inherit' }}
                   >
-                    <span className="w-6 h-6 flex items-center justify-center"><SidebarIcon name={tab.icon} /></span>
-                    <span className="text-xs font-medium leading-none">{tab.label}</span>
+                    <span className="w-7 h-7 flex items-center justify-center"><SidebarIcon name={tab.icon} /></span>
+                    <span className="text-[11px] font-medium leading-none">{tab.label}</span>
                   </Link>
                 ) : (
                   <>
-                    <span className="w-6 h-6 flex items-center justify-center"><SidebarIcon name={tab.icon} /></span>
-                    <span className="text-xs font-medium leading-none">{tab.label}</span>
+                    <span className="w-7 h-7 flex items-center justify-center"><SidebarIcon name={tab.icon} /></span>
+                    <span className="text-[11px] font-medium leading-none">{tab.label}</span>
                   </>
                 )}
                 {badge && (
