@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { APP_VERSION } from '@/components/VersionNotifier'
 import { useRole } from '@/lib/useRole'
+import { brand } from '@/lib/branding.config'
 import { createClient } from '@/lib/supabase/client'
 import { useUnsignedCounts } from '@/lib/useUnsignedPCRCount'
 import { useChatUnread } from '@/hooks/useChatUnread'
@@ -528,12 +529,12 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         ) : (
           <img
             src="https://kfkpvazkikpuwatthtow.supabase.co/storage/v1/object/public/headshots/ram-logo.png"
-            alt={import.meta.env.VITE_COMPANY_DBA || 'Remote Area Medicine'}
+            alt={brand.companyName}
             className="w-10 h-10 rounded-full object-contain bg-white p-0.5 shrink-0"
           />
         )}
         <div className="min-w-0">
-          <h1 className="text-sm font-bold text-white leading-tight">{org?.dba ?? org?.name ?? (import.meta.env.VITE_COMPANY_DBA || 'Remote Area Medicine')}</h1>
+          <h1 className="text-sm font-bold text-white leading-tight">{org?.dba ?? org?.name ?? brand.companyName}</h1>
           <p className="text-xs text-gray-500">Field Ops</p>
         </div>
       </Link>
@@ -602,7 +603,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         >
           <span className="w-5 h-5 shrink-0 flex items-center justify-center opacity-50" style={isRainbow ? { color: RAINBOW_ICON_COLORS.logout, opacity: 1 } : {}}><SidebarIcon name="logout" /></span> Sign Out
         </button>
-        <p className="text-[10px] text-center pt-0.5" style={{ color: sidebarText.muted }}>FirePCR v{APP_VERSION}</p>
+        <p className="text-[10px] text-center pt-0.5" style={{ color: sidebarText.muted }}>{brand.appBrand} v{APP_VERSION}</p>
       </div>
     </nav>
   )

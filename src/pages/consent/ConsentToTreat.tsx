@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, Suspense } from 'react'
+import { brand } from '@/lib/branding.config'
 import { useSearchParams, Link } from 'react-router-dom'
 import SignatureCanvas from 'react-signature-canvas'
 import { createClient } from '@/lib/supabase/client'
@@ -377,7 +378,7 @@ function ConsentToTreatInner() {
             <div className="text-xs text-gray-300 space-y-2 leading-relaxed max-h-48 overflow-y-auto pr-2">
               <p>
                 I, <span className="text-white font-medium">{patientName}</span>, hereby consent to emergency medical
-                treatment and care provided by {import.meta.env.VITE_COMPANY_DBA || 'Remote Area Medicine'} ({import.meta.env.VITE_COMPANY_NAME || 'Mossbrae Medical Group P.C.'}) personnel, including
+                treatment and care provided by {brand.consentEntity} ({brand.companyLegal}) personnel, including
                 physicians, physician assistants, nurse practitioners, registered nurses, EMTs, and paramedics.
               </p>
               <p className="font-semibold text-gray-200">I understand and acknowledge:</p>
@@ -389,7 +390,7 @@ function ConsentToTreatInner() {
                 <li>I consent to clinical photographs for medical documentation</li>
                 <li>My medical information will be kept confidential per HIPAA</li>
                 <li>If transport is recommended, I consent to transport by the most appropriate means available</li>
-                <li><span className="text-gray-200 font-medium">Artificial Intelligence:</span> Remote Area Medicine utilizes AI-assisted technology to support clinical documentation, medical record management, and administrative coordination of my care. AI tools do not make clinical decisions — all medical decisions are made by licensed healthcare providers. My health information processed by AI systems is subject to the same privacy protections as all other medical records.</li>
+                <li><span className="text-gray-200 font-medium">Artificial Intelligence:</span> {brand.companyName} utilizes AI-assisted technology to support clinical documentation, medical record management, and administrative coordination of my care. AI tools do not make clinical decisions — all medical decisions are made by licensed healthcare providers. My health information processed by AI systems is subject to the same privacy protections as all other medical records.</li>
               </ul>
               <p>
                 I have read or had read to me the above consent. I understand its contents and voluntarily consent

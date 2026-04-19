@@ -1,6 +1,7 @@
 
 
 import { useEffect, useState, useMemo } from 'react'
+import { brand } from '@/lib/branding.config'
 import { useParams } from 'react-router-dom'
 import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
@@ -554,7 +555,7 @@ export default function FireAdminPage() {
   }
 
   const org = data.org
-  const orgName = org?.dba || org?.name || 'Remote Area Medicine'
+  const orgName = org?.dba || org?.name || brand.companyName
   const inc = data.incident
 
   return (

@@ -7,6 +7,7 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import { Link } from 'react-router-dom'
 import SignatureCanvas from 'react-signature-canvas'
 import { authFetch } from '@/lib/authFetch'
+import { brand } from '@/lib/branding.config'
 
 type ShiftRow = {
   date: string
@@ -194,7 +195,7 @@ export default function ShiftTicketPage() {
             </div>
             <div>
               <label className={labelCls}>2. Contractor / Agency Name</label>
-              <input className={inputCls} value="Remote Area Medicine" readOnly />
+              <input className={inputCls} value={brand.companyName} readOnly />
             </div>
             <div>
               <label className={labelCls}>3. Resource Order Number</label>

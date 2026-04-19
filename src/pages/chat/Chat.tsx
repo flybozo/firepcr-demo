@@ -1,5 +1,5 @@
 /**
- * Chat.tsx — RAM Field Ops Team Chat
+ * Chat.tsx — Team Chat
  *
  * Two-panel layout (channel list + message thread), built from scratch
  * since chat has unique layout needs (pinned input, custom scroll).

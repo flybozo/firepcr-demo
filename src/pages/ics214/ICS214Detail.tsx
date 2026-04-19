@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { generate214PDF } from '@/lib/generate214pdf'
+import { brand } from '@/lib/branding.config'
 
 type ICS214Header = {
   id: string
@@ -174,7 +175,7 @@ export default function ICS214DetailPage() {
   const [showAddPersonnel, setShowAddPersonnel] = useState(false)
   const [newPersonName, setNewPersonName] = useState('')
   const [newPersonPos, setNewPersonPos] = useState('')
-  const [newPersonAgency, setNewPersonAgency] = useState(import.meta.env.VITE_COMPANY_DBA || 'Remote Area Medicine')
+  const [newPersonAgency, setNewPersonAgency] = useState(brand.companyName)
 
   // Closeout
   const [showCloseout, setShowCloseout] = useState(false)
@@ -275,7 +276,7 @@ export default function ICS214DetailPage() {
     if (data) setPersonnel(prev => [...prev, data as Personnel])
     setNewPersonName('')
     setNewPersonPos('')
-    setNewPersonAgency(import.meta.env.VITE_COMPANY_DBA || 'Remote Area Medicine')
+    setNewPersonAgency(brand.companyName)
     setShowAddPersonnel(false)
   }
 

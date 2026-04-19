@@ -12,6 +12,7 @@ import { validateBody } from './_validate.js'
 import { HttpError } from './_auth.js'
 import { sendEmail, buildEmailHtml } from './_email.js'
 import { rateLimit } from './_rateLimit.js'
+import { brand } from '../src/lib/branding.config.js'
 
 // ── Rate limiting ──────────────────────────────────────────────────────────
 // Max 10 submissions per IP per hour (per serverless instance)
@@ -63,7 +64,7 @@ function generateTempPassword(): string {
 
 // ── wf_email generation ────────────────────────────────────────────────────
 async function generateWfEmail(supabase: ReturnType<typeof createServiceClient>, name: string): Promise<string> {
-  const domain = process.env.ONBOARD_EMAIL_DOMAIN || 'wildfiremedical.com'
+  const domain = process.env.ONBOARD_EMAIL_DOMAIN || brand.domain
   const firstName = name.split(/\s+/)[0].toLowerCase().replace(/[^a-z]/g, '')
   if (!firstName) throw new HttpError(400, 'Could not derive email from name')
 
@@ -192,9 +193,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const uploadToken = generateUploadToken(employeeId)
 
     // Send welcome email
-    const appUrl = process.env.VITE_APP_URL || process.env.APP_URL || 'https://app.wildfiremedical.com'
-    const companyName = process.env.VITE_COMPANY_DBA || 'Remote Area Medicine'
-    const appTitle = process.env.VITE_APP_TITLE || 'RAM Field Ops'
+    const appUrl = process.env.VITE_APP_URL || process.env.APP_URL || brand.appUrl
+    const companyName = brand.companyName
+    const appTitle = brand.appName
 
     const emailHtml = buildEmailHtml({
       title: `Welcome to ${companyName}!`,

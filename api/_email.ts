@@ -8,6 +8,7 @@
  */
 
 import { Resend } from 'resend'
+import { brand } from '../src/lib/branding.config.js'
 
 let resendClient: Resend | null = null
 
@@ -37,7 +38,7 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
     return false
   }
 
-  const from = params.from || 'FirePCR <notifications@wildfiremedical.com>'
+  const from = params.from || brand.notificationsEmail
   const to = Array.isArray(params.to) ? params.to : [params.to]
 
   try {
@@ -79,7 +80,7 @@ export function buildEmailHtml(opts: {
   <table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:0 auto;background:#ffffff">
     <tr>
       <td style="background:#dc2626;padding:16px 24px">
-        <h1 style="margin:0;color:#ffffff;font-size:18px;font-weight:700">FirePCR</h1>
+        <h1 style="margin:0;color:#ffffff;font-size:18px;font-weight:700">${brand.appBrand}</h1>
       </td>
     </tr>
     <tr>
@@ -94,7 +95,7 @@ export function buildEmailHtml(opts: {
     </tr>
     <tr>
       <td style="padding:16px 24px;border-top:1px solid #e5e7eb;color:#9ca3af;font-size:11px">
-        ${footer || 'Remote Area Medicine &bull; Mossbrae Medical Group P.C.'}
+        ${footer || `${brand.companyName} &bull; ${brand.companyLegal}`}
       </td>
     </tr>
   </table>

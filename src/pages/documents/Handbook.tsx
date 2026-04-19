@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { brand } from '@/lib/branding.config'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import PinSignature, { type SignatureRecord } from '@/components/PinSignature'
 import { Link } from 'react-router-dom'
@@ -71,7 +72,7 @@ export default function HandbookAcknowledgmentPage() {
         <div>
           <Link to="/documents" className="text-xs text-gray-500 hover:text-gray-300 transition-colors">← Policies & Procedures</Link>
           <h1 className="text-xl font-bold mt-2">Employee Handbook Acknowledgment</h1>
-          <p className="text-xs text-gray-500 mt-1">2026 Edition — Mossbrae Medical Group P.C. dba Remote Area Medicine</p>
+          <p className="text-xs text-gray-500 mt-1">2026 Edition — {brand.companyLegal} dba {brand.companyName}</p>
         </div>
 
         {/* Already signed banner */}
@@ -117,17 +118,17 @@ export default function HandbookAcknowledgmentPage() {
           <div className="bg-gray-800/60 rounded-lg p-4 text-xs text-gray-300 leading-relaxed space-y-2">
             <p>
               I, <strong>{assignment.employee?.name}</strong>, acknowledge that I have received, read, and
-              understand the Remote Area Medicine Employee Handbook (2026 Edition). I agree to comply with
+              understand the {brand.companyName} Employee Handbook (2026 Edition). I agree to comply with
               the policies, rules, and standards described in this Handbook as a condition of my employment
-              with Mossbrae Medical Group P.C. dba Remote Area Medicine.
+              with {brand.companyLegal} dba {brand.companyName}.
             </p>
             <p>
               I understand that this Handbook does not constitute a contract of employment and that my
-              employment is at-will, meaning either I or Remote Area Medicine may terminate the employment
+              employment is at-will, meaning either I or {brand.companyName} may terminate the employment
               relationship at any time, with or without cause or notice, subject to applicable California law.
             </p>
             <p>
-              I understand that Remote Area Medicine reserves the right to modify, supplement, or rescind
+              I understand that {brand.companyName} reserves the right to modify, supplement, or rescind
               any provision of this Handbook at any time without prior notice.
             </p>
           </div>

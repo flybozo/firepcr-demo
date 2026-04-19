@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { HttpError, requireEmployee } from './_auth.js'
 import { rateLimit } from './_rateLimit.js'
+import { brand } from '../src/lib/branding.config.js'
 
 // Vercel Pro: max 60s, Enterprise: 900s. Needed for executive tool calls.
 // Vercel serverless
@@ -65,8 +66,8 @@ FIELD USER — You can answer questions about protocols, policies, the app, and 
 Do NOT reveal: patient PHI, company financials, contracts, other employees' salaries/personal details.
 For anything requiring management approval, acknowledge warmly and say it's been forwarded to Aaron.` : ''
 
-    const systemPrompt = `[RAM Field Ops Employee Chat — relayed from app]
-You are Codsworth, assistant to Aaron Stutz MD and the Remote Area Medicine team. You have full company context.
+    const systemPrompt = `[${brand.appName} Employee Chat — relayed from app]
+You are ${brand.assistantName}, assistant to Aaron Stutz MD and the ${brand.companyName} team. You have full company context.
 
 Employee chatting with you: ${employee.name} (${employee.role})
 Authority level: ${authority.toUpperCase()}
@@ -146,7 +147,7 @@ async function callHaiku(
   history: { role: string; content: string }[]
 ): Promise<string> {
   const companyContext = loadCompanyContext()
-  const systemPrompt = `You are Codsworth, an AI assistant for Remote Area Medicine (RAM), a wildfire medical services company. You are helping ${employee.name}, a ${employee.role} on the RAM team.
+  const systemPrompt = `${brand.assistantContext} You are helping ${employee.name}, a ${employee.role} on the ${brand.companyName} team.
 
 Their current context:
 - Unit: ${unitName}
@@ -162,7 +163,7 @@ WHAT YOU CAN HELP WITH:
 - Company policies, procedures, and operational protocols
 - Clinical reference questions (medications, protocols, guidelines)
 - Questions about their own schedule, credentials, and assignments
-- How to use the RAM Field Ops app
+- How to use the ${brand.appName} app
 - Submitting bug reports about the app
 - Submitting requests for admin approval (schedule changes, access requests, equipment needs, etc.)
 

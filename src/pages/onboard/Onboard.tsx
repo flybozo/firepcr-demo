@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
+import { brand } from '@/lib/branding.config'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -48,11 +49,9 @@ interface FormData {
 
 const TOTAL_STEPS = 7
 
-const APP_TITLE = import.meta.env.VITE_APP_TITLE || 'RAM Field Ops'
-const COMPANY = import.meta.env.VITE_COMPANY_DBA || 'Remote Area Medicine'
-const LOGO_URL =
-  import.meta.env.VITE_LOGO_URL ||
-  'https://kfkpvazkikpuwatthtow.supabase.co/storage/v1/object/public/headshots/ram-logo.png'
+const APP_TITLE = brand.appName
+const COMPANY = brand.companyName
+const LOGO_URL = import.meta.env.VITE_LOGO_URL || brand.logoUrl
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10)

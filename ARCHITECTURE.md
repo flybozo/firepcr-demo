@@ -466,3 +466,60 @@ Storage bucket: `chat-files` (public, authenticated upload)
 - **Direct Supabase Storage upload** — bypasses Vercel's 4.5MB body limit and parsing quirks
 - **Auto-contrast text** — computed per-theme via luminance; scales to any palette
 - **DnD activation distance** — 8px threshold lets taps pass through to links on touch devices
+
+---
+
+## 17. Refactoring Roadmap (2026-04-19)
+
+See `REFACTORING-PLAN.md` for the full plan. Summary:
+
+### Target Architecture
+
+```
+src/
+  lib/
+    branding.ts              ← Brand config types
+    branding.config.ts       ← Per-deployment config (RAM vs demo)
+    services/                ← All data access (no supabase in pages)
+      incidents.ts
+      encounters.ts
+      inventory.ts
+      cs.ts
+      employees.ts
+      chat.ts
+      deployments.ts
+      ...
+    utils/                   ← Shared business logic
+      calcDays.ts
+      fmtCurrency.ts
+      rateUtils.ts
+  components/
+    ui/                      ← Shared primitives
+      DataTable.tsx
+      StatCard.tsx
+      FilterPills.tsx
+      FormField.tsx
+      ConfirmDialog.tsx
+      ...
+  pages/                     ← Thin UI shells calling services
+    incidents/
+      IncidentDetail.tsx     ← Layout + state only (~400 lines)
+      components/             ← Card sub-components
+        UnitsCard.tsx
+        RevenueCard.tsx
+        DeploymentsCard.tsx
+        ...
+```
+
+### Phases
+1. **Branding Layer** — zero hardcoded refs, 1 config file swap for white-label
+2. **Service Layer** — all 242 supabase calls extracted from pages
+3. **Shared UI** — DataTable, StatCard, FilterPills, FormField, ConfirmDialog
+4. **Component Decomposition** — no component > 500 lines
+5. **Feature Modules** — self-contained feature directories (stretch)
+6. **Permissions System** — granular RBAC beyond admin/field (stretch)
+
+### Principles
+- Ship each phase independently — app works at every intermediate state
+- Preserve offline-first pattern — services return cache then fetch
+- No big-bang rewrites — each phase gets its own branch

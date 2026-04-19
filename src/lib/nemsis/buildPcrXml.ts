@@ -4,6 +4,7 @@
  */
 
 import { randomUUID } from 'crypto';
+import { brand } from '../branding.config.js';
 import {
   TYPE_OF_SERVICE_MAP,
   TRANSPORT_CAP_MAP,
@@ -52,13 +53,13 @@ import {
 
 // ─── Agency Constants ────────────────────────────────────────────────────────
 
-const AGENCY_NUMBER = 'S65-52014';
-const AGENCY_STATE_ID = 'S65-52014';
-const STATE_CODE = '06';
-const AGENCY_NAME = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_COMPANY_DBA) || 'Remote Area Medicine';
-const SOFTWARE_NAME = 'RAM Field Operations';
-const SOFTWARE_VERSION = '1.0';
-const SOFTWARE_CREATOR = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_COMPANY_NAME) || 'Mossbrae Medical Group PC';
+const AGENCY_NUMBER = brand.nemsisAgencyId;
+const AGENCY_STATE_ID = brand.nemsisStateAgencyId;
+const STATE_CODE = brand.nemsisStateCode;
+const AGENCY_NAME = brand.companyName;
+const SOFTWARE_NAME = brand.nemsisSoftware.replace(/ v[\d.]+$/, '');
+const SOFTWARE_VERSION = brand.nemsisSoftware.match(/v([\d.]+)$/)?.[1] ?? '1.0';
+const SOFTWARE_CREATOR = brand.nemsisSoftwareCreator;
 // NEMSIS_VERSION constant kept for reference
 // const NEMSIS_VERSION = '3.5.1.240301CP1';
 

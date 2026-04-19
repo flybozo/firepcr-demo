@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf'
+import { brand } from './branding.config'
 
 export type CompClaimsData = {
   // Employee info
@@ -140,7 +141,7 @@ export function generateCompClaimsPDF(d: CompClaimsData, logoDataUrl?: string | 
   sectionHeader('1. Information About the Employee')
   rowFields([
     { label: '1. Full name', value: f(d.patient_name), w: colW * 0.55 },
-    { label: 'Agency', value: f(d.employee_agency) || import.meta.env.VITE_COMPANY_DBA || 'Remote Area Medicine', w: colW * 0.42 },
+    { label: 'Agency', value: f(d.employee_agency) || brand.companyName, w: colW * 0.42 },
   ])
   rowFields([
     { label: '3. Date of birth', value: '', w: colW * 0.25 },

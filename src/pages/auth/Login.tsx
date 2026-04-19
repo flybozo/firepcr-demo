@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useNavigate, Link } from 'react-router-dom'
+import { brand } from '@/lib/branding.config'
 
 export default function LoginPage() {
   const supabase = createClient()
@@ -33,19 +34,19 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <img
-            src={import.meta.env.VITE_LOGO_URL || 'https://kfkpvazkikpuwatthtow.supabase.co/storage/v1/object/public/headshots/ram-logo.png'}
-            alt={import.meta.env.VITE_COMPANY_DBA || 'Remote Area Medicine'}
+            src={import.meta.env.VITE_LOGO_URL || brand.logoUrl}
+            alt={brand.companyName}
             className="w-24 h-24 mx-auto mb-4 rounded-full object-contain bg-white p-1"
           />
-          <h1 className="text-2xl font-bold text-white">{import.meta.env.VITE_APP_TITLE || 'RAM Field Ops'}</h1>
-          <p className="text-gray-400 text-sm mt-1">{import.meta.env.VITE_COMPANY_DBA || 'Remote Area Medicine'}</p>
+          <h1 className="text-2xl font-bold text-white">{brand.appName}</h1>
+          <p className="text-gray-400 text-sm mt-1">{brand.companyName}</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-sm text-gray-400 mb-1">Email</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="you@wildfiremedical.com" required
+              placeholder={`you@${brand.domain}`} required
               className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-white placeholder-gray-600 focus:outline-none focus:border-red-500" />
           </div>
           <div>

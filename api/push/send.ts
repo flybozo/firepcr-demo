@@ -3,6 +3,7 @@ import { createServiceClient } from '../_supabase.js'
 import { requireEmployee } from '../_auth.js'
 import { sendEmail, buildEmailHtml } from '../_email.js'
 import webpush from 'web-push'
+import { brand } from '../../src/lib/branding.config.js'
 import { ensureVapid } from '../_vapid.js'
 
 type SendRequest = {
@@ -136,8 +137,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           html: buildEmailHtml({
             title,
             body: `<p>${body.replace(/\n/g, '<br>')}</p>`,
-            ctaText: url ? 'Open in FirePCR' : undefined,
-            ctaUrl: url ? `https://ram-field-ops.vercel.app${url}` : undefined,
+            ctaText: url ? `Open in ${brand.appBrand}` : undefined,
+            ctaUrl: url ? `${brand.appUrl}${url}` : undefined,
           }),
         })
         if (sent) emailsSent = emails.length

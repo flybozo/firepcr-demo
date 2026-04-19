@@ -1,6 +1,7 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { HttpError, requireEmployee } from '../_auth.js'
+import { brand } from '../../src/lib/branding.config.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
@@ -50,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const availableEmployees = (employees || []).filter((e: any) => !timeOffEmployeeIds.has(e.id))
 
-    const prompt = `You are a medical team scheduler for Remote Area Medicine (RAM), a company providing wildfire medical services.
+    const prompt = `${brand.schedulerContext}
 
 Schedule period: ${start_date} to ${end_date}
 
