@@ -6,6 +6,7 @@ import { useRole } from '@/lib/useRole'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
+import { queryActiveIncidentsForEncounters } from '@/lib/services/encounters'
 import { useNavigate, useSearchParams, useMatch } from 'react-router-dom'
 import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
 import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
@@ -106,7 +107,7 @@ function EncountersInner() {
   // Load active incidents for admin filter pills
   useEffect(() => {
     if (isField || roleLoading) return
-    supabase.from('incidents').select('id, name').eq('status', 'Active').order('name')
+    queryActiveIncidentsForEncounters()
       .then(({ data }) => { if (data) setActiveIncidents(data) })
   }, [isField, roleLoading])
 

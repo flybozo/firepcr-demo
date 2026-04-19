@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
+import { queryClinicalEmployees, updateInventoryQty, insertCSTransaction, insertDailyCount } from '@/lib/services/cs'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useOfflineWrite } from '@/lib/useOfflineWrite'
 import { useUserAssignment } from '@/lib/useUserAssignment'
@@ -82,7 +83,7 @@ function DailyCountInner() {
       if (cachedInv.length > 0) setCSItems(cachedInv.filter((i: any) => i.category === 'CS') as CSItem[])
     } catch {}
     const { data: emps } = await loadList<Employee>(
-      () => supabase.from('employees').select('id, name, role').eq('status', 'Active').in('role', CLINICAL_ROLES).order('name'),
+      () => queryClinicalEmployees(CLINICAL_ROLES),
       'employees',
       (all) => all.filter(e => CLINICAL_ROLES.includes(e.role))
     )
@@ -158,14 +159,14 @@ function DailyCountInner() {
         const expected = entry.inv.quantity
 
         // Update quantity to actual
-        await supabase.from('unit_inventory').update({ quantity: actual }).eq('id', entry.inv.id)
+        await updateInventoryQty(entry.inv.id, actual)
 
         // Log discrepancy if any
         if (actual !== expected) {
           const diff = actual - expected
           discrepancySummary.push(`${entry.inv.item_name} (Lot ${entry.inv.cs_lot_number || 'N/A'}): expected ${expected}, found ${actual} (${diff > 0 ? '+' : ''}${diff}). ${entry.discrepancyNote}`)
 
-          await supabase.from('cs_transactions').insert({
+          await insertCSTransaction({
             transfer_type: 'Audit',
             drug_name: entry.inv.item_name,
             lot_number: entry.inv.cs_lot_number,
@@ -181,7 +182,7 @@ function DailyCountInner() {
       }
 
       // Insert daily count record
-      await supabase.from('cs_daily_counts').insert({
+      await insertDailyCount({
         unit: selectedUnit,
         date: new Date().toISOString().split('T')[0],
         performed_by: counterName,

@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
 import QRCodeCard from '@/components/QRCodeCard'
 import { brand } from '@/lib/branding.config'
+import { queryEmployee, queryCredentials, updateEmployee } from '@/lib/services/employees'
 
 
 type Employee = {
@@ -152,7 +153,7 @@ export default function RosterDetailPage() {
         }
       } catch {}
       const { data: empData, offline } = await loadSingle<Employee>(
-        () => supabase.from('employees').select('id, name, role, app_role, status, wf_email, email, phone, personal_email, personal_phone, home_address, emergency_contact_name, emergency_contact_phone, emergency_contact_relationship, headshot_url, date_of_birth, auth_user_id, daily_rate, default_hours_per_day, bls, acls, pals, itls, paramedic_license, ambulance_driver_cert, medical_license, s130, s190, l180, ics100, ics200, ics700, ics800, dea_license, ssv_lemsa, npi').eq('id', id).single() as any,
+        () => queryEmployee(id) as any,
         'employees',
         id
       )
@@ -160,7 +161,7 @@ export default function RosterDetailPage() {
       setIsOfflineData(offline)
       if (empData && !offline) {
         try {
-          const { data: credData } = await supabase.from('employee_credentials').select('*').eq('employee_id', id).order('cert_type')
+          const { data: credData } = await queryCredentials(id)
           setCreds(credData || [])
         } catch {}
         // Load expenses for this employee (admin only)
@@ -324,7 +325,7 @@ export default function RosterDetailPage() {
                   onClick={async () => {
                     const newVal = !(emp as any).rems_capable
                     const supabase = (await import('@/lib/supabase/client')).createClient()
-                    await supabase.from('employees').update({ rems_capable: newVal, rems: newVal }).eq('id', emp.id)
+                    await updateEmployee(emp.id, { rems_capable: newVal, rems: newVal })
                     setEmp((prev: any) => prev ? { ...prev, rems_capable: newVal, rems: newVal } : prev)
                   }}
                   className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${(emp as any).rems_capable ? 'bg-purple-600' : 'bg-gray-600'}`}
@@ -352,11 +353,10 @@ export default function RosterDetailPage() {
                   className="w-20 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white text-center focus:outline-none focus:ring-1 focus:ring-red-500"
                   onBlur={async e => {
                     const yr = e.target.value ? parseInt(e.target.value) : null
-                    const supabase = (await import('@/lib/supabase/client')).createClient()
-                    await supabase.from('employees').update({
+                    await updateEmployee(emp.id, {
                       red_card_year: yr,
                       red_card: yr ? `${yr} RAM Red Card` : null
-                    }).eq('id', emp.id)
+                    })
                     setEmp((prev: any) => prev ? { ...prev, red_card_year: yr, red_card: yr ? `${yr} RAM Red Card` : null } : prev)
                   }}
                 />
@@ -382,7 +382,7 @@ export default function RosterDetailPage() {
                 onBlur={async e => {
                   const val = e.target.value.trim() || null
                   const supabase = (await import('@/lib/supabase/client')).createClient()
-                  await supabase.from('employees').update({ dea_license: val }).eq('id', emp.id)
+                  await updateEmployee(emp.id, { dea_license: val })
                   setEmp((prev: any) => prev ? { ...prev, dea_license: val } : prev)
                 }}
               />

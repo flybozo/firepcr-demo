@@ -1,11 +1,11 @@
 
 import { FieldGuard } from '@/components/FieldGuard'
 import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { loadList } from '@/lib/offlineFirst'
 import { useNavigate, useSearchParams, useMatch } from 'react-router-dom'
 import { Suspense } from 'react'
+import { queryIncidentsList } from '@/lib/services/incidents'
 
 type Incident = {
   id: string
@@ -19,7 +19,6 @@ type Incident = {
 }
 
 function IncidentsPageInner() {
-  const supabase = createClient()
   const navigate = useNavigate()
   const detailMatch = useMatch('/incidents/:id')
   const [incidents, setIncidents] = useState<Incident[]>([])
@@ -52,10 +51,7 @@ function IncidentsPageInner() {
         }
       } catch {}
       const { data, offline } = await loadList(
-        () => supabase
-          .from('incidents')
-          .select('id, name, location, incident_number, start_date, closed_at, status, incident_units(id, released_at)')
-          .order('created_at', { ascending: false }) as any,
+        () => queryIncidentsList() as any,
         'incidents'
       )
       const sorted = [...data].sort((a: any, b: any) => (b.start_date || b.created_at || '').localeCompare(a.start_date || a.created_at || ''))

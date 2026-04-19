@@ -3,6 +3,7 @@ import EncounterPicker, { type PickedEncounter } from '@/components/EncounterPic
 
 import { useCallback, useState, Suspense, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { uploadPatientPhoto, insertPatientPhoto } from '@/lib/services/encounters'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
@@ -200,9 +201,7 @@ function PhotoUploadInner() {
       const timestamp = Date.now()
       const path = `encounters/${encounterId}/${timestamp}.${ext}`
 
-      const { error: uploadErr } = await supabase.storage
-        .from('patient-photos')
-        .upload(path, file, { contentType: file.type, upsert: false })
+      const { error: uploadErr } = await uploadPatientPhoto(file, path)
 
       if (uploadErr) {
         if (uploadErr.message?.includes('Bucket not found') || uploadErr.message?.includes('bucket')) {
@@ -215,7 +214,7 @@ function PhotoUploadInner() {
       const photoUrl = path  // store path, not public URL
 
       // 4. Insert into patient_photos
-      const { error: insertErr } = await supabase.from('patient_photos').insert({
+      const { error: insertErr } = await insertPatientPhoto({
         encounter_id: enc.id,
         photo_url: photoUrl,
         caption: caption || null,

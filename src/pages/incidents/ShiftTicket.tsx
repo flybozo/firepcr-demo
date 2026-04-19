@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom'
 import SignatureCanvas from 'react-signature-canvas'
 import { authFetch } from '@/lib/authFetch'
 import { brand } from '@/lib/branding.config'
+import { queryShiftTicketData } from '@/lib/services/incidents'
 
 type ShiftRow = {
   date: string
@@ -86,10 +87,7 @@ export default function ShiftTicketPage() {
 
   useEffect(() => {
     const load = async () => {
-      const [{ data: inc }, { data: ius }] = await Promise.all([
-        supabase.from('incidents').select('*').eq('id', incidentId).single(),
-        supabase.from('incident_units').select('id, unit:units(id, name, make_model, vin, license_plate, unit_type)').eq('incident_id', incidentId).is('released_at', null),
-      ])
+      const [{ data: inc }, { data: ius }] = await queryShiftTicketData(incidentId)
       setIncident(inc)
       setUnits(ius || [])
       // Pre-fill contractor rep

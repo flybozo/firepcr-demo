@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { getIsOnline } from '@/lib/syncManager'
+import { queryIncidentName, createEncounter } from '@/lib/services/encounters'
 import { loadList } from '@/lib/offlineFirst'
 import { queueOfflineWrite } from '@/lib/offlineStore'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -729,7 +730,7 @@ function PCRFormInner() {
         updates.incident = assignment.incident.name
       } else if (incidentParam && !incidentNameParam) {
         // incidentId in URL but no name — fetch it
-        supabase.from('incidents').select('name').eq('id', incidentParam).single().then(({ data }) => {
+        queryIncidentName(incidentParam).then(({ data }) => {
           if (data?.name) setForm(prev => ({ ...prev, incident: data.name }))
         })
       }
@@ -954,7 +955,7 @@ function PCRFormInner() {
     }
 
     if (getIsOnline()) {
-      const { error } = await supabase.from('patient_encounters').insert(encounterPayload)
+      const { error } = await createEncounter(encounterPayload)
       setSubmitting(false)
       if (!error) {
         navigate('/encounters?success=1')

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
+import { insertCSReceipt, insertWarehouseInventory, insertCSTransaction } from '@/lib/services/cs'
 import { getIsOnline } from '@/lib/syncManager'
 import { useNavigate } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
@@ -113,7 +114,7 @@ export default function ReceiveCSPage() {
       const warehouseId = warehouseUnit?.id || null
 
       // Insert cs_receipt
-      const { error: receiptErr } = await supabase.from('cs_receipts').insert({
+      const { error: receiptErr } = await insertCSReceipt({
         received_at: new Date().toISOString(),
         received_by: form.received_by,
         drug_name: drugName,
@@ -150,7 +151,7 @@ export default function ReceiveCSPage() {
           })
           .eq('id', existingWh.id)
       } else {
-        await supabase.from('warehouse_inventory').insert({
+        await insertWarehouseInventory({
           item_name: drugName,
           category: 'CS',
           quantity: Number(form.quantity_received),
@@ -160,7 +161,7 @@ export default function ReceiveCSPage() {
       }
 
       // Insert cs_transaction
-      await supabase.from('cs_transactions').insert({
+      await insertCSTransaction({
         transfer_type: 'Receive',
         drug_name: drugName,
         lot_number: form.lot_number,

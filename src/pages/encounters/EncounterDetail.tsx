@@ -11,6 +11,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { createClient } from '@/lib/supabase/client'
 import { authFetch } from '@/lib/authFetch'
+import * as encounterService from '@/lib/services/encounters'
 import { getIsOnline } from '@/lib/syncManager'
 import { loadSingle } from '@/lib/offlineFirst'
 import { getCachedData, getCachedById, cacheData, queueOfflineWrite } from '@/lib/offlineStore'
@@ -1151,18 +1152,13 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
     const updatePayload = { ...coerced, updated_by: updatedBy }
 
     if (getIsOnline()) {
-      const { data, error } = await supabase.from('patient_encounters')
-        .update(updatePayload)
-        .eq('id', id)
-        .select('updated_at')
+      const { data, error } = await encounterService.updateEncounter(id, updatePayload).select('updated_at')
       if (!error && data && data.length > 0) {
         // Update succeeded — refresh our local updated_at from the server response
         setEnc(prev => prev ? { ...prev, [key]: coerced[key], updated_at: data[0].updated_at } as Encounter : prev)
         // Write audit log entry (fire and forget)
-        supabase.from('clinical_audit_log').insert({
-          table_name: 'patient_encounters',
+        encounterService.logClinicalAudit({
           record_id: id,
-          action: 'field_edit',
           field_name: key,
           old_value: enc ? String(enc[key as keyof Encounter] ?? '') : '',
           new_value: String(coerced[key] ?? ''),
@@ -1333,7 +1329,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
   const loadNotes = async () => {
     const encId = enc?.encounter_id
     if (!encId) return
-    const { data } = await supabase.from('progress_notes').select('*').eq('encounter_id', encId).is('deleted_at', null).order('note_datetime', { ascending: false })
+    const { data } = await encounterService.queryProgressNotes(encId)
     setProgressNotes(data || [])
   }
 
@@ -1355,7 +1351,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
       signed_by: signedRecord ? signedRecord.employeeName : null,
     }
     if (getIsOnline()) {
-      await supabase.from('progress_notes').insert(notePayload)
+      await encounterService.createProgressNote(notePayload)
     } else {
       await queueOfflineWrite('progress_notes', 'insert', notePayload)
     }
@@ -1377,7 +1373,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
     }
     setActionLoading(true)
     if (getIsOnline()) {
-      await supabase.from('patient_encounters').update({ pcr_status: 'Complete' }).eq('id', id)
+      await encounterService.updateEncounter(id, { pcr_status: 'Complete' })
     } else {
       await queueOfflineWrite('patient_encounters', 'update', { id, pcr_status: 'Complete' })
     }
@@ -1434,10 +1430,10 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
     const now = new Date().toISOString()
     const deletedBy = currentUser.employee?.name || 'Unknown'
     if (getIsOnline()) {
-      const { error } = await supabase.from('patient_encounters').update({
+      const { error } = await encounterService.updateEncounter(id, {
         deleted_at: now,
         deleted_by: deletedBy,
-      }).eq('id', id)
+      })
       if (error) {
         alert('Delete failed: ' + error.message)
         setDeleteLoading(false)
@@ -1458,10 +1454,10 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
     const now = new Date().toISOString()
     const deletedBy = currentUser.employee?.name || 'Unknown'
     if (getIsOnline()) {
-      const { error } = await supabase.from('progress_notes').update({
+      const { error } = await encounterService.updateProgressNote(noteId, {
         deleted_at: now,
         deleted_by: deletedBy,
-      }).eq('id', noteId)
+      })
       if (error) {
         alert('Delete failed: ' + error.message)
         return
@@ -1479,13 +1475,13 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
   const signAndLock = async (record: SignatureRecord) => {
     if (!enc) return
     setActionLoading(true)
-    const { error } = await supabase.from('patient_encounters').update({
+    const { error } = await encounterService.updateEncounter(id, {
       pcr_status: 'Signed',
       signed_at: record.signedAt,
       signed_by: record.employeeName,
-    }).eq('id', id)
+    })
     if (error) {
-      await supabase.from('patient_encounters').update({ pcr_status: 'Signed' }).eq('id', id)
+      await encounterService.updateEncounter(id, { pcr_status: 'Signed' })
       setEnc(prev => prev ? { ...prev, pcr_status: 'Signed' } : prev)
     } else {
       setEnc(prev => prev ? { ...prev, pcr_status: 'Signed', signed_at: record.signedAt, signed_by: record.employeeName } : prev)
@@ -1859,7 +1855,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                                             if (isNaN(newQty) || newQty < 0) { setEditingMarQtyId(null); return }
                                             const delta = newQty - m.qty_used
                                             if (getIsOnline()) {
-                                              await supabase.from('dispense_admin_log').update({ qty_used: newQty }).eq('id', m.id)
+                                              await encounterService.updateMARQuantity(m.id, newQty)
                                               if (delta !== 0 && m.med_unit) {
                                                 const { data: invSearch } = await supabase
                                                   .from('unit_inventory')
@@ -1869,7 +1865,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                                                 const matched = (invSearch || []).find((r: any) => r.incident_unit?.unit?.name === m.med_unit)
                                                 if (matched) {
                                                   const newInvQty = Math.max(0, (matched.quantity || 0) - delta)
-                                                  await supabase.from('unit_inventory').update({ quantity: newInvQty }).eq('id', matched.id)
+                                                  await encounterService.updateInventoryQuantity(matched.id, newInvQty)
                                                 }
                                               }
                                             } else {
@@ -1886,7 +1882,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                                           if (isNaN(newQty) || newQty < 0) { setEditingMarQtyId(null); return }
                                           const delta = newQty - m.qty_used
                                           if (getIsOnline()) {
-                                            await supabase.from('dispense_admin_log').update({ qty_used: newQty }).eq('id', m.id)
+                                            await encounterService.updateMARQuantity(m.id, newQty)
                                             if (delta !== 0 && m.med_unit) {
                                               const { data: invSearch } = await supabase
                                                 .from('unit_inventory')
@@ -1896,7 +1892,7 @@ const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', '
                                               const matched = (invSearch || []).find((r: any) => r.incident_unit?.unit?.name === m.med_unit)
                                               if (matched) {
                                                 const newInvQty = Math.max(0, (matched.quantity || 0) - delta)
-                                                await supabase.from('unit_inventory').update({ quantity: newInvQty }).eq('id', matched.id)
+                                                await encounterService.updateInventoryQuantity(matched.id, newInvQty)
                                               }
                                             }
                                           } else {

@@ -7,6 +7,7 @@ import { loadSingle, loadList } from '@/lib/offlineFirst'
 import { Link } from 'react-router-dom'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
+import * as incidentService from '@/lib/services/incidents'
 import {
   DndContext,
   closestCenter,
@@ -1276,39 +1277,31 @@ export default function IncidentDetailPage() {
     const path = `contracts/${activeIncidentId}/${file.name}`
     const { data, error } = await supabase.storage.from('documents').upload(path, file, { upsert: true })
     if (error) { alert('Upload failed: ' + error.message); setUploadingContract(false); return }
-    await supabase.from('incidents').update({
+    await incidentService.updateIncident(activeIncidentId, {
       contract_url: data.path,
       contract_file_name: file.name,
-    }).eq('id', activeIncidentId)
+    })
     setIncident((prev: any) => prev ? { ...prev, contract_url: data.path, contract_file_name: file.name } : prev)
     setUploadingContract(false)
   }
 
   const saveField = async (key: string, value: string) => {
     if (!incident) return
-    await supabase.from('incidents').update({ [key]: value || null }).eq('id', activeIncidentId)
+    await incidentService.updateIncident(activeIncidentId, { [key]: value || null })
     setIncident(prev => prev ? { ...prev, [key]: value || null } : prev)
   }
 
 
   const demobilizeUnit = async (incidentUnitId: string, unitName: string) => {
     if (!confirm(`Remove ${unitName} from this incident? This will release all crew assignments too.`)) return
-    await supabase.from('unit_assignments').update({ released_at: new Date().toISOString() }).eq('incident_unit_id', incidentUnitId)
-    await supabase.from('incident_units').update({ released_at: new Date().toISOString() }).eq('id', incidentUnitId)
+    await incidentService.releaseUnit(incidentUnitId)
     load()
   }
 
   const reassignUnit = async (incidentUnitId: string, targetIncidentId: string, unitId: string, unitName: string) => {
     const targetInc = activeIncidents.find(i => i.id === targetIncidentId)
     if (!confirm(`Move ${unitName} to "${targetInc?.name}"? Crew will be released from current assignment.`)) return
-    // Release crew from current assignment
-    await supabase.from('unit_assignments').update({ released_at: new Date().toISOString() }).eq('incident_unit_id', incidentUnitId)
-    // Release current incident_unit
-    await supabase.from('incident_units').update({ released_at: new Date().toISOString() }).eq('id', incidentUnitId)
-    // Assign unit to new incident
-    await supabase.from('incident_units').insert({ incident_id: targetIncidentId, unit_id: unitId })
-    // Keep unit_status in sync — reassigned unit is still in service
-    await supabase.from('units').update({ unit_status: 'in_service' }).eq('id', unitId)
+    await incidentService.moveUnit(incidentUnitId, unitId, targetIncidentId)
     load()
   }
 
@@ -1390,7 +1383,7 @@ export default function IncidentDetailPage() {
 
   const handleDeleteDeployment = async (id: string) => {
     if (!confirm('Delete this deployment record?')) return
-    await supabase.from('deployment_records').delete().eq('id', id)
+    await incidentService.deleteDeploymentRecord(id)
     load()
   }
 
@@ -1400,11 +1393,11 @@ export default function IncidentDetailPage() {
     if (fields.check_out_date && fields.check_out_date !== '') {
       fields.status = 'Released'
     }
-    await supabase.from('deployment_records').update({
+    await incidentService.updateDeploymentRecord(id, {
       ...fields,
       admin_override_by: assignment.employee?.name ?? 'Admin',
       updated_at: new Date().toISOString(),
-    }).eq('id', id)
+    })
     setEditingDeployId(null)
     setEditDeployFields({})
     load()
@@ -1421,10 +1414,9 @@ export default function IncidentDetailPage() {
 
     // Persist to user_preferences
     if (currentUserId) {
-      await supabase.from('user_preferences').upsert({
-        auth_user_id: currentUserId,
+      await incidentService.upsertUserPreferences(currentUserId, {
         dashboard_card_order: newOrder,
-      }, { onConflict: 'auth_user_id' })
+      })
     }
   }
 
@@ -1996,7 +1988,7 @@ export default function IncidentDetailPage() {
                                   onKeyDown={e => {
                                     if (e.key === 'Enter') {
                                       const val = parseFloat(editRateVal) || 0
-                                      supabase.from('incident_units').update({ daily_contract_rate: val }).eq('id', u.id)
+                                      incidentService.updateIncidentUnitRate(u.id, val)
                                         .then(() => { setEditingRateIuId(null); load() })
                                     }
                                     if (e.key === 'Escape') setEditingRateIuId(null)
@@ -2005,7 +1997,7 @@ export default function IncidentDetailPage() {
                                   className="w-20 bg-gray-800 border border-gray-600 rounded px-2 py-0.5 text-white text-right text-xs focus:outline-none focus:ring-1 focus:ring-red-500" />
                                 <button onClick={() => {
                                   const val = parseFloat(editRateVal) || 0
-                                  supabase.from('incident_units').update({ daily_contract_rate: val }).eq('id', u.id)
+                                  incidentService.updateIncidentUnitRate(u.id, val)
                                     .then(() => { setEditingRateIuId(null); load() })
                                 }} className="text-green-400 hover:text-green-300 text-xs">✓</button>
                               </div>
@@ -2122,7 +2114,7 @@ export default function IncidentDetailPage() {
                           <td className="px-2 py-2" onClick={e => e.stopPropagation()}>
                             <button onClick={async () => {
                               if (!confirm('Delete this expense?')) return
-                              await supabase.from('incident_expenses').delete().eq('id', exp.id)
+                              await incidentService.deleteIncidentExpense(exp.id)
                               setExpenses(prev => prev.filter(e => e.id !== exp.id))
                             }} className="text-xs text-red-500 hover:text-red-400">✕</button>
                           </td>
@@ -2610,12 +2602,12 @@ export default function IncidentDetailPage() {
   const handleCloseOut = async () => {
     if (!closeoutDt) return
     const closedAt = new Date(closeoutDt).toISOString()
-    const { error } = await supabase.from('incidents').update({
+    const { error } = await incidentService.updateIncident(activeIncidentId, {
       status: 'Closed',
       end_date: closeoutDt.split('T')[0],
       closed_at: closedAt,
       closed_by: assignment.employee?.name || 'Admin',
-    }).eq('id', activeIncidentId)
+    })
     if (error) { alert('Failed to close incident: ' + error.message); return }
     setIncident(prev => prev ? { ...prev, status: 'Closed', end_date: closeoutDt.split('T')[0], closed_at: closedAt } : prev)
     setClosingOut(false)
@@ -2653,7 +2645,7 @@ export default function IncidentDetailPage() {
       `Report generated: ${new Date().toLocaleString()}`,
       `For: Amanda Bragg (Bookkeeper)`,
     ].join('\n')
-    await supabase.from('incidents').update({ notes: reportText }).eq('id', activeIncidentId)
+    await incidentService.updateIncident(activeIncidentId, { notes: reportText })
     alert(`✅ Incident closed. Payroll report generated and saved to incident notes. Ready for Amanda Bragg.`)
   }
 

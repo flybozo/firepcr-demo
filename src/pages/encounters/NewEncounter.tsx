@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
+import { queryAllIncidents, queryUnitsWithIncidents } from '@/lib/services/encounters'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 
@@ -71,15 +72,11 @@ function NewEncounterInner() {
       } catch {}
       const [unitResult, incResult] = await Promise.all([
         loadList(
-          () => supabase.from('units')
-            .select('id, name, unit_type:unit_types(name), incident_units(id, released_at, incident:incidents(id, name, status))')
-            .eq('active', true)
-            .neq('name', 'Warehouse')
-            .order('name') as any,
+          () => queryUnitsWithIncidents() as any,
           'units'
         ),
         loadList(
-          () => supabase.from('incidents').select('id, name').in('status', ['Active', 'Closed']).order('name'),
+          () => queryAllIncidents(),
           'incidents'
         ),
       ])

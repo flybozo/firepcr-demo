@@ -2,6 +2,7 @@
 import { useRole } from '@/lib/useRole'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { FieldGuard } from '@/components/FieldGuard'
+import { queryActiveUnits } from '@/lib/services/cs'
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -116,7 +117,7 @@ function CSOverviewPageInner() {
     try {
       // Load units for name lookup
       const unitsResult = await loadList(
-        () => supabase.from('units').select('id, name').eq('active', true).eq('is_storage', false).order('name') as any,
+        () => queryActiveUnits() as any,
         'units'
       )
       const unitIdToName: Record<string, string> = {}

@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { authFetch } from '@/lib/authFetch'
 import { loadSingle } from '@/lib/offlineFirst'
 import { useUserAssignment } from '@/lib/useUserAssignment'
+import { queryEmployee, updateEmployee, uploadHeadshot } from '@/lib/services/employees'
 import { useRole } from '@/lib/useRole'
 import { useTheme, THEME_PRESETS, THEME_FONTS } from '@/components/ThemeProvider'
 import type { Theme } from '@/components/ThemeProvider'
@@ -79,7 +80,7 @@ export default function ProfilePage() {
           if (cached) setEmployee(cached)
         } catch {}
         const { data } = await loadSingle(
-          () => supabase.from('employees').select('id, name, role, app_role, status, wf_email, email, phone, personal_email, personal_phone, home_address, emergency_contact_name, emergency_contact_phone, emergency_contact_relationship, headshot_url, date_of_birth, auth_user_id').eq('id', assignment.employee!.id).single() as any,
+          () => queryEmployee(assignment.employee!.id) as any,
           'employees',
           assignment.employee!.id
         )
@@ -156,7 +157,7 @@ export default function ProfilePage() {
     const { data, error: upErr } = await supabase.storage.from('headshots').upload(path, file, { upsert: true })
     if (upErr) { setError('Upload failed: ' + upErr.message); setUploadingHeadshot(false); return }
     const { data: urlData } = supabase.storage.from('headshots').getPublicUrl(data.path)
-    await supabase.from('employees').update({ headshot_url: urlData.publicUrl }).eq('id', employee.id)
+    await updateEmployee(employee.id, { headshot_url: urlData.publicUrl })
     setEmployee((p: any) => ({ ...p, headshot_url: urlData.publicUrl }))
     setSuccess('Headshot updated')
     setUploadingHeadshot(false)
@@ -241,7 +242,7 @@ export default function ProfilePage() {
     const empField = fieldMap[certType]
     if (empField) {
       const val = credExpiry ? `✅ On file (exp ${credExpiry.slice(0,7)})` : '✅ On file'
-      if (empField) await supabase.from('employees').update({ [empField]: val }).eq('id', employee.id)
+      if (empField) await updateEmployee(employee.id, { [empField]: val })
     }
 
     setSuccess(`✅ ${certType} uploaded as ${canonicalName}`)

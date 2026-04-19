@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
+import { queryAllUnits, queryActiveEmployees, insertCSTransaction } from '@/lib/services/cs'
 import { getIsOnline } from '@/lib/syncManager'
 import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
@@ -71,11 +72,11 @@ export default function CSTransferPage() {
       } catch {}
       const [unitResult, empResult] = await Promise.all([
         loadList<UnitOption>(
-          () => supabase.from('units').select('id, name').eq('active', true).order('name'),
+          () => queryAllUnits(),
           'units'
         ),
         loadList<{ id: string; name: string }>(
-          () => supabase.from('employees').select('id, name').eq('status', 'Active')
+          () => queryActiveEmployees()
             .in('role', ['MD', 'MD/DO', 'NP', 'PA', 'RN', 'Paramedic']).order('name'),
           'employees',
           (all) => all.filter((e: any) => ['MD', 'MD/DO', 'NP', 'PA', 'RN', 'Paramedic'].includes((e as any).role))
@@ -234,7 +235,7 @@ export default function CSTransferPage() {
       }
 
       // 3. Log transaction
-      await supabase.from('cs_transactions').insert({
+      await insertCSTransaction({
         transfer_type: toUnit?.name === 'Warehouse' ? 'Return' : 'Transfer',
         drug_name: form.drug_name,
         lot_number: form.lot_number,

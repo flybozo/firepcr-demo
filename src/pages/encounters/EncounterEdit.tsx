@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadSingle, loadList } from '@/lib/offlineFirst'
+import { queryEncounter, queryPhysicians } from '@/lib/services/encounters'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Link } from 'react-router-dom'
 import { SearchableSelect } from '@/components/SearchableSelect'
@@ -200,12 +201,12 @@ function EditEncounterInner() {
       } catch {}
       const [{ data: enc }, { data: emps }] = await Promise.all([
         loadSingle(
-          () => supabase.from('patient_encounters').select('*').eq('id', id).single() as any,
+          () => queryEncounter(id) as any,
           'encounters',
           id
         ),
         loadList<Employee>(
-          () => supabase.from('employees').select('id, full_name, role').in('role', ['MD', 'MD/DO']).eq('status', 'Active').order('full_name'),
+          () => queryPhysicians(),
           'employees',
           (all) => all.filter((e: any) => ['MD', 'MD/DO'].includes(e.role))
         ),

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
+import { queryActiveIncidentsForEncounters } from '@/lib/services/encounters'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 
 type ICS214Row = {
@@ -52,7 +53,7 @@ export default function ICS214ListPage() {
     setLoading(true)
     try {
       if (isAdmin && activeIncidents.length === 0) {
-        const { data: incs, error: incErr } = await supabase.from('incidents').select('id, name').eq('status', 'Active').order('name')
+        const { data: incs, error: incErr } = await queryActiveIncidentsForEncounters()
         if (incErr) throw incErr
         setActiveIncidents(incs || [])
       }

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { queryClinicalStaff, queryUnitsWithIncidents } from '@/lib/services/encounters'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useOfflineWrite } from '@/lib/useOfflineWrite'
 
@@ -161,16 +162,16 @@ function SimpleEHRInner() {
       } catch {}
       const [empResult, incResult, unitResult] = await Promise.all([
         loadList(
-          () => supabase.from('employees').select('id, name, role').in('role', CLINICAL_ROLES).eq('status', 'Active').order('role'),
+          () => queryClinicalStaff(CLINICAL_ROLES) as any,
           'employees',
           (all) => all.filter((e: any) => CLINICAL_ROLES.includes(e.role))
         ),
         loadList(
-          () => supabase.from('incidents').select('id, name').order('name'),
+          () => createClient().from('incidents').select('id, name').order('name'),
           'incidents'
         ),
         loadList(
-          () => supabase.from('units').select('id, name, incident_units(id, released_at, incident:incidents(id, name, status))').eq('active', true).eq('is_storage', false).order('name'),
+          () => queryUnitsWithIncidents() as any,
           'units'
         ),
       ])

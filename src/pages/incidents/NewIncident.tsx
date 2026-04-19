@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
+import { createIncident } from '@/lib/services/incidents'
 
 type UnitOption = { id: string; name: string }
 type ConflictInfo = { unitName: string; incidentName: string; employeeCount: number }
@@ -126,12 +127,8 @@ export default function NewIncidentPage() {
       }
 
       // Create incident
-      const { data: incident, error: incErr } = await supabase
-        .from('incidents')
-        .insert({ ...form, status: 'Active' })
-        .select()
-        .single()
-      if (incErr) throw incErr
+      const { data: incident, error: incErr } = await createIncident(form)
+      if (incErr || !incident) throw incErr || new Error('Failed to create incident')
 
       // Get unit IDs for selected names
       const { data: units } = await supabase

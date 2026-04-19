@@ -3,6 +3,7 @@ import EncounterPicker, { type PickedEncounter } from '@/components/EncounterPic
 
 import { useEffect, useRef, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { insertProcedure } from '@/lib/services/encounters'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
@@ -258,7 +259,7 @@ function ProcedureNewInner() {
           .single()
         if (encErr || !enc) throw new Error(`Encounter not found: ${encounterId}`)
 
-        const { error: insertErr } = await supabase.from('encounter_procedures').insert({
+        const { error: insertErr } = await insertProcedure({
           encounter_id: enc.id,
           ...procData,
           client_request_id: requestId.current,
