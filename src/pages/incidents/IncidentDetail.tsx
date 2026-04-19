@@ -1655,7 +1655,7 @@ export default function IncidentDetailPage() {
                           }}
                           title="Move or demobilize unit">
                           <option value="" disabled>Actions...</option>
-                          {activeIncidents.map(i => <option key={i.id} value={i.id}>Move → {i.name}</option>)}
+                          {activeIncidents.filter(i => i.id !== activeIncidentId).map(i => <option key={i.id} value={i.id}>Move → {i.name}</option>)}
                           <option value="__demob__" className="text-red-400">⛔ Demobilize</option>
                         </select>
                       </div>
