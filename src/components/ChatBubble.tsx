@@ -468,17 +468,23 @@ export default function ChatBubble() {
           mounted ? 'scale-100 opacity-100' : 'scale-0 opacity-0'
         } ${open ? 'pointer-events-none opacity-0 scale-75' : ''} ${dragRef.current?.moved ? 'cursor-grabbing' : 'cursor-grab'}`}
       >
-        {/* Speech bubble SVG */}
+        {/* Brain SVG — stencil style */}
         <svg
-          className="w-6 h-6 text-white pointer-events-none"
-          fill="currentColor"
+          className="w-7 h-7 text-white pointer-events-none"
+          fill="none"
           viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
+          stroke="currentColor"
+          strokeWidth={1.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
         >
-          <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/>
-          <circle cx="8" cy="10" r="1.2"/>
-          <circle cx="12" cy="10" r="1.2"/>
-          <circle cx="16" cy="10" r="1.2"/>
+          <path d="M12 2a5 5 0 0 1 4.9 4.1A4 4 0 0 1 20 10a4 4 0 0 1-1.5 3.1A3.5 3.5 0 0 1 17 17a3.5 3.5 0 0 1-2.1-.7A4 4 0 0 1 12 18" />
+          <path d="M12 2a5 5 0 0 0-4.9 4.1A4 4 0 0 0 4 10a4 4 0 0 0 1.5 3.1A3.5 3.5 0 0 0 7 17a3.5 3.5 0 0 0 2.1-.7A4 4 0 0 0 12 18" />
+          <path d="M12 18v4" />
+          <path d="M8 10h.01" />
+          <path d="M16 10h.01" />
+          <path d="M12 14a2 2 0 0 0 2-2" />
+          <path d="M12 14a2 2 0 0 1-2-2" />
         </svg>
       </button>
 
