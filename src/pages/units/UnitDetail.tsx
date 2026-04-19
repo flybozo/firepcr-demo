@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import { loadSingle } from '@/lib/offlineFirst'
 import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
+import QRCodeCard from '@/components/QRCodeCard'
+import { brand } from '@/lib/branding.config'
 
 type Employee = { id: string; name: string; role: string }
 type Assignment = { id: string; role_on_unit: string; employee: Employee | null }
@@ -741,6 +743,21 @@ export default function UnitDetailPage() {
             Not currently deployed to an active incident.
           </div>
         )}
+
+        {/* Unit QR Code */}
+        <div className="theme-card rounded-xl border overflow-hidden">
+          <div className="px-4 py-3 bg-gray-800">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Vehicle QR Code</h2>
+            <p className="text-xs text-gray-500 mt-0.5">Print and affix as a sticker — links to this vehicle's details, documents, and credentials.</p>
+          </div>
+          <QRCodeCard
+            url={`${brand.appUrl}/units/${unit.id}`}
+            label={unit.name}
+            sublabel={unit.unit_type?.name ?? undefined}
+            downloadName={`${unit.name.replace(/\s+/g, '-')}-QR`}
+            size={180}
+          />
+        </div>
 
         {/* Vehicle Documents */}
         <div className="theme-card rounded-xl border overflow-hidden">

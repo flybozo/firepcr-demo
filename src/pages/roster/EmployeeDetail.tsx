@@ -7,6 +7,8 @@ import { createClient } from '@/lib/supabase/client'
 import { loadSingle } from '@/lib/offlineFirst'
 import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
+import QRCodeCard from '@/components/QRCodeCard'
+import { brand } from '@/lib/branding.config'
 
 
 type Employee = {
@@ -431,6 +433,21 @@ export default function RosterDetailPage() {
         </div>
 
 
+
+        {/* Employee Badge QR Code */}
+        <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--color-card-bg, #111827)', borderColor: 'var(--color-border, #1f2937)' }}>
+          <div className="px-4 py-3 border-b" style={{ backgroundColor: 'var(--color-header-bg, #030712)', borderColor: 'var(--color-border, #1f2937)' }}>
+            <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300">Badge QR Code</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Print for employee badge — links to credential verification.</p>
+          </div>
+          <QRCodeCard
+            url={`${brand.appUrl}/roster/${emp.id}`}
+            label={emp.name}
+            sublabel={emp.role}
+            downloadName={`${emp.name.replace(/\s+/g, '-')}-badge-QR`}
+            size={180}
+          />
+        </div>
 
         {/* Employee Expenses — admin only */}
         {isAdmin && (
