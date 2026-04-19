@@ -510,7 +510,7 @@ function StatCard({
       onClick={closeExpanded}
     >
       <div
-        className="rounded-2xl border w-full max-w-4xl max-h-[90vh] flex flex-col"
+        className="rounded-2xl border w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
         style={{
           backgroundColor: 'var(--color-card-bg, #111827)',
           borderColor: 'var(--color-border, #1f2937)',
