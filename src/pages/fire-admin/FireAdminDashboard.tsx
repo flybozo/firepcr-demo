@@ -3,6 +3,8 @@
 import { useEffect, useState, useMemo } from 'react'
 import { brand } from '@/lib/branding.config'
 import { useParams } from 'react-router-dom'
+import { createClient } from '@/lib/supabase/client'
+import { ContactCards } from '@/components/ContactCards'
 import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, CartesianGrid,
@@ -35,7 +37,7 @@ const gridStyle = { stroke: '#1f2937' }
 const tooltipStyle = { backgroundColor: '#111827', border: '1px solid #374151', borderRadius: 8, color: '#fff', fontSize: 12 }
 
 // ── Types ────────────────────────────────────────────────────────────────────
-type DashboardData = {
+export type DashboardData = {
   incident: {
     id: string; name: string; location: string | null; incident_number: string | null
     start_date: string | null; end_date: string | null; status: string; notes: string | null
@@ -70,6 +72,9 @@ type DashboardData = {
   code_label: string | null
   codeLabel?: string | null  // backward compat
   supply_aggregated?: { item_name: string; total_qty: number; unit: string; category: string }[]
+  supply_items?: { item_name: string; quantity: number; unit_of_measure: string; category: string; created_at: string }[]
+  medical_directors?: { id: string; name: string; role: string; phone: string | null; email: string | null; headshot_url: string | null }[]
+  deployed_units?: { unit_name: string; crew: { name: string; role: string; role_on_unit: string; phone: string | null; email: string | null; headshot_url: string | null }[] }[]
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -231,7 +236,7 @@ function OverviewTab({ data, filteredEncounters }: {
 }
 
 // ── Tab 2: Patient Log ────────────────────────────────────────────────────────
-function PatientLogTab({ data, code, logEvent }: { data: DashboardData; code: string; logEvent: (e: { event_type: string; tab?: string; document_type?: string; document_id?: string }) => void }) {
+function PatientLogTab({ data, code, logEvent, isPreview }: { data: DashboardData; code: string; logEvent: (e: { event_type: string; tab?: string; document_type?: string; document_id?: string }) => void; isPreview?: boolean }) {
   const [unitFilter, setUnitFilter] = useState('All')
   const [selected, setSelected] = useState<typeof data.encounters[0] | null>(null)
   const [downloading, setDownloading] = useState<string | null>(null)
@@ -245,7 +250,10 @@ function PatientLogTab({ data, code, logEvent }: { data: DashboardData; code: st
     setDownloading(claimId)
     logEvent({ event_type: 'pdf_download', tab: 'patients', document_type: 'comp_claim', document_id: claimId })
     try {
-      const res = await fetch(`/api/incident-access/download?code=${code}&type=comp_claim&id=${claimId}`)
+      const res = await fetch(isPreview
+            ? `/api/incident-access/download?incidentId=${code}&type=comp_claim&id=${claimId}`
+            : `/api/incident-access/download?code=${code}&type=comp_claim&id=${claimId}`,
+          isPreview ? { headers: { Authorization: `Bearer ${(await createClient().auth.getSession()).data?.session?.access_token ?? ''}` } } : undefined)
       const { url } = await res.json()
       if (url) window.open(url, '_blank')
     } finally {
@@ -316,7 +324,7 @@ function PatientLogTab({ data, code, logEvent }: { data: DashboardData; code: st
                     {!enc.has_ama && !(enc.has_comp_claim && claim?.has_pdf) && <span className="text-gray-700 text-xs">—</span>}
                   </span>
                   {/* Supervisor from comp claim */}
-                  <span className="text-xs text-gray-400 truncate">{(claim as any)?.supervisor_name || '—'}</span>
+                  <span className="text-xs text-gray-400 truncate">{claim.supervisor_name || '—'}</span>
                   {/* Acuity — last column */}
                   <span className={`text-xs px-1.5 py-0.5 rounded font-medium text-center ${ACUITY_PILL[enc.acuity] ?? 'bg-gray-800 text-gray-400 border border-gray-700'}`}>
                     {enc.acuity?.split(' ')[0] || '—'}
@@ -356,14 +364,17 @@ function PatientLogTab({ data, code, logEvent }: { data: DashboardData; code: st
 }
 
 // ── Tab 4: ICS 214s ──────────────────────────────────────────────────────────
-function ICS214Tab({ data, code, logEvent }: { data: DashboardData; code: string; logEvent: (e: { event_type: string; tab?: string; document_type?: string; document_id?: string }) => void }) {
+function ICS214Tab({ data, code, logEvent, isPreview }: { data: DashboardData; code: string; logEvent: (e: { event_type: string; tab?: string; document_type?: string; document_id?: string }) => void; isPreview?: boolean }) {
   const [downloading, setDownloading] = useState<string | null>(null)
 
   const handleDownload = async (formId: string) => {
     setDownloading(formId)
     logEvent({ event_type: 'pdf_download', tab: 'ics214', document_type: 'ics214', document_id: formId })
     try {
-      const res = await fetch(`/api/incident-access/download?code=${code}&type=ics214&id=${formId}`)
+      const res = await fetch(isPreview
+            ? `/api/incident-access/download?incidentId=${code}&type=ics214&id=${formId}`
+            : `/api/incident-access/download?code=${code}&type=ics214&id=${formId}`,
+          isPreview ? { headers: { Authorization: `Bearer ${(await createClient().auth.getSession()).data?.session?.access_token ?? ''}` } } : undefined)
       const { url } = await res.json()
       if (url) window.open(url, '_blank')
     } finally {
@@ -431,18 +442,37 @@ function ICS214Tab({ data, code, logEvent }: { data: DashboardData; code: string
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 // ── Tab 5: Supply ────────────────────────────────────────────────────────────
-function SupplyTab({ data }: { data: DashboardData }) {
-  const items = data.supply_aggregated || []
-  if (items.length === 0) return <Empty text="No supply run data for this incident" />
+function SupplyTab({ data, dateFilter }: { data: DashboardData; dateFilter?: DateFilter }) {
+  // Re-aggregate from raw items when date filter is active
+  const items = useMemo(() => {
+    if (!dateFilter || dateFilter === 'all' || !data.supply_items?.length) {
+      return data.supply_aggregated || []
+    }
+    const ms = dateFilter === '24h' ? 86400000 : dateFilter === '48h' ? 172800000 : 604800000
+    const cutoff = Date.now() - ms
+    const filtered = data.supply_items.filter(i => i.created_at && new Date(i.created_at).getTime() >= cutoff)
+    const totals: Record<string, { qty: number; unit: string; category: string }> = {}
+    filtered.forEach(i => {
+      if (!i.item_name) return
+      if (!totals[i.item_name]) totals[i.item_name] = { qty: 0, unit: i.unit_of_measure || '', category: i.category || '' }
+      totals[i.item_name].qty += i.quantity || 0
+    })
+    return Object.entries(totals)
+      .map(([item_name, { qty, unit, category }]) => ({ item_name, total_qty: qty, unit, category }))
+      .sort((a, b) => b.total_qty - a.total_qty)
+  }, [data.supply_aggregated, data.supply_items, dateFilter])
+
+  if (items.length === 0) return <Empty text={dateFilter && dateFilter !== 'all' ? 'No supply runs in this time period' : 'No supply run data for this incident'} />
 
   const BAR_COLORS = [C.blue, C.teal, C.violet, C.orange, C.red, C.green, C.amber]
   const chartItems = items.slice(0, 20)
+  const filterLabel = !dateFilter || dateFilter === 'all' ? 'Full incident' : dateFilter === '24h' ? 'Last 24 hours' : dateFilter === '48h' ? 'Last 48 hours' : 'Last 7 days'
 
   return (
     <div className="space-y-6">
       <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
         <h3 className="text-sm font-bold text-white mb-1">🧰 Consumables Used — All Units Combined</h3>
-        <p className="text-xs text-gray-500 mb-4">Full incident totals — not affected by date filter</p>
+        <p className="text-xs text-gray-500 mb-4">{filterLabel} — {items.reduce((s, i) => s + i.total_qty, 0)} items across {items.length} types</p>
         <ResponsiveContainer width="100%" height={Math.max(200, chartItems.length * 28)}>
           <BarChart data={chartItems} layout="vertical" margin={{ left: 8, right: 24, top: 4, bottom: 4 }}>
             <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="#1f2937" />
@@ -473,21 +503,26 @@ function SupplyTab({ data }: { data: DashboardData }) {
   )
 }
 
-type Tab = 'overview' | 'patients' | 'ics214' | 'supply'
-type DateFilter = 'all' | '24h' | '48h' | '7d'
+export type Tab = 'overview' | 'patients' | 'ics214' | 'supply'
+export type DateFilter = 'all' | '24h' | '48h' | '7d'
+
+export { OverviewTab, PatientLogTab, ICS214Tab, SupplyTab, STATUS_COLOR, C }
 
 export default function FireAdminPage() {
   const params = useParams()
   const code = params.code as string
+  // Detect internal preview: if the "code" is actually a UUID (incident ID), use authenticated path
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(code || '')
+  const isPreview = isUUID
   const [data, setData] = useState<DashboardData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('overview')
   const [dateFilter, setDateFilter] = useState<DateFilter>('all')
 
-  // Fire-and-forget event logger — records tab views + PDF downloads
+  // Fire-and-forget event logger — records tab views + PDF downloads (skip for previews)
   const logEvent = (event: { event_type: string; tab?: string; document_type?: string; document_id?: string }) => {
-    if (!code) return
+    if (!code || isPreview) return
     fetch('/api/incident-access/log', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -502,15 +537,32 @@ export default function FireAdminPage() {
 
   useEffect(() => {
     if (!code) return
-    fetch(`/api/incident-access?code=${code.toUpperCase()}`)
-      .then(res => res.json())
-      .then(json => {
+    const loadDashboard = async () => {
+      try {
+        let res: Response
+        if (isPreview) {
+          // Internal preview: use authenticated incidentId path
+          const supabase = createClient()
+          const { data: { session } } = await supabase.auth.getSession()
+          const token = session?.access_token
+          if (!token) { setError('Not logged in — sign in first to preview'); setLoading(false); return }
+          res = await fetch(`/api/incident-access?incidentId=${encodeURIComponent(code)}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+        } else {
+          res = await fetch(`/api/incident-access?code=${code.toUpperCase()}`)
+        }
+        const json = await res.json()
         if (json.error) setError(json.error)
         else setData(json)
-      })
-      .catch(() => setError('Failed to load dashboard'))
-      .finally(() => setLoading(false))
-  }, [code])
+      } catch {
+        setError('Failed to load dashboard')
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadDashboard()
+  }, [code, isPreview])
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: '📊' },
@@ -573,8 +625,14 @@ export default function FireAdminPage() {
             <p className="text-xs text-gray-500 truncate">Incident Medical Dashboard</p>
           </div>
           <div className="text-right shrink-0 hidden sm:block">
-            <p className="text-xs text-gray-500">Access Code</p>
-            <p className="text-sm font-mono font-bold text-amber-400">{code.toUpperCase()}</p>
+            {isPreview ? (
+              <span className="text-xs px-2.5 py-1 bg-blue-900 text-blue-300 rounded-full font-semibold">👁️ Admin Preview</span>
+            ) : (
+              <>
+                <p className="text-xs text-gray-500">Access Code</p>
+                <p className="text-sm font-mono font-bold text-amber-400">{code.toUpperCase()}</p>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -603,6 +661,9 @@ export default function FireAdminPage() {
           </div>
         </div>
 
+        {/* ── Medical Directors & Deployed Units ── */}
+        <ContactCards medicalDirectors={data.medical_directors} deployedUnits={data.deployed_units} />
+
         {/* ── Tab pills + date filter ── */}
         <div className="flex flex-wrap items-center gap-2">
           {tabs.map(t => (
@@ -624,9 +685,9 @@ export default function FireAdminPage() {
 
         {/* ── Tab content ── */}
         {tab === 'overview' && <OverviewTab data={data} filteredEncounters={applyDateFilter(data.encounters)} />}
-        {tab === 'patients' && <PatientLogTab data={{ ...data, encounters: applyDateFilter(data.encounters) }} code={code} logEvent={logEvent} />}
-        {tab === 'ics214' && <ICS214Tab data={data} code={code} logEvent={logEvent} />}
-        {tab === 'supply' && <SupplyTab data={data} />}
+        {tab === 'patients' && <PatientLogTab data={{ ...data, encounters: applyDateFilter(data.encounters) }} code={code} logEvent={logEvent} isPreview={isPreview} />}
+        {tab === 'ics214' && <ICS214Tab data={data} code={code} logEvent={logEvent} isPreview={isPreview} />}
+        {tab === 'supply' && <SupplyTab data={data} dateFilter={dateFilter} />}
 
         {/* ── Footer ── */}
         <footer className="pt-4 border-t border-gray-800 text-center">

@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { getCachedData } from '@/lib/offlineStore'
 import { Link, useMatch } from 'react-router-dom'
+import { PageHeader, LoadingSkeleton, EmptyState } from '@/components/ui'
 import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
 
 type InventoryItem = {
@@ -232,19 +233,17 @@ function InventoryPageInner() {
           📦 Showing cached data — changes will sync when back online
         </div>
       )}
-      <div className="flex items-center justify-between mb-4 mt-8 md:mt-0">
-        <div>
-          <h1 className="text-xl font-bold">Inventory</h1>
-          <p className="text-gray-500 text-xs mt-0.5">
-            {filtered.length} items
-            {lowCount > 0 && <span className="text-red-400 ml-2">· {lowCount} low stock</span>}
-          </p>
-        </div>
-        <Link to="/inventory/add"
-          className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-xs font-semibold transition-colors">
-          + Add
-        </Link>
-      </div>
+      <PageHeader
+        title="Inventory"
+        subtitle={`${filtered.length} items${lowCount > 0 ? ` · ${lowCount} low stock` : ''}`}
+        actions={
+          <Link to="/inventory/add"
+            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-xs font-semibold transition-colors">
+            + Add
+          </Link>
+        }
+        className="mb-4 mt-8 md:mt-0"
+      />
 
       {/* Filters - compact */}
       <div className="space-y-2 mb-3">
@@ -324,7 +323,7 @@ function InventoryPageInner() {
       </div>
 
       {loading ? (
-        <p className="text-gray-500 text-sm">Loading...</p>
+        <LoadingSkeleton rows={6} header />
       ) : (
         <>
           {/* Table */}
@@ -378,7 +377,7 @@ function InventoryPageInner() {
                 )
               })}
               {paginated.length === 0 && (
-                <p className="text-center text-gray-600 py-6 text-sm">No items found.</p>
+                <EmptyState icon="📦" message="No items found." className="py-6" />
               )}
             </div>
           </div>

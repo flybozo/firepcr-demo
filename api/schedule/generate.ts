@@ -1,7 +1,7 @@
 
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { HttpError, requireEmployee } from '../_auth.js'
-import { brand } from '../../src/lib/branding.config.js'
+import { brand } from '../_brand.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })

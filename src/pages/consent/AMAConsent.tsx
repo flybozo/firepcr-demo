@@ -2,7 +2,7 @@
 import EncounterPicker, { type PickedEncounter } from '@/components/EncounterPicker'
 
 import { useState, useRef, useEffect, Suspense } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, Link } from 'react-router-dom'
 import SignatureCanvas from 'react-signature-canvas'
 import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
@@ -440,10 +440,13 @@ function AMAFormInner() {
   }
 
   // On success screen, poll DB for pdf_url if not set yet (background save may still be running)
+  // If background save failed after polling, retry the PDF generation + upload as fallback
   useEffect(() => {
     if (!submitted || !lastConsentId || pdfUrl) return
     let attempts = 0
+    let cancelled = false
     const poll = setInterval(async () => {
+      if (cancelled) return
       attempts++
       try {
         const { data } = await supabase.from('consent_forms').select('pdf_url').eq('consent_id', lastConsentId).single()
@@ -451,11 +454,29 @@ function AMAFormInner() {
           const { data: signed } = await supabase.storage.from('documents').createSignedUrl(data.pdf_url, 3600 * 24 * 365)
           if (signed?.signedUrl) setPdfUrl(signed.signedUrl)
           clearInterval(poll)
+          return
         }
       } catch {}
-      if (attempts >= 10) clearInterval(poll) // give up after 10s
+      // After 10 polls (10s), try generating + uploading the PDF ourselves as fallback
+      if (attempts >= 10) {
+        clearInterval(poll)
+        if (!lastConsentData || cancelled) return
+        try {
+          const doc = generateAMAPDF({ ...lastConsentData, consent_id: lastConsentId }, logoDataUrl)
+          const pdfBlob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' })
+          const storagePath = `ama/${lastConsentId}.pdf`
+          const { error: uploadErr } = await supabase.storage.from('documents').upload(storagePath, pdfBlob, { contentType: 'application/pdf', upsert: true })
+          if (!uploadErr) {
+            const { data: signed } = await supabase.storage.from('documents').createSignedUrl(storagePath, 3600 * 24 * 365)
+            if (signed?.signedUrl && !cancelled) setPdfUrl(signed.signedUrl)
+            await supabase.from('consent_forms').update({ pdf_url: storagePath }).eq('consent_id', lastConsentId)
+          }
+        } catch (e) {
+          console.error('Fallback PDF save failed:', e)
+        }
+      }
     }, 1000)
-    return () => clearInterval(poll)
+    return () => { cancelled = true; clearInterval(poll) }
   }, [submitted, lastConsentId, pdfUrl])
 
   if (submitted) {
@@ -499,6 +520,10 @@ function AMAFormInner() {
           >
             New AMA Form
           </button>
+          {encounterId && (
+            <Link to={`/encounters/${encounterId}`}
+              className="text-gray-500 text-sm hover:text-gray-400">← Back to Encounter</Link>
+          )}
           <div><a href="/" className="text-gray-500 text-sm underline">Back to Home</a></div>
         </div>
       </div>

@@ -2,6 +2,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRole } from '@/lib/useRole'
 import { authFetch } from '@/lib/authFetch'
+import { LoadingSkeleton } from '@/components/ui'
 
 const ROLES = ['EMT', 'Paramedic', 'RN', 'NP', 'PA', 'MD', 'DO', 'Tech']
 const UNITS = ['RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
@@ -265,7 +266,7 @@ function PushNotificationsInner() {
 
 export default function PushNotificationsPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-950 flex items-center justify-center"><p className="text-gray-400">Loading...</p></div>}>
+    <Suspense fallback={<LoadingSkeleton fullPage />}>
       <PushNotificationsInner />
     </Suspense>
   )

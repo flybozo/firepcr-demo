@@ -801,11 +801,11 @@ function WorkforceTab() {
         <SectionHeader title="👥 Staffing Summary" sub="Active employees" />
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
           <StatCard label="Total Staff" value={loading ? '—' : employees.length} accent={C.red} />
-          <StatCard label="MDs / DOs" value={loading ? '—' : countByRole(['MD', 'DO', 'MD/DO'])} accent={C.blue} />
+          <StatCard label="MDs / DOs" value={loading ? '—' : countByRole(['MD', 'DO'])} accent={C.blue} />
           <StatCard label="Paramedics" value={loading ? '—' : countByRole(['Paramedic', 'FP-C'])} accent={C.green} />
           <StatCard label="EMTs" value={loading ? '—' : countByRole(['EMT', 'EMT-B', 'AEMT'])} accent={C.amber} />
           <StatCard label="RNs" value={loading ? '—' : countByRole(['RN', 'CEN', 'CCRN'])} accent={C.violet} />
-          <StatCard label="Other" value={loading ? '—' : employees.filter(e => !['MD', 'DO', 'MD/DO', 'Paramedic', 'FP-C', 'EMT', 'EMT-B', 'AEMT', 'RN', 'CEN', 'CCRN'].includes(e.role as string)).length} accent={C.gray} />
+          <StatCard label="Other" value={loading ? '—' : employees.filter(e => !['MD', 'DO', 'Paramedic', 'FP-C', 'EMT', 'EMT-B', 'AEMT', 'RN', 'CEN', 'CCRN'].includes(e.role as string)).length} accent={C.gray} />
         </div>
         {loading ? <Skeleton h="h-52" /> : roleData.length === 0 ? <Empty /> : (
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col md:flex-row items-center gap-6">

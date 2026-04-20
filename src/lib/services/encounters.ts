@@ -64,7 +64,7 @@ export function queryUnitsWithIncidents() {
 }
 
 /** Get clinical staff for encounter forms */
-export function queryClinicalStaff(roles = ['MD', 'MD/DO', 'NP', 'PA', 'RN', 'Paramedic', 'EMT']) {
+export function queryClinicalStaff(roles = ['MD', 'DO', 'NP', 'PA', 'RN', 'Paramedic', 'EMT']) {
   return createClient()
     .from('employees')
     .select('id, name, role')
@@ -78,7 +78,7 @@ export function queryPhysicians() {
   return createClient()
     .from('employees')
     .select('id, full_name, role')
-    .in('role', ['MD', 'MD/DO'])
+    .in('role', ['MD', 'DO'])
     .eq('status', 'Active')
     .order('full_name')
 }

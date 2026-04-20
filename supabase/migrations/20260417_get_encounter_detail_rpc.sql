@@ -94,7 +94,8 @@ BEGIN
     jsonb_build_object(
       'id', cc.id, 'encounter_id', cc.encounter_id,
       'patient_name', cc.patient_name, 'date_of_injury', cc.date_of_injury,
-      'status', cc.status, 'pdf_url', cc.pdf_url, 'created_at', cc.created_at
+      'status', cc.status, 'pdf_url', cc.pdf_url, 'created_at', cc.created_at,
+      'provider_name', cc.provider_name
     ) ORDER BY cc.created_at DESC
   ), '[]'::jsonb)
   INTO v_comp_claims

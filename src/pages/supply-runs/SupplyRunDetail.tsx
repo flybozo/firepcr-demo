@@ -1,8 +1,10 @@
 
 
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
+import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
 import { loadSingle } from '@/lib/offlineFirst'
+import { LoadingSkeleton, EmptyState, ConfirmDialog } from '@/components/ui'
 import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
@@ -63,7 +65,7 @@ const CAT_COLORS: Record<string, string> = {
 export default function SupplyRunDetailPage() {
   const supabase = createClient()
   const assignment = useUserAssignment()
-  const isAdmin = ['MD', 'MD/DO', 'Admin'].includes(assignment.employee?.role || '')
+  const isAdmin = ['MD', 'DO', 'Admin'].includes(assignment.employee?.role || '')
   const params = useParams()
   const id = params.id as string
 
@@ -104,6 +106,7 @@ export default function SupplyRunDetailPage() {
     quantity: '',
   })
   const [itemSearch, setItemSearch] = useState('')
+  const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; confirmLabel?: string; icon?: string; confirmColor?: string } | null>(null)
 
   const loadData = useCallback(async () => {
     // Show cached data instantly
@@ -295,7 +298,7 @@ export default function SupplyRunDetailPage() {
 
   const handleAddItem = async () => {
     if (!newItem.item_name || !newItem.quantity) {
-      alert('Please enter item name and quantity.')
+      toast.warning('Please enter item name and quantity.')
       return
     }
     setAddingItem(true)
@@ -331,7 +334,7 @@ export default function SupplyRunDetailPage() {
         if (existing && existing.length > 0) {
           const currentQty = existing[0].quantity || 0
           if (currentQty < qty) {
-            alert(`⚠️ Insufficient stock: only ${currentQty} available. Cannot dispense ${qty}.`)
+            toast.warning(`Insufficient stock: only ${currentQty} available. Cannot dispense ${qty}.`)
             setAddingItem(false)
             return
           }
@@ -349,15 +352,24 @@ export default function SupplyRunDetailPage() {
       await loadData()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
-      alert(`Error: ${msg}`)
+      toast.error(`Error: ${msg}`)
     }
     setAddingItem(false)
   }
 
   // ── Delete item ───────────────────────────────────────────────────────────
 
-  const handleDeleteItem = async (itemId: string) => {
-    if (!confirm('Delete this item? Quantity will be restored to unit inventory.')) return
+  const handleDeleteItem = (itemId: string) => {
+    setConfirmAction({
+      action: async () => { await _doDeleteItem(itemId) },
+      title: 'Delete Item',
+      message: 'Delete this item? Quantity will be restored to unit inventory.',
+      icon: '🗑️',
+      confirmColor: 'bg-red-600 hover:bg-red-700',
+    })
+  }
+
+  const _doDeleteItem = async (itemId: string) => {
     setDeletingId(itemId)
     try {
       const deletedItem = items.find(i => i.id === itemId)
@@ -390,7 +402,7 @@ export default function SupplyRunDetailPage() {
       await loadData()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
-      alert(`Error: ${msg}`)
+      toast.error(`Error: ${msg}`)
     }
     setDeletingId(null)
   }
@@ -430,25 +442,18 @@ export default function SupplyRunDetailPage() {
       await loadData()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
-      alert(`Error updating quantity: ${msg}`)
+      toast.error(`Error updating quantity: ${msg}`)
     }
     setEditingQtyId(null)
   }
 
   // ─────────────────────────────────────────────────────────────────────────
 
-  if (loading) return (
-    <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-      <p className="text-gray-400">Loading...</p>
-    </div>
-  )
+  if (loading) return <LoadingSkeleton fullPage />
 
   if (!run) return (
     <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-      <div className="text-center">
-        <p className="text-gray-400 mb-4">Supply run not found.</p>
-        <Link to="/supply-runs" className="text-red-400 underline">← Back</Link>
-      </div>
+      <EmptyState icon="📦" message="Supply run not found." actionHref="/supply-runs" actionLabel="← Back" />
     </div>
   )
 
@@ -739,6 +744,15 @@ export default function SupplyRunDetailPage() {
         </div>
 
       </div>
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message || ''}
+        icon={confirmAction?.icon || '⚠️'}
+        confirmColor={confirmAction?.confirmColor}
+        onConfirm={() => { confirmAction?.action(); setConfirmAction(null) }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   )
 }

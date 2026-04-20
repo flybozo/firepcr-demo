@@ -10,6 +10,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (req.method === 'GET') return await getMessages(req, res)
     if (req.method === 'POST') return await sendMessage(req, res)
+    if (req.method === 'DELETE') return await deleteMessage(req, res)
     return res.status(405).json({ error: 'Method not allowed' })
   } catch (err: unknown) {
     if (err instanceof HttpError) return res.status(err.status).json({ error: err.message })
@@ -28,7 +29,7 @@ async function getMessages(req: VercelRequest, res: VercelResponse) {
 
   if (!channelId) throw new HttpError(400, 'channelId is required')
 
-  // Verify membership
+  // Verify membership (or owner observer access)
   const { data: membership } = await supabase
     .from('chat_members')
     .select('id')
@@ -36,7 +37,12 @@ async function getMessages(req: VercelRequest, res: VercelResponse) {
     .eq('employee_id', employee.id)
     .single()
 
-  if (!membership) throw new HttpError(403, 'Not a member of this channel')
+  if (!membership) {
+    // Allow org owner to read DMs silently
+    const { data: ownerCheck } = await supabase
+      .from('employees').select('is_owner').eq('id', employee.id).single()
+    if (!ownerCheck?.is_owner) throw new HttpError(403, 'Not a member of this channel')
+  }
 
   let query = supabase
     .from('chat_messages')
@@ -186,16 +192,18 @@ async function sendPushNotifications(
 
   const otherEmployeeIds = members.map((m) => m.employee_id)
 
-  const { data: subscriptions } = await supabase
-    .from('push_subscriptions')
-    .select('endpoint, p256dh, auth, employee_id')
-    .in('employee_id', otherEmployeeIds)
+  // Also fetch the sender's own subscription endpoints to exclude them
+  // (handles case where device is shared or subscription was registered under wrong employee_id)
+  const [{ data: subscriptions }, { data: senderSubs }] = await Promise.all([
+    supabase.from('push_subscriptions').select('endpoint, p256dh, auth, employee_id').in('employee_id', otherEmployeeIds),
+    supabase.from('push_subscriptions').select('endpoint').eq('employee_id', senderId),
+  ])
 
   if (!subscriptions?.length) return
 
-  // Double-check: filter out any subscriptions belonging to the sender
-  // (safety net in case of duplicate employee records or stale data)
-  const filteredSubs = subscriptions.filter((s) => s.employee_id !== senderId)
+  const senderEndpoints = new Set((senderSubs || []).map((s: { endpoint: string }) => s.endpoint))
+  // Filter out sender's subscriptions by both employee_id AND endpoint
+  const filteredSubs = subscriptions.filter((s) => s.employee_id !== senderId && !senderEndpoints.has(s.endpoint))
   if (!filteredSubs.length) return
 
   const channelName = channel?.name || 'Team Chat'
@@ -225,4 +233,33 @@ async function sendPushNotifications(
       })
     )
   )
+}
+
+async function deleteMessage(req: VercelRequest, res: VercelResponse) {
+  const { employee } = await requireEmployee(req)
+  const messageId = req.query.messageId as string
+  if (!messageId) throw new HttpError(400, 'messageId is required')
+
+  const supabase = createServiceClient()
+
+  // Verify the message exists and belongs to the sender
+  const { data: msg, error: msgErr } = await supabase
+    .from('chat_messages')
+    .select('id, sender_id, channel_id')
+    .eq('id', messageId)
+    .is('deleted_at', null)
+    .single()
+
+  if (msgErr || !msg) throw new HttpError(404, 'Message not found')
+  if (msg.sender_id !== employee.id) throw new HttpError(403, 'Can only delete your own messages')
+
+  // Soft delete
+  const { error } = await supabase
+    .from('chat_messages')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', messageId)
+
+  if (error) throw new Error(error.message)
+
+  return res.status(200).json({ ok: true })
 }

@@ -348,9 +348,7 @@ function MARListInner() {
                     <span className="w-20 shrink-0 text-gray-400 text-xs">{entry.date || '-'}</span>
                     <span className="w-20 shrink-0 text-white text-xs font-medium truncate pr-1">
                       {entry.patient_name
-                        ? entry.patient_name.split(/[, ]+/).filter(Boolean).slice(0, 2).map((n: string, i: number) =>
-                            i === 0 ? n : n[0] + '.'
-                          ).join(', ')
+                        ? entry.patient_name.split(/[, ]+/).filter(Boolean).map((n: string) => n[0].toUpperCase() + '.').join(' ')
                         : '-'}
                     </span>
                     <span className="flex-1 min-w-[120px] text-gray-200 text-xs truncate pr-2">

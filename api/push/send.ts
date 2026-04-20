@@ -3,7 +3,7 @@ import { createServiceClient } from '../_supabase.js'
 import { requireEmployee } from '../_auth.js'
 import { sendEmail, buildEmailHtml } from '../_email.js'
 import webpush from 'web-push'
-import { brand } from '../../src/lib/branding.config.js'
+import { brand } from '../_brand.js'
 import { ensureVapid } from '../_vapid.js'
 
 type SendRequest = {

@@ -1,5 +1,5 @@
 import webpush from 'web-push'
-import { brand } from '../src/lib/branding.config.js'
+import { brand } from './_brand.js'
 
 const VAPID_PUBLIC = process.env.VAPID_PUBLIC_KEY || ''
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY || ''

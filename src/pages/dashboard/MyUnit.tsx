@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
+import { ConfirmDialog } from '@/components/ui'
 
 type CrewMember = {
   id: string
@@ -57,6 +58,7 @@ export default function MyUnitDashboard() {
   const [deploymentLoading, setDeploymentLoading] = useState(true)
   const [checkingIn, setCheckingIn] = useState(false)
   const [checkingOut, setCheckingOut] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; confirmLabel?: string; icon?: string; confirmColor?: string } | null>(null)
 
   // Load active deployment
   useEffect(() => {
@@ -179,42 +181,54 @@ export default function MyUnitDashboard() {
     load()
   }, [assignment.loading, assignment.incidentUnit?.id])
 
-  const handleCheckIn = async () => {
+  const handleCheckIn = () => {
     if (!deployment) return
-    if (!confirm('Confirm check-in: You have arrived at the fire?')) return
-    setCheckingIn(true)
-    const today = new Date().toISOString().split('T')[0]
-    const { data, error } = await supabase
-      .from('deployment_records')
-      .update({
-        check_in_date: today,
-        checked_in_at: new Date().toISOString(),
-        status: 'On Scene',
-      })
-      .eq('id', deployment.id)
-      .select('id, status, travel_date, check_in_date, check_out_date, daily_rate, incidents(name)')
-      .single()
-    if (!error && data) setDeployment(data as unknown as DeploymentRecord)
-    setCheckingIn(false)
+    setConfirmAction({
+      action: async () => {
+        setCheckingIn(true)
+        const today = new Date().toISOString().split('T')[0]
+        const { data, error } = await supabase
+          .from('deployment_records')
+          .update({
+            check_in_date: today,
+            checked_in_at: new Date().toISOString(),
+            status: 'On Scene',
+          })
+          .eq('id', deployment.id)
+          .select('id, status, travel_date, check_in_date, check_out_date, daily_rate, incidents(name)')
+          .single()
+        if (!error && data) setDeployment(data as unknown as DeploymentRecord)
+        setCheckingIn(false)
+      },
+      title: 'Confirm Check-In',
+      message: 'You have arrived at the fire?',
+      icon: '✅',
+    })
   }
 
-  const handleCheckOut = async () => {
+  const handleCheckOut = () => {
     if (!deployment) return
-    if (!confirm('Confirm check-out: You are heading home?')) return
-    setCheckingOut(true)
-    const today = new Date().toISOString().split('T')[0]
-    const { data, error } = await supabase
-      .from('deployment_records')
-      .update({
-        check_out_date: today,
-        checked_out_at: new Date().toISOString(),
-        status: 'Released',
-      })
-      .eq('id', deployment.id)
-      .select('id, status, travel_date, check_in_date, check_out_date, daily_rate, incidents(name)')
-      .single()
-    if (!error && data) setDeployment(data as unknown as DeploymentRecord)
-    setCheckingOut(false)
+    setConfirmAction({
+      action: async () => {
+        setCheckingOut(true)
+        const today = new Date().toISOString().split('T')[0]
+        const { data, error } = await supabase
+          .from('deployment_records')
+          .update({
+            check_out_date: today,
+            checked_out_at: new Date().toISOString(),
+            status: 'Released',
+          })
+          .eq('id', deployment.id)
+          .select('id, status, travel_date, check_in_date, check_out_date, daily_rate, incidents(name)')
+          .single()
+        if (!error && data) setDeployment(data as unknown as DeploymentRecord)
+        setCheckingOut(false)
+      },
+      title: 'Confirm Check-Out',
+      message: 'You are heading home?',
+      icon: '✅',
+    })
   }
 
   if (assignment.loading || dataLoading) {
@@ -508,6 +522,15 @@ export default function MyUnitDashboard() {
         )}
 
       </div>
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message || ''}
+        icon={confirmAction?.icon || '⚠️'}
+        confirmColor={confirmAction?.confirmColor}
+        onConfirm={() => { confirmAction?.action(); setConfirmAction(null) }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   )
 }

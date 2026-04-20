@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
+import { LoadingSkeleton } from '@/components/ui'
 import { queryClinicalEmployees, updateInventoryQty, insertCSTransaction, insertDailyCount } from '@/lib/services/cs'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useOfflineWrite } from '@/lib/useOfflineWrite'
@@ -31,7 +32,7 @@ type CountEntry = {
 }
 
 const ALL_UNITS = ['Warehouse', 'RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
-const CLINICAL_ROLES = ['MD/DO', 'NP', 'PA', 'Paramedic', 'RN']
+const CLINICAL_ROLES = ['MD', 'DO', 'NP', 'PA', 'Paramedic', 'RN']
 
 const inputCls = 'w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500'
 const labelCls = 'block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1'
@@ -413,7 +414,7 @@ function DailyCountInner() {
 
 export default function DailyCountPage() {
   return (
-    <Suspense fallback={<div className="p-8 text-gray-400">Loading...</div>}>
+    <Suspense fallback={<LoadingSkeleton fullPage />}>
       <DailyCountInner />
     </Suspense>
   )

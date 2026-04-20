@@ -28,7 +28,7 @@ export default function Ticker() {
         .select('id', { count: 'exact', head: true })
         .eq('requires_cosign', true)
         .is('provider_signature_url', null)
-      const isAdmin = ['Admin', 'MD', 'MD/DO'].includes(assignment.employee?.role || '')
+      const isAdmin = ['Admin', 'MD', 'DO'].includes(assignment.employee?.role || '')
       if (!isAdmin && assignment.employee?.name) {
         query = query.eq('prescribing_provider', assignment.employee.name)
       }
@@ -52,19 +52,19 @@ export default function Ticker() {
         .order('priority', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(20)
-      const clinicianRoles = ['MD', 'MD/DO', 'NP', 'PA', 'RN', 'Paramedic']
+      const clinicianRoles = ['MD', 'DO', 'NP', 'PA', 'RN', 'Paramedic']
       const filteredAnnouncements = (announcements || []).filter((a: any) => {
         const list: string[] = a.audience_list || [a.audience || 'all']
         if (list.includes('all')) return true
         if (list.includes(userRole)) return true
-        if (list.includes('admin') && ['MD', 'MD/DO', 'Admin'].includes(userRole)) return true
+        if (list.includes('admin') && ['MD', 'DO', 'Admin'].includes(userRole)) return true
         if (list.includes('providers') && clinicianRoles.includes(userRole)) return true
         if (list.includes('EMT') && userRole === 'EMT') return true
         if (list.includes('Paramedic') && userRole === 'Paramedic') return true
         if (list.includes('RN') && userRole === 'RN') return true
         if (list.includes('NP') && userRole === 'NP') return true
         if (list.includes('PA') && userRole === 'PA') return true
-        if (list.includes('MD') && ['MD', 'MD/DO'].includes(userRole)) return true
+        if (list.includes('MD') && ['MD', 'DO'].includes(userRole)) return true
         return false
       })
       for (const a of filteredAnnouncements) {

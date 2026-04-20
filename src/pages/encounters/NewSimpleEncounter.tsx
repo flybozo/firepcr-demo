@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
+import { LoadingSkeleton } from '@/components/ui'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { queryClinicalStaff, queryUnitsWithIncidents } from '@/lib/services/encounters'
 import { useUserAssignment } from '@/lib/useUserAssignment'
@@ -49,7 +50,7 @@ const SCENE_TYPES = [
   'Wildland Fire Scene', 'Structure Fire Scene', 'Residence/Home', 'Street/Highway', 'Other',
 ]
 
-const CLINICAL_ROLES = ['MD', 'MD/DO', 'NP', 'PA']
+const CLINICAL_ROLES = ['MD', 'DO', 'NP', 'PA']
 
 function SimpleEHRInner() {
   const supabase = createClient()
@@ -606,7 +607,7 @@ function SimpleEHRInner() {
 
 export default function SimpleEHRPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-950 text-white flex items-center justify-center"><p className="text-gray-400">Loading...</p></div>}>
+    <Suspense fallback={<LoadingSkeleton fullPage />}>
       <SimpleEHRInner />
     </Suspense>
   )

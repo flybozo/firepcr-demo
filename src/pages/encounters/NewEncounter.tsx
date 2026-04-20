@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
+import { LoadingSkeleton } from '@/components/ui'
 import { queryAllIncidents, queryUnitsWithIncidents } from '@/lib/services/encounters'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
@@ -166,11 +167,7 @@ function NewEncounterInner() {
   const inputCls = 'w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500'
   const labelCls = 'block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1'
 
-  if (loading || assignment.loading) return (
-    <div className="p-8 flex items-center justify-center mt-16">
-      <p className="text-gray-400">Loading...</p>
-    </div>
-  )
+  if (loading || assignment.loading) return <LoadingSkeleton fullPage />
 
   const selectedUnit = units.find(u => u.id === form.unit_id)
   const isAmbulance = form.unit_type === 'Ambulance' || form.unit_name.startsWith('RAMBO')
@@ -269,7 +266,7 @@ function NewEncounterInner() {
 
 export default function NewEncounterPage() {
   return (
-    <Suspense fallback={<div className="p-8 flex items-center justify-center mt-16"><p className="text-gray-400">Loading...</p></div>}>
+    <Suspense fallback={<LoadingSkeleton fullPage />}>
       <NewEncounterInner />
     </Suspense>
   )

@@ -1,78 +1,36 @@
-
-import { useEffect, useState, useCallback } from 'react'
+/**
+ * Internal Fire Dashboard — admin page for managing external access codes
+ * and previewing the same incident dashboard that external users see.
+ *
+ * Shares all tab components with FireAdminDashboard (external view).
+ * Only adds: incident selector, access codes panel, and access log tab.
+ */
+import { useEffect, useState, useCallback, useMemo } from 'react'
+import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
 import { authFetch } from '@/lib/authFetch'
 import { useRole } from '@/lib/useRole'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import {
-  ResponsiveContainer, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
-  XAxis, YAxis, Tooltip, CartesianGrid,
-} from 'recharts'
+  type DashboardData,
+  type DateFilter,
+  OverviewTab, PatientLogTab, ICS214Tab, SupplyTab, STATUS_COLOR, C,
+} from '@/pages/fire-admin/FireAdminDashboard'
+import { ContactCards } from '@/components/ContactCards'
+import { ConfirmDialog } from '@/components/ui'
 
-// ── Color palette ─────────────────────────────────────────────────────────────
-const C = {
-  red: '#dc2626', blue: '#2563eb', green: '#16a34a',
-  amber: '#d97706', violet: '#7c3aed', gray: '#6b7280',
-  teal: '#0d9488', orange: '#ea580c',
-}
-const ACUITY_COLORS: Record<string, string> = {
-  'Immediate': C.red, 'Delayed': C.amber, 'Minor': C.green, 'Expectant': C.gray,
-}
-const ACUITY_PILL: Record<string, string> = {
-  'Immediate': 'bg-red-900/60 text-red-300 border border-red-700/40',
-  'Red': 'bg-red-900/60 text-red-300 border border-red-700/40',
-  'Delayed': 'bg-yellow-900/60 text-yellow-300 border border-yellow-700/40',
-  'Yellow': 'bg-yellow-900/60 text-yellow-300 border border-yellow-700/40',
-  'Minor': 'bg-green-900/60 text-green-300 border border-green-700/40',
-  'Green': 'bg-green-900/60 text-green-300 border border-green-700/40',
-  'Expectant': 'bg-gray-800 text-gray-400 border border-gray-700',
-  'Black': 'bg-gray-900 text-gray-500 border border-gray-700',
-}
-const axisStyle = { fill: '#9ca3af', fontSize: 11 }
-const gridStyle = { stroke: '#1f2937' }
-const tooltipStyle = { backgroundColor: '#111827', border: '1px solid #374151', borderRadius: 8, color: '#fff', fontSize: 12 }
+const BASE_URL = import.meta.env.VITE_SITE_URL || 'https://ram-field-ops.vercel.app'
 
-// ── Types ────────────────────────────────────────────────────────────────────
 type Incident = { id: string; name: string; status: string; start_date: string | null; incident_number: string | null }
-type AccessCode = { id: string; access_code: string; label: string | null; created_by: string | null; active: boolean; created_at: string; expires_at: string | null }
-type DashboardData = {
-  incident: { id: string; name: string; location: string | null; incident_number: string | null; start_date: string | null; end_date: string | null; status: string }
-  stats: { total_patients: number; total_encounters: number; units_deployed: number; unique_units: string[]; comp_claims_count: number; ics214_count: number }
-  analytics: { chief_complaints: { name: string; count: number }[]; acuity_breakdown: { name: string; value: number }[]; encounters_by_day: { date: string; count: number }[] }
-  encounters: { id: string; seq_id: string; date: string | null; unit: string | null; patient_agency: string | null; age: string | null; chief_complaint: string | null; acuity: string; disposition: string | null; created_at: string | null }[]
-  comp_claims: { id: string; claim_number: string; date: string | null; status: string | null; has_pdf: boolean; pdf_url: string | null; patient_seq_id: string | null; osha_recordable: boolean | null; created_at: string | null }[]
-  ics214s: { id: string; ics214_id: string; unit: string | null; prepared_by: string | null; date: string | null; status: string | null; has_pdf: boolean; pdf_file_name: string | null }[]
-  supply_aggregated: { item_name: string; total_qty: number; unit: string; category?: string }[]
-  supply_items_raw: { item_name: string; quantity: number; unit_of_measure: string; category: string; run_date: string | null; created_at: string | null }[]
-  code_label: string | null
-}
+type AccessCode = { id: string; access_code: string; incident_id: string; label: string | null; active: boolean; expires_at: string | null; created_at: string; created_by: string | null }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-function StatCard({ label, value, accent = C.red, sub }: { label: string; value: string | number; accent?: string; sub?: string }) {
-  return (
-    <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col gap-1" style={{ borderLeftColor: accent, borderLeftWidth: 3 }}>
-      <span className="text-2xl font-bold text-white">{value}</span>
-      <span className="text-xs text-gray-400 uppercase tracking-wide">{label}</span>
-      {sub && <span className="text-xs text-gray-600 truncate">{sub}</span>}
-    </div>
-  )
-}
-function Empty({ text = 'No data' }: { text?: string }) {
-  return <div className="flex items-center justify-center h-36 text-gray-600 text-sm">{text}</div>
-}
+// Minimal local helpers used by AccessCodesPanel
 function Skeleton({ h = 'h-40' }: { h?: string }) {
   return <div className={`${h} bg-gray-800/50 rounded-xl animate-pulse`} />
 }
 function Badge({ color, label }: { color: string; label: string }) {
   return <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ backgroundColor: color + '30', color }}>{label}</span>
 }
-const STATUS_COLOR: Record<string, string> = {
-  'Active': C.green, 'Closed': C.gray, 'Open': C.green,
-  'Pending': C.amber, 'Submitted': C.blue, 'Approved': C.green,
-  'Denied': C.red, 'Under Review': C.violet,
-}
-
-const BASE_URL = import.meta.env.VITE_SITE_URL || 'https://ram-field-ops.vercel.app'
 
 // ── Access Codes Panel ────────────────────────────────────────────────────────
 function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; incidentName: string }) {
@@ -86,6 +44,7 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
   const [collapsed, setCollapsed] = useState(false)
   const [editingExpiry, setEditingExpiry] = useState<string | null>(null)
   const [newExpiry, setNewExpiry] = useState('')
+  const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; confirmLabel?: string; icon?: string; confirmColor?: string } | null>(null)
 
   const loadCodes = useCallback(async () => {
     setLoading(true)
@@ -97,9 +56,7 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
         .eq('incident_id', incidentId)
         .order('created_at', { ascending: false })
       setCodes(data || [])
-    } catch {
-      // Offline — show empty list
-    }
+    } catch {}
     setLoading(false)
   }, [incidentId])
 
@@ -121,7 +78,7 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
         loadCodes()
       } else {
         const err = await res.json()
-        alert('Error: ' + (err.error || 'Failed to generate code'))
+        toast.error('Error: ' + (err.error || 'Failed to generate code'))
       }
     } finally {
       setGenerating(false)
@@ -136,12 +93,19 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
     if (res.ok) loadCodes()
   }
 
-  const deleteCode = async (codeId: string, codeStr: string) => {
-    if (!confirm(`Delete access code ${codeStr}? This cannot be undone.`)) return
-    const res = await authFetch(`/api/incident-access?code_id=${encodeURIComponent(codeId)}`, {
-      method: 'DELETE',
+  const deleteCode = (codeId: string, codeStr: string) => {
+    setConfirmAction({
+      action: async () => {
+        const res = await authFetch(`/api/incident-access?code_id=${encodeURIComponent(codeId)}`, {
+          method: 'DELETE',
+        })
+        if (res.ok) loadCodes()
+      },
+      title: 'Delete Access Code',
+      message: `Delete access code ${codeStr}? This cannot be undone.`,
+      icon: '🗑️',
+      confirmColor: 'bg-red-600 hover:bg-red-700',
     })
-    if (res.ok) loadCodes()
   }
 
   const saveExpiry = async (codeId: string) => {
@@ -176,7 +140,6 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
 
       {!collapsed && (
         <div className="px-5 pb-5 space-y-4 border-t border-gray-800">
-          {/* Generate button */}
           <div className="pt-4">
             {!showForm ? (
               <button onClick={() => setShowForm(true)}
@@ -218,7 +181,6 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
             )}
           </div>
 
-          {/* Code list */}
           {loading ? <Skeleton h="h-24" /> : codes.length === 0 ? (
             <p className="text-xs text-gray-600 py-2">No access codes yet. Generate one to share with fire agency personnel.</p>
           ) : (
@@ -274,164 +236,49 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
           )}
         </div>
       )}
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message || ''}
+        icon={confirmAction?.icon || '⚠️'}
+        confirmColor={confirmAction?.confirmColor}
+        onConfirm={() => { confirmAction?.action(); setConfirmAction(null) }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   )
 }
 
-// ── Dashboard tabs ────────────────────────────────────────────────────────────
-type DashTab = 'overview' | 'patients' | 'ics214' | 'access-log' | 'supply'
+// ── Incident Dashboard (uses same API + shared tab components as external) ──
+type DashTab = 'overview' | 'patients' | 'ics214' | 'supply' | 'access-log'
 
 function IncidentDashboard({ incidentId }: { incidentId: string }) {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<DashTab>('overview')
-  const [dateFilter, setDateFilter] = useState<'all' | '24h' | '48h' | '7d'>('all')
-  const [patientUnitFilter, setPatientUnitFilter] = useState('All')
-  const [selectedPatient, setSelectedPatient] = useState<DashboardData['encounters'][0] | null>(null)
+  const [dateFilter, setDateFilter] = useState<DateFilter>('all')
 
   useEffect(() => {
-    if (!incidentId) return
     setLoading(true)
     setError(null)
-    const supabase = createClient()
-    const load = async () => {
-      try {
-        const [incRes, orgRes, encRes, unitsRes, compRes, icsRes] = await Promise.all([
-          supabase.from('incidents').select('id, name, location, incident_number, start_date, end_date, status').eq('id', incidentId).single(),
-          supabase.from('organizations').select('name, dba, logo_url').limit(1).single(),
-          supabase.from('patient_encounters').select('id, encounter_id, date, unit, patient_agency, patient_age, patient_age_units, primary_symptom_text, initial_acuity, final_acuity, patient_disposition, created_at').eq('incident_id', incidentId).is('deleted_at', null).order('date', { ascending: true }),
-          supabase.from('incident_units').select('id, unit_id').eq('incident_id', incidentId),
-          supabase.from('comp_claims').select('id, date_of_injury, status, pdf_url, encounter_id, osha_recordable, created_at').eq('incident_id', incidentId).order('created_at', { ascending: true }),
-          supabase.from('ics214_headers').select('id, ics214_id, unit_name, leader_name, op_date, status, pdf_url, pdf_file_name, created_by, created_at, closed_at').eq('incident_id', incidentId).order('op_date', { ascending: true }),
-        ])
-
-        const incident = incRes.data
-        if (!incident) { setError('Incident not found'); setLoading(false); return }
-
-        const encountersRaw = encRes.data || []
-        const mapAcuity = (raw: string | null) => {
-          if (!raw) return 'Expectant'
-          const v = raw.toLowerCase()
-          if (v.includes('critical') || v.includes('red') || v.includes('immediate')) return 'Immediate'
-          if (v.includes('yellow') || v.includes('delayed') || v.includes('emergent')) return 'Delayed'
-          if (v.includes('green') || v.includes('minor') || v.includes('non-acute') || v.includes('routine')) return 'Minor'
-          return 'Expectant'
-        }
-        const encounters = encountersRaw.map((enc, idx) => ({
-          id: enc.id, seq_id: `PT-${String(idx + 1).padStart(3, '0')}`,
-          date: enc.date, unit: enc.unit,
-          patient_agency: (enc as any).patient_agency || null,
-          age: enc.patient_age ? `${enc.patient_age}${enc.patient_age_units ? ' ' + enc.patient_age_units : ''}` : null,
-          chief_complaint: enc.primary_symptom_text,
-          acuity: mapAcuity(enc.initial_acuity),
-          disposition: enc.patient_disposition,
-          created_at: enc.created_at ?? null,
-        }))
-        // encLookup maps both UUID and text encounter_id → encounter UUID
-        const encLookup: Record<string, string> = {}
-        const encIdToSeq: Record<string, string> = {}
-        encountersRaw.forEach((e, idx) => {
-          const seqId = `PT-${String(idx + 1).padStart(3, '0')}`
-          encLookup[e.id] = e.id  // UUID → UUID (identity)
-          if ((e as any).encounter_id) encLookup[(e as any).encounter_id] = e.id  // text → UUID
-          encIdToSeq[e.id] = seqId
-        })
-
-        const compClaims = (compRes.data || []).map((cc, idx) => ({
-          id: cc.id, claim_number: `WC-${String(idx + 1).padStart(3, '0')}`,
-          date: cc.date_of_injury, status: cc.status,
-          has_pdf: !!cc.pdf_url, pdf_url: cc.pdf_url ?? null,
-          patient_seq_id: cc.encounter_id ? (encIdToSeq[encLookup[cc.encounter_id] || cc.encounter_id] || null) : null,
-          osha_recordable: cc.osha_recordable,
-          created_at: cc.created_at ?? null,
-          // store the resolved UUID so WC lookup works correctly
-          encounter_id: cc.encounter_id ? (encLookup[cc.encounter_id] || cc.encounter_id) : null,
-        }))
-
-        const ics214s = (icsRes.data || []).map(form => ({
-          id: form.id, ics214_id: form.ics214_id, unit: form.unit_name,
-          prepared_by: form.leader_name || form.created_by, date: form.op_date,
-          status: form.status, has_pdf: !!form.pdf_url, pdf_file_name: form.pdf_file_name,
-          closed_at: form.closed_at,
-        }))
-
-        // ── Supply runs fetch (with dates for filtering) ──
-        const supplyRunsRes = await supabase
-          .from('supply_runs')
-          .select('id, run_date, created_at')
-          .eq('incident_id', incidentId)
-        const runMap = new Map<string, { run_date: string | null; created_at: string | null }>()
-        ;(supplyRunsRes.data || []).forEach((r: any) => runMap.set(r.id, { run_date: r.run_date, created_at: r.created_at }))
-        const runIds = [...runMap.keys()]
-        let supplyAggregated: { item_name: string; total_qty: number; unit: string }[] = []
-        let supplyItemsRaw: { item_name: string; quantity: number; unit_of_measure: string; category: string; run_date: string | null; created_at: string | null }[] = []
-        if (runIds.length > 0) {
-          const supplyItemsRes = await supabase
-            .from('supply_run_items')
-            .select('item_name, quantity, unit_of_measure, category, supply_run_id')
-            .in('supply_run_id', runIds)
-            .is('deleted_at', null)
-          // Build raw items with run dates for client-side filtering
-          supplyItemsRaw = (supplyItemsRes.data || []).map((item: any) => {
-            const run = runMap.get(item.supply_run_id)
-            return {
-              item_name: item.item_name || '',
-              quantity: item.quantity || 0,
-              unit_of_measure: item.unit_of_measure || '',
-              category: item.category || '',
-              run_date: run?.run_date || null,
-              created_at: run?.created_at || null,
-            }
-          }).filter((i: any) => i.item_name)
-          // Full aggregation (unfiltered)
-          const itemTotals: Record<string, { total_qty: number; unit: string; category: string }> = {}
-          supplyItemsRaw.forEach(item => {
-            if (!itemTotals[item.item_name]) itemTotals[item.item_name] = { total_qty: 0, unit: item.unit_of_measure, category: item.category }
-            itemTotals[item.item_name].total_qty += item.quantity
-          })
-          supplyAggregated = Object.entries(itemTotals)
-            .sort((a, b) => b[1].total_qty - a[1].total_qty)
-            .map(([item_name, d]) => ({ item_name, ...d }))
-        }
-
-        const complaintCounts: Record<string, number> = {}
-        encounters.forEach(e => { if (e.chief_complaint) complaintCounts[e.chief_complaint] = (complaintCounts[e.chief_complaint] || 0) + 1 })
-        const acuityCounts: Record<string, number> = { Immediate: 0, Delayed: 0, Minor: 0, Expectant: 0 }
-        encounters.forEach(e => { acuityCounts[e.acuity]++ })
-        const dailyCounts: Record<string, number> = {}
-        encounters.forEach(e => { if (e.date) dailyCounts[e.date] = (dailyCounts[e.date] || 0) + 1 })
-
-        setData({
-          incident,
-          stats: {
-            total_patients: encounters.length,
-            total_encounters: encounters.length,
-            units_deployed: unitsRes.data?.length || 0,
-            unique_units: [...new Set(encounters.map(e => e.unit).filter(Boolean) as string[])],
-            comp_claims_count: compClaims.length,
-            ics214_count: ics214s.length,
-          },
-          analytics: {
-            chief_complaints: Object.entries(complaintCounts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, count]) => ({ name, count })),
-            acuity_breakdown: Object.entries(acuityCounts).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value })),
-            encounters_by_day: Object.entries(dailyCounts).sort((a, b) => a[0].localeCompare(b[0])).map(([date, count]) => ({ date, count })),
-          },
-          encounters,
-          comp_claims: compClaims,
-          ics214s,
-          supply_aggregated: supplyAggregated,
-          supply_items_raw: supplyItemsRaw,
-          code_label: null,
-        })
-      } catch (e) {
-        setError('Failed to load incident data')
-      } finally {
-        setLoading(false)
-      }
-    }
-    load()
+    authFetch(`/api/incident-access?incidentId=${incidentId}`)
+      .then(res => res.json())
+      .then(json => {
+        if (json.error) setError(json.error)
+        else setData(json)
+      })
+      .catch(() => setError('Failed to load dashboard data'))
+      .finally(() => setLoading(false))
   }, [incidentId])
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const filterNow = useMemo(() => Date.now(), [dateFilter])
+  const applyDateFilter = <T extends { created_at?: string | null }>(items: T[]): T[] => {
+    if (dateFilter === 'all') return items
+    const ms = dateFilter === '24h' ? 86400000 : dateFilter === '48h' ? 172800000 : 604800000
+    return items.filter(i => i.created_at && filterNow - new Date(i.created_at).getTime() <= ms)
+  }
 
   const tabs: { id: DashTab; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: '📊' },
@@ -448,106 +295,15 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
   )
   if (error || !data) return <div className="text-red-500 text-sm py-8 text-center">{error || 'No data'}</div>
 
-  const { stats } = data
-  const renderPieLabel = ({ cx = 0, cy = 0, midAngle = 0, innerRadius = 0, outerRadius = 0, percent = 0 }) => {
-    if (percent < 0.05) return null
-    const RADIAN = Math.PI / 180
-    const r = innerRadius + (outerRadius - innerRadius) * 0.6
-    return <text x={cx + r * Math.cos(-midAngle * RADIAN)} y={cy + r * Math.sin(-midAngle * RADIAN)} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={11} fontWeight={600}>{`${(percent * 100).toFixed(0)}%`}</text>
-  }
-
-  // ── Date filter helper ─────────────────────────────────────────────────────
-  const passesDateFilter = (createdAt: string | null): boolean => {
-    if (dateFilter === 'all' || !createdAt) return true
-    const now = Date.now()
-    const t = new Date(createdAt).getTime()
-    if (dateFilter === '24h') return now - t <= 24 * 60 * 60 * 1000
-    if (dateFilter === '48h') return now - t <= 48 * 60 * 60 * 1000
-    if (dateFilter === '7d') return now - t <= 7 * 24 * 60 * 60 * 1000
-    return true
-  }
-  const filteredEncounters = data.encounters.filter(enc => passesDateFilter(enc.created_at))
-  const filteredCompClaims = data.comp_claims.filter(cc => passesDateFilter(cc.created_at))
-
-  // ── Filtered supply aggregation ────────────────────────────────────────────
-  const filteredSupplyAggregated = (() => {
-    const items = data.supply_items_raw.filter(i => passesDateFilter(i.run_date || i.created_at))
-    const totals: Record<string, { total_qty: number; unit: string; category: string }> = {}
-    items.forEach(item => {
-      if (!totals[item.item_name]) totals[item.item_name] = { total_qty: 0, unit: item.unit_of_measure, category: item.category }
-      totals[item.item_name].total_qty += item.quantity
-    })
-    return Object.entries(totals)
-      .sort((a, b) => b[1].total_qty - a[1].total_qty)
-      .map(([item_name, d]) => ({ item_name, ...d }))
-  })()
-
-  // ── Recompute analytics from filtered encounters ───────────────────────────
-  const filteredChiefComplaints = (() => {
-    const counts: Record<string, number> = {}
-    filteredEncounters.forEach(e => { if (e.chief_complaint) counts[e.chief_complaint] = (counts[e.chief_complaint] || 0) + 1 })
-    return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([name, count]) => ({ name, count }))
-  })()
-  const filteredAcuityBreakdown = (() => {
-    const acCounts: Record<string, number> = { Immediate: 0, Delayed: 0, Minor: 0, Expectant: 0 }
-    filteredEncounters.forEach(e => { acCounts[e.acuity] = (acCounts[e.acuity] || 0) + 1 })
-    return Object.entries(acCounts).filter(([, v]) => v > 0).map(([name, value]) => ({ name, value }))
-  })()
-  const filteredEncountersByDay = (() => {
-    const daily: Record<string, number> = {}
-    filteredEncounters.forEach(e => { if (e.date) daily[e.date] = (daily[e.date] || 0) + 1 })
-    return Object.entries(daily).sort((a, b) => a[0].localeCompare(b[0])).map(([date, count]) => ({ date, count }))
-  })()
-  const acuityTotal = filteredAcuityBreakdown.reduce((s, d) => s + d.value, 0)
-
-  // ── WC encounter ID set ────────────────────────────────────────────────────
-  const wcEncounterIds = new Set(
-    data.comp_claims
-      .map(cc => (cc as typeof cc & { encounter_id?: string | null }).encounter_id)
-      .filter((id): id is string => !!id)
-  )
-
-  // ── PDF signed URL opener ──────────────────────────────────────────────────
-  const openPdf = async (pdfUrl: string) => {
-    const supabase = createClient()
-    // All comp claim PDFs live in the 'documents' bucket under comp-claims/ subfolder
-    const { data: signedData } = await supabase.storage
-      .from('documents')
-      .createSignedUrl(pdfUrl, 3600)
-    if (signedData?.signedUrl) {
-      window.open(signedData.signedUrl, '_blank')
-    } else {
-      alert('Could not generate PDF link. The file may have been removed.')
-    }
-  }
-
-  // ── WC claim lookup by encounter id ─────────────────────────────────────────
-  const claimByEncId = Object.fromEntries(
-    data.comp_claims
-      .map(cc => {
-        const encId = (cc as typeof cc & { encounter_id?: string | null }).encounter_id
-        return encId ? [encId, cc] : null
-      })
-      .filter((x): x is [string, typeof data.comp_claims[0]] => x !== null)
-  )
-
-  // ── Date range filter dropdown ─────────────────────────────────────────────
-  const DateFilterDropdown = () => (
-    <select
-      value={dateFilter}
-      onChange={e => setDateFilter(e.target.value as typeof dateFilter)}
-      className="ml-auto bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-red-500 cursor-pointer"
-    >
-      <option value="all">All time</option>
-      <option value="24h">Last 24h</option>
-      <option value="48h">Last 48h</option>
-      <option value="7d">Last 7 days</option>
-    </select>
-  )
+  // No-op logger for internal view (no access code tracking)
+  const noopLog = () => {}
 
   return (
     <div className="space-y-6">
-      {/* Tabs + date filter (matches external layout) */}
+      {/* Medical Directors & Deployed Units */}
+      <ContactCards medicalDirectors={data.medical_directors} deployedUnits={data.deployed_units} />
+
+      {/* Tabs + date filter */}
       <div className="flex flex-wrap items-center gap-2">
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
@@ -555,272 +311,21 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
             {t.icon} {t.label}
           </button>
         ))}
-        <DateFilterDropdown />
+        <select value={dateFilter} onChange={e => setDateFilter(e.target.value as DateFilter)}
+          className="ml-auto bg-gray-800 border border-gray-700 text-gray-300 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-red-500">
+          <option value="all">All time</option>
+          <option value="24h">Last 24h</option>
+          <option value="48h">Last 48h</option>
+          <option value="7d">Last 7 days</option>
+        </select>
       </div>
 
-      {/* ── Overview (matches external dashboard) ── */}
-      {tab === 'overview' && (
-        <div className="space-y-8">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-            <StatCard label="Total Patients" value={filteredEncounters.length} accent={C.red} />
-            <StatCard label="Total Encounters" value={filteredEncounters.length} accent={C.blue} />
-            <StatCard label="Units Deployed" value={stats.units_deployed} accent={C.green} sub={stats.unique_units.slice(0, 3).join(', ')} />
-            <StatCard label="Comp Claims" value={filteredCompClaims.length} accent={C.amber} />
-            <StatCard label="ICS 214s" value={stats.ics214_count} accent={C.violet} />
-            <StatCard label="Incident Status" value={data.incident.status || '—'} accent={STATUS_COLOR[data.incident.status] ?? C.gray} />
-          </div>
-          {filteredChiefComplaints.length > 0 && (
-            <section>
-              <h3 className="text-sm font-semibold text-white mb-3">🩺 Chief Complaints (Top 10)</h3>
-              <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-x-auto">
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={filteredChiefComplaints} margin={{ top: 5, right: 10, left: -20, bottom: 60 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridStyle.stroke} />
-                    <XAxis dataKey="name" tick={{ ...axisStyle, fontSize: 9 }} interval={0} angle={-45} textAnchor="end" height={80} />
-                    <YAxis tick={axisStyle} allowDecimals={false} />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Bar dataKey="count" fill={C.red} radius={[4, 4, 0, 0]} name="Count" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </section>
-          )}
-          {filteredAcuityBreakdown.length > 0 && (
-            <section>
-              <h3 className="text-sm font-semibold text-white mb-3">🚨 Acuity Breakdown</h3>
-              <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 flex flex-col md:flex-row items-center gap-6">
-                <div className="w-full md:w-64 shrink-0">
-                  <ResponsiveContainer width="100%" height={220}>
-                    <PieChart>
-                      <Pie data={filteredAcuityBreakdown} cx="50%" cy="50%" innerRadius={55} outerRadius={90} dataKey="value" labelLine={false} label={renderPieLabel}>
-                        {filteredAcuityBreakdown.map(e => <Cell key={e.name} fill={ACUITY_COLORS[e.name] ?? C.gray} />)}
-                      </Pie>
-                      <Tooltip contentStyle={tooltipStyle} formatter={(v: unknown) => { const n = typeof v === 'number' ? v : 0; return [`${n} (${acuityTotal > 0 ? ((n / acuityTotal) * 100).toFixed(1) : 0}%)`, ''] as [string, string] }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-                <div className="space-y-2 flex-1">
-                  {filteredAcuityBreakdown.map(d => (
-                    <div key={d.name} className="flex items-center gap-3">
-                      <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: ACUITY_COLORS[d.name] ?? C.gray }} />
-                      <span className="text-sm text-gray-300 flex-1">{d.name}</span>
-                      <span className="text-sm font-bold text-white">{d.value}</span>
-                      <span className="text-xs text-gray-500 w-10 text-right">{acuityTotal > 0 ? `${((d.value / acuityTotal) * 100).toFixed(0)}%` : '—'}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </section>
-          )}
-          {filteredEncountersByDay.length > 0 && (
-            <section>
-              <h3 className="text-sm font-semibold text-white mb-3">📈 Encounter Volume by Day</h3>
-              <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={filteredEncountersByDay.map(d => ({ ...d, date: d.date.slice(5) }))} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridStyle.stroke} />
-                    <XAxis dataKey="date" tick={axisStyle} interval="preserveStartEnd" />
-                    <YAxis tick={axisStyle} allowDecimals={false} />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Line type="monotone" dataKey="count" stroke={C.blue} strokeWidth={2} dot={false} name="Encounters" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </section>
-          )}
-        </div>
-      )}
-
-      {/* ── Patient Log (matches external dashboard) ── */}
-      {tab === 'patients' && (() => {
-        const assignedUnits = stats.unique_units.length > 0
-          ? stats.unique_units
-          : Array.from(new Set(filteredEncounters.map(e => e.unit).filter(Boolean)))
-        const pUnits = ['All', ...[...assignedUnits].sort()]
-        const pFiltered = patientUnitFilter === 'All' ? filteredEncounters : filteredEncounters.filter(e => e.unit === patientUnitFilter)
-        const byUnit: Record<string, typeof filteredEncounters> = {}
-        pFiltered.forEach(e => { const u = e.unit || 'Unassigned'; if (!byUnit[u]) byUnit[u] = []; byUnit[u].push(e) })
-        return (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-xs text-gray-500 flex-1">{pFiltered.length} encounters — de-identified — tap to view</p>
-              <div className="flex gap-1.5 flex-wrap">
-                {pUnits.map(u => (
-                  <button key={u} onClick={() => setPatientUnitFilter(u)}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${patientUnitFilter === u ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
-                    {u}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {Object.entries(byUnit).map(([unitName, encs]) => (
-              <div key={unitName} className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-                <div className="px-4 py-2.5 border-b theme-card-header">
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">🚑 {unitName} — {encs.length} patient{encs.length !== 1 ? 's' : ''}</h3>
-                </div>
-                <div className="overflow-x-auto">
-                  <div className="grid grid-cols-[60px_60px_44px_90px_1fr_100px_110px_110px_72px] gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header min-w-[760px]">
-                    <span>ID</span><span>Date</span><span>Age</span><span>Agency</span><span>Chief Complaint</span><span>Disposition</span><span>CC / OSHA</span><span>Supervisor</span><span>Acuity</span>
-                  </div>
-                  <div className="divide-y divide-gray-800/50 min-w-[760px]">
-                    {encs.map(enc => {
-                      const claim = claimByEncId[enc.id]
-                      return (
-                        <button key={enc.id} onClick={() => setSelectedPatient(selectedPatient?.id === enc.id ? null : enc)}
-                          className="w-full text-left grid grid-cols-[60px_60px_44px_90px_1fr_100px_110px_110px_72px] gap-2 px-4 py-2.5 text-sm hover:bg-gray-800/50 transition-colors items-center">
-                          <span className="font-mono text-blue-400 text-xs font-semibold">{enc.seq_id}</span>
-                          <span className="text-gray-400 text-xs">{enc.date ? new Date(enc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
-                          <span className="text-gray-400 text-xs">{enc.age || '—'}</span>
-                          <span className="text-gray-300 text-xs truncate">{enc.patient_agency || <span className="text-gray-600">—</span>}</span>
-                          <span className="text-white text-xs truncate">{enc.chief_complaint || <span className="text-gray-600 italic">Not recorded</span>}</span>
-                          <span className="text-xs text-gray-300 truncate">{(enc as any).disposition || <span className="text-gray-600 italic">In Process</span>}</span>
-                          <span className="flex flex-col gap-1">
-                            {wcEncounterIds.has(enc.id) && claim && claim.has_pdf && claim.pdf_url ? (
-                              <button onClick={e => { e.stopPropagation(); openPdf(claim.pdf_url!) }}
-                                className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-1.5 py-0.5 rounded transition-colors leading-none w-fit">
-                                ⬇ CC PDF
-                              </button>
-                            ) : wcEncounterIds.has(enc.id) ? (
-                              <span className="text-xs bg-amber-900/50 text-amber-300 border border-amber-700/40 px-1.5 py-0.5 rounded leading-none">📋 CC Filed</span>
-                            ) : (
-                              <span className="text-gray-700 text-xs">—</span>
-                            )}
-                          </span>
-                          <span className="text-xs text-gray-400 truncate">{(claim as any)?.supervisor_name || '—'}</span>
-                          <span className={`text-xs px-1.5 py-0.5 rounded font-medium text-center ${ACUITY_PILL[enc.acuity] ?? 'bg-gray-800 text-gray-400 border border-gray-700'}`}>
-                            {enc.acuity?.split(' ')[0] || '—'}
-                          </span>
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            {pFiltered.length === 0 && <Empty text="No encounters for this unit" />}
-
-            {/* Patient detail modal */}
-            {selectedPatient && (
-              <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => setSelectedPatient(null)}>
-                <div className="bg-gray-900 border border-gray-800 rounded-2xl p-6 max-w-sm w-full space-y-3" onClick={e => e.stopPropagation()}>
-                  <div className="flex items-center justify-between">
-                    <h2 className="font-bold text-lg">{selectedPatient.seq_id}</h2>
-                    <button onClick={() => setSelectedPatient(null)} className="text-gray-500 hover:text-white text-xl">✕</button>
-                  </div>
-                  <div className="text-xs text-amber-400 bg-amber-900/20 px-3 py-1.5 rounded-lg">De-identified — no PHI shown</div>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between"><span className="text-gray-500">Unit</span><span>{selectedPatient.unit || '—'}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Date</span><span>{selectedPatient.date ? new Date(selectedPatient.date + 'T00:00:00').toLocaleDateString() : '—'}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Age</span><span>{selectedPatient.age || '—'}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Chief Complaint</span><span className="text-right max-w-[200px]">{selectedPatient.chief_complaint || '—'}</span></div>
-                    <div className="flex justify-between items-center"><span className="text-gray-500">Acuity</span><span className={`text-xs px-2 py-0.5 rounded font-medium ${ACUITY_PILL[selectedPatient.acuity] ?? 'bg-gray-800 text-gray-400 border border-gray-700'}`}>{selectedPatient.acuity}</span></div>
-                    <div className="flex justify-between"><span className="text-gray-500">Disposition</span><span>{(selectedPatient as any).disposition || '—'}</span></div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )
-      })()}
-
-      {/* ── ICS 214s (matches external — grouped by unit) ── */}
-      {tab === 'ics214' && (() => {
-        const icsByUnit: Record<string, typeof data.ics214s> = {}
-        data.ics214s.forEach(f => { const k = f.unit || 'Unknown Unit'; if (!icsByUnit[k]) icsByUnit[k] = []; icsByUnit[k].push(f) })
-        return (
-          <div className="space-y-6">
-            <p className="text-xs text-gray-500">{data.ics214s.length} ICS 214 Unit Activity Logs — grouped by unit.</p>
-            {data.ics214s.length === 0 ? <Empty text="No ICS 214s on file for this incident" /> : (
-              Object.entries(icsByUnit).map(([unit, forms]) => (
-                <section key={unit}>
-                  <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
-                    🚑 {unit}
-                    <span className="text-xs text-gray-600 font-normal">{forms.length} log{forms.length !== 1 ? 's' : ''}</span>
-                  </h3>
-                  <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-                    <div className="grid grid-cols-[90px_1fr_100px_100px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header">
-                      <span>Date</span><span>Prepared By</span><span>Status</span><span className="text-right">PDF</span>
-                    </div>
-                    {forms.map(form => (
-                      <div key={form.id} className="grid grid-cols-[90px_1fr_100px_100px] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 transition-colors items-center">
-                        <span className="text-gray-400 text-xs">{form.date ? new Date(form.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }) : '—'}</span>
-                        <span className="text-white text-sm truncate">{form.prepared_by || '—'}</span>
-                        <span><Badge color={form.status === 'Closed' ? C.gray : C.green} label={form.status || 'Open'} /></span>
-                        <div className="flex justify-end">
-                          {form.has_pdf ? (
-                            <span className="text-xs text-green-400">✅ PDF</span>
-                          ) : (
-                            <span className="text-xs text-gray-700">No PDF</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              ))
-            )}
-          </div>
-        )
-      })()}
-
-      {/* ── Supply Tab ── */}
-      {tab === 'supply' && (
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-sm font-semibold text-white">🧰 Consumables Used — All Units Combined</h3>
-            {dateFilter !== 'all' && <p className="text-xs text-gray-500 mt-1">Filtered to {dateFilter === '24h' ? 'last 24 hours' : dateFilter === '48h' ? 'last 48 hours' : 'last 7 days'}</p>}
-          </div>
-          {filteredSupplyAggregated.length === 0 ? (
-            <Empty text={dateFilter === 'all' ? 'No supply run data for this incident' : 'No supply runs in this time period'} />
-          ) : (
-            <>
-              {/* Horizontal bar chart */}
-              <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 overflow-x-auto">
-                <ResponsiveContainer width="100%" height={Math.max(200, filteredSupplyAggregated.length * 32)}>
-                  <BarChart
-                    data={filteredSupplyAggregated.map(d => ({ name: d.item_name, qty: d.total_qty }))}
-                    layout="vertical"
-                    margin={{ top: 5, right: 30, left: 160, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke={gridStyle.stroke} horizontal={false} />
-                    <XAxis type="number" tick={axisStyle} allowDecimals={false} />
-                    <YAxis type="category" dataKey="name" tick={{ ...axisStyle, fontSize: 11 }} width={155} />
-                    <Tooltip contentStyle={tooltipStyle} />
-                    <Bar dataKey="qty" radius={[0, 4, 4, 0]} name="Total Qty">
-                      {filteredSupplyAggregated.map((item, i) => {
-                        const CAT: Record<string, string> = { 'CS': C.red, 'Medication': C.violet, 'IV': C.blue, 'Airway': C.teal, 'Wound Care': C.amber, 'OTC': C.green, 'Supply': C.amber }
-                        const BARS = [C.blue, C.teal, C.violet, C.green, C.amber, C.red]
-                        return <Cell key={i} fill={CAT[item.category || ''] || BARS[i % BARS.length]} />
-                      })}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Summary table */}
-              <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
-                <div className="grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header">
-                  <span>Item</span><span>Total Qty</span><span>Unit</span>
-                </div>
-                {filteredSupplyAggregated.map((item, idx) => (
-                  <div key={idx} className="grid grid-cols-[1fr_80px_80px] gap-2 px-4 py-2.5 border-b border-gray-800/50 text-sm hover:bg-gray-800/30 items-center">
-                    <span className="text-xs text-white truncate">{item.item_name}</span>
-                    <span className="text-xs font-bold text-blue-400">{item.total_qty}</span>
-                    <span className="text-xs text-gray-400">{item.unit || '—'}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-
-      {/* 👀 Access Log tab */}
-      {tab === 'access-log' && (
-        <AccessLogTab incidentId={incidentId} />
-      )}
+      {/* Shared tab content — same components as external dashboard */}
+      {tab === 'overview' && <OverviewTab data={data} filteredEncounters={applyDateFilter(data.encounters)} />}
+      {tab === 'patients' && <PatientLogTab data={{ ...data, encounters: applyDateFilter(data.encounters) }} code="" logEvent={noopLog} />}
+      {tab === 'ics214' && <ICS214Tab data={data} code="" logEvent={noopLog} />}
+      {tab === 'supply' && <SupplyTab data={data} dateFilter={dateFilter} />}
+      {tab === 'access-log' && <AccessLogTab incidentId={incidentId} />}
     </div>
   )
 }
@@ -843,7 +348,6 @@ function AccessLogTab({ incidentId }: { incidentId: string }) {
 
   if (loading) return <p className="text-gray-500 text-sm py-4 text-center">Loading access log...</p>
 
-  // ── Aggregate by access code ───────────────────────────────────────────────
   const byCode: Record<string, {
     label: string; code: string; pageViews: number; tabViews: Record<string, number>
     pdfDownloads: number; lastAccess: string; devices: Set<string>
@@ -871,19 +375,14 @@ function AccessLogTab({ incidentId }: { incidentId: string }) {
     overview: 'Overview', patients: 'Patient Log', ics214: 'ICS 214s', supply: 'Supply'
   }
 
-  // Totals
   const totalPageViews = logs.filter(l => (l.event_type || 'page_view') === 'page_view').length
   const totalTabViews = logs.filter(l => l.event_type === 'tab_view').length
   const totalPdfDownloads = logs.filter(l => l.event_type === 'pdf_download').length
   const uniqueCodes = Object.keys(byCode).length
-  const lastAccess = logs.length > 0 ? logs[0].accessed_at : null
-
-  // Recent activity feed (all events)
   const recentLogs = logs.slice(0, 60)
 
   return (
     <div className="space-y-5">
-      {/* ── Summary cards ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
           <p className="text-2xl font-bold text-blue-400">{totalPageViews}</p>
@@ -909,14 +408,12 @@ function AccessLogTab({ incidentId }: { incidentId: string }) {
         </div>
       ) : (
         <>
-          {/* ── Per-code breakdown ── */}
           <div className="space-y-3">
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">👀 Activity by Access Code</h3>
             {Object.entries(byCode)
               .sort((a, b) => (b[1].pageViews + b[1].pdfDownloads) - (a[1].pageViews + a[1].pdfDownloads))
               .map(([_key, info]) => (
               <div key={info.code} className="bg-gray-900 border border-gray-800 rounded-xl p-4 space-y-3">
-                {/* Code header */}
                 <div className="flex items-start justify-between gap-2 flex-wrap">
                   <div>
                     <p className="font-semibold text-sm text-white">{info.label !== info.code ? info.label : '(No label)'}</p>
@@ -928,12 +425,10 @@ function AccessLogTab({ incidentId }: { incidentId: string }) {
                     <p className="text-xs text-gray-600 mt-0.5">{[...info.devices].join(' · ')}</p>
                   </div>
                 </div>
-                {/* Stats row */}
                 <div className="flex gap-4 flex-wrap text-xs">
                   <span className="text-gray-400"><span className="font-bold text-blue-400">{info.pageViews}</span> opens</span>
                   <span className="text-gray-400"><span className="font-bold text-amber-400">{info.pdfDownloads}</span> PDF{info.pdfDownloads !== 1 ? 's' : ''} downloaded</span>
                 </div>
-                {/* Tab breakdown */}
                 {Object.keys(info.tabViews).length > 0 && (
                   <div>
                     <p className="text-xs text-gray-600 mb-1.5">Tabs viewed:</p>
@@ -952,7 +447,6 @@ function AccessLogTab({ incidentId }: { incidentId: string }) {
             ))}
           </div>
 
-          {/* ── Activity feed ── */}
           <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-gray-800">
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Recent Activity</h3>
@@ -995,9 +489,7 @@ function FireDashboardContent() {
 
   useEffect(() => {
     if (isField) {
-      // Field users: locked to their assigned incident — no DB fetch needed
       const assignedId = assignment.incidentUnit?.incident_id || null
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (assignedId) setSelectedId(assignedId)
       setLoadingIncidents(false)
       return
@@ -1027,8 +519,6 @@ function FireDashboardContent() {
   return (
     <div className="bg-gray-950 text-white pb-8">
       <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
-
-        {/* Header */}
         <div className="flex items-center justify-between pt-2">
           <div>
             <h1 className="text-xl font-bold">External Dashboard</h1>
@@ -1036,13 +526,11 @@ function FireDashboardContent() {
           </div>
         </div>
 
-        {/* Incident selector */}
         <div>
           <p className="text-xs text-gray-600 uppercase tracking-wide mb-2 font-medium">Incident</p>
           {loadingIncidents ? (
             <div className="flex gap-2">{[1, 2, 3].map(i => <div key={i} className="h-8 w-32 bg-gray-800/50 rounded-xl animate-pulse" />)}</div>
           ) : isField ? (
-            // Field user — locked to their assigned fire
             <div className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 rounded-xl w-fit">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
               <span className="text-sm font-medium text-white">{selectedIncident?.name || 'Your assigned incident'}</span>
@@ -1050,7 +538,6 @@ function FireDashboardContent() {
             </div>
           ) : (
             <>
-              {/* Dropdown on mobile */}
               <div className="md:hidden">
                 <select
                   value={selectedId || ''}
@@ -1062,7 +549,6 @@ function FireDashboardContent() {
                   ))}
                 </select>
               </div>
-              {/* Pills on desktop */}
               <div className="hidden md:flex gap-2 flex-wrap">
                 {incidents.map(inc => (
                   <button key={inc.id} onClick={() => setSelectedId(inc.id)}
@@ -1082,7 +568,6 @@ function FireDashboardContent() {
 
         {selectedId && selectedIncident && (
           <>
-            {/* Incident summary row */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
               <div>
                 <h2 className="text-lg font-bold text-white">{selectedIncident.name}</h2>
@@ -1106,10 +591,8 @@ function FireDashboardContent() {
               </a>
             </div>
 
-            {/* Access codes panel */}
             <AccessCodesPanel incidentId={selectedId} incidentName={selectedIncident.name} />
 
-            {/* Dashboard */}
             <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
               <h3 className="text-sm font-semibold text-white mb-5 flex items-center gap-2">
                 📊 Incident Data

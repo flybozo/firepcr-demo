@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useRole } from '@/lib/useRole'
+import { LoadingSkeleton, ConfirmDialog } from '@/components/ui'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -106,26 +107,43 @@ function ChartsSection({ charts }: { charts: UnsignedChart[] }) {
   )
 }
 
-function OrphanNotesSection({ notes }: { notes: UnsignedNote[] }) {
+function OrphanNotesSection({ notes, onDelete }: { notes: UnsignedNote[]; onDelete: (id: string) => void }) {
   // Notes on encounters that ARE signed but the note itself isn't
+  const [confirmId, setConfirmId] = useState<string | null>(null)
   if (notes.length === 0) return null
 
   return (
     <div className="theme-card rounded-xl border overflow-hidden">
       <div className="divide-y divide-gray-800/50">
         {notes.map(n => (
-          <Link key={n.id} to={`/encounters/${n.encounter_uuid || n.encounter_id}#notes`}
-            className="flex items-start gap-3 px-4 py-3 hover:bg-gray-800 transition-colors">
-            <div className="flex-1 min-w-0">
+          <div key={n.id} className="flex items-start gap-3 px-4 py-3 hover:bg-gray-800 transition-colors">
+            <Link to={`/encounters/${n.encounter_uuid || n.encounter_id}#notes`} className="flex-1 min-w-0">
               <p className="text-gray-400 text-xs">
                 {new Date(n.note_datetime).toLocaleString()} · {n.encounter_id}
               </p>
               <p className="text-white text-sm mt-0.5 line-clamp-2">{n.note_text}</p>
+            </Link>
+            <div className="flex items-center gap-2 shrink-0 mt-0.5">
+              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-900 text-amber-300">Unsigned</span>
+              <button
+                onClick={() => setConfirmId(n.id)}
+                className="text-xs text-gray-500 hover:text-red-400 transition-colors p-1"
+                title="Delete note"
+              >
+                🗑️
+              </button>
             </div>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-900 text-amber-300 shrink-0 mt-0.5">Unsigned</span>
-          </Link>
+          </div>
         ))}
       </div>
+      <ConfirmDialog
+        open={!!confirmId}
+        title="Delete unsigned note?"
+        message="This note has not been signed and will be permanently removed."
+        confirmLabel="Delete"
+        onConfirm={() => { if (confirmId) onDelete(confirmId); setConfirmId(null) }}
+        onCancel={() => setConfirmId(null)}
+      />
     </div>
   )
 }
@@ -181,6 +199,12 @@ export default function UnsignedItemsPage() {
   const myName = assignment.employee?.name || ''
   const myRole = assignment.employee?.role || ''
   const isProvider = PRESCRIBER_ROLES.some(r => myRole.toUpperCase().includes(r))
+
+  const deleteOrphanNote = async (noteId: string) => {
+    const now = new Date().toISOString()
+    await supabase.from('progress_notes').update({ deleted_at: now, deleted_by: myName }).eq('id', noteId)
+    setOrphanNotes(prev => prev.filter(n => n.id !== noteId))
+  }
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -254,11 +278,7 @@ export default function UnsignedItemsPage() {
     load()
   }, [assignment.loading, myName, myRole])
 
-  if (loading) return (
-    <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-      <p className="text-gray-500 text-sm">Loading...</p>
-    </div>
-  )
+  if (loading) return <LoadingSkeleton fullPage />
 
   const chartTotal = charts.length + orphanNotes.length
   const marTotal = marEntries.length
@@ -347,7 +367,7 @@ export default function UnsignedItemsPage() {
                     <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">
                       Unsigned Progress Notes on Signed Charts ({orphanNotes.length})
                     </h2>
-                    <OrphanNotesSection notes={orphanNotes} />
+                    <OrphanNotesSection notes={orphanNotes} onDelete={deleteOrphanNote} />
                   </div>
                 )}
               </div>

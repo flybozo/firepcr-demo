@@ -1,6 +1,7 @@
 
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import { toast } from '@/lib/toast'
 import { useRole } from '@/lib/useRole'
 import { createClient } from '@/lib/supabase/client'
 import { loadSingle } from '@/lib/offlineFirst'
@@ -8,6 +9,7 @@ import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
 import QRCodeCard from '@/components/QRCodeCard'
 import { brand } from '@/lib/branding.config'
+import { LoadingSkeleton, EmptyState, ConfirmDialog } from '@/components/ui'
 
 type Employee = { id: string; name: string; role: string }
 type Assignment = { id: string; role_on_unit: string; employee: Employee | null }
@@ -83,6 +85,12 @@ export default function UnitDetailPage() {
   const [selectedRole, setSelectedRole] = useState('')
   const [saving, setSaving] = useState(false)
 
+  // Crew conflict confirm dialog state
+  const [crewConflict, setCrewConflict] = useState<{
+    empName: string; otherUnit: string; conflictId: string
+  } | null>(null)
+  const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; confirmLabel?: string; icon?: string; confirmColor?: string } | null>(null)
+
   // Vehicle edit state
   const [editingVehicle, setEditingVehicle] = useState(false)
   const [vehicleForm, setVehicleForm] = useState({
@@ -93,6 +101,8 @@ export default function UnitDetailPage() {
   const [vehicleDocs, setVehicleDocs] = useState<{id: string, doc_type: string, file_url: string, file_name: string|null, expiration_date: string|null, notes: string|null}[]>([])
   const [uploadingDoc, setUploadingDoc] = useState(false)
   const [docType, setDocType] = useState('Registration')
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
   const load = async () => {
     // Show cached data instantly
@@ -230,20 +240,31 @@ export default function UnitDetailPage() {
     if (conflict && conflict.incident_unit_id !== addingTo) {
       const otherUnitName = (conflict.incident_unit as any)?.unit?.name || 'another unit'
       const emp = allEmployees.find(e => e.id === selectedEmployee)
-      const confirmed = window.confirm(
-        `${emp?.name || 'This employee'} is currently assigned to ${otherUnitName}. ` +
-        `Remove them from ${otherUnitName} and assign to this unit instead?`
-      )
-      if (!confirmed) {
-        setSaving(false)
-        return
-      }
-      // Release from old unit
-      await supabase
-        .from('unit_assignments')
-        .update({ released_at: new Date().toISOString() })
-        .eq('id', conflict.id)
+      setCrewConflict({
+        empName: emp?.name || 'This employee',
+        otherUnit: otherUnitName,
+        conflictId: conflict.id,
+      })
+      setSaving(false)
+      return
     }
+    await finishAddCrew()
+  }
+
+  const confirmCrewReassign = async () => {
+    if (!crewConflict || !addingTo) return
+    setSaving(true)
+    // Release from old unit
+    await supabase
+      .from('unit_assignments')
+      .update({ released_at: new Date().toISOString() })
+      .eq('id', crewConflict.conflictId)
+    setCrewConflict(null)
+    await finishAddCrew()
+  }
+
+  const finishAddCrew = async () => {
+    if (!addingTo || !selectedEmployee) return
 
     // Also release any other active assignments for this employee (catch duplicates)
     await supabase
@@ -279,11 +300,19 @@ export default function UnitDetailPage() {
     if (isLeavingService && activeIU) {
       const incidentName = (activeIU as any).incident?.name || 'its current incident'
       const label = next === 'archived' ? 'Archive' : 'Mark Out of Service'
-      const ok = confirm(`${label} ${unit.name}?\n\nThis will:\n• Release ${unit.name} from ${incidentName}\n• Release all assigned crew\n\nThis cannot be undone automatically.`)
-      if (!ok) return
-      const now = new Date().toISOString()
-      await supabase.from('unit_assignments').update({ released_at: now }).eq('incident_unit_id', activeIU.id).is('released_at', null)
-      await supabase.from('incident_units').update({ released_at: now }).eq('id', activeIU.id)
+      setConfirmAction({
+        action: async () => {
+          const now = new Date().toISOString()
+          await supabase.from('unit_assignments').update({ released_at: now }).eq('incident_unit_id', activeIU.id).is('released_at', null)
+          await supabase.from('incident_units').update({ released_at: now }).eq('id', activeIU.id)
+          await supabase.from('units').update({ unit_status: next }).eq('id', unit.id)
+          await load()
+        },
+        title: `${label} ${unit.name}`,
+        message: `This will:\n• Release ${unit.name} from ${incidentName}\n• Release all assigned crew\n\nThis cannot be undone automatically.`,
+        icon: '⚠️',
+      })
+      return
     }
     await supabase.from('units').update({ unit_status: next }).eq('id', unit.id)
     await load()
@@ -305,18 +334,11 @@ export default function UnitDetailPage() {
     load()
   }
 
-  if (loading) return (
-    <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-      <p className="text-gray-400">Loading...</p>
-    </div>
-  )
+  if (loading) return <LoadingSkeleton fullPage />
 
   if (!unit) return (
     <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-      <div className="text-center">
-        <p className="text-gray-400 mb-4">Unit not found.</p>
-        <Link to="/units" className="text-red-400 underline">← Back</Link>
-      </div>
+      <EmptyState icon="🚑" message="Unit not found." actionHref="/units" actionLabel="← Back" />
     </div>
   )
 
@@ -330,7 +352,7 @@ export default function UnitDetailPage() {
     setUploadingDoc(true)
     const path = `vehicles/${id}/${Date.now()}-${file.name}`
     const { data, error } = await supabase.storage.from('documents').upload(path, file, { upsert: true })
-    if (error) { alert('Upload failed: ' + error.message); setUploadingDoc(false); return }
+    if (error) { toast.error('Upload failed: ' + error.message); setUploadingDoc(false); return }
     // Store path not public URL (bucket is private)
     const { data: doc } = await supabase.from('vehicle_documents').insert({
       unit_id: id, doc_type: docType, file_url: data.path, file_name: file.name
@@ -340,8 +362,34 @@ export default function UnitDetailPage() {
     e.target.value = ''
   }
 
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !id) return
+    setUploadingPhoto(true)
+    const ext = file.name.split('.').pop() || 'jpg'
+    const path = `units/${id}/photo.${ext}`
+    const { data, error: upErr } = await supabase.storage.from('headshots').upload(path, file, { upsert: true })
+    if (upErr) { toast.error('Upload failed: ' + upErr.message); setUploadingPhoto(false); return }
+    const { data: urlData } = supabase.storage.from('headshots').getPublicUrl(data.path)
+    const publicUrl = urlData.publicUrl
+    await supabase.from('units').update({ photo_url: publicUrl }).eq('id', id)
+    setUnit(prev => prev ? { ...prev, photo_url: publicUrl } : prev)
+    setUploadingPhoto(false)
+  }
+
   return (
     <div className="bg-gray-950 text-white pb-8">
+      <ConfirmDialog
+        open={!!crewConflict}
+        title="Reassign Crew Member"
+        icon="👥"
+        message={crewConflict ? `${crewConflict.empName} is currently assigned to ${crewConflict.otherUnit}. Remove them from ${crewConflict.otherUnit} and assign to this unit instead?` : ''}
+        confirmLabel="Reassign"
+        confirmColor="bg-blue-600 hover:bg-blue-700"
+        loading={saving}
+        onConfirm={confirmCrewReassign}
+        onCancel={() => setCrewConflict(null)}
+      />
       <div className="p-6 md:p-8 max-w-3xl mx-auto space-y-4">
 
         <Link to="/units" className="text-gray-500 hover:text-gray-300 text-sm">← Units</Link>
@@ -404,14 +452,33 @@ export default function UnitDetailPage() {
 
           {!editingVehicle ? (
             <div className="p-4 flex gap-4">
-              {/* Photo */}
-              <div className="shrink-0">
+              {/* Photo — clickable for admins */}
+              <div className="shrink-0 relative group">
                 {unit.photo_url ? (
                   <img src={unit.photo_url} alt={unit.name} className="w-20 h-20 object-cover rounded-lg" />
                 ) : (
                   <div className="w-20 h-20 rounded-lg bg-gray-800 flex items-center justify-center text-gray-600 text-2xl">
                     📷
                   </div>
+                )}
+                {isAdmin && (
+                  <>
+                    <button
+                      onClick={() => photoInputRef.current?.click()}
+                      disabled={uploadingPhoto}
+                      className="absolute inset-0 bg-black/0 hover:bg-black/60 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                    >
+                      {uploadingPhoto ? (
+                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+                          <circle cx="12" cy="13" r="4" />
+                        </svg>
+                      )}
+                    </button>
+                    <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
+                  </>
                 )}
               </div>
               {/* Info */}
@@ -476,12 +543,7 @@ export default function UnitDetailPage() {
                   className="bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
                 />
               </div>
-              <input
-                value={vehicleForm.photo_url}
-                onChange={e => setVehicleForm(f => ({ ...f, photo_url: e.target.value }))}
-                placeholder="Photo URL"
-                className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
+              <p className="text-xs text-gray-500">Photo: use the camera icon on the unit thumbnail to upload.</p>
               <div className="flex gap-2">
                 <button
                   onClick={saveVehicleDetails}
@@ -803,6 +865,15 @@ export default function UnitDetailPage() {
         </div>
 
       </div>
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message || ''}
+        icon={confirmAction?.icon || '⚠️'}
+        confirmColor={confirmAction?.confirmColor}
+        onConfirm={() => { confirmAction?.action(); setConfirmAction(null) }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   )
 }

@@ -195,7 +195,7 @@ function SortableNavItem({
     ? (RAINBOW_ICON_COLORS[item.icon] || 'var(--color-primary, #dc2626)')
     : (isActive ? 'var(--color-primary, #dc2626)' : undefined)
 
-  const PRESCRIBER_ROLES = ['MD', 'MD/DO', 'PA', 'NP', 'DO']
+  const PRESCRIBER_ROLES = ['MD', 'DO', 'PA', 'NP']
   const visibleSub = item.sub.filter(s => {
     if (isField) {
       const adminSubs = [

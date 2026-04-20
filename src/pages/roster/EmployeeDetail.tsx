@@ -3,6 +3,7 @@ import { useRole } from '@/lib/useRole'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 
 import { useEffect, useState } from 'react'
+import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
 import { loadSingle } from '@/lib/offlineFirst'
 import { Link } from 'react-router-dom'
@@ -10,6 +11,7 @@ import { useParams } from 'react-router-dom'
 import QRCodeCard from '@/components/QRCodeCard'
 import { brand } from '@/lib/branding.config'
 import { queryEmployee, queryCredentials, updateEmployee } from '@/lib/services/employees'
+import { LoadingSkeleton, EmptyState, ConfirmDialog } from '@/components/ui'
 
 
 type Employee = {
@@ -37,6 +39,8 @@ type Employee = {
   red_card_year: number | null
   ssv_lemsa: string | null
   app_role: string | null
+  roles: string[] | null
+  is_medical_director: boolean | null
   // Medical certs
   bls: string | null
   acls: string | null
@@ -67,7 +71,7 @@ type CredentialDoc = {
 }
 
 const ROLE_COLORS: Record<string, string> = {
-  'MD/DO': 'bg-purple-900 text-purple-300',
+  'DO': 'bg-purple-900 text-purple-300',
   'NP': 'bg-blue-900 text-blue-300',
   'PA': 'bg-blue-900 text-blue-300',
   'RN': 'bg-teal-900 text-teal-300',
@@ -115,30 +119,36 @@ export default function RosterDetailPage() {
   const [loading, setLoading] = useState(true)
   const [isOfflineData, setIsOfflineData] = useState(false)
   const [togglingStatus, setTogglingStatus] = useState(false)
-  const [empExpenses, setEmpExpenses] = useState<{ id: string; expense_type: string; amount: number; description: string | null; expense_date: string; receipt_url: string | null; no_receipt_reason: string | null; incidents?: { name: string } | null }[]>([])
+  const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; confirmLabel?: string; icon?: string; confirmColor?: string } | null>(null)
+  const [empExpenses, setEmpExpenses] = useState<{ id: string; expense_type: string; amount: number; description: string | null; expense_date: string; receipt_url: string | null; no_receipt_reason: string | null; incidents?: { name: string } | { name: string }[] | null }[]>([])
+  const [deployments, setDeployments] = useState<{ id: string; incident_name: string | null; start_date: string | null; end_date: string | null; hours_worked: number | null; daily_rate: number | null }[]>([])
 
-  const toggleStatus = async () => {
+  const toggleStatus = () => {
     if (!emp || !isAdmin) return
     const newStatus = emp.status === 'Active' ? 'Inactive' : 'Active'
-    const confirmed = confirm(
-      newStatus === 'Inactive'
-        ? `Inactivate ${emp.name}? This will ban their app login and release all unit assignments.`
-        : `Reactivate ${emp.name}? This will restore their app login access.`
-    )
-    if (!confirmed) return
-    setTogglingStatus(true)
-    try {
-      const res = await fetch('/api/employee-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}` },
-        body: JSON.stringify({ employeeId: emp.id, status: newStatus }),
-      })
-      if (!res.ok) throw new Error(await res.text())
-      setEmp(e => e ? { ...e, status: newStatus } : e)
-    } catch (err: any) {
-      alert('Failed to update status: ' + (err?.message || err))
-    }
-    setTogglingStatus(false)
+    const message = newStatus === 'Inactive'
+      ? `Inactivate ${emp.name}? This will ban their app login and release all unit assignments.`
+      : `Reactivate ${emp.name}? This will restore their app login access.`
+    setConfirmAction({
+      action: async () => {
+        setTogglingStatus(true)
+        try {
+          const res = await fetch('/api/employee-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${(await supabase.auth.getSession()).data?.session?.access_token ?? ''}` },
+            body: JSON.stringify({ employeeId: emp.id, status: newStatus }),
+          })
+          if (!res.ok) throw new Error(await res.text())
+          setEmp(e => e ? { ...e, status: newStatus } : e)
+        } catch (err: any) {
+          toast.error('Failed to update status: ' + (err?.message || err))
+        }
+        setTogglingStatus(false)
+      },
+      title: newStatus === 'Inactive' ? 'Inactivate Employee' : 'Reactivate Employee',
+      message,
+      icon: '⚠️',
+    })
   }
 
   useEffect(() => {
@@ -146,14 +156,14 @@ export default function RosterDetailPage() {
       // Show cached data instantly
       try {
         const { getCachedById } = await import('@/lib/offlineStore')
-        const cached = await getCachedById('employees', id) as any
+        const cached = await getCachedById('employees', id)
         if (cached) {
           setEmp(cached as Employee)
           setLoading(false)
         }
       } catch {}
       const { data: empData, offline } = await loadSingle<Employee>(
-        () => queryEmployee(id) as any,
+        () => queryEmployee(id),
         'employees',
         id
       )
@@ -172,7 +182,19 @@ export default function RosterDetailPage() {
             .eq('employee_id', id)
             .order('expense_date', { ascending: false })
             .limit(100)
-          setEmpExpenses((expData as any[]) || [])
+          setEmpExpenses(expData || [])
+
+          // Deployments for payroll card
+          const { data: depData } = await supabase
+            .from('deployments')
+            .select('id, start_date, end_date, hours_worked, daily_rate, incident:incidents(name)')
+            .eq('employee_id', id)
+            .order('start_date', { ascending: false })
+            .limit(50)
+          setDeployments((depData || []).map((d: any) => ({
+            ...d,
+            incident_name: d.incident?.name || null,
+          })))
         } catch {}
       }
       setLoading(false)
@@ -182,11 +204,7 @@ export default function RosterDetailPage() {
 
 
 
-  if (loading) return (
-    <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-      <p className="text-gray-400">Loading...</p>
-    </div>
-  )
+  if (loading) return <LoadingSkeleton fullPage />
 
   // Can edit: admin OR viewing own employee record
   // Note: isAdmin derives from myAssignment; if still loading, default false then re-render
@@ -194,10 +212,7 @@ export default function RosterDetailPage() {
 
   if (!emp) return (
     <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-      <div className="text-center">
-        <p className="text-gray-400 mb-4">Employee not found.</p>
-        <Link to="/roster" className="text-red-400 underline">← Back</Link>
-      </div>
+      <EmptyState icon="👤" message="Employee not found." actionHref="/roster" actionLabel="← Back to Roster" />
     </div>
   )
 
@@ -227,11 +242,32 @@ export default function RosterDetailPage() {
             <div className="flex-1 min-w-0">
               <h1 className="text-xl font-bold">{emp.name}</h1>
               <div className="flex items-center gap-2 mt-1 flex-wrap">
-                <span className={`text-xs px-2 py-0.5 rounded-full ${ROLE_COLORS[emp.role] || ROLE_COLORS.Tech}`}>
-                  {emp.role}
-                </span>
+                {((emp.roles as string[] | null)?.length ? (emp.roles as string[]) : [emp.role]).map(r => (
+                  <span key={r} className={`text-xs px-2 py-0.5 rounded-full ${ROLE_COLORS[r] || ROLE_COLORS.Tech}`}>
+                    {r}
+                  </span>
+                ))}
                 {emp.rems && (
                   <span className="text-xs px-2 py-0.5 rounded-full bg-green-900 text-green-300">REMS</span>
+                )}
+                {emp.is_medical_director && !isAdmin && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-purple-900 text-purple-300">Medical Director</span>
+                )}
+                {isAdmin && ['MD', 'DO'].some(r => (emp.roles?.length ? emp.roles : [emp.role]).includes(r)) && (
+                  <button
+                    onClick={async () => {
+                      const newVal = !emp.is_medical_director
+                      await supabase.from('employees').update({ is_medical_director: newVal }).eq('id', emp.id)
+                      setEmp(prev => prev ? { ...prev, is_medical_director: newVal } : prev)
+                    }}
+                    className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
+                      emp.is_medical_director
+                        ? 'bg-purple-900 text-purple-300 hover:bg-purple-900/70'
+                        : 'bg-gray-800 text-gray-500 hover:bg-gray-700'
+                    }`}
+                  >
+                    {emp.is_medical_director ? '✓ Medical Director' : '+ Medical Director'}
+                  </button>
                 )}
                 {emp.status === 'Inactive' && (
                   <span className="text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-400">Inactive</span>
@@ -294,7 +330,7 @@ export default function RosterDetailPage() {
           <CredRow label="EMT License" value={emp.emt_license} />
           <CredRow label="RN License" value={emp.rn_license} />
           <CredRow label="NP License" value={emp.np_license} />
-          <CredRow label="MD/DO License" value={emp.md_license} />
+          <CredRow label="Medical License" value={emp.md_license} />
         </div>
 
         {/* Wildland Certs */}
@@ -307,7 +343,7 @@ export default function RosterDetailPage() {
           <CredRow label="ICS 200" value={emp.ics_200} />
           <CredRow label="ICS 700" value={emp.ics_700} />
           <CredRow label="ICS 800" value={emp.ics_800} />
-          <CredRow label="SSV LEMSA" value={(emp as any).ssv_lemsa} />
+          <CredRow label="SSV LEMSA" value={emp.ssv_lemsa} />
         </div>
 
         {/* Red Card & Deployment Status */}
@@ -323,17 +359,17 @@ export default function RosterDetailPage() {
               {canEdit ? (
                 <button
                   onClick={async () => {
-                    const newVal = !(emp as any).rems_capable
+                    const newVal = !emp.rems_capable
                     const supabase = (await import('@/lib/supabase/client')).createClient()
                     await updateEmployee(emp.id, { rems_capable: newVal, rems: newVal })
                     setEmp((prev: any) => prev ? { ...prev, rems_capable: newVal, rems: newVal } : prev)
                   }}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${(emp as any).rems_capable ? 'bg-purple-600' : 'bg-gray-600'}`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${emp.rems_capable ? 'bg-purple-600' : 'bg-gray-600'}`}
                 >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${(emp as any).rems_capable ? 'translate-x-6' : 'translate-x-1'}`} />
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${emp.rems_capable ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               ) : (
-                <span className={`text-xs px-2 py-0.5 rounded-full ${(emp as any).rems_capable ? 'bg-purple-900 text-purple-300' : 'bg-gray-800 text-gray-500'}`}>{(emp as any).rems_capable ? 'Yes' : 'No'}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${emp.rems_capable ? 'bg-purple-900 text-purple-300' : 'bg-gray-800 text-gray-500'}`}>{emp.rems_capable ? 'Yes' : 'No'}</span>
               )}
             </div>
 
@@ -349,7 +385,7 @@ export default function RosterDetailPage() {
                   min="2020"
                   max="2030"
                   placeholder="Year"
-                  defaultValue={(emp as any).red_card_year || ''}
+                  defaultValue={emp.red_card_year || ''}
                   className="w-20 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white text-center focus:outline-none focus:ring-1 focus:ring-red-500"
                   onBlur={async e => {
                     const yr = e.target.value ? parseInt(e.target.value) : null
@@ -360,9 +396,9 @@ export default function RosterDetailPage() {
                     setEmp((prev: any) => prev ? { ...prev, red_card_year: yr, red_card: yr ? `${yr} RAM Red Card` : null } : prev)
                   }}
                 />
-                {(emp as any).red_card_year && (
+                {emp.red_card_year && (
                   <span className="text-xs px-2 py-0.5 rounded bg-red-900/70 text-red-300 font-bold">
-                    🔴 {(emp as any).red_card_year}
+                    🔴 {emp.red_card_year}
                   </span>
                 )}
               </div>
@@ -377,7 +413,7 @@ export default function RosterDetailPage() {
               <input
                 type="text"
                 placeholder="DEA number or expiry"
-                defaultValue={(emp as any).dea_license || ''}
+                defaultValue={emp.dea_license || ''}
                 className="w-40 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
                 onBlur={async e => {
                   const val = e.target.value.trim() || null
@@ -449,6 +485,55 @@ export default function RosterDetailPage() {
           />
         </div>
 
+        {/* Payroll / Deployment History — admin only */}
+        {isAdmin && deployments.length > 0 && (
+          <div className="theme-card rounded-xl border overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b theme-card-header">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">💰 Payroll Summary</h3>
+              <span className="text-sm font-bold text-green-400">
+                {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(
+                  deployments.reduce((s, d) => {
+                    const h = d.hours_worked || 0
+                    const rate = d.daily_rate || 0
+                    return s + (rate > 0 ? (h / 24) * rate : 0)
+                  }, 0)
+                )}
+              </span>
+            </div>
+            <div className="divide-y divide-gray-800/50">
+              <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600">
+                <span className="w-32 shrink-0">Incident</span>
+                <span className="flex-1 min-w-0">Dates</span>
+                <span className="w-16 shrink-0 text-right">Hours</span>
+                <span className="w-20 shrink-0 text-right">Est. Pay</span>
+              </div>
+              {deployments.map(d => {
+                const h = d.hours_worked || 0
+                const rate = d.daily_rate || 0
+                const pay = rate > 0 ? (h / 24) * rate : 0
+                return (
+                  <div key={d.id} className="flex items-center px-4 py-2 text-sm">
+                    <span className="w-32 shrink-0 text-white text-xs truncate pr-2">{d.incident_name || '—'}</span>
+                    <span className="flex-1 min-w-0 text-gray-400 text-xs truncate">
+                      {d.start_date || '?'} → {d.end_date || 'active'}
+                    </span>
+                    <span className="w-16 shrink-0 text-right text-gray-400 text-xs">{h > 0 ? `${h.toFixed(0)}h` : '—'}</span>
+                    <span className="w-20 shrink-0 text-right text-green-400 text-xs font-medium">
+                      {pay > 0 ? `$${pay.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : '—'}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="px-4 py-2 border-t border-gray-800/50 flex justify-between text-xs">
+              <span className="text-gray-500">{deployments.length} deployment{deployments.length !== 1 ? 's' : ''}</span>
+              <span className="text-gray-500">
+                {deployments.reduce((s, d) => s + (d.hours_worked || 0), 0).toFixed(0)} total hours
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Employee Expenses — admin only */}
         {isAdmin && (
           <div className="rounded-xl border overflow-hidden" style={{ backgroundColor: 'var(--color-card-bg, #111827)', borderColor: 'var(--color-border, #1f2937)' }}>
@@ -477,7 +562,8 @@ export default function RosterDetailPage() {
                 </thead>
                 <tbody className="divide-y" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
                   {empExpenses.map(exp => {
-                    const incName = (exp.incidents as any)?.name || (Array.isArray(exp.incidents) ? (exp.incidents as any[])[0]?.name : null) || '—'
+                    const inc = exp.incidents as { name: string } | { name: string }[] | null
+                    const incName = (Array.isArray(inc) ? inc[0]?.name : inc?.name) || '—'
                     return (
                       <tr key={exp.id} className="hover:bg-gray-800/30 transition-colors">
                         <td className="px-3 py-2 text-gray-400">{exp.expense_date}</td>
@@ -518,6 +604,15 @@ export default function RosterDetailPage() {
         )}
 
       </div>
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message || ''}
+        icon={confirmAction?.icon || '⚠️'}
+        confirmColor={confirmAction?.confirmColor}
+        onConfirm={() => { confirmAction?.action(); setConfirmAction(null) }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   )
 }

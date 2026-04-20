@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
+import { LoadingSkeleton } from '@/components/ui'
 import { useRole } from '@/lib/useRole'
 import { Link } from 'react-router-dom'
 
@@ -276,7 +277,7 @@ export default function ScheduleCalendarPage() {
 
           {/* Weeks */}
           {loading ? (
-            <div className="py-20 text-center text-gray-600 text-sm">Loading...</div>
+            <LoadingSkeleton fullPage />
           ) : (
             weeks.map((week, wi) => (
               <div key={wi} className="grid grid-cols-7 border-b border-gray-800/50 last:border-b-0">

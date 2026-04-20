@@ -318,7 +318,7 @@ function NewCompClaimInner() {
       const { data: emps } = await supabase
         .from('employees')
         .select('id, name, role')
-        .in('role', ['MD', 'MD/DO'])
+        .in('role', ['MD', 'DO'])
         .eq('status', 'Active')
         .order('name')
       setPhysicians(emps || [])

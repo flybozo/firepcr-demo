@@ -4,13 +4,13 @@ import { brand } from '@/lib/branding.config'
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
-type Role = 'EMT' | 'Paramedic' | 'RN' | 'NP' | 'PA' | 'MD/DO' | 'Tech'
+type Role = 'EMT' | 'Paramedic' | 'RN' | 'NP' | 'PA' | 'MD' | 'DO' | 'Tech'
 
-const ROLE_OPTIONS: Role[] = ['EMT', 'Paramedic', 'RN', 'NP', 'PA', 'MD/DO', 'Tech']
+const ROLE_OPTIONS: Role[] = ['EMT', 'Paramedic', 'RN', 'NP', 'PA', 'MD', 'DO', 'Tech']
 
 const CERT_TYPE_OPTIONS = [
   'BLS/CPR', 'ACLS', 'PALS', 'ITLS / PHTLS / ATLS',
-  'Paramedic License', 'Medical License (MD/DO)', 'NP License', 'PA License', 'RN License',
+  'Paramedic License', 'Medical License', 'NP License', 'PA License', 'RN License',
   'Ambulance Driver Cert', 'NREMT', 'EMT Certification',
   'S-130', 'S-190', 'L-180',
   'ICS-100', 'ICS-200', 'ICS-300', 'ICS-400', 'ICS-700', 'ICS-800',

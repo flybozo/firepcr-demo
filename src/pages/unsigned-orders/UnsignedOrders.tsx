@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
+import { PageHeader, LoadingSkeleton, EmptyState } from '@/components/ui'
 
 type UnsignedChart = {
   id: string
@@ -62,25 +63,22 @@ export default function UnsignedOrdersPage() {
     load()
   }, [assignment.loading, assignment.employee?.name])
 
-  if (loading) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><p className="text-gray-500">Loading...</p></div>
+  if (loading) return <LoadingSkeleton fullPage />
 
   const myName = assignment.employee?.name
 
   return (
     <div className="bg-gray-950 text-white pb-8">
       <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-6 mt-8 md:mt-0">
-        <div>
-          <h1 className="text-xl font-bold">Unsigned Charts</h1>
-          <p className="text-gray-500 text-xs mt-0.5">Charts and notes by {myName || 'you'} awaiting your signature</p>
-        </div>
+        <PageHeader
+          title="Unsigned Charts"
+          subtitle={`Charts and notes by ${myName || 'you'} awaiting your signature`}
+        />
 
         <div>
           <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">Patient Encounters ({charts.length})</h2>
           {charts.length === 0 ? (
-            <div className="theme-card rounded-xl border p-8 text-center">
-              <p className="text-4xl mb-3">✅</p>
-              <p className="text-gray-500 text-sm">All your charts are signed.</p>
-            </div>
+            <EmptyState icon="✅" message="All your charts are signed." />
           ) : (
             <div className="theme-card rounded-xl border overflow-hidden divide-y divide-gray-800/50">
               <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 bg-slate-800/90">

@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom'
 import { useNavigate, useMatch } from 'react-router-dom'
 import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
 import { loadList } from '@/lib/offlineFirst'
+import { PageHeader, LoadingSkeleton, EmptyState, ConfirmDialog } from '@/components/ui'
 
 type Unit = {
   id: string
@@ -62,6 +63,7 @@ function UnitsPageInner() {
   const [isOffline, setIsOffline] = useState(false)
   const [statusFilter, setStatusFilter] = useState<'all' | 'in_service' | 'out_of_service' | 'archived'>('all')
   const [cyclingStatus, setCyclingStatus] = useState<string | null>(null)
+  const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; confirmLabel?: string; icon?: string; confirmColor?: string } | null>(null)
 
 
   const load = async () => {
@@ -144,21 +146,19 @@ function UnitsPageInner() {
     if (isLeavingService && activeIU) {
       const incidentName = (activeIU as any).incident?.name || 'its current incident'
       const label = next === 'archived' ? 'Archive' : 'Mark Out of Service'
-      const ok = confirm(`${label} ${unitName}?\n\nThis will:\n• Release ${unitName} from ${incidentName}\n• Release all assigned crew\n\nThis cannot be undone automatically.`)
-      if (!ok) return
-
-      const now = new Date().toISOString()
-      // 1. Release all crew assignments under this incident_unit
-      await supabase
-        .from('unit_assignments')
-        .update({ released_at: now })
-        .eq('incident_unit_id', activeIU.id)
-        .is('released_at', null)
-      // 2. Release the incident_unit itself — removes unit from the incident
-      await supabase
-        .from('incident_units')
-        .update({ released_at: now })
-        .eq('id', activeIU.id)
+      setConfirmAction({
+        action: async () => {
+          const now = new Date().toISOString()
+          await supabase.from('unit_assignments').update({ released_at: now }).eq('incident_unit_id', activeIU.id).is('released_at', null)
+          await supabase.from('incident_units').update({ released_at: now }).eq('id', activeIU.id)
+          await supabase.from('units').update({ unit_status: next }).eq('id', unitId)
+          await load()
+        },
+        title: `${label} ${unitName}`,
+        message: `This will:\n• Release ${unitName} from ${incidentName}\n• Release all assigned crew\n\nThis cannot be undone automatically.`,
+        icon: '⚠️',
+      })
+      return
     }
 
     setCyclingStatus(unitId)
@@ -171,16 +171,17 @@ function UnitsPageInner() {
 
   return (
     <div className="p-4 md:p-6 mt-8 md:mt-0">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-xl font-bold">Units</h1>
-          <p className="text-gray-500 text-xs">{filteredUnits.length} unit{filteredUnits.length !== 1 ? 's' : ''}</p>
-        </div>
-        <Link to="/units/new"
-          className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors">
-          + Add Unit
-        </Link>
-      </div>
+      <PageHeader
+        title="Units"
+        subtitle={`${filteredUnits.length} unit${filteredUnits.length !== 1 ? 's' : ''}`}
+        actions={
+          <Link to="/units/new"
+            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors">
+            + Add Unit
+          </Link>
+        }
+        className="mb-4"
+      />
 
       {isOffline && (
         <div className="mb-4 bg-red-950/60 border border-red-800 rounded-xl px-4 py-3 text-red-300 text-sm flex items-center gap-2">
@@ -214,9 +215,9 @@ function UnitsPageInner() {
       </select>
 
       {loading ? (
-        <p className="text-gray-500">Loading...</p>
+        <LoadingSkeleton rows={6} header />
       ) : filteredUnits.length === 0 ? (
-        <p className="text-center text-gray-600 py-8">No units found.</p>
+        <EmptyState icon="🚑" message="No units found." actionHref="/units/new" actionLabel="Add a unit" />
       ) : (
         <div className="theme-card rounded-xl border overflow-x-auto">
           {/* Header */}
@@ -243,7 +244,7 @@ function UnitsPageInner() {
                 className={`flex items-center px-4 py-2 cursor-pointer border-b border-gray-800/50 text-sm min-w-[760px] ${detailMatch?.params?.id === unit.id ? 'bg-gray-700' : 'hover:bg-gray-800'}`}>
 
                 {/* Unit photo */}
-                <div className="w-8 h-8 rounded overflow-hidden shrink-0 bg-gray-700 flex items-center justify-center mr-0">
+                <div className="w-8 h-8 rounded overflow-hidden shrink-0 bg-gray-700 flex items-center justify-center mr-3">
                   {unit.photo_url ? (
                     <img src={unit.photo_url} alt={unit.name} className="w-full h-full object-cover" />
                   ) : (
@@ -314,6 +315,15 @@ function UnitsPageInner() {
         </div>
       )}
 
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message || ''}
+        icon={confirmAction?.icon || '⚠️'}
+        confirmColor={confirmAction?.confirmColor}
+        onConfirm={() => { confirmAction?.action(); setConfirmAction(null) }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   )
 }

@@ -1,11 +1,13 @@
 
 
 import { useEffect, useState } from 'react'
+import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
 import { loadSingle } from '@/lib/offlineFirst'
 import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
 import PinSignature, { type SignatureRecord } from '@/components/PinSignature'
+import { LoadingSkeleton, EmptyState } from '@/components/ui'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 
 type MAREntry = {
@@ -41,6 +43,12 @@ type MAREntry = {
   cosigned_at: string | null
   cosigned_by: string | null
   cosign_signature_url: string | null
+  is_void: boolean | null
+  voided_at: string | null
+  voided_by: string | null
+  void_reason: string | null
+  item_type: string | null
+  incident_id: string | null
   [key: string]: unknown
 }
 
@@ -75,7 +83,7 @@ export default function MARDetailPage() {
   const [voiding, setVoiding] = useState(false)
   const [showVoidPin, setShowVoidPin] = useState(false)
 
-  const isVoided = !!(entry as any)?.is_void || !!(entry as any)?.voided_at
+  const isVoided = !!entry?.is_void || !!entry?.voided_at
 
   const handleVoid = async (sigRecord: SignatureRecord) => {
     setVoiding(true)
@@ -92,8 +100,8 @@ export default function MARDetailPage() {
       const qtyToReturn = Number(entry?.qty_used) || 0
       const unitName = entry?.med_unit || entry?.unit || null
       const itemName = entry?.item_name || null
-      const lotNumber = (entry as any)?.lot_number || null
-      const itemType = (entry as any)?.item_type || null
+      const lotNumber = entry?.lot_number || null
+      const itemType = entry?.item_type || null
 
       if (qtyToReturn > 0 && unitName && itemName) {
         // Return to general unit_inventory
@@ -154,11 +162,11 @@ export default function MARDetailPage() {
         })
       } catch { /* audit is best-effort */ }
 
-      setEntry(prev => prev ? { ...prev, is_void: true, voided_at: new Date().toISOString(), voided_by: sigRecord.employeeName, void_reason: voidReason } as any : prev)
+      setEntry(prev => prev ? { ...prev, is_void: true, voided_at: new Date().toISOString(), voided_by: sigRecord.employeeName, void_reason: voidReason } : prev)
       setShowVoidPin(false)
       setShowVoidForm(false)
     } catch (err) {
-      alert('Failed to void entry')
+      toast.error('Failed to void entry')
     }
     setVoiding(false)
   }
@@ -167,14 +175,14 @@ export default function MARDetailPage() {
     // Show cached data instantly
     try {
       const { getCachedById } = await import('@/lib/offlineStore')
-      const cached = await getCachedById('mar_entries', id) as any
+      const cached = await getCachedById('mar_entries', id)
       if (cached) {
         setEntry(cached)
         setLoading(false)
       }
     } catch {}
     const { data, offline } = await loadSingle<MAREntry>(
-      () => supabase.from('dispense_admin_log').select('*').eq('id', id).single() as any,
+      () => supabase.from('dispense_admin_log').select('*').eq('id', id).single(),
       'mar_entries',
       id
     )
@@ -212,9 +220,12 @@ export default function MARDetailPage() {
 
     // Adjust inventory if unit is known
     if (entry.med_unit && delta !== 0) {
+      const { data: unitData } = await supabase.from('units').select('id').eq('name', entry.med_unit).single()
+      const unitId = unitData?.id
+      if (!unitId) { console.error('Unit not found for inventory adjustment:', entry.med_unit); return }
       const { data: iuRows } = await supabase.from('incident_units')
         .select('id')
-        .eq('unit_id', (await supabase.from('units').select('id').eq('name', entry.med_unit).single()).data?.id)
+        .eq('unit_id', unitId)
       if (iuRows?.length) {
         const iuIds = iuRows.map((r: any) => r.id)
         const { data: invRows } = await supabase.from('unit_inventory')
@@ -254,24 +265,17 @@ export default function MARDetailPage() {
       await loadEntry()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
-      alert(`Signature failed: ${msg}`)
+      toast.error(`Signature failed: ${msg}`)
     } finally {
       setSigning(false)
     }
   }
 
-  if (loading) return (
-    <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-      <p className="text-gray-400">Loading...</p>
-    </div>
-  )
+  if (loading) return <LoadingSkeleton fullPage />
 
   if (!entry) return (
     <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-      <div className="text-center">
-        <p className="text-gray-400 mb-4">Entry not found.</p>
-        <Link to="/mar" className="text-red-400 underline">← Back</Link>
-      </div>
+      <EmptyState icon="💊" message="Entry not found." actionHref="/mar" actionLabel="← Back to MAR" />
     </div>
   )
 
@@ -478,8 +482,8 @@ export default function MARDetailPage() {
         {isVoided && (
           <div className="bg-red-950 border border-red-800 rounded-xl px-4 py-3 space-y-1">
             <p className="text-sm font-bold text-red-300">⛔ VOIDED</p>
-            <p className="text-xs text-red-400">Voided by {(entry as any).voided_by} on {new Date((entry as any).voided_at).toLocaleString()}</p>
-            {(entry as any).void_reason && <p className="text-xs text-red-400/80">Reason: {(entry as any).void_reason}</p>}
+            <p className="text-xs text-red-400">Voided by {entry.voided_by} on {new Date(entry.voided_at!).toLocaleString()}</p>
+            {entry.void_reason && <p className="text-xs text-red-400/80">Reason: {entry.void_reason}</p>}
           </div>
         )}
 

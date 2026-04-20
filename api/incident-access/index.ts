@@ -38,24 +38,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (req.method === 'GET') {
       const code = req.query['code'] as string
-      if (!code) return res.status(400).json({ error: 'Missing code' })
+      const directIncidentId = req.query['incidentId'] as string
+      if (!code && !directIncidentId) return res.status(400).json({ error: 'Missing code or incidentId' })
+
       const supabase = createServiceClient()
-      const { data: codeRow, error: codeErr } = await supabase
-        .from('incident_access_codes').select('*').eq('access_code', code.toUpperCase()).single()
-      if (codeErr || !codeRow || !codeRow.active) return res.status(404).json({ error: 'Invalid or inactive access code' })
-      if (codeRow.expires_at && new Date(codeRow.expires_at) < new Date()) return res.status(410).json({ error: 'Expired' })
+      let incidentId: string
+      let codeLabel: string | null = null
 
-      void supabase.from('incident_access_log').insert({ access_code_id: codeRow.id, incident_id: codeRow.incident_id, access_code: code.toUpperCase(), label: codeRow.label, accessed_at: new Date().toISOString(), user_agent: req.headers['user-agent'] || null })
+      if (directIncidentId) {
+        // Authenticated internal access — require logged-in employee
+        await requireEmployee(req)
+        incidentId = directIncidentId
+      } else {
+        // External access via code
+        const { data: codeRow, error: codeErr } = await supabase
+          .from('incident_access_codes').select('*').eq('access_code', code!.toUpperCase()).single()
+        if (codeErr || !codeRow || !codeRow.active) return res.status(404).json({ error: 'Invalid or inactive access code' })
+        if (codeRow.expires_at && new Date(codeRow.expires_at) < new Date()) return res.status(410).json({ error: 'Expired' })
 
-      const incidentId = codeRow.incident_id
-      const [incR, orgR, encR, iuR, compR, ics214R, amaR] = await Promise.all([
+        void supabase.from('incident_access_log').insert({ access_code_id: codeRow.id, incident_id: codeRow.incident_id, access_code: code!.toUpperCase(), label: codeRow.label, accessed_at: new Date().toISOString(), user_agent: req.headers['user-agent'] || null })
+
+        incidentId = codeRow.incident_id
+        codeLabel = codeRow.label
+      }
+      const [incR, orgR, encR, iuR, compR, ics214R, amaR, medDirectorsR] = await Promise.all([
         supabase.from('incidents').select('id, name, status, location, start_date, end_date, incident_number, agreement_number, resource_order_number, financial_code').eq('id', incidentId).single(),
         supabase.from('organizations').select('name, dba, logo_url').limit(1).single(),
         supabase.from('patient_encounters').select('id, encounter_id, date, unit, patient_agency, patient_age, patient_age_units, primary_symptom_text, initial_acuity, final_acuity, patient_disposition, created_at').eq('incident_id', incidentId).order('date', { ascending: false }).limit(500),
-        supabase.from('incident_units').select('id, unit:units(name)').eq('incident_id', incidentId),
+        supabase.from('incident_units').select(`
+          id, released_at,
+          unit:units(id, name),
+          unit_assignments(
+            id, role_on_unit, released_at,
+            employee:employees(id, name, role, phone, wf_email, headshot_url)
+          )
+        `).eq('incident_id', incidentId),
         supabase.from('comp_claims').select('id, date_of_injury, status, pdf_url, osha_recordable, created_at, encounter_id, patient_name, employee_supervisor_name').eq('incident_id', incidentId).order('created_at', { ascending: false }),
         supabase.from('ics214_headers').select('id, ics214_id, unit_name, op_date, status, pdf_url, created_at, created_by').eq('incident_id', incidentId).order('op_date', { ascending: false }),
         supabase.from('consent_forms').select('id, encounter_id, form_type, created_at').eq('incident_id', incidentId).eq('form_type', 'AMA'),
+        supabase.from('employees').select('id, name, role, phone, wf_email, headshot_url').eq('is_medical_director', true).eq('status', 'Active'),
       ])
       if (!incR.data) return res.status(404).json({ error: 'Incident not found' })
 
@@ -90,21 +111,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const acCounts: Record<string, number> = {}
       encounters.forEach((e: any) => { if (e.acuity) acCounts[e.acuity] = (acCounts[e.acuity] || 0) + 1 })
 
-      // Fetch supply runs count + aggregate item totals server-side via RPC
+      // Fetch supply runs with timestamps + item details for client-side date filtering
       const { data: supplyRunsData } = await supabase
         .from('supply_runs')
-        .select('id')
+        .select('id, created_at')
         .eq('incident_id', incidentId)
       const runIds = (supplyRunsData || []).map((r: any) => r.id)
+      const runCreatedAt: Record<string, string> = {}
+      ;(supplyRunsData || []).forEach((r: any) => { runCreatedAt[r.id] = r.created_at })
       let supplyAggregated: { item_name: string; total_qty: number; unit: string; category: string }[] = []
+      let supplyItems_raw: { item_name: string; quantity: number; unit_of_measure: string; category: string; created_at: string }[] = []
       if (runIds.length > 0) {
-        // Aggregate totals in one query; Supabase doesn't support GROUP BY directly
-        // so we fetch only what we need (no select *) and aggregate client-side
         const { data: supplyItems } = await supabase
           .from('supply_run_items')
-          .select('item_name, quantity, unit_of_measure, category')
+          .select('item_name, quantity, unit_of_measure, category, supply_run_id')
           .in('supply_run_id', runIds)
           .is('deleted_at', null)
+        // Build raw items with created_at from parent run (for client-side date filtering)
+        supplyItems_raw = (supplyItems || []).filter((i: any) => i.item_name).map((i: any) => ({
+          item_name: i.item_name,
+          quantity: Number(i.quantity) || 0,
+          unit_of_measure: i.unit_of_measure || '',
+          category: i.category || '',
+          created_at: runCreatedAt[i.supply_run_id] || '',
+        }))
+        // Also build full-incident aggregated totals
         const totals: Record<string, { qty: number; unit: string; category: string }> = {}
         ;(supplyItems || []).forEach((i: any) => {
           if (!i.item_name) return
@@ -127,6 +158,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           encounters_by_day: Object.entries(dailyCounts).sort(([a], [b]) => a.localeCompare(b)).map(([date, count]) => ({ date, count })),
         },
         supply_aggregated: supplyAggregated,
+        supply_items: supplyItems_raw,
         comp_claims: (compR.data || []).map((c: any, i: number) => {
           const name = c.patient_name || ''
           const parts = name.trim().split(/\s+/)
@@ -140,7 +172,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           return { ...c, seq_id: `WC-${String(i + 1).padStart(3, '0')}`, has_pdf: !!c.pdf_url, patient_initials: initials, patient_seq_id: encSeqId, supervisor_name: c.employee_supervisor_name || null }
         }),
         ics214s: (ics214R.data || []).map((f: any) => ({ ...f, date: f.op_date, unit: f.unit_name, prepared_by: f.created_by || null, has_pdf: !!f.pdf_url })),
-        code_label: codeRow.label,
+        medical_directors: (medDirectorsR.data || []).map((md: any) => ({
+          id: md.id, name: md.name, role: md.role,
+          phone: md.phone || null, email: md.wf_email || null,
+          headshot_url: md.headshot_url || null,
+        })),
+        deployed_units: (iuR.data || []).filter((iu: any) => !iu.released_at).map((iu: any) => ({
+          unit_name: iu.unit?.name || 'Unknown',
+          crew: (iu.unit_assignments || []).filter((ua: any) => !ua.released_at).map((ua: any) => ({
+            name: ua.employee?.name || 'Unknown',
+            role: ua.employee?.role || '',
+            role_on_unit: ua.role_on_unit || '',
+            phone: ua.employee?.phone || null,
+            email: ua.employee?.wf_email || null,
+            headshot_url: ua.employee?.headshot_url || null,
+          })),
+        })),
+        code_label: codeLabel,
       })
     }
 

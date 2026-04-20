@@ -2,7 +2,9 @@ import { FieldGuard } from '@/components/FieldGuard'
 import { useRole } from '@/lib/useRole'
 
 import { useEffect, useState } from 'react'
+import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
+import { LoadingSkeleton, ConfirmDialog } from '@/components/ui'
 import { loadList } from '@/lib/offlineFirst'
 
 type FormulaItem = {
@@ -52,6 +54,7 @@ function FormularyPageInner() {
   // Inline unit_cost editing state
   const [editingUnitCostId, setEditingUnitCostId] = useState<string | null>(null)
   const [unitCostInput, setUnitCostInput] = useState('')
+  const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; confirmLabel?: string; icon?: string; confirmColor?: string } | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -135,7 +138,7 @@ function FormularyPageInner() {
     const supIdx = headers.indexOf('supplier')
     const upcIdx = headers.indexOf('units_per_case')
     const ccIdx = headers.indexOf('case_cost')
-    if (nameIdx === -1 || catIdx === -1) { alert('CSV must have item_name and category columns'); return }
+    if (nameIdx === -1 || catIdx === -1) { toast.warning('CSV must have item_name and category columns'); return }
     const rows = lines.slice(1).map(line => {
       const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''))
       return {
@@ -148,16 +151,22 @@ function FormularyPageInner() {
         case_cost: ccIdx >= 0 && cols[ccIdx] ? parseFloat(cols[ccIdx]) : null,
       }
     }).filter(r => r.item_name)
-    if (!confirm(`Import ${rows.length} items into ${activeTab} formulary? Existing items will not be duplicated.`)) return
-    const { error } = await supabase.from('formulary_templates').upsert(rows, { onConflict: 'unit_type_id,item_name' })
-    if (error) { alert('Import error: ' + error.message); return }
-    alert(`Imported ${rows.length} items successfully`)
-    setLoading(true)
-    const { data } = await supabase.from('formulary_templates')
-      .select(SELECT_FIELDS)
-      .eq('unit_type_id', unitTypes[activeTab]).order('category').order('item_name')
-    setItems(data || []); setLoading(false)
-    e.target.value = ''
+    setConfirmAction({
+      action: async () => {
+        const { error } = await supabase.from('formulary_templates').upsert(rows, { onConflict: 'unit_type_id,item_name' })
+        if (error) { toast.error('Import error: ' + error.message); return }
+        toast.success(`Imported ${rows.length} items successfully`)
+        setLoading(true)
+        const { data } = await supabase.from('formulary_templates')
+          .select(SELECT_FIELDS)
+          .eq('unit_type_id', unitTypes[activeTab]).order('category').order('item_name')
+        setItems(data || []); setLoading(false)
+        e.target.value = ''
+      },
+      title: 'Import Formulary Items',
+      message: `Import ${rows.length} items into ${activeTab} formulary? Existing items will not be duplicated.`,
+      icon: '⚠️',
+    })
   }
 
   /** Returns the effective unit cost: explicit unit_cost if set, otherwise calculated */
@@ -189,10 +198,17 @@ function FormularyPageInner() {
     setLoading(false)
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Remove this item from the formulary?')) return
-    await supabase.from('formulary_templates').delete().eq('id', id)
-    setItems(prev => prev.filter(i => i.id !== id))
+  const handleDelete = (id: string) => {
+    setConfirmAction({
+      action: async () => {
+        await supabase.from('formulary_templates').delete().eq('id', id)
+        setItems(prev => prev.filter(i => i.id !== id))
+      },
+      title: 'Remove Item',
+      message: 'Remove this item from the formulary?',
+      icon: '🗑️',
+      confirmColor: 'bg-red-600 hover:bg-red-700',
+    })
   }
 
   const handleEditSave = async (id: string) => {
@@ -308,7 +324,7 @@ function FormularyPageInner() {
 
       {/* Table */}
       {loading ? (
-        <p className="text-gray-500 text-sm">Loading...</p>
+        <LoadingSkeleton rows={8} header />
       ) : (
         <div className="theme-card rounded-xl border overflow-hidden">
           {/* Header */}
@@ -467,6 +483,15 @@ function FormularyPageInner() {
           )}
         </div>
       )}
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message || ''}
+        icon={confirmAction?.icon || '⚠️'}
+        confirmColor={confirmAction?.confirmColor}
+        onConfirm={() => { confirmAction?.action(); setConfirmAction(null) }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   )
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import SignatureCanvas from 'react-signature-canvas'
+import { LoadingSkeleton } from '@/components/ui'
 import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
@@ -423,11 +424,7 @@ export default function ICS214DetailPage() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
+    return <LoadingSkeleton fullPage />
   }
 
   if (!header) {

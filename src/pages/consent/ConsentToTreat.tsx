@@ -255,10 +255,13 @@ function ConsentToTreatInner() {
   const lbl = 'text-xs text-gray-400 block mb-1'
 
   // Poll DB for pdf_url after success (background save may still be running)
+  // If background save failed, retry as fallback after 10s of polling
   useEffect(() => {
     if (!submitted || !lastConsentId || pdfUrl) return
     let attempts = 0
+    let cancelled = false
     const poll = setInterval(async () => {
+      if (cancelled) return
       attempts++
       try {
         const { data } = await supabase.from('consent_forms').select('pdf_url').eq('consent_id', lastConsentId).single()
@@ -266,11 +269,28 @@ function ConsentToTreatInner() {
           const { data: signed } = await supabase.storage.from('documents').createSignedUrl(data.pdf_url, 3600 * 24 * 365)
           if (signed?.signedUrl) setPdfUrl(signed.signedUrl)
           clearInterval(poll)
+          return
         }
       } catch {}
-      if (attempts >= 10) clearInterval(poll)
+      if (attempts >= 10) {
+        clearInterval(poll)
+        if (!lastConsentData || cancelled) return
+        try {
+          const doc = generateConsentToTreatPDF({ ...lastConsentData, consent_id: lastConsentId }, logoDataUrl)
+          const pdfBlob = new Blob([doc.output('arraybuffer')], { type: 'application/pdf' })
+          const storagePath = `consent-to-treat/${lastConsentId}.pdf`
+          const { error: uploadErr } = await supabase.storage.from('documents').upload(storagePath, pdfBlob, { contentType: 'application/pdf', upsert: true })
+          if (!uploadErr) {
+            const { data: signed } = await supabase.storage.from('documents').createSignedUrl(storagePath, 3600 * 24 * 365)
+            if (signed?.signedUrl && !cancelled) setPdfUrl(signed.signedUrl)
+            await supabase.from('consent_forms').update({ pdf_url: storagePath }).eq('consent_id', lastConsentId)
+          }
+        } catch (e) {
+          console.error('Fallback PDF save failed:', e)
+        }
+      }
     }, 1000)
-    return () => clearInterval(poll)
+    return () => { cancelled = true; clearInterval(poll) }
   }, [submitted, lastConsentId, pdfUrl])
 
   // ── Success Screen ─────────────────────────────────────────────────────────

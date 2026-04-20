@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
+import { LoadingSkeleton } from '@/components/ui'
 
 type UnsignedEncounter = {
   id: string
@@ -72,13 +73,7 @@ export default function UnsignedPCRsPage() {
 
   const myName = assignment.employee?.name
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <p className="text-gray-500 text-sm">Loading...</p>
-      </div>
-    )
-  }
+  if (loading) return <LoadingSkeleton fullPage />
 
   return (
     <div className="bg-gray-950 text-white pb-8">

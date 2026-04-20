@@ -9,6 +9,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useRole } from '@/lib/useRole'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
+import { PageHeader, LoadingSkeleton, EmptyState } from '@/components/ui'
 
 type CSItem = {
   id: string
@@ -97,17 +98,17 @@ export default function CSList() {
     <div className="flex flex-col min-h-full">
       {/* Header */}
       <div className="px-4 pt-4 pb-3 border-b border-gray-800 mt-8 md:mt-0 space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-white">🔐 CS Inventory</h1>
-            <p className="text-gray-500 text-xs mt-0.5">{filtered.length} items</p>
-          </div>
-          <div className="flex gap-2">
-            <Link to="/cs/receive" className="px-2.5 py-1.5 bg-green-700 hover:bg-green-600 text-white text-xs rounded-lg font-medium">+ Receive</Link>
-            <Link to="/cs/transfer" className="px-2.5 py-1.5 bg-blue-700 hover:bg-blue-600 text-white text-xs rounded-lg font-medium">⇄ Transfer</Link>
-            <Link to="/cs/count" className="px-2.5 py-1.5 bg-orange-700 hover:bg-orange-600 text-white text-xs rounded-lg font-medium">📋 Count</Link>
-          </div>
-        </div>
+        <PageHeader
+          title="🔐 CS Inventory"
+          subtitle={`${filtered.length} items`}
+          actions={
+            <div className="flex gap-2">
+              <Link to="/cs/receive" className="px-2.5 py-1.5 bg-green-700 hover:bg-green-600 text-white text-xs rounded-lg font-medium">+ Receive</Link>
+              <Link to="/cs/transfer" className="px-2.5 py-1.5 bg-blue-700 hover:bg-blue-600 text-white text-xs rounded-lg font-medium">⇄ Transfer</Link>
+              <Link to="/cs/count" className="px-2.5 py-1.5 bg-orange-700 hover:bg-orange-600 text-white text-xs rounded-lg font-medium">📋 Count</Link>
+            </div>
+          }
+        />
 
         {/* Search */}
         <input
@@ -143,9 +144,9 @@ export default function CSList() {
 
       {/* List */}
       {loading ? (
-        <p className="text-gray-500 text-sm px-4 py-6">Loading...</p>
+        <LoadingSkeleton rows={5} header />
       ) : filtered.length === 0 ? (
-        <p className="text-center text-gray-600 py-8 text-sm">No CS items found.</p>
+        <EmptyState icon="🔐" message="No CS items found." />
       ) : (
         <div className="flex-1">
           {/* Column header */}

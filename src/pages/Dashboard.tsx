@@ -18,7 +18,7 @@ export default function Dashboard() {
           .select('role')
           .eq('auth_user_id', user.id)
           .single()
-        const isAdmin = employee && ['MD', 'MD/DO', 'Admin'].includes((employee as any).role)
+        const isAdmin = employee && ['MD', 'DO', 'Admin'].includes((employee as any).role)
         navigate(isAdmin ? '/admin' : '/dashboard/my-unit', { replace: true })
       } catch {
         // Offline — default to field view

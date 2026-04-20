@@ -40,16 +40,9 @@ const TABS: Tab[] = [
     ],
   },
   {
-    icon: 'cs',
-    label: 'CS',
-    href: '/cs',
-    subItems: [
-      { label: 'CS Overview', href: '/cs' },
-      { label: 'Receive CS', href: '/cs/receive' },
-      { label: 'Transfer CS', href: '/cs/transfer' },
-      { label: 'Daily Count', href: '/cs/count' },
-      { label: 'Audit Log', href: '/cs/audit' },
-    ],
+    icon: 'chat',
+    label: 'Chat',
+    href: '/chat',
   },
   {
     icon: 'inventory',
@@ -57,7 +50,7 @@ const TABS: Tab[] = [
     href: '/inventory',
     subItems: [
       { label: 'Inventory', href: '/inventory' },
-      { label: 'Add Inventory', href: '/inventory/add' },
+      { label: 'Add Inventory', href: '/inventory/add', adminOnly: true },
       { label: 'Supply Runs', href: '/supply-runs' },
       { label: 'New Run', href: '/supply-runs/new' },
     ],
@@ -66,10 +59,9 @@ const TABS: Tab[] = [
     icon: 'roster',
     label: 'Roster',
     href: '/roster',
-    adminOnly: true,
     subItems: [
       { label: 'Employee Roster', href: '/roster' },
-      { label: 'HR Credentials', href: '/roster/hr' },
+      { label: 'HR Credentials', href: '/roster/hr', adminOnly: true },
     ],
   },
   {
@@ -78,11 +70,11 @@ const TABS: Tab[] = [
     href: '/more',
     subItems: [
       { label: 'Units', href: '/units', icon: 'units' },
-      { label: 'Analytics', href: '/analytics', icon: 'analytics' },
-      { label: 'External Dashboard', href: '/admin/fire-dashboard', icon: 'fire-dashboard' },
-      { label: 'Payroll', href: '/payroll', icon: 'payroll' },
-      { label: 'Documents', href: '/documents', icon: 'documents' },
-      { label: 'Chat', href: '/chat', icon: 'chat' },
+      { label: 'CS', href: '/cs', icon: 'cs' },
+      { label: 'Analytics', href: '/analytics', icon: 'analytics', adminOnly: true },
+      { label: 'Payroll', href: '/payroll', icon: 'payroll', adminOnly: true },
+      { label: 'My Pay', href: '/payroll/my', icon: 'payroll', fieldOnly: true },
+      { label: 'Documents', href: '/documents', icon: 'documents', adminOnly: true },
       { label: 'Profile', href: '/profile', icon: 'profile' },
       { label: 'Schedule Request', href: '/schedule/request', icon: 'schedule', fieldOnly: true },
       { label: 'Admin', href: '/admin', icon: 'admin', adminOnly: true },
@@ -291,10 +283,10 @@ export default function BottomTabBar() {
             const encounterBadge = tab.href === '/encounters' && unsignedCounts.total > 0
               ? unsignedCounts.total
               : null
-            const moreBadge = tab.label === 'More' && chatUnread > 0
+            const chatBadge = tab.href === '/chat' && chatUnread > 0
               ? chatUnread
               : null
-            const badge = encounterBadge || moreBadge
+            const badge = encounterBadge || chatBadge
 
             return (
               <button
@@ -320,7 +312,7 @@ export default function BottomTabBar() {
                   </>
                 )}
                 {badge && (
-                  <span className={`absolute top-1 right-1/4 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-white text-[9px] font-bold leading-none ${moreBadge ? 'bg-red-600' : 'bg-orange-500'}`}>
+                  <span className={`absolute top-1 right-1/4 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-white text-[9px] font-bold leading-none ${chatBadge ? 'bg-red-600' : 'bg-orange-500'}`}>
                     {badge > 99 ? '99+' : badge}
                   </span>
                 )}

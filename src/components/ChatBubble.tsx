@@ -1,6 +1,7 @@
 
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { authFetch } from '@/lib/authFetch'
@@ -179,7 +180,7 @@ export default function ChatBubble() {
   const startRecording = async () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     if (!SpeechRecognition) {
-      alert('Speech recognition is not supported in this browser. Try Chrome or Safari.')
+      toast.info('Speech recognition is not supported in this browser. Try Chrome or Safari.')
       return
     }
     // Request mic permission explicitly first (iOS requires this)
@@ -188,7 +189,7 @@ export default function ChatBubble() {
       // Got permission — stop the stream immediately (we just needed the grant)
       stream.getTracks().forEach(t => t.stop())
     } catch (e) {
-      alert(`Microphone access denied. Please allow microphone access in Settings > Safari > ${window.location.hostname}`)
+      toast.warning(`Microphone access denied. Please allow microphone access in Settings > Safari > ${window.location.hostname}`)
       return
     }
     manualStopRef.current = false
@@ -220,7 +221,7 @@ export default function ChatBubble() {
       const nonFatal = ['no-speech', 'aborted']
       if (!nonFatal.includes(event.error)) {
         if (event.error === 'not-allowed') {
-          alert('Microphone permission was denied. Go to Settings > Safari and allow microphone access for this site.')
+          toast.warning('Microphone permission was denied. Go to Settings > Safari and allow microphone access for this site.')
         }
         setIsRecording(false)
       }

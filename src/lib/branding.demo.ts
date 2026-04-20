@@ -2,7 +2,7 @@
  * branding.demo.ts — Ridgeline EMS demo deployment config.
  * Copy to branding.config.ts (replacing RAM config) when building the demo.
  */
-import type { BrandConfig } from './branding'
+import type { BrandConfig } from './branding.js'
 
 export const brand: BrandConfig = {
   // ── Company Identity ────────────────────────────────────────────────────

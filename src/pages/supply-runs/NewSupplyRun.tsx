@@ -1,11 +1,13 @@
 
 
 import { useEffect, useRef, useState, Suspense } from 'react'
+import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { getIsOnline } from '@/lib/syncManager'
 import { queueOfflineWrite } from '@/lib/offlineStore'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { LoadingSkeleton } from '@/components/ui'
 
 type Incident = {
   id: string
@@ -255,7 +257,7 @@ function SupplyRunNewInner() {
 
   const handleSubmit = async () => {
     if (!form.incident_unit_id) {
-      alert('Please select an incident and unit.')
+      toast.warning('Please select an incident and unit.')
       return
     }
     setSubmitting(true)
@@ -289,7 +291,7 @@ function SupplyRunNewInner() {
       } catch (err: unknown) {
         setSubmitting(false)
         const msg = err instanceof Error ? err.message : 'Unknown error'
-        alert(`Error: ${msg}`)
+        toast.error(`Error: ${msg}`)
       }
     } else {
       const tempId = crypto.randomUUID()
@@ -300,14 +302,7 @@ function SupplyRunNewInner() {
   }
 
   if (mode === 'loading') {
-    return (
-      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-        <div className="text-center space-y-2">
-          <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-gray-400 text-sm">Loading...</p>
-        </div>
-      </div>
-    )
+    return <LoadingSkeleton fullPage message="Loading supply run..." />
   }
 
   const dispensedByOptions: CrewMember[] = crew.length > 0
@@ -490,11 +485,7 @@ function SupplyRunNewInner() {
 
 export default function SupplyRunNewPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-        <p className="text-gray-400 text-sm">Loading...</p>
-      </div>
-    }>
+    <Suspense fallback={<LoadingSkeleton fullPage />}>
       <SupplyRunNewInner />
     </Suspense>
   )

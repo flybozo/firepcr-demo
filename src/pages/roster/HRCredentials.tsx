@@ -29,7 +29,7 @@ type Employee = {
 
 const REQUIRED_CREDS: Record<string, string[]> = {
   'MD': ['Medical License', 'BLS', 'ACLS', 'S-130', 'S-190', 'L-180', 'ICS-100', 'ICS-200', 'ICS-700', 'ICS-800'],
-  'MD/DO': ['Medical License', 'BLS', 'ACLS', 'S-130', 'S-190', 'L-180', 'ICS-100', 'ICS-200', 'ICS-700', 'ICS-800'],
+  'DO': ['Medical License', 'BLS', 'ACLS', 'S-130', 'S-190', 'L-180', 'ICS-100', 'ICS-200', 'ICS-700', 'ICS-800'],
   'NP': ['Medical License', 'BLS', 'ACLS', 'S-130', 'S-190', 'L-180', 'ICS-100', 'ICS-200', 'ICS-700', 'ICS-800'],
   'PA': ['Medical License', 'BLS', 'ACLS', 'S-130', 'S-190', 'L-180', 'ICS-100', 'ICS-200', 'ICS-700', 'ICS-800'],
   'RN': ['Medical License', 'BLS', 'ACLS', 'Ambulance Driver Cert', 'S-130', 'S-190', 'L-180', 'ICS-100', 'ICS-200', 'ICS-700', 'ICS-800'],
@@ -148,7 +148,7 @@ export default function HRCredentialsPage() {
   const [savingExp, setSavingExp] = useState<string | null>(null)
   const [expDropdownId, setExpDropdownId] = useState<string | null>(null)
 
-  const isAdmin = ['MD', 'MD/DO', 'Admin'].includes(assignment.employee?.role || '')
+  const isAdmin = ['MD', 'DO', 'Admin'].includes(assignment.employee?.role || '')
 
   useEffect(() => {
     const load = async () => {

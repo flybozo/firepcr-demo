@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadSingle, loadList } from '@/lib/offlineFirst'
+import { LoadingSkeleton } from '@/components/ui'
 import { queryEncounter, queryPhysicians } from '@/lib/services/encounters'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Link } from 'react-router-dom'
@@ -208,7 +209,7 @@ function EditEncounterInner() {
         loadList<Employee>(
           () => queryPhysicians(),
           'employees',
-          (all) => all.filter((e: any) => ['MD', 'MD/DO'].includes(e.role))
+          (all) => all.filter((e: any) => ['MD', 'DO'].includes(e.role))
         ),
       ])
       setEmployees(emps)
@@ -681,11 +682,7 @@ function EditEncounterInner() {
 
 export default function EncounterEditPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-        <p className="text-gray-400">Loading...</p>
-      </div>
-    }>
+    <Suspense fallback={<LoadingSkeleton fullPage />}>
       <EditEncounterInner />
     </Suspense>
   )

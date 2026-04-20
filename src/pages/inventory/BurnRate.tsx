@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
+import { EmptyState } from '@/components/ui'
 
 type BurnItem = {
   item_name: string
@@ -154,7 +155,7 @@ export default function BurnRatePage() {
       ) : filtered.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-3xl mb-3">📊</p>
-          <p className="text-gray-500 text-sm">No items with active burn rate found.<br />Burn rate requires MAR or supply run activity in the last 7 days.</p>
+          <EmptyState icon="📉" message="No items with active burn rate found." subtitle="Burn rate requires MAR or supply run activity in the last 7 days." />
         </div>
       ) : (
         <div className="theme-card rounded-xl border overflow-hidden">

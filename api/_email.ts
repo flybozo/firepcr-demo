@@ -8,7 +8,7 @@
  */
 
 import { Resend } from 'resend'
-import { brand } from '../src/lib/branding.config.js'
+import { brand } from './_brand.js'
 
 let resendClient: Resend | null = null
 

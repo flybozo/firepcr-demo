@@ -137,12 +137,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // ── 5. Admin: auto-join ALL existing channels ────────────────────────────
+    // ── 5. Admin: auto-join non-DM channels ───────────────────────────────────
     if (isAdmin) {
-      // Fetch all channels
+      // Check if this admin is the org owner (is_owner flag on employees table)
+      const { data: empFlags } = await supabase
+        .from('employees').select('is_owner').eq('id', employee.id).single()
+      const isOwner = empFlags?.is_owner === true
+
+      // ALL admins only auto-join non-DM channels.
+      // DM visibility for the owner is handled separately below (read-only, no membership).
       const { data: allChannels } = await supabase
         .from('chat_channels')
-        .select('id')
+        .select('id, type')
+        .is('deleted_at', null)
+        .neq('type', 'direct')
 
       if (allChannels?.length) {
         const allChannelIds = allChannels.map((c) => c.id)
@@ -166,6 +174,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         if (adminNewMemberships.length > 0) {
           await supabase.from('chat_members').insert(adminNewMemberships)
         }
+      }
+
+      // Clean up: remove ALL admin-role memberships from DM channels
+      // (auto-joined previously — admin should never be a member of others' DMs)
+      const { data: directChannels } = await supabase
+        .from('chat_channels').select('id').eq('type', 'direct').is('deleted_at', null)
+      if (directChannels?.length) {
+        const directIds = directChannels.map(c => c.id)
+        await supabase.from('chat_members').delete()
+          .eq('employee_id', employee.id)
+          .eq('role', 'admin')
+          .in('channel_id', directIds)
       }
     }
 
@@ -236,12 +256,52 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    const result = (channels || []).map((ch) => ({
+    let allChannels2 = channels || []
+
+    // ── Owner: silently append DM channels (read-only, no membership) ─────
+    const { data: ownerCheck } = await supabase
+      .from('employees').select('is_owner').eq('id', employee.id).single()
+    if (ownerCheck?.is_owner === true) {
+      const existingIds = new Set(allChannels2.map(c => c.id))
+      const { data: allDMs } = await supabase
+        .from('chat_channels')
+        .select('id, type, name, description, incident_id, unit_id, created_at, updated_at')
+        .eq('type', 'direct')
+        .is('deleted_at', null)
+
+      // Add DMs not already in the list
+      for (const dm of allDMs || []) {
+        if (!existingIds.has(dm.id)) {
+          allChannels2.push(dm as typeof allChannels2[0])
+          // Resolve DM display name for owner
+          const { data: dmMems } = await supabase
+            .from('chat_members')
+            .select('employee:employees!employee_id(id, name)')
+            .eq('channel_id', dm.id)
+          const names = (dmMems || [])
+            .map((m: any) => m.employee?.name)
+            .filter(Boolean)
+          dmNameMap[dm.id] = names.join(' ↔ ') // Show both participants for owner
+
+          // Get last message for this DM
+          const { data: lastMsgArr } = await supabase
+            .from('chat_messages')
+            .select('id, channel_id, content, message_type, created_at, sender_id, sender:employees!sender_id(name)')
+            .eq('channel_id', dm.id)
+            .is('deleted_at', null)
+            .order('created_at', { ascending: false })
+            .limit(1)
+          if (lastMsgArr?.[0]) lastMsgMap[dm.id] = lastMsgArr[0]
+        }
+      }
+    }
+
+    const result = allChannels2.map((ch) => ({
       ...ch,
-      name: dmNameMap[ch.id] || ch.name, // Override DM names with other participant's name
+      name: dmNameMap[ch.id] || ch.name,
       last_message: lastMsgMap[ch.id] || null,
       unread_count: unreadCounts[ch.id] || 0,
-      my_role: membershipMap[ch.id]?.role || 'member',
+      my_role: membershipMap[ch.id]?.role || 'observer', // 'observer' for DMs owner isn't a member of
       last_read_at: membershipMap[ch.id]?.last_read_at || null,
     }))
 

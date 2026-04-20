@@ -16,7 +16,7 @@ type Employee = {
 }
 
 const CS_DRUGS = ['Morphine Sulfate', 'Fentanyl', 'Midazolam (Versed)', 'Ketamine', 'Other']
-const CLINICAL_ROLES = ['MD/DO', 'NP', 'PA', 'Paramedic', 'RN']
+const CLINICAL_ROLES = ['MD', 'DO', 'NP', 'PA', 'Paramedic', 'RN']
 
 const inputCls = 'w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500'
 const labelCls = 'block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1'

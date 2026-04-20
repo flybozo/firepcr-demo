@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRole } from '@/lib/useRole'
+import { PageHeader, EmptyState } from '@/components/ui'
 
 type Contact = {
   id: string
@@ -397,18 +398,19 @@ export default function ContactsPage() {
   return (
     <div className="p-6 md:p-8 max-w-5xl mt-8 md:mt-0">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">📇 Rolodex</h1>
-          <p className="text-gray-400 text-sm mt-1">Fire personnel contacts and agency contacts</p>
-        </div>
-        <button
-          onClick={() => setModalContact(null)}
-          className="px-4 py-2 bg-red-700 hover:bg-red-600 rounded-lg text-sm font-semibold"
-        >
-          + Add Contact
-        </button>
-      </div>
+      <PageHeader
+        title="📇 Rolodex"
+        subtitle="Fire personnel contacts and agency contacts"
+        actions={
+          <button
+            onClick={() => setModalContact(null)}
+            className="px-4 py-2 bg-red-700 hover:bg-red-600 rounded-lg text-sm font-semibold"
+          >
+            + Add Contact
+          </button>
+        }
+        className="mb-6"
+      />
 
       {/* Search + Filters */}
       <div className="mb-5 space-y-3">
@@ -444,14 +446,10 @@ export default function ContactsPage() {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16">
-          <p className="text-4xl mb-3">📇</p>
-          <p className="text-gray-500">
-            {search || agencyFilter !== 'All'
-              ? 'No contacts match your search.'
-              : 'No contacts yet. Add your first one!'}
-          </p>
-        </div>
+        <EmptyState
+          icon="📇"
+          message={search || agencyFilter !== 'All' ? 'No contacts match your search.' : 'No contacts yet. Add your first one!'}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map(c => (

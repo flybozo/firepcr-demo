@@ -7,6 +7,7 @@ import { Link, useNavigate, useMatch } from 'react-router-dom'
 const DocThumbnail = React.lazy(() => import('@/components/DocThumbnail'))
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useRole } from '@/lib/useRole'
+import { PageHeader, LoadingSkeleton, EmptyState, ConfirmDialog } from '@/components/ui'
 
 type Doc = {
   id: string
@@ -43,6 +44,7 @@ export default function DocumentsPage() {
   const [search, setSearch] = useState('')
 
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; confirmLabel?: string; icon?: string; confirmColor?: string } | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -71,12 +73,19 @@ export default function DocumentsPage() {
     return true
   })
 
-  const handleDelete = async (doc: Doc) => {
-    if (!confirm(`Delete "${doc.title}"? This cannot be undone.`)) return
-    setDeletingId(doc.id)
-    await supabase.from('documents').update({ active: false }).eq('id', doc.id)
-    setDocs(prev => prev.filter(d => d.id !== doc.id))
-    setDeletingId(null)
+  const handleDelete = (doc: Doc) => {
+    setConfirmAction({
+      action: async () => {
+        setDeletingId(doc.id)
+        await supabase.from('documents').update({ active: false }).eq('id', doc.id)
+        setDocs(prev => prev.filter(d => d.id !== doc.id))
+        setDeletingId(null)
+      },
+      title: 'Delete Document',
+      message: `Delete "${doc.title}"? This cannot be undone.`,
+      icon: '🗑️',
+      confirmColor: 'bg-red-600 hover:bg-red-700',
+    })
   }
 
   return (
@@ -86,18 +95,17 @@ export default function DocumentsPage() {
           📶 Documents require a connection to load. Reconnect to view.
         </div>
       )}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Policies & Procedures</h1>
-          <p className="text-gray-400 text-sm mt-1">{filtered.length} documents</p>
-        </div>
-        {isAdmin && (
+      <PageHeader
+        title="Policies & Procedures"
+        subtitle={`${filtered.length} documents`}
+        actions={isAdmin ? (
           <Link to="/documents/new"
             className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-xl text-sm font-semibold transition-colors">
             + Upload Document
           </Link>
-        )}
-      </div>
+        ) : undefined}
+        className="mb-6"
+      />
 
       {/* Filters */}
       <div className="space-y-3 mb-5">
@@ -115,12 +123,9 @@ export default function DocumentsPage() {
       </div>
 
       {loading ? (
-        <p className="text-gray-500">Loading...</p>
+        <LoadingSkeleton rows={4} header />
       ) : filtered.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-4xl mb-3">📄</p>
-          <p className="text-gray-500">No documents found.</p>
-        </div>
+        <EmptyState icon="📄" message="No documents found." />
       ) : (
         <div className="space-y-2">
           {filtered.map(doc => (
@@ -180,6 +185,15 @@ export default function DocumentsPage() {
       {isAdmin && (
         <HandbookSigningTracker />
       )}
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message || ''}
+        icon={confirmAction?.icon || '⚠️'}
+        confirmColor={confirmAction?.confirmColor}
+        onConfirm={() => { confirmAction?.action(); setConfirmAction(null) }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   )
 }

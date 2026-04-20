@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useSearchParams } from 'react-router-dom'
 import { FieldGuard } from '@/components/FieldGuard'
+import { PageHeader, LoadingSkeleton, EmptyState } from '@/components/ui'
 
 type Claim = { id: string; patient_name: string | null; incident: string | null; date_of_injury: string | null; status: string | null; pdf_url: string | null; unit: string | null }
 
@@ -37,25 +38,28 @@ function CompClaimsInner() {
 
   return (
     <div className="p-4 md:p-6 mt-8 md:mt-0">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-xl font-bold">Comp Claims</h1>
-          <p className="text-gray-500 text-xs">{claims.length} claims</p>
-        </div>
-        {/* Desktop: date range pills */}
-        <div className="hidden md:flex gap-1.5">
-          {(['7d', '30d', '90d', 'All'] as const).map(range => (
-            <button key={range} onClick={() => setDateRange(range)}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${dateRange === range ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
-              {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : range === '90d' ? '90 Days' : 'All Time'}
-            </button>
-          ))}
-        </div>
-        <Link to={`/comp-claims/new${incidentId ? `?incidentId=${incidentId}` : ''}`}
-          className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors">
-          + New Claim
-        </Link>
-      </div>
+      <PageHeader
+        title="Comp Claims"
+        subtitle={`${claims.length} claims`}
+        actions={
+          <div className="flex items-center gap-2">
+            {/* Desktop: date range pills */}
+            <div className="hidden md:flex gap-1.5">
+              {(['7d', '30d', '90d', 'All'] as const).map(range => (
+                <button key={range} onClick={() => setDateRange(range)}
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${dateRange === range ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
+                  {range === '7d' ? '7 Days' : range === '30d' ? '30 Days' : range === '90d' ? '90 Days' : 'All Time'}
+                </button>
+              ))}
+            </div>
+            <Link to={`/comp-claims/new${incidentId ? `?incidentId=${incidentId}` : ''}`}
+              className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors">
+              + New Claim
+            </Link>
+          </div>
+        }
+        className="mb-4"
+      />
       {/* Mobile: date range dropdown */}
       <select
         value={dateRange}
@@ -67,8 +71,8 @@ function CompClaimsInner() {
         <option value="90d">90 Days</option>
         <option value="All">All Time</option>
       </select>
-      {loading ? <p className="text-gray-500 text-sm">Loading...</p> : claims.length === 0 ? (
-        <p className="text-center text-gray-600 py-12">No comp claims{incidentId ? ' for this incident' : ''}.</p>
+      {loading ? <LoadingSkeleton rows={4} header /> : claims.length === 0 ? (
+        <EmptyState icon="🪢" message={`No comp claims${incidentId ? ' for this incident' : ''}.`} />
       ) : (
         <div className="theme-card rounded-xl border overflow-hidden">
           <div className="divide-y divide-gray-800">
@@ -96,7 +100,7 @@ function CompClaimsInner() {
 export default function CompClaimsPage() {
   return (
     <FieldGuard redirectFn={(a) => a.incidentUnit?.incident_id ? `/comp-claims?incidentId=${a.incidentUnit.incident_id}` : null}>
-      <Suspense fallback={<div className="p-8 text-gray-500">Loading...</div>}>
+      <Suspense fallback={<LoadingSkeleton fullPage />}>
         <CompClaimsInner />
       </Suspense>
     </FieldGuard>

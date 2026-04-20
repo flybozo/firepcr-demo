@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useNavigate, Link } from 'react-router-dom'
+import { PageHeader, EmptyState } from '@/components/ui'
 
 type MAREntry = {
   id: string
@@ -103,13 +104,12 @@ export default function MARSearch() {
   return (
     <div className="bg-gray-950 text-white pb-8">
       <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-4">
-        <div className="flex items-center justify-between pt-2">
-          <div>
-            <h1 className="text-xl font-bold">🔍 Search MAR</h1>
-            <p className="text-gray-500 text-xs">Search all medication records across all time</p>
-          </div>
-          <Link to="/mar" className="text-sm text-gray-400 hover:text-gray-300 transition-colors">← MAR</Link>
-        </div>
+        <PageHeader
+          title="🔍 Search MAR"
+          subtitle="Search all medication records across all time"
+          backHref="/mar"
+          backLabel="← MAR"
+        />
 
         <div className="relative">
           <input
@@ -134,13 +134,11 @@ export default function MARSearch() {
         )}
 
         {!searchInput && (
-          <div className="text-center py-12 text-gray-600 text-sm">
-            Type to search all medication records
-          </div>
+          <EmptyState icon="🔍" message="Type to search all medication records" className="py-12" />
         )}
 
         {results !== null && results.length === 0 && !loading && (
-          <div className="text-center py-12 text-gray-500">No results found.</div>
+          <EmptyState icon="💊" message="No results found." className="py-12" />
         )}
 
         {results !== null && results.length > 0 && (
@@ -168,9 +166,7 @@ export default function MARSearch() {
                     <span className="w-20 shrink-0 text-gray-400 text-xs">{entry.date || '—'}</span>
                     <span className="w-20 shrink-0 text-white text-xs font-medium truncate pr-1">
                       {entry.patient_name
-                        ? entry.patient_name.split(/[, ]+/).filter(Boolean).slice(0, 2).map((n: string, i: number) =>
-                            i === 0 ? n : n[0] + '.'
-                          ).join(', ')
+                        ? entry.patient_name.split(/[, ]+/).filter(Boolean).map((n: string) => n[0].toUpperCase() + '.').join(' ')
                         : '—'}
                     </span>
                     <span className="flex-1 min-w-[120px] text-gray-200 text-xs truncate pr-2">

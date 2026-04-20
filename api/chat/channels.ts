@@ -7,6 +7,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (req.method === 'GET') return await listChannels(req, res)
     if (req.method === 'POST') return await createChannel(req, res)
+    if (req.method === 'DELETE') return await deleteChannel(req, res)
     return res.status(405).json({ error: 'Method not allowed' })
   } catch (err: unknown) {
     if (err instanceof HttpError) return res.status(err.status).json({ error: err.message })
@@ -253,4 +254,41 @@ async function createChannel(req: VercelRequest, res: VercelResponse) {
   await supabase.from('chat_members').insert(memberRows)
 
   return res.status(201).json({ channel, existing: false })
+}
+
+async function deleteChannel(req: VercelRequest, res: VercelResponse) {
+  const { employee } = await requireEmployee(req)
+  const supabase = createServiceClient()
+
+  const channelId = (req.query.channelId as string) || (req.body as Record<string, unknown>)?.channelId as string
+  if (!channelId) throw new HttpError(400, 'channelId is required')
+
+  // Verify the channel exists and is a DM
+  const { data: channel, error: chErr } = await supabase
+    .from('chat_channels')
+    .select('id, type')
+    .eq('id', channelId)
+    .single()
+
+  if (chErr || !channel) throw new HttpError(404, 'Channel not found')
+  if (channel.type !== 'direct') throw new HttpError(403, 'Only direct message threads can be deleted')
+
+  // Verify the employee is a member
+  const { data: membership } = await supabase
+    .from('chat_members')
+    .select('id')
+    .eq('channel_id', channelId)
+    .eq('employee_id', employee.id)
+    .single()
+
+  if (!membership) throw new HttpError(403, 'You are not a member of this channel')
+
+  // Soft-delete the channel itself so it won't reappear
+  // (ensure-channels filters by deleted_at IS NULL)
+  await supabase
+    .from('chat_channels')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', channelId)
+
+  return res.status(200).json({ success: true })
 }

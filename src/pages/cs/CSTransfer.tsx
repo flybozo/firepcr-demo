@@ -68,7 +68,7 @@ export default function CSTransferPage() {
         const cachedUnits = await getCachedData('units') as any[]
         if (cachedUnits.length > 0) setUnits(cachedUnits as UnitOption[])
         const cachedEmps = await getCachedData('employees') as any[]
-        if (cachedEmps.length > 0) setEmployees(cachedEmps.filter((e: any) => ['MD','MD/DO','NP','PA','RN','Paramedic'].includes(e.role)))
+        if (cachedEmps.length > 0) setEmployees(cachedEmps.filter((e: any) => ['MD','DO','NP','PA','RN','Paramedic'].includes(e.role)))
       } catch {}
       const [unitResult, empResult] = await Promise.all([
         loadList<UnitOption>(
@@ -77,9 +77,9 @@ export default function CSTransferPage() {
         ),
         loadList<{ id: string; name: string }>(
           () => queryActiveEmployees()
-            .in('role', ['MD', 'MD/DO', 'NP', 'PA', 'RN', 'Paramedic']).order('name'),
+            .in('role', ['MD', 'DO', 'NP', 'PA', 'RN', 'Paramedic']).order('name'),
           'employees',
-          (all) => all.filter((e: any) => ['MD', 'MD/DO', 'NP', 'PA', 'RN', 'Paramedic'].includes((e as any).role))
+          (all) => all.filter((e: any) => ['MD', 'DO', 'NP', 'PA', 'RN', 'Paramedic'].includes((e as any).role))
         ),
       ])
       setUnits(unitResult.data)

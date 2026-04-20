@@ -2,7 +2,9 @@
 import EncounterPicker, { type PickedEncounter } from '@/components/EncounterPicker'
 
 import { useEffect, useRef, useState, Suspense } from 'react'
+import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
+import { LoadingSkeleton } from '@/components/ui'
 import { insertProcedure } from '@/lib/services/encounters'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -40,7 +42,7 @@ const PROCEDURES: Record<string, string[]> = {
 const OUTCOMES = ['Successful', 'Unsuccessful', 'Partially Successful', 'Complication']
 const COMPLICATIONS = ['None', 'Bleeding', 'Esophageal Intubation', 'Hypoxia', 'Hypotension', 'Other']
 
-const CLINICAL_ROLES = ['MD/DO', 'MD', 'DO', 'NP', 'PA', 'RN', 'Paramedic']
+const CLINICAL_ROLES = ['MD', 'DO', 'NP', 'PA', 'RN', 'Paramedic']
 
 type Employee = {
   id: string
@@ -280,7 +282,7 @@ function ProcedureNewInner() {
           ...procData,
           client_request_id: requestId.current,
         })
-        alert('Procedure saved offline — will sync when back online.')
+        toast.info('Procedure saved offline — will sync when back online.')
         navigate(-1)
       }
     } catch (e: unknown) {
@@ -424,11 +426,7 @@ function ProcedureNewInner() {
 
 export default function ProcedureNewPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-        <p className="text-gray-400">Loading...</p>
-      </div>
-    }>
+    <Suspense fallback={<LoadingSkeleton fullPage />}>
       <ProcedureNewInner />
     </Suspense>
   )

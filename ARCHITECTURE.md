@@ -2,8 +2,8 @@
 
 **App:** https://ram-field-ops.vercel.app (staging)  
 **Repo:** https://github.com/flybozo/ram-field-ops  
-**Last updated:** 2026-04-18 15:45 PDT  
-**Current version:** v1.9.1
+**Last updated:** 2026-04-20 00:40 PDT  
+**Current version:** v1.13.0
 
 ---
 
@@ -57,6 +57,7 @@ ram-field-ops/
 ├── api/                          # Vercel serverless functions
 │   ├── _auth.ts                  # Auth middleware (JWT verification)
 │   ├── _supabase.ts              # Server-side Supabase client
+│   ├── _brand.ts                 # API-safe brand constants (⚠️ sync with src/lib/branding.config.ts)
 │   ├── _validate.ts              # Input validation utility
 │   ├── _rateLimit.ts             # Rate limiting
 │   ├── _email.ts                 # Resend email client + branded HTML builder
@@ -73,7 +74,7 @@ ram-field-ops/
 │   ├── chat/                     # Team chat API
 │   │   ├── channels.ts           # List/create channels (admin sees all)
 │   │   ├── ensure-channels.ts    # Lazy-create channels on chat open
-│   │   ├── messages.ts           # Send/get messages + push notifications
+│   │   ├── messages.ts           # Send/get/delete messages + push notifications
 │   │   ├── read.ts               # Mark channel as read
 │   │   ├── members.ts            # List/add channel members
 │   │   └── upload.ts             # File upload metadata
@@ -84,6 +85,26 @@ ram-field-ops/
 ├── src/
 │   ├── App.tsx                   # Route definitions (70+ lazy-loaded routes)
 │   ├── components/               # Shared UI components
+│   │   ├── ui/                   # Shared primitives (barrel: ui/index.ts)
+│   │   │   ├── StatCard.tsx      # Metric display (big number + label)
+│   │   │   ├── EmptyState.tsx    # No-data display (icon + message + CTA)
+│   │   │   ├── ConfirmDialog.tsx # Theme-aware modal (replaces window.confirm)
+│   │   │   ├── PageHeader.tsx    # Page title + subtitle + actions
+│   │   │   ├── LoadingSkeleton.tsx# Animated loading placeholder
+│   │   │   ├── Badge.tsx         # Colored pill for status/categories
+│   │   │   ├── FormField.tsx     # Label + input wrapper (inputCls, selectCls)
+│   │   │   └── SectionCard.tsx   # Card with header bar + content
+│   │   ├── chat/                 # Chat sub-components (Phase 4)
+│   │   │   ├── Avatar.tsx        # User avatar with fallback
+│   │   │   ├── ChannelItem.tsx   # Channel row (swipe-to-delete for DMs)
+│   │   │   ├── ChannelListPanel.tsx # Grouped channel list sidebar
+│   │   │   ├── MessageBubble.tsx # Message with swipe-delete, reply, lightbox
+│   │   │   ├── MessageComposer.tsx # Input bar, file upload, reply preview
+│   │   │   ├── MessageList.tsx   # Scrollable messages with date separators
+│   │   │   ├── MessageThread.tsx # Thread view (list + composer)
+│   │   │   └── NewDMModal.tsx    # Create DM modal with employee search
+│   │   ├── QRCodeCard.tsx        # QR code generator (canvas, download, print)
+│   │   ├── ContactCards.tsx      # Medical Directors + Deployed Units (SVG icon contacts)
 │   │   ├── AuthGuard.tsx         # Auth gate
 │   │   ├── FieldGuard.tsx        # Field-user route guard
 │   │   ├── InactivityLock.tsx    # 30-min inactivity auto-lock
@@ -95,14 +116,36 @@ ram-field-ops/
 │   │   └── SplitShell.tsx        # Desktop split-pane layout
 │   ├── contexts/
 │   │   └── UserContext.tsx        # Single user identity fetch (shared)
+│   ├── constants/
+│   │   └── nemsis.ts             # 33 NEMSIS option arrays (shared by encounters + PCR)
+│   ├── types/
+│   │   └── chat.ts               # Chat message/channel/sender types
+│   ├── hooks/
+│   │   ├── useChatMessages.ts    # Chat Realtime + polling + dedup + CRUD (248 lines)
+│   │   └── useNEMSISWarnings.ts  # Real-time NEMSIS field validation
+│   ├── utils/
+│   │   └── chatHelpers.ts        # Time formatters, normalizers, channel icons
 │   ├── lib/
+│   │   ├── branding.ts           # BrandConfig type (25+ fields)
+│   │   ├── branding.config.ts    # Per-deployment brand values (RAM)
+│   │   ├── branding.demo.ts      # Demo brand values (Ridgeline EMS)
+│   │   ├── services/             # Data access layer (no supabase in pages)
+│   │   │   ├── incidents.ts      # 30+ incident query/mutation functions
+│   │   │   ├── encounters.ts     # 25+ encounter functions
+│   │   │   ├── cs.ts             # Controlled substances
+│   │   │   ├── mar.ts            # Medication administration
+│   │   │   ├── supplyRuns.ts     # Supply run queries
+│   │   │   ├── ics214.ts         # ICS 214 log management
+│   │   │   ├── employees.ts      # Employee queries/updates
+│   │   │   ├── admin.ts          # App settings
+│   │   │   └── index.ts          # Barrel export
 │   │   ├── supabase/client.ts    # Supabase client (offline-aware fetch)
 │   │   ├── offlineStore.ts       # IndexedDB schema + CRUD (18 stores)
 │   │   ├── syncManager.ts        # Background sync engine (4-phase preload)
 │   │   ├── pushNotifications.ts  # Client-side push subscribe/unsubscribe
 │   │   ├── useRole.ts            # Role hook (admin vs field)
 │   │   ├── useUnsignedPCRCount.ts # Badge: unsigned charts + notes + MAR
-│   │   └── useChatUnread.ts      # Badge: unread chat message counts (Realtime)
+│   │   ├── useChatUnread.ts      # Badge: unread chat message counts (Realtime)
 │   │   ├── generateConsentPdf.ts # Consent to Treat PDF builder
 │   │   ├── generateAMApdf.ts     # AMA/Refusal PDF builder
 │   │   └── nemsis/
@@ -224,7 +267,7 @@ All controlled substance movements are logged in `cs_transactions`:
 
 | Table | Purpose |
 |-------|---------|
-| `employees` | Master roster (app_role: admin/field) |
+| `employees` | Master roster (app_role: admin/field, is_medical_director flag) |
 | `employees_sync` | PII-stripped view for client sync |
 | `employee_credentials` | Credential documents |
 | `employee_chats` | Employee ↔ AI chat |
@@ -363,20 +406,54 @@ CRON_SECRET (CS reminder endpoint auth)
 
 ### External Dashboard (`/fire-admin/:code` — FireAdminDashboard.tsx)
 - Public-facing, accessed via incident access codes (no auth required)
+- **Also supports internal preview**: detects UUID in `:code` param → uses authenticated `?incidentId=` API path with JWT
 - Tabs: Overview (stat cards + charts), Patient Log (grouped by unit), ICS 214s (grouped by unit), Supply
-- Date filter (All/24h/48h/7d) affects all tabs including supply
+- Date filter (All/24h/48h/7d) affects **all tabs** including Supply (re-aggregates from raw items)
 - De-identified patient data only (no PHI)
-- PDF downloads via signed Supabase URLs through `/api/incident-access/download`
+- PDF downloads via signed Supabase URLs through `/api/incident-access/download` (supports both code + JWT auth)
+- **ContactCards component** (shared) — side-by-side 2-column grid:
+  - Medical Directors (red header) | Deployed Units (emerald header)
+  - SVG icon contact buttons: phone (green), text (blue), email (purple)
+  - Hover tooltip reveals actual number/address, click executes tel:/sms:/mailto: action
+- Tab components exported: `OverviewTab`, `PatientLogTab`, `ICS214Tab`, `SupplyTab`, `STATUS_COLOR`, `C`
+- `ContactIcons` exported from `ContactCards.tsx` for reuse in roster list
 
-### Internal "Incident Data" Preview (`Admin > External Dashboard`)
-- Uses same `IncidentDashboard` component as admin page
-- **Mirrors external dashboard exactly** (as of v1.8.4) — same tabs, charts, columns, layout
-- Admins see what med unit leaders see without visiting the external URL
-- Access Log tab (internal only) shows who accessed with what code
+### Internal Fire Dashboard (`Admin > External Dashboard` — admin/FireDashboard.tsx)
+- **Unified with external** (as of v1.10.0) — imports shared tab components from FireAdminDashboard
+- Same API endpoint: `?incidentId=` (auth required) instead of `?code=` (external)
+- **Preview External View** button uses `/fire-admin/{incidentId}` — the external dashboard detects UUID and switches to authenticated mode
+- **Internal-only additions**: AccessCodesPanel (generate/manage codes), AccessLogTab (who accessed with what code)
+- 1237 → 670 lines after unification (46% reduction)
+
+### Encounter Detail (`/encounters/:id` — EncounterDetail.tsx)
+- **2-column resizable grid** (md+) with `grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch`
+- Narrative + Vitals default to half-width (colSpan: 1, side by side)
+- All other sections default to full-width (colSpan: 2)
+- Column span toggle: hover to see ◧/◣ button, click to cycle half/full
+- Persisted to localStorage (`encounter_card_spans`)
+- Cards stretch to fill row height (`h-full` on all card wrappers)
+- **Expand animation**: every card has ⤢ button (`text-lg`, 28px hit target with hover bg) on hover → FLIP animation from card position to centered overlay
+  - `cubic-bezier(0.2, 0.9, 0.3, 1)`, 300ms, reverse on close
+  - Overlay has `min-h-[60vh]` for spacious feel even with short content
+- All cards have `overflow-hidden` (fixes rounded corner clipping)
+- All card headers have `pr-10` to leave room for the expand button
+- Drag-to-reorder via `@dnd-kit/sortable` within the grid
+- Section order saved to `user_preferences.encounter_section_order`
+- **Sections:** actions, narrative, response, scene, assessment, cardiac, vitals, mar, procedures, photos, transport, provider, forms, notes
+- **Forms & Documents card** — merged Consent/AMA + Comp Claims into single card with sub-sections
+  - PDF links use server-side `/api/pdf/sign` endpoint (reliable, service role key)
+  - Consent to Treat badges blue, AMA badges red, Comp Claim button orange
+  - Section migration: old `'ama'`/`'comp'` saved prefs auto-convert to `'forms'`
+- **Progress Notes** — now a draggable section in the grid (was standalone below)
+  - Click-to-reveal: rows show date/time + author + signed status, click to expand full text
+  - Sign/Delete actions inside expanded note body
+- Mobile: single-column, no span toggle
 
 ### Headshots & Unit Photos
-- Employee headshots: shown on roster list (32px), employee detail header (56px), unit detail crew (32px), deployments card (28px)
-- Unit photos: shown on units list (32px), incident dashboard units card (36px)
+- Employee headshots: shown on roster list (32px), employee detail header (56px), unit detail crew (32px), deployments card (28px), contact cards
+- Unit photos: shown on units list (32px), incident dashboard units card (36px), unit detail (80px)
+- **Unit photo upload:** Admin hover on thumbnail in UnitDetail → camera overlay → file picker → uploads to `headshots/units/{id}/photo.{ext}` → saves public URL to `units.photo_url`
+- Storage bucket: `headshots` (public read, authenticated INSERT/UPDATE/DELETE)
 - All via `headshot_url` / `photo_url` columns in employees/units tables
 
 ## 14. Team Chat Architecture
@@ -408,6 +485,7 @@ Two separate chat systems coexist:
 - **Other users see messages via 3-second polling** — unconditional `setInterval`
 - **Supabase Realtime subscription** exists as bonus layer (fires faster when working)
 - `fetchAndMergeNew()` helper fetches last 5 messages, deduplicates against existing IDs
+- **Swipe-to-delete** (own messages only): swipe left → red "🗑️ Delete" indicator → release past threshold to confirm soft-delete via `DELETE /api/chat/messages?messageId=`
 
 ### File Upload
 - **Direct client → Supabase Storage** (bypasses Vercel API)
@@ -418,13 +496,13 @@ Two separate chat systems coexist:
 
 ### Push Notifications
 - Sent on every new message via `sendPushNotifications()` in `messages.ts`
-- Filters out sender's subscriptions (DB query + client-side double-filter)
+- Filters out sender's subscriptions by both `employee_id` AND `endpoint` (handles shared device / stale subscription scenarios)
 - Service worker suppresses chat notifications when app is in foreground
 - Auto-cleans expired subscriptions (410 Gone)
 
 ### Unread Badges
 - `useChatUnread` hook: Supabase Realtime `INSERT` on `chat_messages`
-- Badges: Sidebar "Team Chat" (red), BottomTabBar "More" tab (red), "💬 Chat" sheet item (red)
+- Badges: Sidebar "Team Chat" (red), BottomTabBar "Chat" main tab (red)
 - Unsigned encounter badges remain orange for visual distinction
 
 ### Security
@@ -512,14 +590,196 @@ src/
 ```
 
 ### Phases
-1. **Branding Layer** — zero hardcoded refs, 1 config file swap for white-label
-2. **Service Layer** — all 242 supabase calls extracted from pages
-3. **Shared UI** — DataTable, StatCard, FilterPills, FormField, ConfirmDialog
-4. **Component Decomposition** — no component > 500 lines
+1. **Branding Layer** ✅ COMPLETE — zero hardcoded refs, 1 config file swap for white-label
+2. **Service Layer** ✅ Foundation — 8 service files, 64 calls extracted (22%), remaining 234 are complex multi-step mutations
+3. **Shared UI** ✅ COMPLETE — 8 components in `src/components/ui/`, 42 pages importing, 37 files migrated
+4. **Component Decomposition** — NEXT — no component > 500 lines (IncidentDetail 2808, EncounterDetail 2491, NewPCREncounter, Chat)
 5. **Feature Modules** — self-contained feature directories (stretch)
 6. **Permissions System** — granular RBAC beyond admin/field (stretch)
+
+### Additional Refactoring Done
+- **Fire Dashboard Unification** — internal + external dashboards now share tab components and API (-551 lines)
+- **Encounter Detail Grid** — 2-column resizable layout with FLIP expand animation
+- **Medical Director System** — `is_medical_director` flag on employees, surfaced on both dashboards
+- **Forms & Documents** — merged Consent/AMA + Comp Claims cards into one, fixed PDF signing
+- **Progress Notes** — moved into draggable grid, click-to-reveal rows
+- **ContactCards component** — shared SVG icon contact buttons (phone/text/email with hover tooltips)
+- **Roster list cleanup** — SVG contact icons, removed certs column, simplified grid
+- **Mobile menu restructure** — Chat promoted to main tab, CS moved to More, admin-only items gated
+- **Swipe-to-delete chat** — touch gesture + soft-delete API
+- **Supply tab date filtering** — API returns raw items with timestamps, client re-aggregates
+- **Unit photo upload** — admin click-to-upload on unit thumbnail
+- **API brand isolation** — `api/_brand.ts` separate from `src/lib/branding.config.ts` (Vercel can't import from src/)
 
 ### Principles
 - Ship each phase independently — app works at every intermediate state
 - Preserve offline-first pattern — services return cache then fetch
 - No big-bang rewrites — each phase gets its own branch
+
+---
+
+## 18. API Brand Architecture
+
+Vercel serverless functions (`api/`) cannot import from `src/lib/` due to compilation isolation. Two separate brand config files exist:
+
+| File | Used by | Purpose |
+|------|---------|--------|
+| `src/lib/branding.config.ts` | Client-side (Vite) | Full `BrandConfig` with types, imported by all pages/components |
+| `api/_brand.ts` | Server-side (Vercel) | Flat object with same values, no `src/` dependencies |
+
+**⚠️ When updating brand values, update BOTH files.** The values must match.
+
+API files import `{ brand }` from `./_brand.js` (or `../_brand.js` for nested routes). This was established after a critical incident where importing from `../src/lib/branding.config.js` crashed all API endpoints.
+
+### Mobile Navigation (BottomTabBar)
+
+**Main tabs:** Incidents, Encounters, Chat, Supply, Roster (admin), More
+
+**More menu items:**
+- Units, CS (controlled substances)
+- Analytics, External Dashboard, Payroll, Documents — `adminOnly`
+- My Pay, Schedule Request — `fieldOnly`
+- Profile, Admin (admin, opens nested sheet)
+
+Field users never see admin-only items. Routes are also guarded server-side by `<RouteGuard require="admin" />`.
+
+---
+
+## 19. Refactoring Status (Phase 4: Component Decomposition)
+
+**Goal:** No component exceeds ~500 lines. Break god components into focused sub-components + hooks.
+
+### Completed
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| Phase 1 | Branding layer (27 files migrated) | ✅ Complete |
+| Phase 2 | Service layer (8 service files, 64 calls migrated) | ✅ Complete |
+| Phase 3 | Shared UI components (37 files, 42 pages) | ✅ Complete |
+| Phase 4 Wave 1 | Chat decomposition + NEMSIS constants | ✅ Complete |
+| Phase 4 Wave 2 | NewPCREncounter + EncounterDetail decomposition | ✅ Complete |
+| Phase 4 Wave 3 | IncidentDetail decomposition | ✅ Complete |
+
+### Phase 4 Wave 1 Results
+
+**Chat.tsx:** 1,329 → **187 lines** (86% reduction)
+- 8 sub-components in `src/components/chat/`
+- `useChatMessages` hook encapsulates Realtime subscription + 3s polling + dedup + CRUD
+- `chatHelpers.ts` for shared formatters
+- `src/types/chat.ts` for shared type definitions
+
+**NEMSIS Constants:** 33 arrays extracted to `src/constants/nemsis.ts`
+- Removed ~250 lines from EncounterDetail.tsx
+- Removed 9 duplicate arrays from NewPCREncounter.tsx
+- Both files import from shared constants
+
+### Phase 4 Final Results
+
+| Component | Before | After | Reduction | New Files |
+|-----------|--------|-------|-----------|-----------|
+| Chat.tsx | 1,329 | 187 | -86% | 13 |
+| EncounterDetail.tsx | 2,318 | 325 | -86% | 22 |
+| NewPCREncounter.tsx | 1,861 | 472 | -75% | 7 |
+| IncidentDetail.tsx | 2,800 | 572 | -80% | 18 |
+| **Total** | **8,308** | **1,556** | **-81%** | **~60** |
+
+### Phase 4 Extracted File Structure
+```
+src/components/chat/          # 8 files (Avatar, ChannelItem, MessageBubble, etc.)
+src/components/encounters/    # 5 shared + 16 section components
+  sections/                   # VitalsSection, MARSection, PhotosSection, etc.
+src/components/incidents/
+  cards/                      # 14 card components (IncidentInfoCard, UnitsCard, etc.)
+  SortableCard.tsx
+src/components/shared/        # EditField, LocationEditField, StatCard
+src/hooks/useEncounterData.ts # 294 lines — all encounter data fetching
+src/hooks/useIncidentData.ts  # 596 lines — all incident data fetching
+src/pages/encounters/pcr-steps/ # 6 step components + types.ts
+src/constants/nemsis.ts       # 33 NEMSIS option arrays
+src/utils/incidentFormatters.ts
+```
+
+### Next Decomposition Targets (from audit)
+| File | Lines | Priority |
+|------|-------|----------|
+| MARNew.tsx | 1,064 | HIGH |
+| Analytics.tsx | 965 | HIGH |
+| NewCompClaim.tsx | 925 | HIGH |
+| UnitDetail.tsx | 860 | HIGH |
+| ThemeProvider.tsx | 855 | MEDIUM |
+
+Full details in `docs/AUDIT-DECOMPOSITION.md` and `docs/AUDIT-BUGS-CONSISTENCY.md`.
+
+---
+
+## 20. Employee Multi-Role Support
+
+Employees can hold multiple clinical roles (e.g., RN + Paramedic).
+
+| Column | Type | Purpose |
+|--------|------|--------|
+| `role` | text | Primary role (used for permissions, filtering) |
+| `roles` | text[] | All roles (used for display, multi-role filtering) |
+
+The `RolePills` component in RosterList.tsx renders all roles from the array. Role filter on the roster checks the `roles` array, so dual-role employees appear under both categories.
+
+---
+
+## 21. Payroll Architecture
+
+**Source of truth:** `unit_assignments` table (same as incident dashboard deployments card)
+
+Payroll is derived from crew assignments — assigning an employee to a unit IS the deployment trigger. No separate deployment creation needed.
+
+**Rate priority:**
+1. `unit_assignments.daily_rate_override` (per-assignment override)
+2. `deployment_records.daily_rate` (enrichment layer, legacy)
+3. `employees.daily_rate` (employee default)
+
+**Days calculation:** From `travel_date` or `assigned_at` to `released_at` or today.
+
+**Admin view** (`/payroll`): All employees, filterable by incident + employee search + date range. Grouped by incident with subtotals.
+
+**Field view** (`/payroll/my`): Current user only, filterable by incident + date range. Active assignment highlight card.
+
+The `deployment_records` table still exists as an optional enrichment layer but is not required for payroll calculation.
+
+---
+
+## 22. Chat Privacy Model
+
+### DM Visibility
+- **`is_owner` flag** on `employees` table controls org-level DM access
+- **Owner:** Sees all DM conversations silently — no `chat_members` row created, invisible to participants. DM names show both parties: "Alice ↔ Bob"
+- **Other admins:** See company, incident, and unit channels + only their own DMs
+- **Field users:** See assigned channels + their own DMs
+- **White-labeled:** No hardcoded emails — set `is_owner = true` on any employee
+
+### DM Delete Flow
+- Soft-deletes the `chat_channels` row (`deleted_at` timestamp)
+- `ensure-channels` filters `deleted_at IS NULL` so deleted DMs never reappear
+- Swipe-to-delete reveals Delete/Cancel buttons (no auto-delete on swipe threshold)
+
+### Admin Channel Auto-Join
+- `ensure-channels` auto-joins admins to company/incident/unit channels only
+- DM channels are explicitly excluded via `.neq('type', 'direct')`
+- Cleanup step removes any legacy admin-role DM memberships
+
+---
+
+## 23. Incident Dashboard Filters
+
+### Unit Filter
+- **Desktop:** Color-coded pill buttons (Warehouse=purple, Med Unit=blue, Ambulance=red, REMS=green)
+- **Mobile:** Full-width `<select>` dropdown
+
+### Date Filter
+- **Desktop:** Amber pill buttons (7 Days, 30 Days, 90 Days)
+- **Mobile:** Full-width `<select>` dropdown ("All Dates" default)
+- Filters: encounters, MAR entries, supply runs, comp claims
+- Counts update to reflect filtered set
+
+### Card Item Cap
+- All list cards (Encounters, MAR, Supply Runs) capped at 5 visible items
+- "Show X more" / "Show less" expand toggle
+- CompClaims and Reorder already had this pattern via StatCard `expandedChildren`

@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { createClient } from '@/lib/supabase/client'
+import { LoadingSkeleton, EmptyState } from '@/components/ui'
 import { authFetch } from '@/lib/authFetch'
 import { loadSingle } from '@/lib/offlineFirst'
 import { useUserAssignment } from '@/lib/useUserAssignment'
@@ -14,7 +15,7 @@ import type { Theme } from '@/components/ThemeProvider'
 
 const CERT_TYPE_OPTIONS = [
   'BLS/CPR', 'ACLS', 'PALS', 'ITLS / PHTLS / ATLS',
-  'Paramedic License', 'Medical License (MD/DO)', 'NP License', 'PA License', 'RN License',
+  'Paramedic License', 'Medical License', 'NP License', 'PA License', 'RN License',
   'Ambulance Driver Cert', 'NREMT', 'EMT Certification',
   'S-130', 'S-190', 'L-180',
   'ICS-100', 'ICS-200', 'ICS-300', 'ICS-400', 'ICS-700', 'ICS-800',
@@ -256,8 +257,8 @@ export default function ProfilePage() {
   const inputCls = 'w-full max-w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 box-border'
   const labelCls = 'block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1'
 
-  if (assignment.loading) return <div className="p-8 text-gray-500">Loading...</div>
-  if (!employee) return <div className="p-8 text-gray-500">No employee record found for your account.</div>
+  if (assignment.loading) return <LoadingSkeleton fullPage />
+  if (!employee) return <EmptyState icon="👤" message="No employee record found for your account." />
 
   return (
     <div className="flex gap-6">
@@ -407,7 +408,7 @@ export default function ProfilePage() {
           <span className="text-xs text-gray-600">{creds.length} file{creds.length !== 1 ? 's' : ''}</span>
         </div>
         {creds.length === 0 ? (
-          <p className="px-4 py-6 text-sm text-gray-600 text-center">No credentials uploaded yet.</p>
+          <EmptyState icon="📄" message="No credentials uploaded yet." className="py-6" />
         ) : (
           <div className="divide-y divide-gray-800/60">
             {creds.map(c => {

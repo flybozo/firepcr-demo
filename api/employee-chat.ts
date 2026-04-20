@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { HttpError, requireEmployee } from './_auth.js'
 import { rateLimit } from './_rateLimit.js'
-import { brand } from '../src/lib/branding.config.js'
+import { brand } from './_brand.js'
 
 // Vercel Pro: max 60s, Enterprise: 900s. Needed for executive tool calls.
 // Vercel serverless

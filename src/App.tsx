@@ -8,6 +8,7 @@ import AppLayout from '@/layouts/AppLayout'
 // Eagerly loaded (needed immediately / on every page)
 import Login from '@/pages/auth/Login'
 import Onboard from '@/pages/onboard/Onboard'
+import { ToastContainer } from '@/components/ui'
 
 // Lazy-loaded routes
 const Dashboard = lazy(() => import('@/pages/Dashboard'))
@@ -127,6 +128,7 @@ function PageLoader() {
 function App() {
   return (
     <BrowserRouter>
+      <ToastContainer />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/login" element={<Login />} />

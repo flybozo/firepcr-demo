@@ -2,10 +2,12 @@
 import { type PickedEncounter } from '@/components/EncounterPicker'
 
 import { useEffect, useRef, useState, Suspense } from 'react'
+import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
+import { LoadingSkeleton } from '@/components/ui'
 import { useRole } from '@/lib/useRole'
 import { useOfflineWrite } from '@/lib/useOfflineWrite'
 
@@ -97,7 +99,7 @@ function MARNewFormInner() {
   const patientNameParam = searchParams.get('patientName') || ''
 
   const assignment = useUserAssignment()
-  const { isField } = { isField: !['MD','MD/DO','Admin'].includes(assignment.employee?.role || '') }
+  const { isField } = { isField: !['MD','DO','Admin'].includes(assignment.employee?.role || '') }
   const [assignmentApplied, setAssignmentApplied] = useState(false)
 
   const now = new Date()
@@ -389,7 +391,7 @@ function MARNewFormInner() {
   }
 
     // Provider employees: always show ALL active providers (prescriber may not be on the unit)
-  const providerRoles = ['MD', 'MD/DO', 'NP', 'PA', 'DO']
+  const providerRoles = ['MD', 'DO', 'NP', 'PA', 'DO']
   const providerEmployees = employees.filter(e => providerRoles.includes(e.role))
   const witnessOptions = unitCrew.length > 0 ? unitCrew : employees
 
@@ -468,12 +470,12 @@ function MARNewFormInner() {
 
   const handleSubmit = async () => {
     if (!form.item_name || !form.patient_name || !form.dispensed_by) {
-      alert('Please fill in required fields: medication, patient name, and dispensed by.')
+      toast.warning('Please fill in required fields: medication, patient name, and dispensed by.')
       return
     }
     const _qtyWasted = parseFloat(form.qty_wasted) || 0
     if (isCS && _qtyWasted > 0 && !form.waste_witness) {
-      alert('A waste witness is required when controlled substance wastage > 0.')
+      toast.warning('A waste witness is required when controlled substance wastage > 0.')
       return
     }
 
@@ -483,7 +485,7 @@ function MARNewFormInner() {
     if (totalNeeded > 0 && form.med_unit) {
       const invItem = unitInventory.find(i => i.item_name === form.item_name)
       if (invItem && invItem.quantity < totalNeeded) {
-        alert(`Insufficient stock: only ${invItem.quantity} units available on this unit`)
+        toast.warning(`Insufficient stock: only ${invItem.quantity} units available on this unit`)
         return
       }
     }
@@ -510,7 +512,7 @@ function MARNewFormInner() {
 
       if ((isProviderMatch || isSelfOrder) && providerPin.length >= 4) {
         // Digital signature — provider signed directly with PIN
-        providerSignatureUrl = `digital:${(await supabase.auth.getUser()).data.user?.email}:${new Date().toISOString()}`
+        providerSignatureUrl = `digital:${(await supabase.auth.getUser()).data?.user?.email ?? 'unknown'}:${new Date().toISOString()}`
         if (providerSignatureUrl) {
           providerSignedAt = new Date().toISOString()
           providerSignedBy = assignment.user?.email || null
@@ -613,7 +615,7 @@ function MARNewFormInner() {
     } catch (err: unknown) {
       setSubmitting(false)
       const msg = err instanceof Error ? err.message : 'Unknown error'
-      alert(`Error: ${msg}`)
+      toast.error(`Error: ${msg}`)
     }
   }
 
@@ -935,7 +937,7 @@ function MARNewFormInner() {
               <option value="">Select provider</option>
               {(() => {
                 // Field users: show themselves + MDs/NPs/PAs on unit; admins see all
-                const adminRoles = ['MD', 'MD/DO', 'NP', 'PA', 'Paramedic']
+                const adminRoles = ['MD', 'DO', 'NP', 'PA', 'Paramedic']
                 const dispensers = isField
                   ? employees.filter(e => e.name === assignment.employee?.name || adminRoles.includes(e.role))
                   : employees
@@ -1056,11 +1058,7 @@ function MARNewFormInner() {
 
 export default function MARNewPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-        <p className="text-gray-400">Loading...</p>
-      </div>
-    }>
+    <Suspense fallback={<LoadingSkeleton fullPage />}>
       <MARNewFormInner />
     </Suspense>
   )

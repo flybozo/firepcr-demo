@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { jsPDF } from 'jspdf'
 import { HttpError, requireAuthUser } from './_auth.js'
-import { brand } from '../src/lib/branding.config.js'
+import { brand } from './_brand.js'
 import { validateBody, sanitize } from './_validate.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {

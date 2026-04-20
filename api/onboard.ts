@@ -12,7 +12,7 @@ import { validateBody } from './_validate.js'
 import { HttpError } from './_auth.js'
 import { sendEmail, buildEmailHtml } from './_email.js'
 import { rateLimit } from './_rateLimit.js'
-import { brand } from '../src/lib/branding.config.js'
+import { brand } from './_brand.js'
 
 // ── Rate limiting ──────────────────────────────────────────────────────────
 // Max 10 submissions per IP per hour (per serverless instance)

@@ -3,6 +3,7 @@ import { FieldGuard } from '@/components/FieldGuard'
 
 import { useEffect, useState, useMemo, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { LoadingSkeleton } from '@/components/ui'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 
 type CSTransaction = {
@@ -279,7 +280,7 @@ function AuditLogInner() {
 
 function AuditLogPageInner() {
   return (
-    <Suspense fallback={<div className="p-8 text-gray-400">Loading...</div>}>
+    <Suspense fallback={<LoadingSkeleton fullPage />}>
       <AuditLogInner />
     </Suspense>
   )

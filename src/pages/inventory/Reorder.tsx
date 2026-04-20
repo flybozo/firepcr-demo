@@ -3,6 +3,7 @@
 import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
+import { LoadingSkeleton } from '@/components/ui'
 import { useSearchParams } from 'react-router-dom'
 
 type ReorderItem = {
@@ -247,7 +248,7 @@ function ReorderPageInner() {
 
 export default function ReorderPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-950 text-white flex items-center justify-center"><p className="text-gray-400">Loading...</p></div>}>
+    <Suspense fallback={<LoadingSkeleton fullPage />}>
       <ReorderPageInner />
     </Suspense>
   )

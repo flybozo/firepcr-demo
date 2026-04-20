@@ -3,37 +3,49 @@ import { createServiceClient } from '../_supabase.js'
 import { HttpError, requireAuthUser } from '../_auth.js'
 
 // GET /api/incident-access/download?code=XXXX&type=comp_claim&id=YYYY
-// Validates the access code, confirms the document belongs to the incident, returns signed URL.
+// GET /api/incident-access/download?incidentId=XXXX&type=comp_claim&id=YYYY (authenticated preview)
+// Validates access, confirms the document belongs to the incident, returns signed URL.
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const query = req.query
   const code = (query['code'] as string)
+  const directIncidentId = (query['incidentId'] as string)
   const type = (query['type'] as string) // 'comp_claim' | 'ics214'
   const id = (query['id'] as string)
 
-  if (!code || !type || !id) {
+  if ((!code && !directIncidentId) || !type || !id) {
     return res.status(400).json({ error: 'Missing parameters' })
   }
 
-  // Access code based auth — no JWT required (external fire admin users)
   const supabase = createServiceClient()
+  let incidentId: string
 
-  // Validate the access code
-  const { data: codeRow, error: codeErr } = await supabase
-    .from('incident_access_codes')
-    .select('incident_id, active, expires_at')
-    .eq('access_code', code.toUpperCase())
-    .single()
+  if (directIncidentId) {
+    // Authenticated internal preview — require logged-in employee
+    try {
+      await requireAuthUser(req)
+    } catch {
+      return res.status(401).json({ error: 'Unauthorized' })
+    }
+    incidentId = directIncidentId
+  } else {
+    // Access code based auth — no JWT required (external fire admin users)
+    const { data: codeRow, error: codeErr } = await supabase
+      .from('incident_access_codes')
+      .select('incident_id, active, expires_at')
+      .eq('access_code', code!.toUpperCase())
+      .single()
 
-  if (codeErr || !codeRow || !codeRow.active) {
-    return res.status(403).json({ error: 'Invalid access code' })
+    if (codeErr || !codeRow || !codeRow.active) {
+      return res.status(403).json({ error: 'Invalid access code' })
+    }
+
+    if (codeRow.expires_at && new Date(codeRow.expires_at) < new Date()) {
+      return res.status(410).json({ error: 'Access code expired' })
+    }
+
+    incidentId = codeRow.incident_id
   }
-
-  if (codeRow.expires_at && new Date(codeRow.expires_at) < new Date()) {
-    return res.status(410).json({ error: 'Access code expired' })
-  }
-
-  const incidentId = codeRow.incident_id
   let pdfUrl: string | null = null
 
   if (type === 'comp_claim') {

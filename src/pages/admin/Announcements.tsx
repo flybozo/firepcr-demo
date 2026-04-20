@@ -1,8 +1,10 @@
 
 
 import { useEffect, useState } from 'react'
+import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
+import { LoadingSkeleton, EmptyState, ConfirmDialog } from '@/components/ui'
 import { authFetch } from '@/lib/authFetch'
 
 // ── Push Notification constants ───────────────────────────────────────────────
@@ -66,6 +68,7 @@ export default function AnnouncementsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; confirmLabel?: string; icon?: string; confirmColor?: string } | null>(null)
 
   // Form state
   const [message, setMessage] = useState('')
@@ -126,7 +129,7 @@ export default function AnnouncementsPage() {
   }, [])
 
   const handleCreate = async () => {
-    if (!message.trim()) { alert('Message is required.'); return }
+    if (!message.trim()) { toast.warning('Message is required.'); return }
     setSaving(true)
     try {
       const { error } = await supabase.from('announcements').insert({
@@ -145,7 +148,7 @@ export default function AnnouncementsPage() {
       setAudienceList(['all'])
       await loadAnnouncements()
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Error creating announcement')
+      toast.error(err instanceof Error ? err.message : 'Error creating announcement')
     } finally {
       setSaving(false)
     }
@@ -156,12 +159,19 @@ export default function AnnouncementsPage() {
     setAnnouncements(prev => prev.map(a => a.id === id ? { ...a, active: !current } : a))
   }
 
-  const deleteAnnouncement = async (id: string) => {
-    if (!confirm('Delete this announcement?')) return
-    setDeletingId(id)
-    await supabase.from('announcements').delete().eq('id', id)
-    setAnnouncements(prev => prev.filter(a => a.id !== id))
-    setDeletingId(null)
+  const deleteAnnouncement = (id: string) => {
+    setConfirmAction({
+      action: async () => {
+        setDeletingId(id)
+        await supabase.from('announcements').delete().eq('id', id)
+        setAnnouncements(prev => prev.filter(a => a.id !== id))
+        setDeletingId(null)
+      },
+      title: 'Delete Announcement',
+      message: 'Delete this announcement?',
+      icon: '🗑️',
+      confirmColor: 'bg-red-600 hover:bg-red-700',
+    })
   }
 
   const formatExpiry = (exp: string | null) => {
@@ -299,11 +309,9 @@ export default function AnnouncementsPage() {
           </h2>
 
           {loading ? (
-            <p className="text-gray-600 text-sm">Loading...</p>
+            <LoadingSkeleton rows={3} />
           ) : announcements.length === 0 ? (
-            <div className="theme-card rounded-xl p-6 text-center border">
-              <p className="text-gray-500">No announcements yet.</p>
-            </div>
+            <EmptyState icon="📢" message="No announcements yet." />
           ) : (
             announcements.map(a => (
               <div
@@ -478,6 +486,15 @@ export default function AnnouncementsPage() {
         </div>
 
       </div>
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message || ''}
+        icon={confirmAction?.icon || '⚠️'}
+        confirmColor={confirmAction?.confirmColor}
+        onConfirm={() => { confirmAction?.action(); setConfirmAction(null) }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   )
 }

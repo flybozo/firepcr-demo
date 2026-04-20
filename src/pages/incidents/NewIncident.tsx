@@ -1,5 +1,6 @@
 
 import { useEffect, useState } from 'react'
+import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
 import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
@@ -121,7 +122,7 @@ export default function NewIncidentPage() {
       if (!navigator.onLine) {
         const { queueOfflineWrite } = await import('@/lib/offlineStore')
         await queueOfflineWrite('incidents', 'insert', { id: crypto.randomUUID(), ...form, status: 'Active' })
-        alert('Incident saved offline — will sync when back online.')
+        toast.info('Incident saved offline — will sync when back online.')
         navigate('/incidents')
         return
       }

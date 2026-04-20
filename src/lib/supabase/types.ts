@@ -1,4 +1,4 @@
-export type Role = 'MD/DO' | 'NP' | 'PA' | 'RN' | 'Paramedic' | 'EMT' | 'Tech'
+export type Role = 'MD' | 'DO' | 'NP' | 'PA' | 'RN' | 'Paramedic' | 'EMT' | 'Tech'
 
 export type Employee = {
   id: string

@@ -2,7 +2,9 @@
 import { Link } from 'react-router-dom'
 
 import { useEffect, useState, useCallback } from 'react'
+import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
+import { LoadingSkeleton, ConfirmDialog } from '@/components/ui'
 import { getIsOnline } from '@/lib/syncManager'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useRole } from '@/lib/useRole'
@@ -183,6 +185,7 @@ export default function SchedulePage() {
   const [reviewingId, setReviewingId] = useState<string | null>(null)
   const [adminFilter, setAdminFilter] = useState<'all' | 'pending' | 'approved' | 'denied'>('pending')
   const [success, setSuccess] = useState('')
+  const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; confirmLabel?: string; icon?: string; confirmColor?: string } | null>(null)
 
   // Form
   const [type, setType] = useState<'time_off' | 'want_to_work'>('time_off')
@@ -214,10 +217,10 @@ export default function SchedulePage() {
   useEffect(() => { load() }, [roleLoading, assignment.loading, isAdmin])
 
   const handleSubmit = async () => {
-    if (!startDate || !endDate) { alert('Please select start and end dates.'); return }
-    if (endDate < startDate) { alert('End date must be on or after start date.'); return }
-    if (!assignment.employee?.id) { alert('No employee record found.'); return }
-    if (!getIsOnline()) { alert('Schedule requests require an internet connection. Please reconnect and try again.'); return }
+    if (!startDate || !endDate) { toast.warning('Please select start and end dates.'); return }
+    if (endDate < startDate) { toast.warning('End date must be on or after start date.'); return }
+    if (!assignment.employee?.id) { toast.warning('No employee record found.'); return }
+    if (!getIsOnline()) { toast.warning('Schedule requests require an internet connection. Please reconnect and try again.'); return }
     setSaving(true)
     const { error } = await supabase.from('schedule_requests').insert({
       employee_id: assignment.employee.id,
@@ -227,7 +230,7 @@ export default function SchedulePage() {
       notes: notes.trim() || null,
       status: 'pending',
     })
-    if (error) { alert(error.message); setSaving(false); return }
+    if (error) { toast.error(error.message); setSaving(false); return }
     setType('time_off')
     setStartDate('')
     setEndDate('')
@@ -249,10 +252,17 @@ export default function SchedulePage() {
     setReviewingId(null)
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this request?')) return
-    await supabase.from('schedule_requests').delete().eq('id', id)
-    setRequests(prev => prev.filter(r => r.id !== id))
+  const handleDelete = (id: string) => {
+    setConfirmAction({
+      action: async () => {
+        await supabase.from('schedule_requests').delete().eq('id', id)
+        setRequests(prev => prev.filter(r => r.id !== id))
+      },
+      title: 'Delete Request',
+      message: 'Delete this request?',
+      icon: '🗑️',
+      confirmColor: 'bg-red-600 hover:bg-red-700',
+    })
   }
 
   const loadCalendar = useCallback(async () => {
@@ -437,7 +447,7 @@ export default function SchedulePage() {
           </h2>
 
           {loading ? (
-            <p className="text-gray-600 text-sm">Loading...</p>
+            <LoadingSkeleton rows={5} header />
           ) : filteredRequests.length === 0 ? (
             <div className="theme-card rounded-xl p-8 text-center border">
               <p className="text-gray-500 text-sm">No requests{adminFilter !== 'all' ? ` with status "${adminFilter}"` : ''}.</p>
@@ -515,6 +525,15 @@ export default function SchedulePage() {
 
         </>)}
       </div>
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message || ''}
+        icon={confirmAction?.icon || '⚠️'}
+        confirmColor={confirmAction?.confirmColor}
+        onConfirm={() => { confirmAction?.action(); setConfirmAction(null) }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   )
 }

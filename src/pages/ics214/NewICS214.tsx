@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { brand } from '@/lib/branding.config'
 import { createClient } from '@/lib/supabase/client'
+import { LoadingSkeleton } from '@/components/ui'
 import { useNavigate } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { Link } from 'react-router-dom'
@@ -35,7 +36,7 @@ function getLeaderPosition(unitTypeName: string | null | undefined): string {
 // Get ICS position from employee role
 function roleToICSPosition(role: string): string {
   const map: Record<string, string> = {
-    'MD': 'MD', 'MD/DO': 'MD', 'DO': 'MD',
+    'MD': 'MD', 'DO': 'MD',
     'NP': 'NP', 'PA': 'PA',
     'RN': 'RN', 'Paramedic': 'Paramedic',
     'EMT': 'EMT', 'AEMT': 'AEMT',
@@ -52,7 +53,7 @@ export default function NewICS214Page() {
   const supabase = createClient()
   const navigate = useNavigate()
   const assignment = useUserAssignment()
-  const isAdmin = ['MD', 'MD/DO', 'Admin'].includes(assignment?.employee?.role || '')
+  const isAdmin = ['MD', 'DO', 'Admin'].includes(assignment?.employee?.role || '')
 
   const [units, setUnits] = useState<Unit[]>([])
   const [incidents, setIncidents] = useState<Incident[]>([])
@@ -321,11 +322,7 @@ export default function NewICS214Page() {
   }
 
   if (assignment.loading) {
-    return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-      </div>
-    )
+    return <LoadingSkeleton fullPage />
   }
 
   return (

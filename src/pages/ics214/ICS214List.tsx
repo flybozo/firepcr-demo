@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { queryActiveIncidentsForEncounters } from '@/lib/services/encounters'
 import { useUserAssignment } from '@/lib/useUserAssignment'
+import { PageHeader, LoadingSkeleton, EmptyState } from '@/components/ui'
 
 type ICS214Row = {
   id: string
@@ -22,7 +23,7 @@ type ICS214Row = {
 export default function ICS214ListPage() {
   const supabase = createClient()
   const assignment = useUserAssignment()
-  const isAdmin = ['MD', 'MD/DO', 'Admin'].includes(assignment?.employee?.role || '')
+  const isAdmin = ['MD', 'DO', 'Admin'].includes(assignment?.employee?.role || '')
 
   const [rows, setRows] = useState<ICS214Row[]>([])
   const [loading, setLoading] = useState(true)
@@ -92,15 +93,18 @@ export default function ICS214ListPage() {
       <div className="max-w-4xl mx-auto p-4 md:p-6">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-6 pt-2">
-          <h1 className="text-xl font-bold">ICS 214 Logs</h1>
-          <Link
-            to="/ics214/new"
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors"
-          >
-            + New 214
-          </Link>
-        </div>
+        <PageHeader
+          title="ICS 214 Logs"
+          actions={
+            <Link
+              to="/ics214/new"
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors"
+            >
+              + New 214
+            </Link>
+          }
+          className="mb-6"
+        />
 
         {/* Date range filter pills */}
         <div className="hidden md:flex gap-1.5 mb-3">
@@ -226,16 +230,14 @@ export default function ICS214ListPage() {
 
         {/* Table */}
         {loading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-          </div>
+          <LoadingSkeleton fullPage />
         ) : rows.length === 0 ? (
-          <div className="theme-card rounded-xl border p-12 text-center">
-            <p className="text-gray-500 text-sm mb-4">No ICS 214 logs found.</p>
-            <Link to="/ics214/new" className="text-red-400 hover:text-red-300 text-sm underline">
-              Create your first 214 →
-            </Link>
-          </div>
+          <EmptyState
+            icon="📋"
+            message="No ICS 214 logs found."
+            actionHref="/ics214/new"
+            actionLabel="Create your first 214 →"
+          />
         ) : (
           <div className="theme-card rounded-xl border overflow-hidden">
             {/* Desktop table */}

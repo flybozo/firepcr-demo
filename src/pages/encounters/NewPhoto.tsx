@@ -3,6 +3,7 @@ import EncounterPicker, { type PickedEncounter } from '@/components/EncounterPic
 
 import { useCallback, useState, Suspense, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { LoadingSkeleton } from '@/components/ui'
 import { uploadPatientPhoto, insertPatientPhoto } from '@/lib/services/encounters'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useNavigate, useSearchParams } from 'react-router-dom'
@@ -314,11 +315,7 @@ function PhotoUploadInner() {
 
 export default function PhotoUploadPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-        <p className="text-gray-400">Loading...</p>
-      </div>
-    }>
+    <Suspense fallback={<LoadingSkeleton fullPage />}>
       <PhotoUploadInner />
     </Suspense>
   )

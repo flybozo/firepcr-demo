@@ -1,8 +1,10 @@
 
 import { useEffect, useState } from 'react'
+import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
 import { useRole } from '@/lib/useRole'
 import { Link } from 'react-router-dom'
+import { LoadingSkeleton, ConfirmDialog } from '@/components/ui'
 
 type Employee = {
   id: string
@@ -15,7 +17,6 @@ type Employee = {
 
 const ROLE_DEFAULTS: Record<string, number> = {
   'MD': 1800,
-  'MD/DO': 1800,
   'DO': 1800,
   'NP': 1200,
   'PA': 1200,
@@ -36,6 +37,7 @@ export default function PayRatesPage() {
   const [editRate, setEditRate] = useState('')
   const [editHours, setEditHours] = useState('')
   const [bulkMode, setBulkMode] = useState(false)
+  const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; confirmLabel?: string; icon?: string; confirmColor?: string } | null>(null)
 
   const loadEmployees = async () => {
     const { data } = await supabase
@@ -59,7 +61,7 @@ export default function PayRatesPage() {
       .update({ daily_rate: rate, default_hours_per_day: hours })
       .eq('id', empId)
     if (error) {
-      alert('Save failed: ' + error.message)
+      toast.error('Save failed: ' + error.message)
     } else {
       setEmployees(prev => prev.map(e => e.id === empId ? { ...e, daily_rate: rate, default_hours_per_day: hours } : e))
       setSuccess(`Updated ${employees.find(e => e.id === empId)?.name}`)
@@ -69,29 +71,35 @@ export default function PayRatesPage() {
     setEditingId(null)
   }
 
-  const applyDefaults = async () => {
-    if (!confirm('Set default rates for all employees based on role?\n\nMD/DO: $1,800\nNP/PA: $1,200\nRN/Paramedic: $900\nEMT/Admin: $600\n\nThis will overwrite current rates. Continue?')) return
-    setSaving('bulk')
-    for (const emp of employees) {
-      const defaultRate = ROLE_DEFAULTS[emp.role] ?? 600
-      if (emp.daily_rate !== defaultRate) {
-        await supabase
-          .from('employees')
-          .update({ daily_rate: defaultRate, default_hours_per_day: 16 })
-          .eq('id', emp.id)
-      }
-    }
-    await loadEmployees()
-    setSaving(null)
-    setSuccess('Default rates applied to all employees')
-    setTimeout(() => setSuccess(''), 3000)
+  const applyDefaults = () => {
+    setConfirmAction({
+      action: async () => {
+        setSaving('bulk')
+        for (const emp of employees) {
+          const defaultRate = ROLE_DEFAULTS[emp.role] ?? 600
+          if (emp.daily_rate !== defaultRate) {
+            await supabase
+              .from('employees')
+              .update({ daily_rate: defaultRate, default_hours_per_day: 16 })
+              .eq('id', emp.id)
+          }
+        }
+        await loadEmployees()
+        setSaving(null)
+        setSuccess('Default rates applied to all employees')
+        setTimeout(() => setSuccess(''), 3000)
+      },
+      title: 'Apply Default Rates',
+      message: 'Set default rates for all employees based on role?\n\nMD / DO: $1,800\nNP/PA: $1,200\nRN/Paramedic: $900\nEMT/Admin: $600\n\nThis will overwrite current rates.',
+      icon: '⚠️',
+    })
   }
 
   if (!isAdmin) {
     return <div className="p-8 text-red-400">Admin access required.</div>
   }
 
-  if (loading) return <div className="p-8 text-gray-500">Loading...</div>
+  if (loading) return <LoadingSkeleton fullPage />
 
   // Group by role
   const byRole = employees.reduce<Record<string, Employee[]>>((acc, emp) => {
@@ -100,7 +108,7 @@ export default function PayRatesPage() {
     acc[r].push(emp)
     return acc
   }, {})
-  const roleOrder = ['MD', 'MD/DO', 'DO', 'NP', 'PA', 'RN', 'Paramedic', 'EMT', 'Admin', 'Other']
+  const roleOrder = ['MD', 'DO', 'NP', 'PA', 'RN', 'Paramedic', 'EMT', 'Admin', 'Other']
   const sortedRoles = roleOrder.filter(r => byRole[r]?.length).concat(
     Object.keys(byRole).filter(r => !roleOrder.includes(r))
   )
@@ -226,6 +234,15 @@ export default function PayRatesPage() {
           <li>• All days on incident (including travel) are billed as full days</li>
         </ul>
       </div>
+      <ConfirmDialog
+        open={!!confirmAction}
+        title={confirmAction?.title || ''}
+        message={confirmAction?.message || ''}
+        icon={confirmAction?.icon || '⚠️'}
+        confirmColor={confirmAction?.confirmColor}
+        onConfirm={() => { confirmAction?.action(); setConfirmAction(null) }}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   )
 }
