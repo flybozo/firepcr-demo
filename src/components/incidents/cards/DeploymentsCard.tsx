@@ -44,6 +44,8 @@ export function DeploymentsCard({
   const [deploySubmitting, setDeploySubmitting] = useState(false)
   const [editingDeployId, setEditingDeployId] = useState<string | null>(null)
   const [editDeployFields, setEditDeployFields] = useState<Partial<DeploymentRecord>>({})
+  const [unitAssignPrompt, setUnitAssignPrompt] = useState<{ empName: string; empId: string; unitNames: string[] } | null>(null)
+  const [selectedUnit, setSelectedUnit] = useState('')
 
   if (!isAdmin) return null
 
@@ -79,19 +81,9 @@ export function DeploymentsCard({
     )
     if (!empAssignments.includes(deployForm.employeeId)) {
       const empName = allEmployees.find((e: any) => e.id === deployForm.employeeId)?.name || 'This employee'
-      const unitNames = incidentUnits.map((iu: any) => iu.unit?.name).filter(Boolean)
+      const unitNames = incidentUnits.map((iu: any) => iu.unit?.name).filter(Boolean) as string[]
       if (unitNames.length > 0) {
-        const assignToUnit = prompt(`${empName} is not assigned to a unit on this incident.\n\nAssign to a unit? Enter unit name:\n${unitNames.join(', ')}\n\n(Leave blank to skip)`)
-        if (assignToUnit) {
-          const matchedIU = incidentUnits.find((iu: any) => iu.unit?.name?.toLowerCase() === assignToUnit.toLowerCase())
-          if (matchedIU) {
-            await write('unit_assignments', 'insert', {
-              incident_unit_id: matchedIU.id,
-              employee_id: deployForm.employeeId,
-              role_on_unit: '',
-            })
-          }
-        }
+        setUnitAssignPrompt({ empName, empId: deployForm.employeeId, unitNames })
       }
     }
 
@@ -145,6 +137,47 @@ export function DeploymentsCard({
         onConfirm={() => { confirmAction?.action(); setConfirmAction(null) }}
         onCancel={() => setConfirmAction(null)}
       />
+
+      {/* Unit assignment prompt (replaces native prompt()) */}
+      {unitAssignPrompt && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4" onClick={() => { setUnitAssignPrompt(null); setSelectedUnit('') }}>
+          <div className="bg-gray-900 border border-gray-700 rounded-2xl p-6 max-w-sm w-full space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start gap-3">
+              <span className="text-2xl shrink-0">👥</span>
+              <div>
+                <h3 className="font-bold text-white">Assign to Unit</h3>
+                <div className="text-gray-300 text-sm mt-1">{unitAssignPrompt.empName} is not assigned to a unit on this incident.</div>
+              </div>
+            </div>
+            <select value={selectedUnit} onChange={e => setSelectedUnit(e.target.value)}
+              className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500">
+              <option value="">Skip — don&apos;t assign</option>
+              {unitAssignPrompt.unitNames.map(u => <option key={u} value={u}>{u}</option>)}
+            </select>
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => { setUnitAssignPrompt(null); setSelectedUnit('') }}
+                className="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 rounded-xl text-sm font-medium transition-colors">Skip</button>
+              <button onClick={async () => {
+                if (selectedUnit) {
+                  const matchedIU = incidentUnits.find((iu: any) => iu.unit?.name?.toLowerCase() === selectedUnit.toLowerCase())
+                  if (matchedIU) {
+                    await write('unit_assignments', 'insert', {
+                      incident_unit_id: matchedIU.id,
+                      employee_id: unitAssignPrompt.empId,
+                      role_on_unit: '',
+                    })
+                    reload()
+                  }
+                }
+                setUnitAssignPrompt(null); setSelectedUnit('')
+              }} className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-sm font-bold transition-colors">
+                Assign
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center gap-2 px-4 py-3 border-b theme-card-header">
         {dragHandleProps && (
           <div {...dragHandleProps} className="text-gray-600 hover:text-gray-300 cursor-grab active:cursor-grabbing transition-colors shrink-0 opacity-0 group-hover:opacity-100 select-none">⠿</div>

@@ -55,6 +55,7 @@ export type Encounter = {
   patient_dob: string | null
   patient_age: number | null
   patient_gender: string | null
+  patient_agency: string | null
   // Vitals — actual DB column names (initial_*)
   initial_hr: number | null
   initial_rr: number | null

@@ -2,8 +2,8 @@
 
 **App:** https://ram-field-ops.vercel.app (staging)  
 **Repo:** https://github.com/flybozo/ram-field-ops  
-**Last updated:** 2026-04-20 00:40 PDT  
-**Current version:** v1.13.0
+**Last updated:** 2026-04-20 10:32 PDT  
+**Current version:** v1.14.0
 
 ---
 
@@ -18,6 +18,7 @@ RAM Field Ops (branded **FirePCR**) is a Progressive Web App for Remote Area Med
 - ICS 214 operational activity logs
 - NEMSIS 3.5.1 XML export for state EMS reporting
 - Crew assignment, payroll tracking, and scheduling
+- Agency logos in patient demographics bar (Cal Fire, USFS, BLM, NPS, ODF, Cal OES, CCC, DOD, BIA, USFWS + emoji fallbacks)
 - OSHA 301 / Workers' Comp claim generation
 - Consent to Treat / AMA forms with finger signatures + PDF generation
 - Push notifications (admin compose, CS count reminders, discrepancy alerts)
@@ -44,6 +45,7 @@ RAM Field Ops (branded **FirePCR**) is a Progressive Web App for Remote Area Med
 | **Hosting** | Vercel (staging) — Hetzner target for production |
 | **Auth** | Supabase Auth (email/password) |
 | **Drag & Drop** | `@dnd-kit/core` + `@dnd-kit/sortable` |
+| **Notifications (UI)** | Custom toast system (`src/lib/toast.ts` + `src/components/ui/Toast.tsx`) |
 | **Charts** | Recharts (lazy-loaded) |
 | **PDF Generation** | jsPDF + html2canvas (client-side) |
 | **Signatures** | react-signature-canvas (finger/stylus signing) |
@@ -673,15 +675,23 @@ Field users never see admin-only items. Routes are also guarded server-side by `
 - Removed 9 duplicate arrays from NewPCREncounter.tsx
 - Both files import from shared constants
 
-### Phase 4 Final Results
+### Phase 4 Complete Results (All Waves — 2026-04-20)
 
-| Component | Before | After | Reduction | New Files |
-|-----------|--------|-------|-----------|-----------|
-| Chat.tsx | 1,329 | 187 | -86% | 13 |
-| EncounterDetail.tsx | 2,318 | 325 | -86% | 22 |
-| NewPCREncounter.tsx | 1,861 | 472 | -75% | 7 |
-| IncidentDetail.tsx | 2,800 | 572 | -80% | 18 |
-| **Total** | **8,308** | **1,556** | **-81%** | **~60** |
+| Component | Before | After | Reduction |
+|-----------|--------|-------|-----------|
+| Chat.tsx | 1,329 | 187 | -86% |
+| EncounterDetail.tsx | 2,318 | 325 | -86% |
+| NewPCREncounter.tsx | 1,861 | 472 | -75% |
+| IncidentDetail.tsx | 2,800 | 572 | -80% |
+| MARNew.tsx | 1,065 | 135 | -87% |
+| Analytics.tsx | 965 | 59 | -94% |
+| NewCompClaim.tsx | 925 | 199 | -78% |
+| UnitDetail.tsx | 879 | 124 | -86% |
+| ThemeProvider.tsx | 855 | 5 | -99% |
+| ICS214Detail.tsx | 789 | 170 | -78% |
+| AMAConsent.tsx | 767 | 120 | -84% |
+| Profile.tsx | 745 | 198 | -73% |
+| **Total** | **16,298** | **2,566** | **-84%** |
 
 ### Phase 4 Extracted File Structure
 ```
@@ -699,16 +709,16 @@ src/constants/nemsis.ts       # 33 NEMSIS option arrays
 src/utils/incidentFormatters.ts
 ```
 
-### Next Decomposition Targets (from audit)
-| File | Lines | Priority |
-|------|-------|----------|
-| MARNew.tsx | 1,064 | HIGH |
-| Analytics.tsx | 965 | HIGH |
-| NewCompClaim.tsx | 925 | HIGH |
-| UnitDetail.tsx | 860 | HIGH |
-| ThemeProvider.tsx | 855 | MEDIUM |
+All Phase 4 targets complete as of 2026-04-20. Full details in `docs/AUDIT-DECOMPOSITION.md`.
 
-Full details in `docs/AUDIT-DECOMPOSITION.md` and `docs/AUDIT-BUGS-CONSISTENCY.md`.
+### Remaining Refactoring (Phase 5+)
+- **Phase 5:** Feature module colocation (`src/features/cs/`, `src/features/encounters/`, etc.)
+- **Phase 6:** Granular RBAC (`usePermission('financial.view')`)
+
+### New Infrastructure Added (2026-04-20)
+- **Toast system:** `src/lib/toast.ts` + `src/components/ui/Toast.tsx` — replaces all `alert()` calls
+- **Agency logos:** `src/components/AgencyLogo.tsx` + `public/agency-logos/` — realtime logo in patient demographics bar (13 agencies)
+- **ESLint rules:** `no-alert` (error), `no-console` (warn) added to `eslint.config.js`
 
 ---
 

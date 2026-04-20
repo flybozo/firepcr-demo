@@ -114,7 +114,7 @@ export const DISPATCH_REASON_OPTIONS = [
   'Transfer/Interfacility/Palliative Care', 'Standby', 'Other',
 ]
 
-export const AGENCY_OPTIONS = ['USFS','Cal Fire','BLM','ODF','NPS','BIA','USFWS','DOD','State/Local Fire','Private Contractor','Other']
+export const AGENCY_OPTIONS = ['Cal Fire','USFS','BLM','NPS','ODF','OES / CAL OES','California Conservation Corps','County Fire','Municipal Fire','State/Local Fire','Law Enforcement','BIA','USFWS','DOD','Private Contractor','Other']
 
 export const PATIENT_GENDER_OPTIONS = ['Male','Female','Female-to-Male Transgender','Male-to-Female Transgender','Other','Unknown']
 

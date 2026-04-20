@@ -161,7 +161,16 @@ async function createChannel(req: VercelRequest, res: VercelResponse) {
 
   // For DMs, check if a channel already exists between these exact users
   if (type === 'direct') {
-    const allParticipants = [...new Set([employee.id, ...employee_ids])]
+    // Fetch owner flag — owner can create DMs between others without joining
+    const { data: creatorFlags } = await supabase
+      .from('employees').select('is_owner').eq('id', employee.id).single()
+    const creatorIsOwner = creatorFlags?.is_owner === true
+
+    // If the owner is creating a DM between other employees, don't add themselves
+    // as a visible participant. Otherwise include the creator.
+    const allParticipants = creatorIsOwner && employee_ids.length >= 2
+      ? [...new Set(employee_ids)]
+      : [...new Set([employee.id, ...employee_ids])]
 
     // Find channels where both employees are members
     const { data: existingMembers } = await supabase

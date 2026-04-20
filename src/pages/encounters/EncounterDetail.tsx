@@ -12,6 +12,7 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useNEMSISWarnings } from '@/hooks/useNEMSISWarnings'
 import PinSignature from '@/components/PinSignature'
 import { LoadingSkeleton, EmptyState } from '@/components/ui'
+import { AgencyLogo } from '@/components/AgencyLogo'
 import { AMBULANCE_DEFAULT_ORDER, MEDUNIT_DEFAULT_ORDER, PATIENT_GENDER_OPTIONS } from '@/constants/nemsis'
 
 import { useEncounterData } from '@/hooks/useEncounterData'
@@ -228,7 +229,10 @@ export default function EncounterDetailPage() {
               <div className="flex gap-3 flex-wrap mt-1">
                 <InlineField label="DOB" value={enc.patient_dob} fieldKey="patient_dob" isLocked={isLocked} onSave={saveField} type="date" />
                 <InlineField label="Gender" value={enc.patient_gender} fieldKey="patient_gender" isLocked={isLocked} onSave={saveField} type="select" options={PATIENT_GENDER_OPTIONS} />
-                <InlineField label="Agency" value={(enc as any).patient_agency} fieldKey="patient_agency" isLocked={isLocked} onSave={saveField} type="select" options={['Cal Fire','USFS','BLM','NPS','CHP','County Fire','Municipal Fire','OES / CAL OES','Private Contractor','Other']} />
+                <div className="flex items-center gap-1.5">
+                  <AgencyLogo agency={enc.patient_agency} size={22} />
+                  <InlineField label="Agency" value={enc.patient_agency} fieldKey="patient_agency" isLocked={isLocked} onSave={saveField} type="select" options={['Cal Fire','USFS','BLM','NPS','ODF','OES / CAL OES','California Conservation Corps','County Fire','Municipal Fire','State/Local Fire','Law Enforcement','BIA','USFWS','DOD','Private Contractor','Other']} />
+                </div>
                 {enc.patient_age ? <span className="text-gray-500 text-xs self-end pb-1">{enc.patient_age}y</span> : null}
               </div>
               <p className="text-gray-500 text-xs mt-1">

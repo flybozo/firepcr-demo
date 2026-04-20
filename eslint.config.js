@@ -26,6 +26,10 @@ export default defineConfig([
       'no-empty': ['error', { allowEmptyCatch: true }],
       // Unused vars: warn (many are legacy imports from removed routes)
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      // Prevent native alert/confirm/prompt — use toast + ConfirmDialog instead
+      'no-alert': 'error',
+      // Prevent console.log shipping to prod (allow warn/error for intentional logging)
+      'no-console': ['warn', { allow: ['warn', 'error'] }],
     },
   },
 ])

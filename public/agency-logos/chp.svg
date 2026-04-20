@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- CHP badge shape -->
+  <polygon points="50,4 96,25 96,75 50,96 4,75 4,25" fill="#003087"/>
+  <polygon points="50,10 90,28 90,72 50,90 10,72 10,28" fill="#1a4fa0"/>
+  <text x="50" y="46" font-family="Arial Black,Arial" font-weight="900" font-size="20" fill="white" text-anchor="middle">CHP</text>
+  <text x="50" y="63" font-family="Arial,sans-serif" font-size="8" fill="#FFD700" text-anchor="middle">CALIFORNIA</text>
+  <text x="50" y="74" font-family="Arial,sans-serif" font-size="8" fill="#FFD700" text-anchor="middle">HIGHWAY PATROL</text>
+</svg>

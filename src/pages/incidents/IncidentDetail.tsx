@@ -454,7 +454,7 @@ export default function IncidentDetailPage() {
           <select
             value={activeIncidentId}
             onChange={e => setActiveIncidentId(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 mb-4">
+            className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-xl pl-3 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 mb-4">
             {activeIncidents.map(inc => (
               <option key={inc.id} value={inc.id}>🔥 {inc.name}</option>
             ))}

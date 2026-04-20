@@ -1,381 +1,40 @@
-
-
-import { useEffect, useState, useRef } from 'react'
-import { toast } from '@/lib/toast'
-import { useRole } from '@/lib/useRole'
-import { createClient } from '@/lib/supabase/client'
-import { loadSingle } from '@/lib/offlineFirst'
-import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
 import QRCodeCard from '@/components/QRCodeCard'
 import { brand } from '@/lib/branding.config'
 import { LoadingSkeleton, EmptyState, ConfirmDialog } from '@/components/ui'
-
-type Employee = { id: string; name: string; role: string }
-type Assignment = { id: string; role_on_unit: string; employee: Employee | null }
-type IncidentUnit = {
-  id: string
-  incident: { id: string; name: string; status: string } | null
-  unit_assignments: Assignment[]
-  released_at?: string | null
-}
-type DeploymentRow = {
-  id: string
-  assigned_at: string
-  released_at: string | null
-  daily_contract_rate: number | null
-  incident: { id: string; name: string; status: string } | null
-}
-type Unit = {
-  id: string
-  name: string
-  active: boolean
-  unit_status: string | null
-  vin: string | null
-  license_plate: string | null
-  plate_state: string | null
-  make: string | null
-  model: string | null
-  year: number | null
-  photo_url: string | null
-  vehicle_subtype: string | null
-  unit_type: { name: string; default_contract_rate: number | null } | null
-  incident_units: IncidentUnit[]
-}
-type ChildUnit = {
-  id: string
-  name: string
-  vin: string | null
-  license_plate: string | null
-  plate_state: string | null
-  vehicle_subtype: string | null
-}
-type InventoryItem = {
-  id: string
-  item_name: string
-  category: string
-  quantity: number
-  par_qty: number
-}
-
-const TYPE_COLORS: Record<string, string> = {
-  'Ambulance': 'bg-red-900 text-red-300',
-  'Med Unit': 'bg-blue-900 text-blue-300',
-  'REMS': 'bg-green-900 text-green-300',
-}
+import { useUnitDetail } from './components/useUnitDetail'
+import UnitHeader from './components/UnitHeader'
+import VehicleDetails from './components/VehicleDetails'
+import ClusterComponents from './components/ClusterComponents'
+import CrewPanel from './components/CrewPanel'
+import DeploymentHistory from './components/DeploymentHistory'
+import InventorySummary from './components/InventorySummary'
+import VehicleDocuments from './components/VehicleDocuments'
 
 export default function UnitDetailPage() {
-  const supabase = createClient()
-  const { isAdmin } = useRole()
-  const params = useParams()
-  const id = params.id as string
-
-  const [unit, setUnit] = useState<Unit | null>(null)
-  const [childUnits, setChildUnits] = useState<ChildUnit[]>([])
-  const [inventory, setInventory] = useState<InventoryItem[]>([])
-  const [allEmployees, setAllEmployees] = useState<Employee[]>([])
-  const [loading, setLoading] = useState(true)
-  const [isOfflineData, setIsOfflineData] = useState(false)
-  const [deployments, setDeployments] = useState<DeploymentRow[]>([])
-  const [incidentFilter, setIncidentFilter] = useState<string>('All')
-
-  // Add crew state
-  const [addingTo, setAddingTo] = useState<string | null>(null)
-  const [selectedEmployee, setSelectedEmployee] = useState('')
-  const [selectedRole, setSelectedRole] = useState('')
-  const [saving, setSaving] = useState(false)
-
-  // Crew conflict confirm dialog state
-  const [crewConflict, setCrewConflict] = useState<{
-    empName: string; otherUnit: string; conflictId: string
-  } | null>(null)
-  const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; confirmLabel?: string; icon?: string; confirmColor?: string } | null>(null)
-
-  // Vehicle edit state
-  const [editingVehicle, setEditingVehicle] = useState(false)
-  const [vehicleForm, setVehicleForm] = useState({
-    make: '', model: '', year: '', vin: '', license_plate: '', plate_state: '', photo_url: ''
-  })
-  const [savingVehicle, setSavingVehicle] = useState(false)
-  const [vehicleDocUrls, setVehicleDocUrls] = useState<Record<string, string>>({})
-  const [vehicleDocs, setVehicleDocs] = useState<{id: string, doc_type: string, file_url: string, file_name: string|null, expiration_date: string|null, notes: string|null}[]>([])
-  const [uploadingDoc, setUploadingDoc] = useState(false)
-  const [docType, setDocType] = useState('Registration')
-  const [uploadingPhoto, setUploadingPhoto] = useState(false)
-  const photoInputRef = useRef<HTMLInputElement>(null)
-
-  const load = async () => {
-    // Show cached data instantly
-    try {
-      const { getCachedById } = await import('@/lib/offlineStore')
-      const cached = await getCachedById('units', id) as any
-      if (cached) {
-        setUnit(cached as Unit)
-        setLoading(false)
-      }
-    } catch {}
-    const { data: unitData, offline } = await loadSingle<Unit>(
-      () => supabase
-        .from('units')
-        .select(`
-          id, name, active, unit_status,
-          vin, license_plate, plate_state, make, model, year, photo_url, vehicle_subtype,
-          unit_type:unit_types(name, default_contract_rate),
-          incident_units(
-            id, released_at,
-            incident:incidents(id, name, status),
-            unit_assignments(
-              id, role_on_unit, released_at,
-              employee:employees(id, name, role, headshot_url)
-            )
-          )
-        `)
-        .eq('id', id)
-        .single() as any,
-      'units',
-      id
-    )
-    if (offline || !unitData) {
-      if (unitData) setIsOfflineData(true)
-      setUnit(unitData as unknown as Unit)
-      setLoading(false)
-      return
-    }
-    let emps: any[] | null = null
-    let children: any[] | null = null
-    let depHistory: any[] | null = null
-    try {
-    const [{ data: _emps }, { data: _children }, { data: _deps }] = await Promise.all([
-      supabase.from('employees').select('id, name, role').eq('status', 'Active').order('name'),
-      supabase
-        .from('units')
-        .select('id, name, vin, license_plate, plate_state, vehicle_subtype')
-        .eq('parent_unit_id', id),
-      supabase
-        .from('incident_units')
-        .select('id, assigned_at, released_at, daily_contract_rate, incident:incidents(id, name, status)')
-        .eq('unit_id', id)
-        .order('assigned_at', { ascending: false }),
-    ])
-    emps = _emps; children = _children; depHistory = _deps
-    } catch (_offlineErr) {
-      // Best-effort
-    }
-
-    const u = unitData as unknown as Unit
-    setUnit(u)
-    setAllEmployees((emps || []) as Employee[])
-    setChildUnits((children || []) as ChildUnit[])
-    setDeployments((depHistory || []) as DeploymentRow[])
-
-    // Load vehicle documents
-    const { data: docsData } = await supabase
-      .from('vehicle_documents')
-      .select('id, doc_type, file_url, file_name, expiration_date, notes')
-      .eq('unit_id', id)
-      .order('uploaded_at', { ascending: false })
-    setVehicleDocs(docsData || [])
-    // Generate signed URLs for private documents bucket
-    if (docsData && docsData.length > 0) {
-      const urlMap: Record<string, string> = {}
-      await Promise.all((docsData as any[]).map(async (doc: any) => {
-        if (!doc.file_url) return
-        if (doc.file_url.startsWith('http')) { urlMap[doc.id] = doc.file_url; return }
-        // Legacy docs are in 'vehicle-docs' bucket; newer ones in 'documents' bucket
-        const bucket = doc.file_url.startsWith('vehicle-docs/') ? 'vehicle-docs' : 'documents'
-        const storagePath = doc.file_url.startsWith('vehicle-docs/')
-          ? doc.file_url.replace(/^vehicle-docs\//, '')
-          : doc.file_url
-        const { data: signed } = await supabase.storage.from(bucket).createSignedUrl(storagePath, 3600)
-        if (signed?.signedUrl) urlMap[doc.id] = signed.signedUrl
-      }))
-      setVehicleDocUrls(urlMap)
-    }
-
-    if (u) {
-      setVehicleForm({
-        make: u.make || '',
-        model: u.model || '',
-        year: u.year?.toString() || '',
-        vin: u.vin || '',
-        license_plate: u.license_plate || '',
-        plate_state: u.plate_state || '',
-        photo_url: u.photo_url || '',
-      })
-    }
-
-    // Load inventory for active incident_unit
-    if (u) {
-      const activeIU = u.incident_units?.find(iu => iu.incident?.status === 'Active' && !iu.released_at)
-      if (activeIU) {
-        const { data: inv } = await supabase
-          .from('unit_inventory')
-          .select('id, item_name, category, quantity, par_qty')
-          .eq('incident_unit_id', activeIU.id)
-          .in('category', ['CS', 'Rx'])
-          .order('category')
-          .order('item_name')
-          .limit(10)
-        setInventory(inv || [])
-      }
-    }
-    setLoading(false)
-  }
-
-  useEffect(() => { load() }, [id])
-
-  const addCrewMember = async () => {
-    if (!addingTo || !selectedEmployee) return
-    setSaving(true)
-
-    // Check if employee is already assigned to another unit (active assignment)
-    const { data: existing } = await supabase
-      .from('unit_assignments')
-      .select('id, incident_unit_id, incident_unit:incident_units(unit:units(name))')
-      .eq('employee_id', selectedEmployee)
-      .is('released_at', null)
-      .limit(1)
-
-    const conflict = existing?.[0]
-    if (conflict && conflict.incident_unit_id !== addingTo) {
-      const otherUnitName = (conflict.incident_unit as any)?.unit?.name || 'another unit'
-      const emp = allEmployees.find(e => e.id === selectedEmployee)
-      setCrewConflict({
-        empName: emp?.name || 'This employee',
-        otherUnit: otherUnitName,
-        conflictId: conflict.id,
-      })
-      setSaving(false)
-      return
-    }
-    await finishAddCrew()
-  }
-
-  const confirmCrewReassign = async () => {
-    if (!crewConflict || !addingTo) return
-    setSaving(true)
-    // Release from old unit
-    await supabase
-      .from('unit_assignments')
-      .update({ released_at: new Date().toISOString() })
-      .eq('id', crewConflict.conflictId)
-    setCrewConflict(null)
-    await finishAddCrew()
-  }
-
-  const finishAddCrew = async () => {
-    if (!addingTo || !selectedEmployee) return
-
-    // Also release any other active assignments for this employee (catch duplicates)
-    await supabase
-      .from('unit_assignments')
-      .update({ released_at: new Date().toISOString() })
-      .eq('employee_id', selectedEmployee)
-      .is('released_at', null)
-      .neq('incident_unit_id', addingTo)
-
-    // Assign to new unit
-    await supabase.from('unit_assignments').insert({
-      incident_unit_id: addingTo,
-      employee_id: selectedEmployee,
-      role_on_unit: selectedRole || '',
-    })
-    setAddingTo(null)
-    setSelectedEmployee('')
-    setSelectedRole('')
-    setSaving(false)
-    load()
-  }
-
-  const removeCrewMember = async (assignmentId: string) => {
-    await supabase.from('unit_assignments').delete().eq('id', assignmentId)
-    load()
-  }
-
-  const setUnitStatus = async (next: string) => {
-    if (!unit || !isAdmin) return
-    const current = unit.unit_status || 'in_service'
-    if (next === current) return
-    const isLeavingService = next === 'out_of_service' || next === 'archived'
-    if (isLeavingService && activeIU) {
-      const incidentName = (activeIU as any).incident?.name || 'its current incident'
-      const label = next === 'archived' ? 'Archive' : 'Mark Out of Service'
-      setConfirmAction({
-        action: async () => {
-          const now = new Date().toISOString()
-          await supabase.from('unit_assignments').update({ released_at: now }).eq('incident_unit_id', activeIU.id).is('released_at', null)
-          await supabase.from('incident_units').update({ released_at: now }).eq('id', activeIU.id)
-          await supabase.from('units').update({ unit_status: next }).eq('id', unit.id)
-          await load()
-        },
-        title: `${label} ${unit.name}`,
-        message: `This will:\n• Release ${unit.name} from ${incidentName}\n• Release all assigned crew\n\nThis cannot be undone automatically.`,
-        icon: '⚠️',
-      })
-      return
-    }
-    await supabase.from('units').update({ unit_status: next }).eq('id', unit.id)
-    await load()
-  }
-
-  const saveVehicleDetails = async () => {
-    setSavingVehicle(true)
-    await supabase.from('units').update({
-      make: vehicleForm.make || null,
-      model: vehicleForm.model || null,
-      year: vehicleForm.year ? parseInt(vehicleForm.year) : null,
-      vin: vehicleForm.vin || null,
-      license_plate: vehicleForm.license_plate || null,
-      plate_state: vehicleForm.plate_state || null,
-      photo_url: vehicleForm.photo_url || null,
-    }).eq('id', id)
-    setSavingVehicle(false)
-    setEditingVehicle(false)
-    load()
-  }
+  const { id } = useParams<{ id: string }>()
+  const {
+    unit, childUnits, inventory, allEmployees, loading, isOfflineData,
+    deployments, incidentFilter, setIncidentFilter,
+    addingTo, setAddingTo, selectedEmployee, setSelectedEmployee, saving,
+    crewConflict, setCrewConflict, confirmCrewReassign,
+    confirmAction, setConfirmAction,
+    editingVehicle, setEditingVehicle, vehicleForm, setVehicleForm, savingVehicle,
+    vehicleDocUrls, vehicleDocs, uploadingDoc, docType, setDocType,
+    uploadingPhoto, photoInputRef,
+    isAdmin,
+    addCrewMember, removeCrewMember, setUnitStatus, saveVehicleDetails,
+    handleDocUpload, handlePhotoUpload,
+  } = useUnitDetail(id!)
 
   if (loading) return <LoadingSkeleton fullPage />
-
   if (!unit) return (
     <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
       <EmptyState icon="🚑" message="Unit not found." actionHref="/units" actionLabel="← Back" />
     </div>
   )
 
-  const typeName = unit.unit_type?.name || '—'
   const activeIU = unit.incident_units?.find((iu: any) => iu.incident?.status === 'Active' && !iu.released_at)
-  const vehicleLabel = [unit.year, unit.make, unit.model].filter(Boolean).join(' ') || null
-
-  const handleDocUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !id) return
-    setUploadingDoc(true)
-    const path = `vehicles/${id}/${Date.now()}-${file.name}`
-    const { data, error } = await supabase.storage.from('documents').upload(path, file, { upsert: true })
-    if (error) { toast.error('Upload failed: ' + error.message); setUploadingDoc(false); return }
-    // Store path not public URL (bucket is private)
-    const { data: doc } = await supabase.from('vehicle_documents').insert({
-      unit_id: id, doc_type: docType, file_url: data.path, file_name: file.name
-    }).select().single()
-    if (doc) setVehicleDocs(prev => [doc, ...prev])
-    setUploadingDoc(false)
-    e.target.value = ''
-  }
-
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file || !id) return
-    setUploadingPhoto(true)
-    const ext = file.name.split('.').pop() || 'jpg'
-    const path = `units/${id}/photo.${ext}`
-    const { data, error: upErr } = await supabase.storage.from('headshots').upload(path, file, { upsert: true })
-    if (upErr) { toast.error('Upload failed: ' + upErr.message); setUploadingPhoto(false); return }
-    const { data: urlData } = supabase.storage.from('headshots').getPublicUrl(data.path)
-    const publicUrl = urlData.publicUrl
-    await supabase.from('units').update({ photo_url: publicUrl }).eq('id', id)
-    setUnit(prev => prev ? { ...prev, photo_url: publicUrl } : prev)
-    setUploadingPhoto(false)
-  }
 
   return (
     <div className="bg-gray-950 text-white pb-8">
@@ -391,422 +50,47 @@ export default function UnitDetailPage() {
         onCancel={() => setCrewConflict(null)}
       />
       <div className="p-6 md:p-8 max-w-3xl mx-auto space-y-4">
-
-        <Link to="/units" className="text-gray-500 hover:text-gray-300 text-sm">← Units</Link>
-
-        {isOfflineData && (
-          <div className="bg-amber-900/30 border border-amber-700 rounded-lg px-3 py-2 text-amber-300 text-xs">
-            📦 Showing cached data — changes will sync when back online
-          </div>
-        )}
-
-        {/* Header */}
-        <div className="theme-card rounded-xl p-4 border">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h1 className="text-xl font-bold">{unit.name}</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <span className={`text-xs px-2 py-0.5 rounded-full ${TYPE_COLORS[typeName] || 'bg-gray-700 text-gray-400'}`}>
-                  {typeName}
-                </span>
-                {(() => {
-                  const s = unit.unit_status || 'in_service'
-                  const deployed = s === 'in_service' && !!activeIU
-                  const label = deployed ? '● Deployed' : s === 'in_service' ? '○ Available' : s === 'out_of_service' ? '⚠ Out of Service' : 'Archived'
-                  const cls = deployed ? 'text-green-400' : s === 'out_of_service' ? 'text-yellow-400' : 'text-gray-500'
-                  return isAdmin ? (
-                    <select value={s} onChange={e => setUnitStatus(e.target.value)}
-                      className={`text-xs bg-transparent border-0 outline-none cursor-pointer appearance-none ${cls}`}>
-                      <option value="in_service">{deployed ? '● Deployed' : '○ Available'}</option>
-                      <option value="out_of_service">⚠ Out of Service</option>
-                      <option value="archived">Archived</option>
-                    </select>
-                  ) : <span className={`text-xs ${cls}`}>{label}</span>
-                })()}
-              </div>
-            </div>
-          </div>
-
-          {activeIU?.incident && (
-            <div className="mt-3 text-sm text-gray-400">
-              📍 <Link to={`/incidents/${activeIU.incident.id}`} className="hover:text-white underline">
-                {activeIU.incident.name}
-              </Link>
-            </div>
-          )}
-        </div>
-
-        {/* Vehicle Details */}
-        <div className="theme-card rounded-xl border overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 bg-gray-800">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Vehicle Details</h2>
-            {!editingVehicle && isAdmin && (
-              <button
-                onClick={() => setEditingVehicle(true)}
-                className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-              >
-                Edit
-              </button>
-            )}
-          </div>
-
-          {!editingVehicle ? (
-            <div className="p-4 flex gap-4">
-              {/* Photo — clickable for admins */}
-              <div className="shrink-0 relative group">
-                {unit.photo_url ? (
-                  <img src={unit.photo_url} alt={unit.name} className="w-20 h-20 object-cover rounded-lg" />
-                ) : (
-                  <div className="w-20 h-20 rounded-lg bg-gray-800 flex items-center justify-center text-gray-600 text-2xl">
-                    📷
-                  </div>
-                )}
-                {isAdmin && (
-                  <>
-                    <button
-                      onClick={() => photoInputRef.current?.click()}
-                      disabled={uploadingPhoto}
-                      className="absolute inset-0 bg-black/0 hover:bg-black/60 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
-                    >
-                      {uploadingPhoto ? (
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
-                          <circle cx="12" cy="13" r="4" />
-                        </svg>
-                      )}
-                    </button>
-                    <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoUpload} />
-                  </>
-                )}
-              </div>
-              {/* Info */}
-              <div className="flex-1 space-y-2 text-sm">
-                {vehicleLabel ? (
-                  <p className="font-semibold text-white">{vehicleLabel}</p>
-                ) : (
-                  <p className="text-gray-600 italic">No vehicle info</p>
-                )}
-                {unit.vin && (
-                  <p className="font-mono text-xs text-gray-300 bg-gray-800 px-2 py-1 rounded inline-block">
-                    {unit.vin}
-                  </p>
-                )}
-                {(unit.license_plate || unit.plate_state) && (
-                  <p className="text-gray-400 text-xs">
-                    {[unit.license_plate, unit.plate_state].filter(Boolean).join(' · ')}
-                  </p>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="p-4 space-y-3">
-              <div className="grid grid-cols-3 gap-2">
-                <input
-                  value={vehicleForm.make}
-                  onChange={e => setVehicleForm(f => ({ ...f, make: e.target.value }))}
-                  placeholder="Make"
-                  className="col-span-1 bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-                />
-                <input
-                  value={vehicleForm.model}
-                  onChange={e => setVehicleForm(f => ({ ...f, model: e.target.value }))}
-                  placeholder="Model"
-                  className="col-span-1 bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-                />
-                <input
-                  value={vehicleForm.year}
-                  onChange={e => setVehicleForm(f => ({ ...f, year: e.target.value }))}
-                  placeholder="Year"
-                  type="number"
-                  className="col-span-1 bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-                />
-              </div>
-              <input
-                value={vehicleForm.vin}
-                onChange={e => setVehicleForm(f => ({ ...f, vin: e.target.value }))}
-                placeholder="VIN"
-                className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm font-mono focus:outline-none focus:ring-2 focus:ring-red-500"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  value={vehicleForm.license_plate}
-                  onChange={e => setVehicleForm(f => ({ ...f, license_plate: e.target.value }))}
-                  placeholder="License Plate"
-                  className="bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-                />
-                <input
-                  value={vehicleForm.plate_state}
-                  onChange={e => setVehicleForm(f => ({ ...f, plate_state: e.target.value }))}
-                  placeholder="State (e.g. CA)"
-                  className="bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-                />
-              </div>
-              <p className="text-xs text-gray-500">Photo: use the camera icon on the unit thumbnail to upload.</p>
-              <div className="flex gap-2">
-                <button
-                  onClick={saveVehicleDetails}
-                  disabled={savingVehicle}
-                  className="flex-1 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg text-sm font-semibold transition-colors"
-                >
-                  {savingVehicle ? 'Saving…' : 'Save'}
-                </button>
-                <button
-                  onClick={() => setEditingVehicle(false)}
-                  className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors"
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Cluster Components (REMS child units) */}
-        {childUnits.length > 0 && (
-          <div className="theme-card rounded-xl border overflow-hidden">
-            <div className="px-4 py-3 bg-gray-800">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Cluster Components</h2>
-            </div>
-            <div className="divide-y divide-gray-800">
-              {childUnits.map(child => (
-                <div key={child.id} className="flex items-center justify-between px-4 py-2.5">
-                  <div>
-                    <p className="text-sm font-medium">{child.name}</p>
-                    <p className="text-xs text-gray-500">
-                      {child.vehicle_subtype && <span className="mr-2">{child.vehicle_subtype}</span>}
-                      {child.vin && <span className="font-mono mr-2">{child.vin}</span>}
-                      {child.license_plate && <span>{child.license_plate}{child.plate_state ? ` · ${child.plate_state}` : ''}</span>}
-                    </p>
-                  </div>
-                  <Link to={`/units/${child.id}`} className="text-xs text-gray-500 hover:text-gray-300">
-                    →
-                  </Link>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Crew */}
+        <UnitHeader
+          unit={unit} activeIU={activeIU} isAdmin={isAdmin}
+          isOfflineData={isOfflineData} onStatusChange={setUnitStatus}
+        />
+        <VehicleDetails
+          unit={unit} isAdmin={isAdmin}
+          editingVehicle={editingVehicle} vehicleForm={vehicleForm}
+          savingVehicle={savingVehicle} uploadingPhoto={uploadingPhoto}
+          photoInputRef={photoInputRef}
+          onEditStart={() => setEditingVehicle(true)}
+          onEditCancel={() => setEditingVehicle(false)}
+          onFormChange={(field, value) => setVehicleForm(f => ({ ...f, [field]: value }))}
+          onSave={saveVehicleDetails}
+          onPhotoUpload={handlePhotoUpload}
+        />
+        <ClusterComponents childUnits={childUnits} />
         {activeIU && (
-          <div className="theme-card rounded-xl border overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 bg-gray-800">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Crew</h2>
-              {(() => { const activeCrew = activeIU.unit_assignments.filter((ua: any) => !ua.released_at); return isAdmin && activeCrew.length < 4 ? (
-                <button
-                  onClick={() => setAddingTo(activeIU.id)}
-                  className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
-                >
-                  + Add ({activeCrew.length}/4)
-                </button>
-              ) : isAdmin ? (
-                <span className="text-xs text-gray-600">4/4 full</span>
-              ) : null })()}
-            </div>
-
-            <div className="divide-y divide-gray-800">
-              {activeIU.unit_assignments.filter((ua: any) => !ua.released_at).length === 0 ? (
-                <p className="px-4 py-3 text-sm text-gray-600">No crew assigned</p>
-              ) : (
-                activeIU.unit_assignments.filter((ua: any) => !ua.released_at).map((ua: any) => (
-                  <div key={ua.id} className="flex items-center justify-between px-4 py-2.5">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 bg-gray-700 flex items-center justify-center">
-                        {ua.employee?.headshot_url ? (
-                          <img src={ua.employee.headshot_url} alt={ua.employee?.name || ''} className="w-full h-full object-cover" />
-                        ) : (
-                          <span className="text-gray-400 text-xs font-bold">{(ua.employee?.name || '?').charAt(0)}</span>
-                        )}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium">{ua.employee?.name || 'Unknown'}</p>
-                        <p className="text-xs text-gray-500">{ua.employee?.role || ''}</p>
-                      </div>
-                    </div>
-                    {isAdmin && (
-                      <button
-                        onClick={() => removeCrewMember(ua.id)}
-                        className="text-xs text-gray-600 hover:text-red-400 transition-colors"
-                      >
-                        Remove
-                      </button>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-
-            {isAdmin && addingTo === activeIU.id && (
-              <div className="px-4 py-3 border-t border-gray-700 space-y-2">
-                <select
-                  value={selectedEmployee}
-                  onChange={e => setSelectedEmployee(e.target.value)}
-                  className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500"
-                >
-                  <option value="">Select crew member...</option>
-                  {allEmployees.map(emp => (
-                    <option key={emp.id} value={emp.id}>{emp.name} ({emp.role})</option>
-                  ))}
-                </select>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={addCrewMember}
-                    disabled={saving || !selectedEmployee}
-                    className="flex-1 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 rounded-lg text-sm font-semibold transition-colors"
-                  >
-                    Add
-                  </button>
-                  <button
-                    onClick={() => setAddingTo(null)}
-                    className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          <CrewPanel
+            activeIU={activeIU} isAdmin={isAdmin} allEmployees={allEmployees}
+            addingTo={addingTo} selectedEmployee={selectedEmployee} saving={saving}
+            onAddStart={() => setAddingTo(activeIU.id)}
+            onAddCancel={() => setAddingTo(null)}
+            onEmployeeSelect={setSelectedEmployee}
+            onAddCrew={addCrewMember}
+            onRemoveCrew={removeCrewMember}
+          />
         )}
-
-        {/* Deployment History */}
-        {isAdmin && (() => {
-          const defaultContractRate = unit.unit_type?.default_contract_rate ?? 0
-          const currencyFmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
-          const calcRow = (dep: DeploymentRow) => {
-            const rate = dep.daily_contract_rate ?? defaultContractRate
-            const start = new Date(dep.assigned_at).getTime()
-            const end = dep.released_at ? new Date(dep.released_at).getTime() : Date.now()
-            const days = Math.max(1, Math.ceil((end - start) / 86400000))
-            return { rate, days, revenue: days * rate }
-          }
-          const uniqueIncidents = Array.from(
-            new Set(deployments.map(d => d.incident?.name).filter(Boolean) as string[])
-          )
-          const filtered = incidentFilter === 'All'
-            ? deployments
-            : deployments.filter(d => d.incident?.name === incidentFilter)
-          const totalRevenue = filtered.reduce((sum, dep) => sum + calcRow(dep).revenue, 0)
-          const fmtDate = (iso: string) => {
-            const d = new Date(iso)
-            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-          }
-          return (
-            <div className="theme-card rounded-xl border overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 bg-gray-800">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">📊 Deployment History</h2>
-                <span className="text-sm font-semibold text-green-400">{currencyFmt.format(totalRevenue)}</span>
-              </div>
-              {deployments.length === 0 ? (
-                <p className="px-4 py-4 text-sm text-gray-600 text-center">No deployment history yet.</p>
-              ) : (
-                <>
-                  {uniqueIncidents.length > 1 && (
-                    <div className="px-4 py-2 border-b border-gray-800">
-                      <select
-                        value={incidentFilter}
-                        onChange={e => setIncidentFilter(e.target.value)}
-                        className="bg-gray-800 rounded-lg px-3 py-1.5 text-white text-xs focus:outline-none focus:ring-2 focus:ring-red-500"
-                      >
-                        <option value="All">All Incidents</option>
-                        {uniqueIncidents.map(name => (
-                          <option key={name} value={name}>{name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="text-gray-500 border-b border-gray-800">
-                          <th className="text-left px-4 py-2 font-medium">Incident</th>
-                          <th className="text-left px-4 py-2 font-medium">Mobilized</th>
-                          <th className="text-left px-4 py-2 font-medium">Demob</th>
-                          <th className="text-right px-4 py-2 font-medium">Days</th>
-                          <th className="text-right px-4 py-2 font-medium">Rate</th>
-                          <th className="text-right px-4 py-2 font-medium">Revenue</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-800">
-                        {filtered.map(dep => {
-                          const { rate, days, revenue } = calcRow(dep)
-                          const isActive = dep.incident?.status === 'Active'
-                          return (
-                            <tr key={dep.id} className="hover:bg-gray-800/50">
-                              <td className="px-4 py-2.5">
-                                <div className="flex items-center gap-1.5">
-                                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? 'bg-green-400' : 'bg-gray-600'}`} />
-                                  {dep.incident ? (
-                                    <Link to={`/incidents/${dep.incident.id}`} className="text-white hover:text-blue-300 underline underline-offset-2 truncate max-w-[140px]">
-                                      {dep.incident.name}
-                                    </Link>
-                                  ) : '—'}
-                                </div>
-                              </td>
-                              <td className="px-4 py-2.5 text-gray-300 whitespace-nowrap">{fmtDate(dep.assigned_at)}</td>
-                              <td className="px-4 py-2.5 whitespace-nowrap">
-                                {dep.released_at
-                                  ? <span className="text-gray-300">{fmtDate(dep.released_at)}</span>
-                                  : <span className="text-green-400">Active</span>}
-                              </td>
-                              <td className="px-4 py-2.5 text-right text-gray-300">{days}</td>
-                              <td className="px-4 py-2.5 text-right text-gray-300">{currencyFmt.format(rate)}</td>
-                              <td className="px-4 py-2.5 text-right text-green-300 font-semibold">{currencyFmt.format(revenue)}</td>
-                            </tr>
-                          )
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr className="border-t border-gray-700 bg-gray-800/50">
-                          <td colSpan={5} className="px-4 py-2.5 text-xs font-semibold text-gray-400 uppercase tracking-wider">Total</td>
-                          <td className="px-4 py-2.5 text-right text-green-400 font-bold">{currencyFmt.format(totalRevenue)}</td>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                </>
-              )}
-            </div>
-          )
-        })()}
-
-        {/* Inventory Summary */}
-        {inventory.length > 0 && (
-          <div className="theme-card rounded-xl border overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 bg-gray-800">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">CS / Rx Inventory</h2>
-              <Link to={`/inventory?unit=${unit.name}`}
-                className="text-xs text-blue-400 hover:text-blue-300">View all →</Link>
-            </div>
-            <div className="divide-y divide-gray-800">
-              {inventory.map(item => {
-                const low = item.quantity <= item.par_qty
-
-
-  return (
-                  <div key={item.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-                    <span className={`flex-1 truncate ${low ? 'text-red-300' : 'text-white'}`}>{item.item_name}</span>
-                    <span className={`w-8 text-right font-mono font-semibold ${low ? 'text-red-400' : 'text-gray-300'}`}>
-                      {item.quantity}
-                    </span>
-                    {low && <span className="ml-2 text-xs text-red-500">⚠</span>}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
+        {isAdmin && (
+          <DeploymentHistory
+            deployments={deployments}
+            defaultContractRate={unit.unit_type?.default_contract_rate ?? 0}
+            incidentFilter={incidentFilter}
+            onFilterChange={setIncidentFilter}
+          />
         )}
-
-        {/* No active incident */}
+        <InventorySummary inventory={inventory} unitName={unit.name} />
         {!activeIU && (
           <div className="theme-card rounded-xl p-4 border text-center text-gray-600 text-sm">
             Not currently deployed to an active incident.
           </div>
         )}
-
-        {/* Unit QR Code */}
         <div className="theme-card rounded-xl border overflow-hidden">
           <div className="px-4 py-3 bg-gray-800">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Vehicle QR Code</h2>
@@ -820,50 +104,11 @@ export default function UnitDetailPage() {
             size={180}
           />
         </div>
-
-        {/* Vehicle Documents */}
-        <div className="theme-card rounded-xl border overflow-hidden">
-          <div className="px-4 py-3 bg-gray-800 flex items-center justify-between">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Vehicle Documents</h2>
-            <span className="text-xs text-gray-600">{vehicleDocs.length} files</span>
-          </div>
-          <div className="p-4 space-y-3">
-            {/* Upload */}
-            <div className="flex gap-2">
-              <select value={docType} onChange={e => setDocType(e.target.value)}
-                className="bg-gray-800 rounded-lg px-2 py-1.5 text-white text-xs focus:outline-none">
-                {['Registration','Title','Insurance','Inspection','Smog Certificate','Photo','VIN Sticker','Other'].map(t => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
-              <label className="flex-1 flex items-center justify-center px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-xs font-medium cursor-pointer transition-colors">
-                {uploadingDoc ? 'Uploading...' : '📎 Upload Document / Photo'}
-                <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.heic"
-                  onChange={handleDocUpload} disabled={uploadingDoc} />
-              </label>
-            </div>
-            {/* Doc list */}
-            {vehicleDocs.length === 0 ? (
-              <p className="text-xs text-gray-600 text-center py-2">No documents uploaded yet.</p>
-            ) : (
-              <div className="divide-y divide-gray-800/50">
-                {vehicleDocs.map(doc => (
-                  <div key={doc.id} className="flex items-center justify-between py-2">
-                    <div className="min-w-0 flex-1">
-                      <p className="text-xs font-medium text-white">{doc.doc_type}</p>
-                      <p className="text-xs text-gray-500 truncate">{doc.file_name || 'Document'}</p>
-                    </div>
-                    <a href={vehicleDocUrls[doc.id] || doc.file_url} target="_blank" rel="noopener noreferrer"
-                      className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-blue-400 hover:text-blue-300 transition-colors shrink-0 ml-2">
-                      Open
-                    </a>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
+        <VehicleDocuments
+          vehicleDocs={vehicleDocs} vehicleDocUrls={vehicleDocUrls}
+          docType={docType} uploadingDoc={uploadingDoc}
+          onDocTypeChange={setDocType} onDocUpload={handleDocUpload}
+        />
       </div>
       <ConfirmDialog
         open={!!confirmAction}
