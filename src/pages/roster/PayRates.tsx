@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
-import { useRole } from '@/lib/useRole'
+import { usePermission } from '@/hooks/usePermission'
 import { Link } from 'react-router-dom'
 import { LoadingSkeleton, ConfirmDialog } from '@/components/ui'
 
@@ -28,7 +28,7 @@ const ROLE_DEFAULTS: Record<string, number> = {
 
 export default function PayRatesPage() {
   const supabase = createClient()
-  const { isAdmin } = useRole()
+  const isAdmin = usePermission('payroll.manage')
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)

@@ -9,48 +9,12 @@ import { queryClinicalStaff, queryUnitsWithIncidents } from '@/lib/services/enco
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useOfflineWrite } from '@/lib/useOfflineWrite'
 
-const CHIEF_COMPLAINTS = [
-  'Abrasion / Laceration', 'Allergic Reaction', 'Ankle / Foot Injury',
-  'Back Pain', 'Blister', 'Burns', 'Chest Pain', 'Dehydration',
-  'Dental Pain', 'Eye Irritation', 'Fatigue / Heat Exhaustion',
-  'GI Complaint (N/V/D)', 'Hand / Wrist Injury', 'Head Injury',
-  'Headache', 'Knee / Leg Injury', 'Laceration', 'Mental Health',
-  'Musculoskeletal Pain', 'Poison Oak / Ivy', 'Respiratory',
-  'Shoulder / Arm Injury', 'Skin Infection', 'Smoke Inhalation',
-  'Sprain / Strain', 'Sting / Bite', 'Toothache', 'URI / Cold',
-  'Urinary Complaint', 'Other',
-]
-
-const DISPOSITIONS = [
-  'Treated & Released', 'Referred to Higher Level of Care',
-  'Transport by Ambulance', 'Refused Treatment', 'No Treatment Required',
-  'Evacuated', 'Return to Duty',
-]
-
-const ACUITY = [
-  { value: 'Green (Minor)', label: 'Minor', base: 'bg-green-700 hover:bg-green-600', selected: 'bg-green-500 ring-2 ring-green-300' },
-  { value: 'Yellow (Delayed)', label: 'Delayed', base: 'bg-yellow-600 hover:bg-yellow-500', selected: 'bg-yellow-400 ring-2 ring-yellow-200' },
-  { value: 'Red (Immediate)', label: 'Immediate', base: 'bg-red-700 hover:bg-red-600', selected: 'bg-red-500 ring-2 ring-red-300' },
-  { value: 'Black (Expectant)', label: 'Expectant', base: 'bg-gray-700 hover:bg-gray-600 border border-gray-500', selected: 'bg-gray-600 ring-2 ring-gray-400 border border-gray-400' },
-]
-
-const CARDIAC_RHYTHMS = [
-  'NSR (Normal Sinus Rhythm)', 'Sinus Tachycardia', 'Sinus Bradycardia',
-  'Atrial Fibrillation', 'Atrial Flutter',
-  'AV Block-1st Degree', 'AV Block-2nd Degree-Type 1', 'AV Block-2nd Degree-Type 2', 'AV Block-3rd Degree',
-  'Left Bundle Branch Block', 'Right Bundle Branch Block', 'Junctional',
-  'PEA (Pulseless Electrical Activity)',
-  'Ventricular Tachycardia (Perfusing)', 'Ventricular Tachycardia (Pulseless)',
-  'Ventricular Fibrillation', 'Asystole', 'Agonal/Idioventricular', 'Pacemaker Rhythm', 'Other',
-]
-
-const PUPILS_OPTIONS = ['Equal and Reactive', 'Unequal', 'Non-Reactive', 'Dilated', 'Constricted']
-
-const SCENE_TYPES = [
-  'Wildland Fire Scene', 'Structure Fire Scene', 'Residence/Home', 'Street/Highway', 'Other',
-]
-
-const CLINICAL_ROLES = ['MD', 'DO', 'NP', 'PA']
+import { VitalsSection } from '@/components/encounters/VitalsSection'
+import { buildEncounterData } from './buildEncounterData'
+import {
+  CHIEF_COMPLAINTS, DISPOSITIONS, ACUITY, CARDIAC_RHYTHMS,
+  PUPILS_OPTIONS, SCENE_TYPES, CLINICAL_ROLES,
+} from '@/data/clinicalOptions'
 
 function SimpleEHRInner() {
   const supabase = createClient()
@@ -247,49 +211,7 @@ function SimpleEHRInner() {
     setError('')
 
     try {
-      const encounterId = `ENC-${Date.now()}`
-      const complaint = form.chief_complaint === 'Other' ? form.chief_complaint_other : form.chief_complaint
-
-      const encounterData = {
-        id: `local-${encounterId}`,
-        created_by: currentUser.employee?.name || null,
-        encounter_id: encounterId,
-        date: form.date,
-        time: form.time,
-        unit: form.unit,
-        unit_id: form.unit_id || null,
-        incident_id: form.incident_id || null,
-        crew_resource_number: form.crew_resource_number,
-        patient_first_name: form.patient_first_name,
-        patient_last_name: form.patient_last_name,
-        patient_dob: form.patient_dob || null,
-        patient_age: form.patient_age ? Number(form.patient_age) : null,
-        patient_age_units: form.patient_age_units,
-        patient_gender: form.patient_gender,
-        primary_symptom_text: complaint,
-        initial_acuity: form.initial_acuity,
-        initial_hr: form.initial_hr ? Number(form.initial_hr) : null,
-        initial_rr: form.initial_rr ? Number(form.initial_rr) : null,
-        initial_spo2: form.initial_spo2 ? Number(form.initial_spo2) : null,
-        initial_bp_systolic: form.initial_bp_systolic ? Number(form.initial_bp_systolic) : null,
-        initial_bp_diastolic: form.initial_bp_diastolic ? Number(form.initial_bp_diastolic) : null,
-        initial_temp_f: form.initial_temp_f ? Number(form.initial_temp_f) : null,
-        initial_pain_scale: form.initial_pain_scale ? Number(form.initial_pain_scale) : null,
-        initial_blood_glucose: form.initial_blood_glucose ? Number(form.initial_blood_glucose) : null,
-        cardiac_rhythm: form.cardiac_rhythm || null,
-        pupils: form.pupils || null,
-        etco2: form.etco2 ? Number(form.etco2) : null,
-        scene_type: form.scene_type || null,
-        notes: [
-          form.subjective ? `SUBJECTIVE:\n${form.subjective}` : '',
-          form.objective ? `OBJECTIVE:\n${form.objective}` : '',
-          form.assessment_plan ? `ASSESSMENT/PLAN:\n${form.assessment_plan}` : '',
-          form.notes || '',
-        ].filter(Boolean).join('\n\n'),
-        provider_of_record: form.provider_of_record,
-        patient_disposition: form.patient_disposition,
-        pcr_status: 'Draft',
-      }
+      const encounterData = buildEncounterData(form, currentUser.employee?.name)
 
       // Remove local-id before sending to server (it will get a real UUID)
       const { id: _localId, ...serverData } = encounterData
@@ -466,45 +388,7 @@ function SimpleEHRInner() {
           {/* Vitals */}
           <div className={sectionClass}>
             <h2 className="font-bold text-sm uppercase tracking-wide text-gray-400">Vitals</h2>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { key: 'initial_hr', label: 'HR', placeholder: 'bpm' },
-                { key: 'initial_rr', label: 'RR', placeholder: '/min' },
-                { key: 'initial_spo2', label: 'SpO₂', placeholder: '%' },
-              ].map(({ key, label, placeholder }) => (
-                <div key={key}>
-                  <label className={labelClass}>{label}</label>
-                  <input type="number" value={(form as Record<string, string>)[key]} onChange={e => set(key, e.target.value)}
-                    placeholder={placeholder} className={inputClass} />
-                </div>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelClass}>BP Systolic</label>
-                <input type="number" value={form.initial_bp_systolic} onChange={e => set('initial_bp_systolic', e.target.value)}
-                  placeholder="mmHg" className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass}>BP Diastolic</label>
-                <input type="number" value={form.initial_bp_diastolic} onChange={e => set('initial_bp_diastolic', e.target.value)}
-                  placeholder="mmHg" className={inputClass} />
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className={labelClass}>Temp (°F)</label>
-                <input type="number" step="0.1" value={form.initial_temp_f} onChange={e => set('initial_temp_f', e.target.value)} className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass}>Pain (0-10)</label>
-                <input type="number" min="0" max="10" value={form.initial_pain_scale} onChange={e => set('initial_pain_scale', e.target.value)} className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass}>BGL (mg/dL)</label>
-                <input type="number" value={form.initial_blood_glucose} onChange={e => set('initial_blood_glucose', e.target.value)} className={inputClass} />
-              </div>
-            </div>
+            <VitalsSection form={form} set={set} />
 
             {/* Additional Vitals */}
             <div className="grid grid-cols-2 gap-3">

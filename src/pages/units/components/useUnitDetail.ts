@@ -1,13 +1,13 @@
 import { useEffect, useState, useRef } from 'react'
 import { toast } from '@/lib/toast'
-import { useRole } from '@/lib/useRole'
+import { usePermission } from '@/hooks/usePermission'
 import { createClient } from '@/lib/supabase/client'
 import { loadSingle } from '@/lib/offlineFirst'
 import type { Unit, ChildUnit, InventoryItem, Employee, DeploymentRow, VehicleForm, VehicleDoc } from './types'
 
 export function useUnitDetail(id: string) {
   const supabase = createClient()
-  const { isAdmin } = useRole()
+  const isAdmin = usePermission('units.manage')
 
   const [unit, setUnit] = useState<Unit | null>(null)
   const [childUnits, setChildUnits] = useState<ChildUnit[]>([])

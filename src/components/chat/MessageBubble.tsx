@@ -80,7 +80,10 @@ export function MessageBubble({
         }}
       >
         <div className="w-8 shrink-0">
-          {!isOwn && showSender && <Avatar person={message.sender} size={28} />}
+          {isOwn
+            ? <Avatar person={message.sender} size={28} />
+            : showSender ? <Avatar person={message.sender} size={28} /> : null
+          }
         </div>
 
         <div className={`max-w-[75%] min-w-0 ${isOwn ? 'items-end' : 'items-start'} flex flex-col gap-0.5`}>

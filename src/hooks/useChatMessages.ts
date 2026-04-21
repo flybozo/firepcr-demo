@@ -16,6 +16,8 @@ export function useChatMessages(channelId: string, employeeId: string) {
   const channelIdRef = useRef(channelId)
   const realtimeKey = useRef(`chat-msg-${channelId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`)
   const realtimeActive = useRef(false)
+  // Track locally-deleted message IDs so polling/realtime can't resurrect them
+  const deletedIdsRef = useRef(new Set<string>())
 
   const loadMessages = useCallback(async (before?: string): Promise<ChatMessage[]> => {
     try {
@@ -35,6 +37,7 @@ export function useChatMessages(channelId: string, employeeId: string) {
   useEffect(() => {
     channelIdRef.current = channelId
     realtimeKey.current = `chat-msg-${channelId}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    deletedIdsRef.current = new Set() // Reset on channel switch
     setMessages([])
     setHasMore(true)
     setLoading(true)
@@ -60,7 +63,7 @@ export function useChatMessages(channelId: string, employeeId: string) {
 
       setMessages((prev) => {
         const existingIds = new Set(prev.map((m) => m.id))
-        const newMsgs = latest.filter((m) => !existingIds.has(m.id))
+        const newMsgs = latest.filter((m) => !existingIds.has(m.id) && !deletedIdsRef.current.has(m.id))
         if (newMsgs.length === 0) return prev
         return [...prev, ...newMsgs]
       })
@@ -166,13 +169,18 @@ export function useChatMessages(channelId: string, employeeId: string) {
   }
 
   const handleDeleteMessage = async (msgId: string) => {
+    // Immediately remove from UI and prevent re-addition by polling
+    deletedIdsRef.current.add(msgId)
+    setMessages((prev) => prev.filter((m) => m.id !== msgId))
     try {
       const resp = await authFetch(`/api/chat/messages?messageId=${msgId}`, { method: 'DELETE' })
-      if (resp.ok) {
-        setMessages((prev) => prev.filter((m) => m.id !== msgId))
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}))
+        toast.error(data.error || 'Failed to delete message')
       }
     } catch (e) {
       console.error('[Chat] delete failed', e)
+      toast.error('Failed to delete message')
     }
   }
 

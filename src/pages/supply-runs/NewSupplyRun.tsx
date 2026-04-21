@@ -8,6 +8,7 @@ import { getIsOnline } from '@/lib/syncManager'
 import { queueOfflineWrite } from '@/lib/offlineStore'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { LoadingSkeleton } from '@/components/ui'
+import { inputCls, labelCls } from '@/components/ui/FormField'
 
 type Incident = {
   id: string
@@ -33,9 +34,6 @@ type CrewMember = {
   role: string
   role_on_unit: string | null
 }
-
-const inputCls = 'w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500'
-const labelCls = 'block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1'
 
 function SupplyRunNewInner() {
   const supabase = createClient()

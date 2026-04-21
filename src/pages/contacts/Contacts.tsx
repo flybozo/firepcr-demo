@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRole } from '@/lib/useRole'
+import { usePermission } from '@/hooks/usePermission'
 import { PageHeader, EmptyState } from '@/components/ui'
 
 type Contact = {
@@ -344,7 +344,7 @@ function ContactCard({
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function ContactsPage() {
   const supabase = createClient()
-  const { isAdmin, loading: roleLoading } = useRole()
+  const canRosterView = usePermission('roster.view')
 
   const [contacts, setContacts] = useState<Contact[]>([])
   const [loading, setLoading] = useState(true)
@@ -456,7 +456,7 @@ export default function ContactsPage() {
             <ContactCard
               key={c.id}
               contact={c}
-              isAdmin={isAdmin}
+              isAdmin={canRosterView}
               onEdit={contact => setModalContact(contact)}
               onDelete={handleDelete}
             />

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
-import { useRole } from '@/lib/useRole'
+import { usePermission } from '@/hooks/usePermission'
 
 type SearchResult = {
   id: string
@@ -28,7 +28,7 @@ const ACUITY_COLORS: Record<string, string> = {
 
 export default function PatientSearchPage() {
   const supabase = createClient()
-  const { isField } = useRole()
+  const isField = !usePermission('incidents.manage')
   const assignment = useUserAssignment()
 
   const [query, setQuery] = useState('')

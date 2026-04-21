@@ -33,3 +33,7 @@ export function patientInitials(first: string | null, last: string | null): stri
 export function fmtCurrency(n: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
 }
+
+export function fmtCurrencyFull(n: number): string {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
+}

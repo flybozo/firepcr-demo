@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
-import { useRole } from '@/lib/useRole'
+import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
 
 const UNIT_TYPES = ['Ambulance', 'Med Unit', 'REMS']
 const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
@@ -12,14 +12,15 @@ const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','
 export default function NewUnitPage() {
   const supabase = createClient()
   const navigate = useNavigate()
-  const { isAdmin, loading: roleLoading } = useRole()
+  const canManageUnits = usePermission('units.manage')
+  const roleLoading = usePermissionLoading()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
 
   // Redirect field users — admin only
   useEffect(() => {
-    if (!roleLoading && !isAdmin) navigate('/units', { replace: true })
-  }, [roleLoading, isAdmin])
+    if (!roleLoading && !canManageUnits) navigate('/units', { replace: true })
+  }, [roleLoading, canManageUnits])
 
   const [form, setForm] = useState({
     name: '',

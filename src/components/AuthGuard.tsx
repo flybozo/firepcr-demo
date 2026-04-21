@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Navigate, Outlet } from 'react-router-dom'
 import { createClient } from '@/lib/supabase/client'
 import { UserProvider } from '@/contexts/UserContext'
+import { PermissionProvider } from '@/contexts/PermissionProvider'
 
 export default function AuthGuard({ children }: { children?: React.ReactNode }) {
   const [loading, setLoading] = useState(true)
@@ -21,5 +22,5 @@ export default function AuthGuard({ children }: { children?: React.ReactNode }) 
 
   if (loading) return <div className="min-h-screen bg-gray-950" />
   if (!authenticated) return <Navigate to="/login" replace />
-  return <UserProvider>{children || <Outlet />}</UserProvider>
+  return <UserProvider><PermissionProvider>{children || <Outlet />}</PermissionProvider></UserProvider>
 }

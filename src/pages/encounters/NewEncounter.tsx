@@ -7,6 +7,7 @@ import { LoadingSkeleton } from '@/components/ui'
 import { queryAllIncidents, queryUnitsWithIncidents } from '@/lib/services/encounters'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
+import { inputCls, labelCls } from '@/components/ui/FormField'
 
 // Step 1 fields — common to ALL encounter types
 type Step1Form = {
@@ -163,9 +164,6 @@ function NewEncounterInner() {
     })
     navigate(`/encounters/new/${path}?${params.toString()}`)
   }
-
-  const inputCls = 'w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500'
-  const labelCls = 'block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1'
 
   if (loading || assignment.loading) return <LoadingSkeleton fullPage />
 

@@ -66,8 +66,9 @@ async function listChannels(req: VercelRequest, res: VercelResponse) {
   // Get channel details
   const { data: channels, error: cErr } = await supabase
     .from('chat_channels')
-    .select('id, type, name, description, incident_id, unit_id, created_at, updated_at')
+    .select('id, type, name, description, incident_id, unit_id, created_at, updated_at, archived_at')
     .in('id', channelIds)
+    .is('deleted_at', null)
     .order('updated_at', { ascending: false })
 
   if (cErr) throw new Error(cErr.message)

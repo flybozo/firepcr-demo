@@ -1,5 +1,5 @@
 
-import { useRole } from '@/lib/useRole'
+import { usePermission } from '@/hooks/usePermission'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 
 import { useEffect, useState } from 'react'
@@ -61,7 +61,7 @@ function RolePills({ roles, role }: { roles: string[] | null; role: string }) {
 
 export default function RosterPage() {
   const supabase = createClient()
-  const { isAdmin } = useRole()
+  const isAdmin = usePermission('roster.manage')
   const assignment = useUserAssignment()
   const navigate = useNavigate()
   const detailMatch = useMatch('/roster/:id')

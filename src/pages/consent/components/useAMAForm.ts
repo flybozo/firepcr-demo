@@ -4,6 +4,7 @@ import type SignatureCanvas from 'react-signature-canvas'
 import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { generateAMAPDF } from '@/lib/generateAMApdf'
+import { uploadSignatureFromRef } from '@/lib/signatureUtils'
 import type { PickerEncounter, FormState, ConsentData } from './AMAFormTypes'
 
 export function useAMAForm() {
@@ -144,21 +145,6 @@ export function useAMAForm() {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
-  const uploadSignature = async (
-    sigRef: RefObject<SignatureCanvas | null>,
-    label: string,
-  ): Promise<{ url: string | null; dataUrl: string | null }> => {
-    if (!sigRef.current || sigRef.current.isEmpty()) return { url: null, dataUrl: null }
-    const dataUrl = sigRef.current.getTrimmedCanvas().toDataURL('image/png')
-    const blob = await (await fetch(dataUrl)).blob()
-    const fileName = `consent/${Date.now()}-${label}.png`
-    const { error } = await supabase.storage
-      .from('signatures')
-      .upload(fileName, blob, { contentType: 'image/png', upsert: false })
-    if (error) { console.error('Upload error:', error); return { url: null, dataUrl } }
-    return { url: fileName, dataUrl }
-  }
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError('')
@@ -178,9 +164,10 @@ export function useAMAForm() {
 
     setSubmitting(true)
     try {
+      const ts = Date.now()
       const [patientSigResult, providerSigResult] = await Promise.all([
-        uploadSignature(patientSigRef, 'patient'),
-        uploadSignature(providerSigRef, 'provider'),
+        uploadSignatureFromRef(supabase, patientSigRef, `consent/${ts}-patient.png`),
+        uploadSignatureFromRef(supabase, providerSigRef, `consent/${ts}-provider.png`),
       ])
       const patientSigUrl = patientSigResult.url
       const providerSigUrl = providerSigResult.url

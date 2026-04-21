@@ -2,7 +2,7 @@
 import { FieldGuard } from '@/components/FieldGuard'
 
 import { useEffect, useState } from 'react'
-import { useRole } from '@/lib/useRole'
+import { usePermission } from '@/hooks/usePermission'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useNavigate, useMatch } from 'react-router-dom'
@@ -57,7 +57,7 @@ function UnitsPageInner() {
   const supabase = createClient()
   const navigate = useNavigate()
   const detailMatch = useMatch('/units/:id')
-  const { isAdmin } = useRole()
+  const isAdmin = usePermission('units.view')
   const [units, setUnits] = useState<Unit[]>([])
   const [loading, setLoading] = useState(true)
   const [isOffline, setIsOffline] = useState(false)

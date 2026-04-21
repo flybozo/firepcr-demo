@@ -15,6 +15,7 @@ import { Empty } from './Empty'
 import { Skeleton } from './Skeleton'
 import { SectionHeader } from './SectionHeader'
 import { DatePills } from './DatePills'
+import { AgencyBarChart } from '@/components/charts/AgencyBarChart'
 
 export function ClinicalTab({ isField = false, assignedIncidentId = null, assignedUnitNames = [] }: {
   isField?: boolean
@@ -25,7 +26,7 @@ export function ClinicalTab({ isField = false, assignedIncidentId = null, assign
   const [range, setRange] = useState<DateRange>('30d')
   const [loading, setLoading] = useState(true)
 
-  const [encounters, setEncounters] = useState<{ date: string; primary_symptom_text: string | null; initial_acuity: string | null; patient_disposition: string | null; unit: string | null; incident_id: string | null; incident_name: string | null }[]>([])
+  const [encounters, setEncounters] = useState<{ date: string; primary_symptom_text: string | null; initial_acuity: string | null; patient_disposition: string | null; unit: string | null; incident_id: string | null; incident_name: string | null; patient_agency: string | null }[]>([])
   const [activeIncidents, setActiveIncidents] = useState<{ id: string; name: string }[]>([])
   const [incidentFilter, setIncidentFilter] = useState<string>('All')
   const [unitFilter, setUnitFilter] = useState<string>('All')
@@ -37,7 +38,7 @@ export function ClinicalTab({ isField = false, assignedIncidentId = null, assign
       const dateFrom = getDateFilter(range)
 
       let q = supabase.from('patient_encounters')
-        .select('date, primary_symptom_text, initial_acuity, patient_disposition, unit, incident_id, incident:incidents(name)')
+        .select('date, primary_symptom_text, initial_acuity, patient_disposition, unit, incident_id, patient_agency, incident:incidents(name)')
         .is('deleted_at', null)
       if (dateFrom) q = (q as any).gte('date', dateFrom)
       if (isField && assignedIncidentId) q = (q as any).eq('incident_id', assignedIncidentId)
@@ -45,7 +46,7 @@ export function ClinicalTab({ isField = false, assignedIncidentId = null, assign
         q,
         isField ? Promise.resolve({ data: [] }) : supabase.from('incidents').select('id, name').eq('status', 'Active').order('name'),
       ])
-      setEncounters((enc || []).map((e: any) => ({ ...e, incident_name: e.incident?.name || null })))
+      setEncounters((enc || []).map((e: any) => ({ ...e, incident_name: e.incident?.name || null, patient_agency: e.patient_agency || null })))
       setActiveIncidents(incs || [])
 
       let mq = supabase
@@ -129,6 +130,12 @@ export function ClinicalTab({ isField = false, assignedIncidentId = null, assign
   const unitData = Object.entries(unitCounts)
     .sort((a, b) => b[1] - a[1])
     .map(([name, count]) => ({ name, count }))
+
+  const agencyCounts: Record<string, number> = {}
+  filteredEncounters.forEach(e => { const k = e.patient_agency; if (k) agencyCounts[k] = (agencyCounts[k] || 0) + 1 })
+  const agencyData = Object.entries(agencyCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([agency, count]) => ({ agency, count }))
 
   const renderPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: {
     cx?: number; cy?: number; midAngle?: number; innerRadius?: number; outerRadius?: number; percent?: number; name?: string
@@ -280,7 +287,17 @@ export function ClinicalTab({ isField = false, assignedIncidentId = null, assign
         )}
       </section>
 
-      {/* ── D: Disposition Summary ── */}
+      {/* ── D: Patients by Agency ── */}
+      <section>
+        <SectionHeader title="🏛️ Patients by Agency" />
+        {loading ? <Skeleton h="h-52" /> : agencyData.length === 0 ? <Empty /> : (
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+            <AgencyBarChart data={agencyData} />
+          </div>
+        )}
+      </section>
+
+      {/* ── E: Disposition Summary ── */}
       <section>
         <SectionHeader title="📋 Disposition Summary" />
         {loading ? <Skeleton h="h-52" /> : dispData.length === 0 ? <Empty /> : (
@@ -298,7 +315,7 @@ export function ClinicalTab({ isField = false, assignedIncidentId = null, assign
         )}
       </section>
 
-      {/* ── E: Top Medications ── */}
+      {/* ── F: Top Medications ── */}
       <section>
         <SectionHeader title="💊 Top Medications Administered" sub="Top 10 by frequency" />
         {loading ? <Skeleton h="h-52" /> : meds.length === 0 ? <Empty /> : (
@@ -316,7 +333,7 @@ export function ClinicalTab({ isField = false, assignedIncidentId = null, assign
         )}
       </section>
 
-      {/* ── F: Encounters by Unit ── */}
+      {/* ── G: Encounters by Unit ── */}
       <section>
         <SectionHeader title="🚑 Encounters by Unit" />
         {loading ? <Skeleton h="h-44" /> : unitData.length === 0 ? <Empty /> : (

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRole } from '@/lib/useRole'
+import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { Link } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
@@ -47,7 +47,8 @@ const UNIT_TYPE_BG: Record<string, string> = {
 
 export default function GenerateSchedulePage() {
   const supabase = createClient()
-  const { isAdmin, loading: roleLoading } = useRole()
+  const isAdmin = usePermission('schedule.manage')
+  const roleLoading = usePermissionLoading()
   const assignment = useUserAssignment()
   const navigate = useNavigate()
 

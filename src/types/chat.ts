@@ -1,4 +1,4 @@
-export type Sender = { id: string; name: string; headshot_url?: string | null }
+export type Sender = { id: string | null; name: string; headshot_url?: string | null }
 
 export type ReplyMessage = {
   id: string
@@ -19,6 +19,8 @@ export type ChatMessage = {
   deleted_at?: string | null
   created_at: string
   sender: Sender
+  external_sender_name?: string | null
+  access_code_id?: string | null
 }
 
 export type LastMessage = {
@@ -31,7 +33,7 @@ export type LastMessage = {
 
 export type ChatChannel = {
   id: string
-  type: 'company' | 'incident' | 'unit' | 'direct'
+  type: 'company' | 'incident' | 'unit' | 'direct' | 'external'
   name: string
   description?: string | null
   incident_id?: string | null
@@ -42,6 +44,7 @@ export type ChatChannel = {
   unread_count: number
   my_role: string
   last_read_at?: string | null
+  archived_at?: string | null
 }
 
 export type Employee = { id: string; name: string; headshot_url?: string | null; role?: string }

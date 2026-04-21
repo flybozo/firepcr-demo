@@ -29,7 +29,7 @@ const AGENCY_LOGOS: Record<string, string> = {
 }
 
 // Brand colors for text fallback badges
-const AGENCY_COLORS: Record<string, { bg: string; text: string }> = {
+export const AGENCY_COLORS: Record<string, { bg: string; text: string }> = {
   'Cal Fire':               { bg: 'bg-red-700',    text: 'text-white' },
   'CAL FIRE':               { bg: 'bg-red-700',    text: 'text-white' },
   'USFS':                   { bg: 'bg-green-800',  text: 'text-white' },
@@ -40,9 +40,8 @@ const AGENCY_COLORS: Record<string, { bg: string; text: string }> = {
   'USFWS':                  { bg: 'bg-blue-800',   text: 'text-white' },
   'ODF':                    { bg: 'bg-yellow-800', text: 'text-white' },
   'CHP':                    { bg: 'bg-blue-900',   text: 'text-white' },
-  'County Fire':            { bg: 'bg-orange-700', text: 'text-white' },
   'Municipal Fire':         { bg: 'bg-orange-600', text: 'text-white' },
-  'State/Local Fire':       { bg: 'bg-orange-600', text: 'text-white' },
+  'Local':                  { bg: 'bg-orange-600', text: 'text-white' },
   'OES / CAL OES':          { bg: 'bg-blue-700',   text: 'text-white' },
   'DOD':                    { bg: 'bg-gray-700',   text: 'text-white' },
   'Private Contractor':     { bg: 'bg-gray-600',   text: 'text-white' },
@@ -51,9 +50,8 @@ const AGENCY_COLORS: Record<string, { bg: string; text: string }> = {
 
 // Agencies that get an emoji instead of a logo/badge
 const AGENCY_EMOJI: Record<string, string> = {
-  'County Fire':        '🧑‍🚒',
   'Municipal Fire':     '🧑‍🚒',
-  'State/Local Fire':   '🧑‍🚒',
+  'Local':              '🧑‍🚒',
   'Law Enforcement':    '👮',
   'CHP':                '👮',
   'Private Contractor': '👤',

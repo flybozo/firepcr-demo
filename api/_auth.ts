@@ -40,7 +40,7 @@ export async function requireEmployee(req: VercelRequest, options?: { admin?: bo
   const { user, supabase } = await requireAuthUser(req)
   const { data: employee, error } = await supabase
     .from('employees')
-    .select('id, name, role, app_role, chat_authority, status, auth_user_id')
+    .select('id, name, role, app_role, chat_authority, status, auth_user_id, is_owner')
     .eq('auth_user_id', user.id)
     .single()
 

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { generate214PDF } from '@/lib/generate214pdf'
+import { uploadSignatureDataUrl } from '@/lib/signatureUtils'
 import type { Activity, PatientEncounter } from './components/types'
 import { useICS214Data } from './components/useICS214Data'
 import { HeaderCard } from './components/HeaderCard'
@@ -56,13 +57,9 @@ export default function ICS214DetailPage() {
       await supabase.from('ics214_activities').insert(patientActivities)
     }
 
-    let sigStoragePath: string | null = null
-    if (sigDataUrl) {
-      const sigBlob = await (await fetch(sigDataUrl)).blob()
-      const sigPath = `ics214/${ics214IdParam}-leader-sig.png`
-      const { error: sigErr } = await supabase.storage.from('signatures').upload(sigPath, sigBlob, { contentType: 'image/png', upsert: true })
-      if (!sigErr) sigStoragePath = sigPath
-    }
+    const sigStoragePath = sigDataUrl
+      ? await uploadSignatureDataUrl(supabase, sigDataUrl, `ics214/${ics214IdParam}-leader-sig.png`, { upsert: true })
+      : null
 
     await supabase.from('ics214_headers').update({
       status: 'Closed',

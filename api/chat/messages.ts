@@ -57,6 +57,9 @@ async function getMessages(req: VercelRequest, res: VercelResponse) {
       edited_at,
       deleted_at,
       created_at,
+      sender_id,
+      external_sender_name,
+      access_code_id,
       sender:employees!sender_id(id, name, headshot_url),
       reply_message:chat_messages!reply_to(id, content, sender:employees!sender_id(id, name))
     `)
@@ -80,8 +83,33 @@ async function getMessages(req: VercelRequest, res: VercelResponse) {
   const { data: messages, error } = await query
   if (error) throw new Error(error.message)
 
+  // Build avatar map for external messages
+  const extCodeIds = [...new Set(
+    (messages || [])
+      .filter((m: any) => !m.sender_id && m.access_code_id)
+      .map((m: any) => m.access_code_id)
+  )]
+  const avatarMap: Record<string, string> = {}
+  if (extCodeIds.length > 0) {
+    const { data: codeRows } = await supabase
+      .from('incident_access_codes')
+      .select('id, avatar_url')
+      .in('id', extCodeIds)
+    for (const cr of codeRows || []) {
+      if (cr.avatar_url) avatarMap[cr.id] = cr.avatar_url
+    }
+  }
+
+  // Normalize external messages: sender_id=null → use external_sender_name + avatar
+  const normalized = (messages || []).map((m: any) => ({
+    ...m,
+    sender: m.sender_id
+      ? m.sender
+      : { id: null, name: m.external_sender_name || 'External', headshot_url: m.access_code_id ? (avatarMap[m.access_code_id] || null) : null },
+  }))
+
   // Return in ascending order for display (newest last)
-  return res.status(200).json({ messages: (messages || []).reverse() })
+  return res.status(200).json({ messages: normalized.reverse() })
 }
 
 async function sendMessage(req: VercelRequest, res: VercelResponse) {
@@ -251,7 +279,12 @@ async function deleteMessage(req: VercelRequest, res: VercelResponse) {
     .single()
 
   if (msgErr || !msg) throw new HttpError(404, 'Message not found')
-  if (msg.sender_id !== employee.id) throw new HttpError(403, 'Can only delete your own messages')
+
+  // Admins (or org owners) can delete any message; others can only delete their own
+  const isAdmin = employee.app_role === 'admin' || employee.is_owner
+  if (msg.sender_id !== employee.id && !isAdmin) {
+    throw new HttpError(403, 'Can only delete your own messages')
+  }
 
   // Soft delete
   const { error } = await supabase

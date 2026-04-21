@@ -68,6 +68,7 @@ function AdminDashboardPageInner() {
     { icon: '📊', label: 'CS Audit Log', desc: 'Full controlled substance history', href: '/cs/audit' },
     { icon: '🔥', label: 'Incidents', desc: 'Manage active deployments', href: '/incidents' },
     { icon: '🔬', label: 'Formulary Templates', desc: 'Manage unit drug formularies', href: '/formulary' },
+    { icon: '🛡️', label: 'Roles & Permissions', desc: 'Manage RBAC roles and access control', href: '/admin/roles' },
   ]
 
   return (

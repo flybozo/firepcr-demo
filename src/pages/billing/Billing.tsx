@@ -5,6 +5,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useSearchParams } from 'react-router-dom'
+import { fmtCurrencyFull as fmt } from '@/utils/incidentFormatters'
 
 type Incident = {
   id: string
@@ -29,10 +30,6 @@ type MARLineItem = {
   case_cost: number | null
   units_per_case: number | null
   category: string | null
-}
-
-function fmt(n: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
 }
 
 function BillingPageInner() {

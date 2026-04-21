@@ -1,6 +1,6 @@
 
 import { FieldGuard } from '@/components/FieldGuard'
-import { useRole } from '@/lib/useRole'
+import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 
 import { useEffect, useState, useMemo, Suspense } from 'react'
@@ -95,7 +95,8 @@ function getRouteAbbr(route: string | null): string | null {
 
 function MARListInner() {
   const supabase = createClient()
-  const { isField, loading: roleLoading } = useRole()
+  const roleLoading = usePermissionLoading()
+  const isField = !usePermission('mar.view')
   const assignment = useUserAssignment()
   const navigate = useNavigate()
   const detailMatch = useMatch('/mar/:id')

@@ -7,6 +7,7 @@ interface ProviderSectionProps {
   isCS: boolean
   isProviderMatch: boolean
   isSelfOrder: boolean
+  requiresProviderAuth?: boolean
   dispensers: Employee[]
   providerEmployees: Employee[]
   witnessOptions: Employee[]
@@ -18,7 +19,7 @@ interface ProviderSectionProps {
 }
 
 export function ProviderSection({
-  form, isCS, isProviderMatch, isSelfOrder,
+  form, isCS, isProviderMatch, isSelfOrder, requiresProviderAuth,
   dispensers, providerEmployees, witnessOptions,
   providerPin, witnessPin,
   set, onProviderPinChange, onWitnessPinChange,
@@ -36,9 +37,14 @@ export function ProviderSection({
         </select>
       </div>
       <div>
-        <label className={labelCls}>Prescribing Provider (MD/DO/NP/PA)</label>
+        <label className={labelCls}>Prescribing Provider (MD/DO/NP/PA){requiresProviderAuth ? ' *' : ''}</label>
+        {requiresProviderAuth && !form.prescribing_provider && (
+          <div className="bg-amber-950 border border-amber-700 rounded-lg p-2 mb-2">
+            <p className="text-amber-300 text-xs">⚠️ Rx/CS medications on med units require an authorized provider signature.</p>
+          </div>
+        )}
         <select className={inputCls} value={form.prescribing_provider} onChange={e => set('prescribing_provider', e.target.value)}>
-          <option value="">Select (optional)</option>
+          <option value="">{requiresProviderAuth ? 'Select provider (required)' : 'Select (optional)'}</option>
           {providerEmployees.map(emp => (
             <option key={emp.id} value={emp.name}>{emp.name} — {emp.role}</option>
           ))}

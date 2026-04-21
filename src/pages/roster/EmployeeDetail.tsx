@@ -1,5 +1,5 @@
 
-import { useRole } from '@/lib/useRole'
+import { usePermission } from '@/hooks/usePermission'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 
 import { useEffect, useState } from 'react'
@@ -35,6 +35,7 @@ type Employee = {
   rems: boolean
   rems_capable: boolean | null
   dea_license: string | null
+  npi_number: string | null
   red_card: string | null
   red_card_year: number | null
   ssv_lemsa: string | null
@@ -68,6 +69,15 @@ type CredentialDoc = {
   issued_date: string | null
   expiration_date: string | null
   file_url: string | null
+}
+
+type RBACRole = {
+  id: string
+  name: string
+  display_name: string
+  description: string | null
+  permissions: string[]
+  is_system: boolean
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -110,7 +120,7 @@ function Field({ label, value }: { label: string; value: string | null | undefin
 export default function RosterDetailPage() {
   const supabase = createClient()
   const params = useParams()
-  const { isAdmin } = useRole()
+  const isAdmin = usePermission('roster.manage')
   const myAssignment = useUserAssignment()
   const id = params.id as string
 
@@ -122,6 +132,11 @@ export default function RosterDetailPage() {
   const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; confirmLabel?: string; icon?: string; confirmColor?: string } | null>(null)
   const [empExpenses, setEmpExpenses] = useState<{ id: string; expense_type: string; amount: number; description: string | null; expense_date: string; receipt_url: string | null; no_receipt_reason: string | null; incidents?: { name: string } | { name: string }[] | null }[]>([])
   const [deployments, setDeployments] = useState<{ id: string; incident_name: string | null; start_date: string | null; end_date: string | null; hours_worked: number | null; daily_rate: number | null }[]>([])
+  const [empRoles, setEmpRoles] = useState<RBACRole[]>([])
+  const [allRoles, setAllRoles] = useState<RBACRole[]>([])
+  const [rolesLoading, setRolesLoading] = useState(false)
+  const [selectedRoleId, setSelectedRoleId] = useState('')
+  const [assigningRole, setAssigningRole] = useState(false)
 
   const toggleStatus = () => {
     if (!emp || !isAdmin) return
@@ -204,6 +219,24 @@ export default function RosterDetailPage() {
 
 
 
+  // Load RBAC roles for this employee (admin only)
+  useEffect(() => {
+    if (!isAdmin || !id) return
+    const load = async () => {
+      setRolesLoading(true)
+      try {
+        const [{ data: erData }, { data: allRoleData }] = await Promise.all([
+          supabase.from('employee_roles').select('role_id, roles(id, name, display_name, description, permissions, is_system)').eq('employee_id', id),
+          supabase.from('roles').select('id, name, display_name, description, permissions, is_system').order('is_system', { ascending: false }).order('display_name'),
+        ])
+        setEmpRoles(((erData || []) as any[]).map(er => er.roles as RBACRole).filter(Boolean))
+        setAllRoles((allRoleData || []) as RBACRole[])
+      } catch {}
+      setRolesLoading(false)
+    }
+    load()
+  }, [isAdmin, id])
+
   if (loading) return <LoadingSkeleton fullPage />
 
   // Can edit: admin OR viewing own employee record
@@ -250,24 +283,8 @@ export default function RosterDetailPage() {
                 {emp.rems && (
                   <span className="text-xs px-2 py-0.5 rounded-full bg-green-900 text-green-300">REMS</span>
                 )}
-                {emp.is_medical_director && !isAdmin && (
+                {emp.is_medical_director && (
                   <span className="text-xs px-2 py-0.5 rounded-full bg-purple-900 text-purple-300">Medical Director</span>
-                )}
-                {isAdmin && ['MD', 'DO'].some(r => (emp.roles?.length ? emp.roles : [emp.role]).includes(r)) && (
-                  <button
-                    onClick={async () => {
-                      const newVal = !emp.is_medical_director
-                      await supabase.from('employees').update({ is_medical_director: newVal }).eq('id', emp.id)
-                      setEmp(prev => prev ? { ...prev, is_medical_director: newVal } : prev)
-                    }}
-                    className={`text-xs px-2 py-0.5 rounded-full transition-colors ${
-                      emp.is_medical_director
-                        ? 'bg-purple-900 text-purple-300 hover:bg-purple-900/70'
-                        : 'bg-gray-800 text-gray-500 hover:bg-gray-700'
-                    }`}
-                  >
-                    {emp.is_medical_director ? '✓ Medical Director' : '+ Medical Director'}
-                  </button>
                 )}
                 {emp.status === 'Inactive' && (
                   <span className="text-xs px-2 py-0.5 rounded-full bg-gray-700 text-gray-400">Inactive</span>
@@ -404,25 +421,47 @@ export default function RosterDetailPage() {
               </div>
             </div>
 
-            {/* DEA License */}
-            <div className="flex items-center justify-between py-1.5">
-              <div>
-                <p className="text-sm font-medium text-white">DEA License</p>
-                <p className="text-xs text-gray-500">Drug Enforcement Administration registration number</p>
+            {/* DEA License — providers only */}
+            {['MD', 'DO', 'PA', 'NP'].includes(emp.role) && (
+              <div className="flex items-center justify-between py-1.5">
+                <div>
+                  <p className="text-sm font-medium text-white">DEA License</p>
+                  <p className="text-xs text-gray-500">Drug Enforcement Administration registration number</p>
+                </div>
+                <input
+                  type="text"
+                  placeholder="DEA number or expiry"
+                  defaultValue={emp.dea_license || ''}
+                  className="w-40 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  onBlur={async e => {
+                    const val = e.target.value.trim() || null
+                    await updateEmployee(emp.id, { dea_license: val })
+                    setEmp((prev: any) => prev ? { ...prev, dea_license: val } : prev)
+                  }}
+                />
               </div>
-              <input
-                type="text"
-                placeholder="DEA number or expiry"
-                defaultValue={emp.dea_license || ''}
-                className="w-40 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                onBlur={async e => {
-                  const val = e.target.value.trim() || null
-                  const supabase = (await import('@/lib/supabase/client')).createClient()
-                  await updateEmployee(emp.id, { dea_license: val })
-                  setEmp((prev: any) => prev ? { ...prev, dea_license: val } : prev)
-                }}
-              />
-            </div>
+            )}
+
+            {/* NPI Number — providers only */}
+            {['MD', 'DO', 'PA', 'NP'].includes(emp.role) && (
+              <div className="flex items-center justify-between py-1.5">
+                <div>
+                  <p className="text-sm font-medium text-white">NPI Number</p>
+                  <p className="text-xs text-gray-500">National Provider Identifier</p>
+                </div>
+                <input
+                  type="text"
+                  placeholder="NPI number"
+                  defaultValue={emp.npi_number || ''}
+                  className="w-40 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  onBlur={async e => {
+                    const val = e.target.value.trim() || null
+                    await updateEmployee(emp.id, { npi_number: val })
+                    setEmp((prev: any) => prev ? { ...prev, npi_number: val } : prev)
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -600,6 +639,109 @@ export default function RosterDetailPage() {
                 </tbody>
               </table>
             </div>}
+          </div>
+        )}
+
+        {/* Roles & Permissions — admin only */}
+        {isAdmin && (
+          <div className="theme-card rounded-xl border overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b theme-card-header">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">🛡️ Roles & Permissions</h3>
+            </div>
+            <div className="p-4 space-y-4">
+              {rolesLoading ? (
+                <p className="text-xs text-gray-500">Loading roles…</p>
+              ) : (
+                <>
+                  {/* Current role assignments */}
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-2">Assigned Roles</p>
+                    {empRoles.length === 0 ? (
+                      <p className="text-xs text-gray-600 italic">No roles assigned.</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {empRoles.map(role => (
+                          <div key={role.id} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-900/50 text-indigo-300 text-xs">
+                            <span>{role.display_name}</span>
+                            {role.is_system && <span className="text-indigo-600" title="System role">🔒</span>}
+                            <button
+                              onClick={async () => {
+                                try {
+                                  const { error } = await supabase.from('employee_roles').delete().match({ employee_id: id, role_id: role.id })
+                                  if (error) throw error
+                                  setEmpRoles(rs => rs.filter(r => r.id !== role.id))
+                                  toast.success(`Removed role "${role.display_name}"`)
+                                } catch (err: any) {
+                                  toast.error('Failed to remove role: ' + (err?.message || err))
+                                }
+                              }}
+                              className="text-indigo-500 hover:text-red-400 ml-0.5 transition-colors"
+                              title="Remove role"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Add role */}
+                  {allRoles.filter(r => !empRoles.some(er => er.id === r.id)).length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={selectedRoleId}
+                        onChange={e => setSelectedRoleId(e.target.value)}
+                        className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
+                      >
+                        <option value="">— Add a role —</option>
+                        {allRoles.filter(r => !empRoles.some(er => er.id === r.id)).map(r => (
+                          <option key={r.id} value={r.id}>{r.display_name}</option>
+                        ))}
+                      </select>
+                      <button
+                        disabled={!selectedRoleId || assigningRole}
+                        onClick={async () => {
+                          if (!selectedRoleId) return
+                          setAssigningRole(true)
+                          try {
+                            const { error } = await supabase.from('employee_roles').insert({ employee_id: id, role_id: selectedRoleId })
+                            if (error) throw error
+                            const added = allRoles.find(r => r.id === selectedRoleId)
+                            if (added) setEmpRoles(rs => [...rs, added])
+                            setSelectedRoleId('')
+                            toast.success(`Added role "${added?.display_name}"`)
+                          } catch (err: any) {
+                            toast.error('Failed to assign role: ' + (err?.message || err))
+                          }
+                          setAssigningRole(false)
+                        }}
+                        className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-40 text-sm font-semibold transition-colors"
+                      >
+                        {assigningRole ? '…' : 'Add'}
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Resolved permissions */}
+                  {empRoles.length > 0 && (
+                    <div>
+                      <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-2">Resolved Permissions</p>
+                      {(() => {
+                        const perms = Array.from(new Set(empRoles.flatMap(r => r.permissions))).sort()
+                        return (
+                          <div className="flex flex-wrap gap-1.5">
+                            {perms.map(p => (
+                              <span key={p} className="text-xs px-2 py-0.5 rounded-full bg-gray-800 text-gray-400 font-mono">{p}</span>
+                            ))}
+                          </div>
+                        )
+                      })()}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         )}
 

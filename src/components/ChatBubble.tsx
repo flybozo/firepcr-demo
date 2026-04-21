@@ -1,10 +1,11 @@
 
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { authFetch } from '@/lib/authFetch'
+import { useDraggablePosition } from '@/hooks/useDraggablePosition'
+import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
 
 type MessageStatus = 'complete' | 'pending' | 'error'
 
@@ -30,9 +31,6 @@ export default function ChatBubble() {
   const [initialLoading, setInitialLoading] = useState(true)
   const [requestBanner, setRequestBanner] = useState(false)
   const [mounted, setMounted] = useState(false)
-  const [isRecording, setIsRecording] = useState(false)
-  const recognitionRef = useRef<any>(null)
-
   // Track active polling intervals so we can clean up
   const pollIntervalsRef = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map())
   const pollTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
@@ -40,68 +38,11 @@ export default function ChatBubble() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  // ── Draggable bubble state ───────────────────────────────────────────────
-  const STORAGE_KEY = 'chatBubblePos'
-  const getDefaultPos = () => ({ right: 24, bottom: 24 }) // CSS px from edges (before safe-area)
-  const [bubblePos, setBubblePos] = useState(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY)
-      return saved ? JSON.parse(saved) : getDefaultPos()
-    } catch { return getDefaultPos() }
-  })
-  const dragRef = useRef<{
-    active: boolean
-    startX: number
-    startY: number
-    startRight: number
-    startBottom: number
-    moved: boolean
-  } | null>(null)
-  const bubbleRef = useRef<HTMLButtonElement>(null)
+  const { bubblePos, bubbleRef, onPointerDown, onPointerMove, onPointerUp } =
+    useDraggablePosition(() => setOpen(true))
 
-  const onPointerDown = useCallback((e: React.PointerEvent) => {
-    // Only primary button
-    if (e.button !== 0) return
-    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
-    dragRef.current = {
-      active: true,
-      startX: e.clientX,
-      startY: e.clientY,
-      startRight: bubblePos.right,
-      startBottom: bubblePos.bottom,
-      moved: false,
-    }
-  }, [bubblePos])
-
-  const onPointerMove = useCallback((e: React.PointerEvent) => {
-    const d = dragRef.current
-    if (!d?.active) return
-    const dx = e.clientX - d.startX
-    const dy = e.clientY - d.startY
-    // Require 6px movement to count as drag (prevents jitter on tap)
-    if (!d.moved && Math.abs(dx) < 6 && Math.abs(dy) < 6) return
-    d.moved = true
-    const vw = window.innerWidth
-    const vh = window.innerHeight
-    const size = 56 // bubble diameter
-    const newRight = Math.max(8, Math.min(vw - size - 8, d.startRight - dx))
-    const newBottom = Math.max(8, Math.min(vh - size - 8, d.startBottom - dy))
-    setBubblePos({ right: newRight, bottom: newBottom })
-  }, [])
-
-  const onPointerUp = useCallback((e: React.PointerEvent) => {
-    const d = dragRef.current
-    if (!d) return
-    ;(e.target as HTMLElement).releasePointerCapture(e.pointerId)
-    if (d.moved) {
-      // Save position
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(bubblePos)) } catch {}
-    } else {
-      // It was a tap — open chat
-      setOpen(true)
-    }
-    dragRef.current = null
-  }, [bubblePos])
+  const { isRecording, startRecording, stopRecording } =
+    useSpeechRecognition(input, setInput)
 
   // ── Poll a pending message until complete/error or timeout ───────────────
   const startPolling = useCallback((pendingMessageId: string) => {
@@ -172,91 +113,6 @@ export default function ChatBubble() {
       pollTimeoutsRef.current.forEach(timeout => clearTimeout(timeout))
     }
   }, [])
-
-  // Speech recognition setup — iOS Safari compatible
-  const isIOS = typeof navigator !== 'undefined' && /iPhone|iPad|iPod/i.test(navigator.userAgent)
-  const manualStopRef = useRef(false)
-
-  const startRecording = async () => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SpeechRecognition) {
-      toast.info('Speech recognition is not supported in this browser. Try Chrome or Safari.')
-      return
-    }
-    // Request mic permission explicitly first (iOS requires this)
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      // Got permission — stop the stream immediately (we just needed the grant)
-      stream.getTracks().forEach(t => t.stop())
-    } catch (e) {
-      toast.warning(`Microphone access denied. Please allow microphone access in Settings > Safari > ${window.location.hostname}`)
-      return
-    }
-    manualStopRef.current = false
-    const recognition = new SpeechRecognition()
-    // iOS Safari: continuous mode is unreliable, use single-shot and auto-restart
-    recognition.continuous = !isIOS
-    recognition.interimResults = true
-    recognition.lang = 'en-US'
-    let fullTranscript = input // preserve existing text
-    recognition.onresult = (event: any) => {
-      let sessionFinal = ''
-      let sessionInterim = ''
-      for (let i = 0; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          sessionFinal += event.results[i][0].transcript + ' '
-        } else {
-          sessionInterim += event.results[i][0].transcript
-        }
-      }
-      const prefix = fullTranscript ? fullTranscript.trimEnd() + ' ' : ''
-      setInput(prefix + sessionFinal + sessionInterim)
-      if (sessionFinal) {
-        fullTranscript = prefix + sessionFinal
-      }
-    }
-    recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error, event)
-      // These errors are non-fatal on iOS — silence or user stopped
-      const nonFatal = ['no-speech', 'aborted']
-      if (!nonFatal.includes(event.error)) {
-        if (event.error === 'not-allowed') {
-          toast.warning('Microphone permission was denied. Go to Settings > Safari and allow microphone access for this site.')
-        }
-        setIsRecording(false)
-      }
-    }
-    recognition.onend = () => {
-      // iOS Safari fires onend after each phrase. Auto-restart unless manually stopped.
-      if (!manualStopRef.current && isIOS) {
-        try {
-          recognition.start()
-        } catch (e) {
-          // Already started or other error — just stop
-          setIsRecording(false)
-        }
-      } else {
-        setIsRecording(false)
-      }
-    }
-    recognitionRef.current = recognition
-    try {
-      recognition.start()
-      setIsRecording(true)
-    } catch (e) {
-      console.error('Failed to start speech recognition:', e)
-      setIsRecording(false)
-    }
-  }
-
-  const stopRecording = () => {
-    manualStopRef.current = true
-    if (recognitionRef.current) {
-      try { recognitionRef.current.stop() } catch (e) { /* ignore */ }
-      recognitionRef.current = null
-    }
-    setIsRecording(false)
-  }
 
   // Entrance animation
   useEffect(() => {
@@ -467,7 +323,7 @@ export default function ChatBubble() {
         }}
         className={`z-50 w-14 h-14 rounded-full bg-red-600 hover:bg-red-500 shadow-lg hover:shadow-red-600/30 flex items-center justify-center transition-opacity transition-transform duration-300 select-none ${
           mounted ? 'scale-100 opacity-100' : 'scale-0 opacity-0'
-        } ${open ? 'pointer-events-none opacity-0 scale-75' : ''} ${dragRef.current?.moved ? 'cursor-grabbing' : 'cursor-grab'}`}
+        } ${open ? 'pointer-events-none opacity-0 scale-75' : ''} cursor-grab active:cursor-grabbing`}
       >
         {/* Brain SVG — Lucide-style bilateral brain */}
         <svg

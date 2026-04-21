@@ -4,7 +4,8 @@ import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
-import { useRole } from '@/lib/useRole'
+import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
+import { inputCls, labelCls } from '@/components/ui/FormField'
 
 const CATEGORIES = ['Policy', 'Procedure', 'Form', 'Training', 'Reference']
 const EXPIRES_OPTIONS = [
@@ -16,7 +17,8 @@ const EXPIRES_OPTIONS = [
 export default function NewDocumentPage() {
   const supabase = createClient()
   const navigate = useNavigate()
-  const { isAdmin, loading: roleLoading } = useRole()
+  const isAdmin = usePermission('admin.documents')
+  const roleLoading = usePermissionLoading()
   const fileRef = useRef<HTMLInputElement>(null)
   const [submitting, setSubmitting] = useState(false)
   const [uploadProgress, setUploadProgress] = useState('')
@@ -81,9 +83,6 @@ export default function NewDocumentPage() {
     if (dbErr) { setError(dbErr.message); setSubmitting(false); return }
     navigate('/documents')
   }
-
-  const inputCls = 'w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500'
-  const labelCls = 'block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1'
 
   return (
     <div className="p-6 md:p-8 max-w-lg mt-8 md:mt-0 pb-16">

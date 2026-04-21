@@ -2,6 +2,7 @@
  * ICS 214 service — queries and mutations for ICS 214 activity logs.
  */
 import { createClient } from '@/lib/supabase/client'
+import { brand } from '@/lib/branding.config'
 
 // ── Queries ──────────────────────────────────────────────────────────────────
 
@@ -78,4 +79,93 @@ export function deletePersonnel(id: string) {
     .from('ics214_personnel')
     .delete()
     .eq('id', id)
+}
+
+/** Create a full ICS 214 log (header + personnel snapshot + initial activity). Returns the ics214_id string. */
+export async function createICS214(params: {
+  unitId: string
+  unitName: string
+  incidentId: string
+  incidentName: string
+  opDate: string
+  opStart: string
+  opEnd: string
+  leaderName: string
+  leaderPosition: string
+  notes: string
+  initialActivity: string
+  crew: Array<{ id: string; name: string; role?: string }>
+  createdBy: string
+  isAdmin: boolean
+}): Promise<string> {
+  const supabase = createClient()
+  const { unitId, unitName, incidentId, incidentName, opDate, opStart, opEnd,
+    leaderName, leaderPosition, notes, initialActivity, crew, createdBy, isAdmin } = params
+
+  const dateStr = opDate.replace(/-/g, '')
+  const unitClean = unitName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
+  const { count } = await supabase
+    .from('ics214_headers')
+    .select('id', { count: 'exact', head: true })
+    .gte('created_at', `${opDate}T00:00:00`)
+    .lte('created_at', `${opDate}T23:59:59`)
+  const seq = String((count ?? 0) + 1).padStart(3, '0')
+  const ics214Id = `ICS214-${dateStr}-${unitClean}-${seq}`
+
+  let incidentUnitId: string | null = null
+  const { data: iuData } = await supabase
+    .from('incident_units')
+    .select('id')
+    .eq('unit_id', unitId)
+    .eq('incident_id', incidentId)
+    .limit(1)
+  if (iuData && iuData.length > 0) incidentUnitId = iuData[0].id
+
+  const { error: headerError } = await supabase.from('ics214_headers').insert({
+    ics214_id: ics214Id,
+    incident_id: incidentId,
+    incident_name: incidentName,
+    unit_id: unitId,
+    unit_name: unitName,
+    op_date: opDate,
+    op_start: opStart,
+    op_end: opEnd,
+    leader_name: leaderName,
+    leader_position: leaderPosition,
+    status: 'Open',
+    notes: notes || null,
+    created_by: createdBy,
+  })
+  if (headerError) throw headerError
+
+  if (crew.length > 0) {
+    await supabase.from('ics214_personnel').insert(
+      crew.map(emp => ({
+        ics214_id: ics214Id,
+        employee_name: emp.name,
+        ics_position: emp.role || '',
+        home_agency: brand.companyName,
+      }))
+    )
+  }
+
+  await supabase.from('ics214_activities').insert({
+    ics214_id: ics214Id,
+    log_datetime: new Date().toISOString(),
+    description: initialActivity.trim(),
+    logged_by: createdBy,
+    activity_type: 'activity',
+  })
+
+  if (!isAdmin && incidentUnitId) {
+    await supabase
+      .from('patient_encounters')
+      .update({ ics214_id: ics214Id } as any)
+      .eq('incident_id', incidentId)
+      .eq('unit', unitName)
+      .gte('date', opDate)
+      .lte('date', opDate)
+  }
+
+  return ics214Id
 }

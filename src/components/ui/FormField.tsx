@@ -43,3 +43,9 @@ export const selectCls =
 /** Standard textarea class */
 export const textareaCls =
   'w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 placeholder-gray-600 resize-none'
+
+/** Standard label class */
+export const labelCls = 'block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1'
+
+/** Standard section header class */
+export const sectionCls = 'text-xs font-bold uppercase tracking-wide text-gray-400 mt-4 mb-2 border-b border-gray-800 pb-1'

@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { LoadingSkeleton } from '@/components/ui'
-import { useRole } from '@/lib/useRole'
+import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
 import { Link } from 'react-router-dom'
 
 type CalEvent = {
@@ -57,7 +57,8 @@ function isoDate(d: Date) {
 export default function ScheduleCalendarPage() {
   const supabase = createClient()
   const assignment = useUserAssignment()
-  const { isAdmin, loading: roleLoading } = useRole()
+  const isAdmin = usePermission('schedule.manage')
+  const roleLoading = usePermissionLoading()
 
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())

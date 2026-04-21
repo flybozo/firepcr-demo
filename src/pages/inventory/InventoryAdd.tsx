@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
+import { inputCls, labelCls } from '@/components/ui/FormField'
 
 type Unit = {
   id: string
@@ -21,8 +22,6 @@ type FormularyItem = {
 
 type Employee = { id: string; name: string; role: string }
 
-const inputCls = 'w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500'
-const labelCls = 'block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1'
 const sectionCls = 'text-xs font-bold uppercase tracking-wide text-gray-400 mt-2 mb-2 border-b border-gray-800 pb-1'
 
 function AddInventoryInner() {

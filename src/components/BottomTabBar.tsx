@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { createClient } from '@/lib/supabase/client'
 import { useState } from 'react'
-import { useRole } from '@/lib/useRole'
+import { useAnyPermission } from '@/hooks/usePermission'
 import { useUnsignedCounts } from '@/lib/useUnsignedPCRCount'
 import { useChatUnread } from '@/hooks/useChatUnread'
 import { useUserAssignment } from '@/lib/useUserAssignment'
@@ -99,7 +99,7 @@ const ADMIN_SUB_ITEMS: SubItem[] = [
 export default function BottomTabBar() {
   const location = useLocation()
   const pathname = location.pathname
-  const { isField } = useRole()
+  const canAdmin = useAnyPermission('admin.settings', 'admin.push', 'admin.analytics')
   const unsignedCounts = useUnsignedCounts()
   const { totalUnread: chatUnread } = useChatUnread()
   const [sheetTab, setSheetTab] = useState<string | null>(null)
@@ -107,11 +107,11 @@ export default function BottomTabBar() {
   const navigate = useNavigate()
 
   const assignment = useUserAssignment()
-  const isUnassigned = isField && !assignment.loading && !assignment.unit
+  const isUnassigned = !canAdmin && !assignment.loading && !assignment.unit
   const UNASSIGNED_ALLOWED_HREFS = ['/profile', '/roster', '/schedule/request']
 
   const visibleTabs = TABS.filter(tab => {
-    if (tab.adminOnly && isField) return false
+    if (tab.adminOnly && !canAdmin) return false
     // Hide most tabs for unassigned field users
     if (isUnassigned && !UNASSIGNED_ALLOWED_HREFS.some(p => tab.href.startsWith(p))) return false
     return true
@@ -208,13 +208,13 @@ export default function BottomTabBar() {
             </Link>
             {activeSheet.subItems
               .filter(sub => {
-                if (sub.adminOnly && isField) return false   // hide admin items from field
-                if (sub.fieldOnly && !isField) return false  // hide field-only items from admin
+                if (sub.adminOnly && !canAdmin) return false   // hide admin items from field
+                if (sub.fieldOnly && canAdmin) return false  // hide field-only items from admin
                 return true
               })
               .map(sub => {
                 // Admin item opens a nested sheet instead of navigating
-                if (sub.href === '/admin' && !isField) {
+                if (sub.href === '/admin' && canAdmin) {
                   return (
                     <button
                       key={sub.href}
@@ -228,7 +228,7 @@ export default function BottomTabBar() {
                   )
                 }
                 // Units: field users go to their own unit
-                const href = sub.href === '/units' && isField && assignment.unit?.id
+                const href = sub.href === '/units' && !canAdmin && assignment.unit?.id
                   ? `/units/${assignment.unit.id}`
                   : sub.href
                 return (

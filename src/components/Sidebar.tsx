@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { APP_VERSION } from '@/components/VersionNotifier'
-import { useRole } from '@/lib/useRole'
+import { usePermission, useAnyPermission, usePermissionLoading } from '@/hooks/usePermission'
 import { brand } from '@/lib/branding.config'
 import { createClient } from '@/lib/supabase/client'
 import { useUnsignedCounts } from '@/lib/useUnsignedPCRCount'
@@ -17,6 +17,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { SidebarIcon, RAINBOW_ICON_COLORS } from './SidebarIcons'
 import { useTheme } from './ThemeProvider'
+import { BadgePopover } from './BadgePopover'
 
 type SubItem = { label: string; href: string }
 type NavItem = { icon: string; label: string; href: string; sub: SubItem[]; adminOnly?: boolean; onlineOnly?: boolean; directLink?: boolean }
@@ -137,6 +138,7 @@ const NAV: NavItem[] = [
       { label: 'Coverage Calendar', href: '/schedule/calendar' },
       { label: 'Generate Schedule', href: '/schedule/generate' },
       { label: 'Contacts', href: '/contacts' },
+      { label: 'Roles & Permissions', href: '/admin/roles' },
     ],
     adminOnly: true,
   },
@@ -176,7 +178,6 @@ function SortableNavItem({
   sidebarText?: { inactive: string; muted: string }
   chatUnread?: number
 }) {
-  const [showBadgeDetail, setShowBadgeDetail] = useState(false)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.label })
 
@@ -245,30 +246,7 @@ function SortableNavItem({
               </span>
               <span>{item.label}</span>
               {badges && badges[item.label] && badges[item.label].total > 0 && (
-                <span className="relative">
-                  <span
-                    className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold leading-none cursor-default"
-                    onMouseEnter={() => setShowBadgeDetail(true)}
-                    onMouseLeave={() => setShowBadgeDetail(false)}
-                    onClick={(e) => { e.stopPropagation(); setShowBadgeDetail(s => !s) }}
-                  >
-                    {badges[item.label].total > 99 ? '99+' : badges[item.label].total}
-                  </span>
-                  {showBadgeDetail && (
-                    <span className="absolute left-0 top-full mt-1 z-50 bg-gray-900 border border-gray-700 rounded-lg shadow-xl p-2.5 whitespace-nowrap text-xs">
-                      <p className="text-gray-400 font-semibold uppercase tracking-wide text-[10px] mb-1.5">Needs Signature</p>
-                      {badges[item.label].charts > 0 && (
-                        <p className="text-orange-300">📋 {badges[item.label].charts} chart{badges[item.label].charts !== 1 ? 's' : ''}</p>
-                      )}
-                      {badges[item.label].notes > 0 && (
-                        <p className="text-amber-300">📝 {badges[item.label].notes} note{badges[item.label].notes !== 1 ? 's' : ''}</p>
-                      )}
-                      {badges[item.label].mar > 0 && (
-                        <p className="text-red-300">💊 {badges[item.label].mar} MAR entr{badges[item.label].mar !== 1 ? 'ies' : 'y'}</p>
-                      )}
-                    </span>
-                  )}
-                </span>
+                <BadgePopover badge={badges[item.label]} />
               )}
               {item.icon === 'chat' && chatUnread && chatUnread > 0 ? (
                 <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold leading-none">
@@ -335,30 +313,7 @@ function SortableNavItem({
               </span>
               <span>{item.label}</span>
               {badges && badges[item.label] && badges[item.label].total > 0 && (
-                <span className="relative">
-                  <span
-                    className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-orange-500 text-white text-[10px] font-bold leading-none cursor-default"
-                    onMouseEnter={() => setShowBadgeDetail(true)}
-                    onMouseLeave={() => setShowBadgeDetail(false)}
-                    onClick={(e) => { e.stopPropagation(); setShowBadgeDetail(s => !s) }}
-                  >
-                    {badges[item.label].total > 99 ? '99+' : badges[item.label].total}
-                  </span>
-                  {showBadgeDetail && (
-                    <span className="absolute left-0 top-full mt-1 z-50 bg-gray-900 border border-gray-700 rounded-lg shadow-xl p-2.5 whitespace-nowrap text-xs">
-                      <p className="text-gray-400 font-semibold uppercase tracking-wide text-[10px] mb-1.5">Needs Signature</p>
-                      {badges[item.label].charts > 0 && (
-                        <p className="text-orange-300">📋 {badges[item.label].charts} chart{badges[item.label].charts !== 1 ? 's' : ''}</p>
-                      )}
-                      {badges[item.label].notes > 0 && (
-                        <p className="text-amber-300">📝 {badges[item.label].notes} note{badges[item.label].notes !== 1 ? 's' : ''}</p>
-                      )}
-                      {badges[item.label].mar > 0 && (
-                        <p className="text-red-300">💊 {badges[item.label].mar} MAR entr{badges[item.label].mar !== 1 ? 'ies' : 'y'}</p>
-                      )}
-                    </span>
-                  )}
-                </span>
+                <BadgePopover badge={badges[item.label]} />
               )}
             </div>
             {visibleSub.length > 0 && (
@@ -422,7 +377,11 @@ function getSidebarTextColors(): { inactive: string; muted: string } {
 export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const location = useLocation()
   const pathname = location.pathname
-  const { isAdmin, isField, loading: roleLoading } = useRole()
+  const roleLoading = usePermissionLoading()
+  const canAdmin = useAnyPermission('admin.settings', 'admin.push', 'admin.analytics')
+  const canBilling = usePermission('billing.view')
+  const canPayroll = usePermission('payroll.view_all')
+  const canRoster = usePermission('roster.manage')
   const assignment = useUserAssignment()
   const unsignedCounts = useUnsignedCounts()
   const { totalUnread: chatUnread } = useChatUnread()
@@ -453,11 +412,11 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   }, [])
 
   // Field users with no unit assignment can only access profile, roster, schedule request
-  const isUnassigned = isField && !assignment.loading && !assignment.unit
+  const isUnassigned = !canAdmin && !assignment.loading && !assignment.unit
   const FIELD_UNASSIGNED_ALLOWED = ['/profile', '/roster']
 
   const visibleNav = NAV.filter(item => {
-    if (item.adminOnly && isField) return false
+    if (item.adminOnly && !canAdmin) return false
     // Hide most nav items for unassigned field users
     if (isUnassigned && !FIELD_UNASSIGNED_ALLOWED.some(p => item.href.startsWith(p))) return false
     return true
@@ -473,7 +432,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   useEffect(() => {
     setOrder(loadOrder(defaultLabels))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isField]) // re-run when role resolves (field vs admin affects visible items)
+  }, [canAdmin]) // re-run when role resolves (field vs admin affects visible items)
 
   const [expanded, setExpanded] = useState<string | null>(
     visibleNav.find(n => pathname.startsWith(n.href))?.label || visibleNav[0]?.label
@@ -481,7 +440,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const toggle = (label: string) => setExpanded(prev => prev === label ? null : label)
 
   const getHref = (item: NavItem): string => {
-    if (roleLoading || isAdmin) return item.href
+    if (roleLoading || canAdmin) return item.href
     switch (item.href) {
       case '/incidents':
         return assignment.incidentUnit?.incident_id
@@ -548,8 +507,8 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
               <SortableNavItem
                 key={item.label}
                 item={item}
-                isAdmin={isAdmin}
-                isField={isField}
+                isAdmin={canAdmin}
+                isField={!canAdmin}
                 pathname={pathname}
                 expanded={expanded}
                 toggle={toggle}
@@ -586,7 +545,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           style={{ color: sidebarText.inactive }} className="flex items-center gap-2 py-1 px-2 rounded-lg text-xs hover:bg-white/[0.04] transition-all duration-150">
           <span className="w-5 h-5 shrink-0 flex items-center justify-center opacity-50" style={isRainbow ? { color: RAINBOW_ICON_COLORS.profile, opacity: 1 } : {}}><SidebarIcon name="profile" /></span> My Profile
         </Link>
-        {isField && (
+        {!canAdmin && (
           <Link to="/schedule/request"
             style={{ color: sidebarText.inactive }} className="flex items-center gap-2 py-1 px-2 rounded-lg text-xs hover:bg-white/[0.04] transition-all duration-150">
             <span className="w-5 h-5 shrink-0 flex items-center justify-center opacity-50" style={isRainbow ? { color: RAINBOW_ICON_COLORS.schedule, opacity: 1 } : {}}><SidebarIcon name="schedule" /></span> Schedule Request

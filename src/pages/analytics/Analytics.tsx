@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useRole } from '@/lib/useRole'
+import { usePermission } from '@/hooks/usePermission'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { ClinicalTab } from './components/ClinicalTab'
 import { OperationsTab } from './components/OperationsTab'
@@ -9,7 +9,7 @@ type Tab = 'clinical' | 'operations' | 'workforce'
 
 export default function AnalyticsPage() {
   const [tab, setTab] = useState<Tab>('clinical')
-  const { isField } = useRole()
+  const canAnalytics = usePermission('admin.analytics')
   const assignment = useUserAssignment()
 
   const assignedIncidentId = assignment.incidentUnit?.incident_id || null
@@ -20,7 +20,7 @@ export default function AnalyticsPage() {
     { id: 'operations', label: 'Operations', icon: '🔥' },
     { id: 'workforce',  label: 'Workforce',  icon: '👥' },
   ]
-  const tabs = isField ? allTabs.filter(t => t.id === 'clinical') : allTabs
+  const tabs = !canAnalytics ? allTabs.filter(t => t.id === 'clinical') : allTabs
 
   return (
     <div className="bg-gray-950 text-white pb-8">
@@ -50,7 +50,7 @@ export default function AnalyticsPage() {
           ))}
         </div>
 
-        {tab === 'clinical'   && <ClinicalTab isField={isField} assignedIncidentId={assignedIncidentId} assignedUnitNames={assignedUnitNames} />}
+        {tab === 'clinical'   && <ClinicalTab isField={!canAnalytics} assignedIncidentId={assignedIncidentId} assignedUnitNames={assignedUnitNames} />}
         {tab === 'operations' && <OperationsTab />}
         {tab === 'workforce'  && <WorkforceTab />}
       </div>

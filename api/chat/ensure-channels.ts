@@ -112,6 +112,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    // ── 3.5. Join external channels for the incident ─────────────────────────
+    if (incident_id) {
+      const { data: extChannels } = await supabase
+        .from('chat_channels')
+        .select('id')
+        .eq('incident_id', incident_id)
+        .eq('type', 'external')
+        .is('deleted_at', null)
+
+      if (extChannels?.length) {
+        const extIds = extChannels.map((c) => c.id)
+        const { data: existingExtMems } = await supabase
+          .from('chat_members')
+          .select('channel_id')
+          .eq('employee_id', employee.id)
+          .in('channel_id', extIds)
+
+        const existingExtSet = new Set((existingExtMems || []).map((m) => m.channel_id))
+        const newExtMems = extIds
+          .filter((id) => !existingExtSet.has(id))
+          .map((channel_id) => ({ channel_id, employee_id: employee.id, role: 'member' as const }))
+
+        if (newExtMems.length > 0) {
+          await supabase.from('chat_members').insert(newExtMems)
+        }
+      }
+    }
+
     // ── 4. Ensure employee is a member of all applicable channels ────────────
     const channelsToJoin = [companyChannelId, incidentChannelId, unitChannelId].filter(Boolean) as string[]
 
@@ -201,8 +229,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const { data: channels } = await supabase
       .from('chat_channels')
-      .select('id, type, name, description, incident_id, unit_id, created_at, updated_at')
+      .select('id, type, name, description, incident_id, unit_id, created_at, updated_at, archived_at')
       .in('id', channelIds)
+      .is('deleted_at', null)
       .order('updated_at', { ascending: false })
 
     // Get last messages
@@ -258,14 +287,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     let allChannels2 = channels || []
 
-    // ── Owner: silently append DM channels (read-only, no membership) ─────
+    // ── Super Admin: silently append DM channels (read-only, no membership) ─────
+    // Check if user has '*' permission (super admin role) or is org owner
     const { data: ownerCheck } = await supabase
       .from('employees').select('is_owner').eq('id', employee.id).single()
-    if (ownerCheck?.is_owner === true) {
+    const { data: empRolePerms } = await supabase
+      .from('employee_roles')
+      .select('roles(permissions)')
+      .eq('employee_id', employee.id)
+    const allPerms = (empRolePerms || []).flatMap((er: any) => er.roles?.permissions || [])
+    const isSuperAdmin = (ownerCheck?.is_owner === true) || allPerms.includes('*') || allPerms.includes('chat.admin')
+    if (isSuperAdmin) {
       const existingIds = new Set(allChannels2.map(c => c.id))
       const { data: allDMs } = await supabase
         .from('chat_channels')
-        .select('id, type, name, description, incident_id, unit_id, created_at, updated_at')
+        .select('id, type, name, description, incident_id, unit_id, created_at, updated_at, archived_at')
         .eq('type', 'direct')
         .is('deleted_at', null)
 

@@ -1,5 +1,5 @@
 
-import { useRole } from '@/lib/useRole'
+import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { FieldGuard } from '@/components/FieldGuard'
 import { queryActiveUnits } from '@/lib/services/cs'
@@ -70,7 +70,9 @@ function isExpiringSoon(dateStr: string | null) {
 
 function CSOverviewPageInner() {
   const supabase = createClient()
-  const { isField, isAdmin, loading: roleLoading } = useRole()
+  const roleLoading = usePermissionLoading()
+  const canCSView = usePermission('cs.view')
+  const isField = !canCSView
   const assignment = useUserAssignment()
   const [units, setUnits] = useState<UnitData[]>([])
   const [transactions, setTransactions] = useState<CSTransaction[]>([])

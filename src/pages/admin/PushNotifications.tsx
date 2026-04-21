@@ -1,6 +1,6 @@
 import { useState, useEffect, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRole } from '@/lib/useRole'
+import { usePermission } from '@/hooks/usePermission'
 import { authFetch } from '@/lib/authFetch'
 import { LoadingSkeleton } from '@/components/ui'
 
@@ -24,7 +24,7 @@ type NotifLog = {
 
 function PushNotificationsInner() {
   const supabase = createClient()
-  const { isAdmin } = useRole()
+  const canPush = usePermission('admin.push')
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState<{ delivered: number; failed: number } | null>(null)
   const [error, setError] = useState('')
@@ -95,7 +95,7 @@ function PushNotificationsInner() {
     }
   }
 
-  if (!isAdmin) return <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center"><p className="text-gray-500">Admin access required</p></div>
+  if (!canPush) return <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center"><p className="text-gray-500">Admin access required</p></div>
 
   return (
     <div className="bg-gray-950 text-white pb-8">

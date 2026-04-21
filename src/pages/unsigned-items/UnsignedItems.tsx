@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
-import { useRole } from '@/lib/useRole'
+import { usePermission } from '@/hooks/usePermission'
 import { LoadingSkeleton, ConfirmDialog } from '@/components/ui'
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -189,7 +189,7 @@ function MARSection({ entries }: { entries: UnsignedMAR[] }) {
 export default function UnsignedItemsPage() {
   const supabase = createClient()
   const assignment = useUserAssignment()
-  const { isAdmin } = useRole()
+  const isAdmin = usePermission('encounters.sign')
   const [charts, setCharts] = useState<UnsignedChart[]>([])
   const [orphanNotes, setOrphanNotes] = useState<UnsignedNote[]>([])
   const [marEntries, setMarEntries] = useState<UnsignedMAR[]>([])

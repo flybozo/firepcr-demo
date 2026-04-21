@@ -19,7 +19,7 @@ function MARNewFormInner() {
     providerPin, setProviderPin,
     witnessPin, setWitnessPin,
     submitting,
-    isCS, hasUnitInventory, isProviderMatch, isSelfOrder,
+    isCS, hasUnitInventory, isProviderMatch, isSelfOrder, requiresProviderAuth,
     isOffline,
     dispensers, unitInventory, filteredFormulary,
     providerEmployees, witnessOptions,
@@ -98,6 +98,7 @@ function MARNewFormInner() {
             isCS={isCS}
             isProviderMatch={isProviderMatch}
             isSelfOrder={isSelfOrder}
+            requiresProviderAuth={requiresProviderAuth}
             dispensers={dispensers}
             providerEmployees={providerEmployees}
             witnessOptions={witnessOptions}

@@ -2,7 +2,7 @@
 import { FieldGuard } from '@/components/FieldGuard'
 
 import { useEffect, useState, Suspense } from 'react'
-import { useRole } from '@/lib/useRole'
+import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
@@ -77,7 +77,8 @@ const sortedUnitNames = [...ALL_UNIT_NAMES].sort((a, b) => {
 
 function EncountersInner() {
   const supabase = createClient()
-  const { isField, loading: roleLoading } = useRole()
+  const roleLoading = usePermissionLoading()
+  const isField = !usePermission('incidents.manage')
   const assignment = useUserAssignment()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()

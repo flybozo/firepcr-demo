@@ -101,6 +101,25 @@ export default function ChatPage() {
     }
   }
 
+  const handleArchive = async (channelId: string, action: 'archive' | 'unarchive') => {
+    try {
+      const resp = await authFetch('/api/chat/archive', {
+        method: 'POST',
+        body: JSON.stringify({ channel_id: channelId, action }),
+      })
+      if (resp.ok) {
+        const json = await resp.json()
+        setChannels((prev) =>
+          prev.map((c) =>
+            c.id === channelId ? { ...c, archived_at: json.archived_at ?? null } : c
+          )
+        )
+      }
+    } catch (e) {
+      console.error('[Chat] archive failed', e)
+    }
+  }
+
   const channelsWithUnread = channels.map((ch) => ({
     ...ch,
     unread_count: unreadByChannel[ch.id] ?? ch.unread_count,
@@ -133,6 +152,7 @@ export default function ChatPage() {
             unreadByChannel={unreadByChannel}
             onNewDM={() => setShowDMModal(true)}
             onDeleteDM={handleDeleteDM}
+            onArchive={handleArchive}
             loading={channelsLoading}
           />
         </div>
@@ -171,6 +191,7 @@ export default function ChatPage() {
             unreadByChannel={unreadByChannel}
             onNewDM={() => setShowDMModal(true)}
             onDeleteDM={handleDeleteDM}
+            onArchive={handleArchive}
             loading={channelsLoading}
           />
         ) : activeChannel ? (

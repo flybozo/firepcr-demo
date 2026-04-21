@@ -1,10 +1,14 @@
 
 
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
+import { AgencyBarChart } from '@/components/charts/AgencyBarChart'
+import { AgencyLogo } from '@/components/AgencyLogo'
+import { Avatar } from '@/components/chat/Avatar'
 import { brand } from '@/lib/branding.config'
 import { useParams } from 'react-router-dom'
 import { createClient } from '@/lib/supabase/client'
 import { ContactCards } from '@/components/ContactCards'
+import { TimelineTab } from '@/components/timeline/TimelineTab'
 import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, CartesianGrid,
@@ -70,6 +74,8 @@ export type DashboardData = {
     closed_at: string | null
   }[]
   code_label: string | null
+  code_avatar_url?: string | null
+  channel_id?: string | null
   codeLabel?: string | null  // backward compat
   supply_aggregated?: { item_name: string; total_qty: number; unit: string; category: string }[]
   supply_items?: { item_name: string; quantity: number; unit_of_measure: string; category: string; created_at: string }[]
@@ -130,6 +136,12 @@ function OverviewTab({ data, filteredEncounters }: {
   const filteredAcuityBreakdown = Object.entries(acuityCounts)
     .filter(([, v]) => v > 0)
     .map(([name, value]) => ({ name, value }))
+
+  const agencyCountsMap: Record<string, number> = {}
+  filteredEncounters.forEach(e => { if (e.patient_agency) agencyCountsMap[e.patient_agency] = (agencyCountsMap[e.patient_agency] || 0) + 1 })
+  const filteredAgencyData = Object.entries(agencyCountsMap)
+    .sort((a, b) => b[1] - a[1])
+    .map(([agency, count]) => ({ agency, count }))
 
   const dailyCounts: Record<string, number> = {}
   filteredEncounters.forEach(e => { if (e.date) dailyCounts[e.date] = (dailyCounts[e.date] || 0) + 1 })
@@ -214,6 +226,16 @@ function OverviewTab({ data, filteredEncounters }: {
         )}
       </section>
 
+      {/* Patients by Agency */}
+      <section>
+        <h3 className="text-sm font-semibold text-white mb-3">🏛️ Patients by Agency</h3>
+        {filteredAgencyData.length === 0 ? <Empty /> : (
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+            <AgencyBarChart data={filteredAgencyData} />
+          </div>
+        )}
+      </section>
+
       {/* Encounter volume line chart */}
       <section>
         <h3 className="text-sm font-semibold text-white mb-3">📈 Encounter Volume by Day</h3>
@@ -241,6 +263,12 @@ function PatientLogTab({ data, code, logEvent, isPreview }: { data: DashboardDat
   const [selected, setSelected] = useState<typeof data.encounters[0] | null>(null)
   const [downloading, setDownloading] = useState<string | null>(null)
 
+  const handleExportCsv = () => {
+    import('@/lib/exportCsv').then(({ exportPatientLogCsv }) => {
+      exportPatientLogCsv(filtered, data.incident.name)
+    })
+  }
+
   // Build lookup: encounter seq_id → comp_claim
   const claimBySeqId = Object.fromEntries(
     data.comp_claims.map(cc => [cc.patient_seq_id, cc]).filter(([k]) => k)
@@ -255,16 +283,23 @@ function PatientLogTab({ data, code, logEvent, isPreview }: { data: DashboardDat
             : `/api/incident-access/download?code=${code}&type=comp_claim&id=${claimId}`,
           isPreview ? { headers: { Authorization: `Bearer ${(await createClient().auth.getSession()).data?.session?.access_token ?? ''}` } } : undefined)
       const { url } = await res.json()
-      if (url) window.open(url, '_blank')
+      if (url) {
+        // Use anchor click instead of window.open — mobile browsers block popups from async callbacks
+        const a = document.createElement('a')
+        a.href = url
+        a.target = '_blank'
+        a.rel = 'noopener noreferrer'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+      }
     } finally {
       setDownloading(null)
     }
   }
 
-  // Use units assigned to this incident (from incident_units), falling back to encounter units
-  const assignedUnits = data.stats.unique_units && data.stats.unique_units.length > 0
-    ? data.stats.unique_units
-    : Array.from(new Set(data.encounters.map(e => e.unit).filter(Boolean)))
+  // Only show units that were actually deployed to this incident (from incident_units)
+  const assignedUnits = data.stats.unique_units?.filter(Boolean) || []
   const units = ['All', ...[...assignedUnits].sort()]
   const filtered = unitFilter === 'All' ? data.encounters : data.encounters.filter(e => e.unit === unitFilter)
   const byUnit: Record<string, typeof data.encounters> = {}
@@ -278,6 +313,12 @@ function PatientLogTab({ data, code, logEvent, isPreview }: { data: DashboardDat
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-xs text-gray-500 flex-1">{filtered.length} encounters · de-identified · tap to view</p>
+        <button
+          onClick={handleExportCsv}
+          className="px-2.5 py-1 rounded text-xs font-medium bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors border border-gray-700"
+        >
+          📥 Export CSV
+        </button>
         <div className="flex gap-1.5 flex-wrap">
           {units.map(u => (
             <button key={u} onClick={() => setUnitFilter(u)}
@@ -307,7 +348,7 @@ function PatientLogTab({ data, code, logEvent, isPreview }: { data: DashboardDat
                   <span className="font-mono text-blue-400 text-xs font-semibold">{enc.seq_id}</span>
                   <span className="text-gray-400 text-xs">{enc.date ? new Date(enc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
                   <span className="text-gray-400 text-xs">{enc.age || '—'}</span>
-                  <span className="text-gray-300 text-xs truncate">{enc.patient_agency || <span className="text-gray-600">—</span>}</span>
+                  <span className="flex items-center justify-center">{enc.patient_agency ? <AgencyLogo agency={enc.patient_agency} size={24} /> : <span className="text-gray-600">—</span>}</span>
                   <span className="text-white text-xs truncate">{enc.chief_complaint || <span className="text-gray-600 italic">Not recorded</span>}</span>
                   {/* Disposition */}
                   <span className="text-xs text-gray-300 truncate">{enc.disposition || <span className="text-gray-600 italic">In Process</span>}</span>
@@ -324,7 +365,7 @@ function PatientLogTab({ data, code, logEvent, isPreview }: { data: DashboardDat
                     {!enc.has_ama && !(enc.has_comp_claim && claim?.has_pdf) && <span className="text-gray-700 text-xs">—</span>}
                   </span>
                   {/* Supervisor from comp claim */}
-                  <span className="text-xs text-gray-400 truncate">{claim.supervisor_name || '—'}</span>
+                  <span className="text-xs text-gray-400 truncate">{claim?.supervisor_name || '—'}</span>
                   {/* Acuity — last column */}
                   <span className={`text-xs px-1.5 py-0.5 rounded font-medium text-center ${ACUITY_PILL[enc.acuity] ?? 'bg-gray-800 text-gray-400 border border-gray-700'}`}>
                     {enc.acuity?.split(' ')[0] || '—'}
@@ -376,7 +417,15 @@ function ICS214Tab({ data, code, logEvent, isPreview }: { data: DashboardData; c
             : `/api/incident-access/download?code=${code}&type=ics214&id=${formId}`,
           isPreview ? { headers: { Authorization: `Bearer ${(await createClient().auth.getSession()).data?.session?.access_token ?? ''}` } } : undefined)
       const { url } = await res.json()
-      if (url) window.open(url, '_blank')
+      if (url) {
+        const a = document.createElement('a')
+        a.href = url
+        a.target = '_blank'
+        a.rel = 'noopener noreferrer'
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+      }
     } finally {
       setDownloading(null)
     }
@@ -503,7 +552,309 @@ function SupplyTab({ data, dateFilter }: { data: DashboardData; dateFilter?: Dat
   )
 }
 
-export type Tab = 'overview' | 'patients' | 'ics214' | 'supply'
+type ExternalMessage = {
+  id: string
+  channel_id: string
+  content: string
+  message_type: string
+  file_url?: string | null
+  file_name?: string | null
+  created_at: string
+  external_sender_name?: string | null
+  sender: { id: string | null; name: string; headshot_url: string | null }
+}
+
+function ChatTab({ code, channelId, codeLabel, codeAvatarUrl }: { code: string; channelId: string | null; codeLabel: string | null; codeAvatarUrl?: string | null }) {
+  const [messages, setMessages] = useState<ExternalMessage[]>([])
+  const [input, setInput] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(codeAvatarUrl || null)
+  const [uploading, setUploading] = useState(false)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.match(/^image\/(jpeg|png|webp)$/)) {
+      setSendError('Please upload a JPEG, PNG, or WebP image.')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setSendError('Image must be under 2MB.')
+      return
+    }
+    setUploading(true)
+    setSendError(null)
+    try {
+      const reader = new FileReader()
+      const dataUrl = await new Promise<string>((resolve) => {
+        reader.onload = () => resolve(reader.result as string)
+        reader.readAsDataURL(file)
+      })
+      const res = await fetch('/api/incident-access/avatar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, image: dataUrl }),
+      })
+      const json = await res.json()
+      if (json.avatar_url) {
+        setAvatarUrl(json.avatar_url)
+      } else if (json.error) {
+        setSendError(json.error)
+      }
+    } catch {
+      setSendError('Failed to upload avatar')
+    } finally {
+      setUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const fetchMessages = useCallback(async () => {
+    if (!channelId) return
+    try {
+      const res = await fetch(`/api/incident-access/chat?code=${encodeURIComponent(code)}&channelId=${encodeURIComponent(channelId)}`)
+      const json = await res.json()
+      if (json.messages) {
+        setMessages(json.messages)
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+      }
+    } catch { /* silent */ }
+  }, [code, channelId])
+
+  useEffect(() => {
+    fetchMessages()
+    const interval = setInterval(fetchMessages, 3000)
+    return () => clearInterval(interval)
+  }, [fetchMessages])
+
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.match(/^image\/(jpeg|png|webp|gif)$/)) {
+      setSendError('Please select a JPEG, PNG, WebP, or GIF image.')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setSendError('Image must be under 5MB.')
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => setPhotoPreview(reader.result as string)
+    reader.readAsDataURL(file)
+    if (photoInputRef.current) photoInputRef.current.value = ''
+  }
+
+  const sendPhoto = async () => {
+    if (!photoPreview || !channelId || sending) return
+    setSending(true)
+    setSendError(null)
+    try {
+      const res = await fetch('/api/incident-access/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, channelId, image: photoPreview }),
+      })
+      const json = await res.json()
+      if (json.error) {
+        setSendError(json.error)
+      } else {
+        setPhotoPreview(null)
+        setMessages((prev) => [...prev, json.message])
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+      }
+    } catch {
+      setSendError('Failed to send photo')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const send = async () => {
+    if (!input.trim() || !channelId || sending) return
+    setSending(true)
+    setSendError(null)
+    try {
+      const res = await fetch('/api/incident-access/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, channelId, content: input.trim() }),
+      })
+      const json = await res.json()
+      if (json.error) {
+        setSendError(json.error)
+      } else {
+        setInput('')
+        setMessages((prev) => {
+          return [...prev, json.message]
+        })
+        setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50)
+      }
+    } catch {
+      setSendError('Failed to send message')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  if (!channelId) {
+    return (
+      <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center">
+        <p className="text-gray-500 text-sm">No external chat channel found for this access code.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col bg-gray-900 border border-gray-800 rounded-xl overflow-hidden" style={{ height: 520 }}>
+      <div className="px-4 py-3 border-b border-gray-800 flex items-center gap-2 shrink-0">
+        <span>🔥</span>
+        <span className="text-sm font-semibold text-white">External Chat</span>
+        <span className="text-xs text-gray-600 ml-auto">Auto-refreshes every 3s</span>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
+        {messages.length === 0 && (
+          <div className="flex items-center justify-center h-full text-gray-600 text-sm">No messages yet. Start the conversation!</div>
+        )}
+        {messages.map((msg) => {
+          const isExternal = msg.sender.id === null
+          const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          // For external messages, use their uploaded avatar or the API-returned one
+          const extAvatar = isExternal ? (msg.sender.headshot_url || avatarUrl) : null
+          return (
+            <div key={msg.id} className={`flex items-end gap-2 ${isExternal ? 'justify-end' : 'justify-start'}`}>
+              {/* Avatar: team member on the left */}
+              {!isExternal && (
+                <Avatar person={{ name: msg.sender.name, headshot_url: msg.sender.headshot_url }} size={28} />
+              )}
+              <div className={`flex flex-col ${isExternal ? 'items-end' : 'items-start'} max-w-[75%]`}>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="text-xs font-medium text-gray-400">{msg.sender.name}</span>
+                  <span className="text-xs text-gray-600">{time}</span>
+                </div>
+                <div
+                  className={`rounded-xl text-sm text-white break-words ${
+                    isExternal
+                      ? 'bg-red-900/60 border border-red-700/40'
+                      : 'bg-gray-800 border border-gray-700'
+                  } ${msg.message_type === 'image' && msg.file_url ? 'p-1' : 'px-3 py-2'}`}
+                >
+                  {msg.message_type === 'image' && msg.file_url ? (
+                    <img
+                      src={msg.file_url}
+                      alt={msg.file_name || 'Image'}
+                      className="max-h-[200px] rounded-lg cursor-pointer object-contain"
+                      onClick={() => setLightboxUrl(msg.file_url!)}
+                    />
+                  ) : (
+                    msg.content
+                  )}
+                </div>
+              </div>
+              {/* External user avatar: uploaded headshot or fire emoji */}
+              {isExternal && (
+                extAvatar ? (
+                  <div
+                    className="relative cursor-pointer group"
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Click to change your photo"
+                  >
+                    <img src={extAvatar} alt={msg.sender.name} className="w-7 h-7 rounded-full object-cover shrink-0 border border-orange-700/40 group-hover:ring-2 group-hover:ring-orange-500 transition-all" />
+                    <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <span className="text-[9px] text-white">📷</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className="w-7 h-7 rounded-full bg-orange-900/60 border border-orange-700/40 flex items-center justify-center text-sm shrink-0 cursor-pointer hover:ring-2 hover:ring-orange-500 transition-all group relative"
+                    onClick={() => fileInputRef.current?.click()}
+                    title="Click to upload your photo"
+                  >
+                    🔥
+                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-gray-300 text-[10px] px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                      Upload photo
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          )
+        })}
+        <div ref={bottomRef} />
+      </div>
+
+      {uploading && <p className="text-xs text-amber-400 px-4 py-1 shrink-0">Uploading photo...</p>}
+      {sendError && <p className="text-xs text-red-400 px-4 py-1 shrink-0">{sendError}</p>}
+
+      {/* Photo preview */}
+      {photoPreview && (
+        <div className="px-3 pb-2 shrink-0">
+          <div className="relative inline-block">
+            <img src={photoPreview} alt="Preview" className="max-h-24 rounded-lg object-contain border border-gray-700" />
+            <button
+              onClick={() => setPhotoPreview(null)}
+              className="absolute -top-2 -right-2 w-5 h-5 bg-gray-700 hover:bg-gray-600 rounded-full flex items-center justify-center text-xs text-gray-300"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Hidden file inputs */}
+      <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={handleAvatarUpload} className="hidden" />
+      <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoSelect} className="hidden" />
+
+      <div className="border-t border-gray-800 p-3 flex gap-2 shrink-0">
+        <button
+          onClick={() => photoInputRef.current?.click()}
+          disabled={sending}
+          title="Send a photo"
+          className="px-2 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-gray-300 text-base rounded-lg transition-colors shrink-0"
+        >
+          📷
+        </button>
+        <input
+          value={input}
+          onChange={(e) => { setInput(e.target.value); setSendError(null) }}
+          onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); photoPreview ? sendPhoto() : send() } }}
+          placeholder="Type a message..."
+          maxLength={4000}
+          className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-red-500"
+        />
+        <button
+          onClick={photoPreview ? sendPhoto : send}
+          disabled={photoPreview ? sending : (!input.trim() || sending)}
+          className="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors shrink-0"
+        >
+          {sending ? '...' : 'Send'}
+        </button>
+      </div>
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setLightboxUrl(null)}
+        >
+          <img
+            src={lightboxUrl}
+            alt="Full size"
+            className="max-w-full max-h-full object-contain rounded-lg"
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+export type Tab = 'overview' | 'timeline' | 'patients' | 'ics214' | 'supply' | 'chat'
 export type DateFilter = 'all' | '24h' | '48h' | '7d'
 
 export { OverviewTab, PatientLogTab, ICS214Tab, SupplyTab, STATUS_COLOR, C }
@@ -519,6 +870,9 @@ export default function FireAdminPage() {
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('overview')
   const [dateFilter, setDateFilter] = useState<DateFilter>('all')
+  const [chatUnread, setChatUnread] = useState(0)
+  const lastSeenChatCount = useRef(0)
+  const currentTabRef = useRef<Tab>('overview')
 
   // Fire-and-forget event logger — records tab views + PDF downloads (skip for previews)
   const logEvent = (event: { event_type: string; tab?: string; document_type?: string; document_id?: string }) => {
@@ -531,9 +885,55 @@ export default function FireAdminPage() {
   }
 
   const handleTabChange = (newTab: Tab) => {
+    if (newTab === 'chat') {
+      setChatUnread(0)
+      // Update the baseline to current known count
+      lastSeenChatCount.current = -1 // will be re-synced on next poll
+    }
+    currentTabRef.current = newTab
     setTab(newTab)
     logEvent({ event_type: 'tab_view', tab: newTab })
   }
+
+  // Lightweight poll for chat unread badge — runs even when ChatTab isn't mounted
+  useEffect(() => {
+    if (isPreview || !data?.channel_id) return
+    const channelId = data.channel_id
+    let mounted = true
+
+    const pollUnread = async () => {
+      try {
+        const res = await fetch(
+          `/api/incident-access/chat?code=${encodeURIComponent(code!)}&channelId=${encodeURIComponent(channelId)}`
+        )
+        const json = await res.json()
+        if (!mounted || !json.messages) return
+        const count = json.messages.length
+
+        if (lastSeenChatCount.current === -1) {
+          // Re-sync baseline after switching to chat tab
+          lastSeenChatCount.current = count
+          setChatUnread(0)
+          return
+        }
+
+        if (currentTabRef.current === 'chat') {
+          lastSeenChatCount.current = count
+          setChatUnread(0)
+        } else if (lastSeenChatCount.current === 0 && count > 0) {
+          // First load — set baseline, don't show old messages as unread
+          lastSeenChatCount.current = count
+        } else {
+          const unread = Math.max(0, count - lastSeenChatCount.current)
+          setChatUnread(unread)
+        }
+      } catch { /* silent */ }
+    }
+
+    pollUnread()
+    const interval = setInterval(pollUnread, 5000)
+    return () => { mounted = false; clearInterval(interval) }
+  }, [code, isPreview, data?.channel_id])
 
   useEffect(() => {
     if (!code) return
@@ -566,9 +966,11 @@ export default function FireAdminPage() {
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: '📊' },
+    { id: 'timeline', label: 'Timeline', icon: '🕒' },
     { id: 'patients', label: 'Patient Log', icon: '📋' },
     { id: 'ics214', label: 'ICS 214s', icon: '📝' },
     { id: 'supply', label: 'Supply', icon: '🧰' },
+    { id: 'chat', label: 'Chat', icon: '🔥' },
   ]
 
   // eslint-disable-next-line react-hooks/purity
@@ -668,10 +1070,15 @@ export default function FireAdminPage() {
         <div className="flex flex-wrap items-center gap-2">
           {tabs.map(t => (
             <button key={t.id} onClick={() => handleTabChange(t.id)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`relative px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 tab === t.id ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
               }`}>
               {t.icon} {t.label}
+              {t.id === 'chat' && chatUnread > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 leading-none">
+                  {chatUnread > 99 ? '99+' : chatUnread}
+                </span>
+              )}
             </button>
           ))}
           <select value={dateFilter} onChange={e => setDateFilter(e.target.value as DateFilter)}
@@ -685,9 +1092,36 @@ export default function FireAdminPage() {
 
         {/* ── Tab content ── */}
         {tab === 'overview' && <OverviewTab data={data} filteredEncounters={applyDateFilter(data.encounters)} />}
+        {tab === 'timeline' && (
+          <TimelineTab
+            isExternal={!isPreview}
+            fetchFn={async ({ limit, before, types }) => {
+              const params = new URLSearchParams()
+              params.set('limit', String(limit))
+              if (before) params.set('before', before)
+              if (types?.length) params.set('types', types.join(','))
+              const baseUrl = isPreview
+                ? `/api/incident-access/timeline?incidentId=${encodeURIComponent(code)}&${params}`
+                : `/api/incident-access/timeline?code=${encodeURIComponent(code)}&${params}`
+              const headers: Record<string, string> = {}
+              if (isPreview) {
+                const { data: { session } } = await createClient().auth.getSession()
+                if (session?.access_token) headers['Authorization'] = `Bearer ${session.access_token}`
+              }
+              const res = await fetch(baseUrl, { headers })
+              return res.json()
+            }}
+          />
+        )}
         {tab === 'patients' && <PatientLogTab data={{ ...data, encounters: applyDateFilter(data.encounters) }} code={code} logEvent={logEvent} isPreview={isPreview} />}
         {tab === 'ics214' && <ICS214Tab data={data} code={code} logEvent={logEvent} isPreview={isPreview} />}
         {tab === 'supply' && <SupplyTab data={data} dateFilter={dateFilter} />}
+        {tab === 'chat' && !isPreview && <ChatTab code={code} channelId={data.channel_id ?? null} codeLabel={data.code_label} codeAvatarUrl={data.code_avatar_url} />}
+        {tab === 'chat' && isPreview && (
+          <div className="bg-gray-900 border border-gray-800 rounded-xl p-8 text-center">
+            <p className="text-gray-500 text-sm">Chat is not available in admin preview mode.</p>
+          </div>
+        )}
 
         {/* ── Footer ── */}
         <footer className="pt-4 border-t border-gray-800 text-center">

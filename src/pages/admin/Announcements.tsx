@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { LoadingSkeleton, EmptyState, ConfirmDialog } from '@/components/ui'
 import { authFetch } from '@/lib/authFetch'
+import { inputCls, labelCls } from '@/components/ui/FormField'
 
 // ── Push Notification constants ───────────────────────────────────────────────
 const PUSH_ROLES = ['EMT', 'Paramedic', 'RN', 'NP', 'PA', 'MD', 'DO', 'Tech']
@@ -56,9 +57,6 @@ function addDuration(value: string): string | null {
     // Symbols
     '➡️','⬆️','⬇️','🔁','⏰','📅','🕐','🗓️','🔒','🔓','⭐','🏆',
   ]
-
-const inputCls = 'w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500'
-const labelCls = 'block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1'
 
 export default function AnnouncementsPage() {
   const supabase = createClient()

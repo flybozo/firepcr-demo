@@ -5,7 +5,7 @@ import { authFetch } from '@/lib/authFetch'
 import { loadSingle } from '@/lib/offlineFirst'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { queryEmployee } from '@/lib/services/employees'
-import { useRole } from '@/lib/useRole'
+import { usePermission } from '@/hooks/usePermission'
 import { HeadshotSection } from './components/HeadshotSection'
 import { PersonalInfoForm } from './components/PersonalInfoForm'
 import { PushNotificationsSection } from './components/PushNotificationsSection'
@@ -18,9 +18,9 @@ import { AppearanceSection } from './components/AppearanceSection'
 export default function ProfilePage() {
   const assignment = useUserAssignment()
   const location = useLocation()
-  const { isField } = useRole()
+  const canCredentials = usePermission('roster.credentials')
   const isUnassigned = !assignment.loading && assignment.employee && !assignment.unit
-  const showUnassignedBanner = isField && isUnassigned
+  const showUnassignedBanner = !canCredentials && isUnassigned
 
   const [employee, setEmployee] = useState<any>(null)
   const [saving, setSaving] = useState(false)
@@ -133,7 +133,7 @@ export default function ProfilePage() {
           </div>
         )}
 
-        {isField && (
+        {!canCredentials && (
           <div className="mb-5">
             <Link
               to="/schedule/request"

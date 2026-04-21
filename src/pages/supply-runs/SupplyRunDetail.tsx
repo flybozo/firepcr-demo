@@ -8,6 +8,8 @@ import { LoadingSkeleton, EmptyState, ConfirmDialog } from '@/components/ui'
 import { Link } from 'react-router-dom'
 import { useParams } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
+import { inputCls, labelCls } from '@/components/ui/FormField'
+import { useBarcodeScan } from '@/hooks/useBarcodeScan'
 
 type SupplyRun = {
   id: string
@@ -52,9 +54,6 @@ type UnitInventoryRow = {
   upc?: string | null
 }
 
-const inputCls = 'w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500'
-const labelCls = 'block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1'
-
 const CAT_COLORS: Record<string, string> = {
   CS: 'bg-orange-900 text-orange-300',
   Rx: 'bg-blue-900 text-blue-300',
@@ -92,13 +91,6 @@ export default function SupplyRunDetailPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [editingQtyId, setEditingQtyId] = useState<string | null>(null)
   const [editingQtyValue, setEditingQtyValue] = useState<string>('')
-
-  // Barcode scanning
-  const [scanMode, setScanMode] = useState(false)
-  const [barcodeInput, setBarcodeInput] = useState('')
-  const [scanMessage, setScanMessage] = useState<{ text: string; type: 'success' | 'warn' | 'error' } | null>(null)
-  const [scanning, setScanning] = useState(false)
-  const barcodeRef = useRef<HTMLInputElement>(null)
 
   const [newItem, setNewItem] = useState({
     item_name: '',
@@ -188,111 +180,23 @@ export default function SupplyRunDetailPage() {
 
   useEffect(() => { loadData() }, [loadData])
 
-  // Keep barcode input focused when scan mode is active
-  useEffect(() => {
-    if (scanMode) {
-      const t = setTimeout(() => barcodeRef.current?.focus(), 50)
-      return () => clearTimeout(t)
-    }
-  }, [scanMode])
+  const {
+    scanMode, setScanMode, barcodeInput, setBarcodeInput,
+    scanMessage, scanning, barcodeRef, handleBarcodeScan,
+  } = useBarcodeScan({
+    supplyRunId: id,
+    run,
+    items,
+    formulary,
+    onScanComplete: loadData,
+    onRunUpdate: setRun,
+    supabase,
+  })
 
   const setNew = (field: string, value: string) => {
     setNewItem(prev => ({ ...prev, [field]: value }))
   }
 
-  // ── Barcode scan handler ──────────────────────────────────────────────────
-
-  const handleBarcodeScan = async (rawCode: string) => {
-    if (!rawCode.trim() || scanning) return
-    const code = rawCode.trim()
-    setScanning(true)
-    setBarcodeInput('')
-
-    const incidentUnitId = run?.incident_unit_id
-    let added = false
-
-    try {
-      // 1. Search unit_inventory for this incident_unit
-      if (incidentUnitId) {
-        const { data: invRows } = await supabase
-          .from('unit_inventory')
-          .select('id, item_name, quantity, barcode, upc')
-          .eq('incident_unit_id', incidentUnitId)
-
-        const match = (invRows as UnitInventoryRow[] | null)?.find(
-          row => row.barcode === code || row.upc === code
-        )
-
-        if (match) {
-          // Add supply_run_item
-          const { error: itemErr } = await supabase.from('supply_run_items').insert({
-            supply_run_id: id,
-            item_name: match.item_name,
-            category: 'Supply',
-            quantity: 1,
-            barcode: code,
-          })
-          if (itemErr) throw new Error(itemErr.message)
-
-          // Subtract from unit_inventory
-          const newQty = Math.max(0, (match.quantity || 0) - 1)
-          await supabase.from('unit_inventory').update({ quantity: newQty }).eq('id', match.id)
-
-          // Update supply_run totals
-          const newCount = items.length + 1
-          await supabase.from('supply_runs').update({ item_count: newCount }).eq('id', id)
-
-          setScanMessage({ text: `✓ Added: ${match.item_name}`, type: 'success' })
-          added = true
-          await loadData()
-        }
-      }
-
-      if (!added) {
-        // 2. Search formulary_templates
-        const formularyMatch = formulary.find(
-          f => f.barcode === code || f.upc === code
-        )
-
-        if (formularyMatch) {
-          const { error: itemErr } = await supabase.from('supply_run_items').insert({
-            supply_run_id: id,
-            item_name: formularyMatch.item_name,
-            category: formularyMatch.category || 'Supply',
-            quantity: 1,
-            barcode: code,
-          })
-          if (itemErr) throw new Error(itemErr.message)
-
-          const newCount = items.length + 1
-          await supabase.from('supply_runs').update({ item_count: newCount }).eq('id', id)
-
-          setScanMessage({ text: `✓ Added from formulary: ${formularyMatch.item_name}`, type: 'success' })
-          added = true
-          await loadData()
-        }
-      }
-
-      if (!added) {
-        // 3. Unknown barcode — append to raw_barcodes
-        const existing = run?.raw_barcodes || []
-        const updated = [...existing, code]
-        await supabase.from('supply_runs').update({ raw_barcodes: updated }).eq('id', id)
-        setScanMessage({ text: `Unknown barcode: ${code}`, type: 'warn' })
-        // Update local run state
-        setRun(prev => prev ? { ...prev, raw_barcodes: updated } : prev)
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Scan error'
-      setScanMessage({ text: `Error: ${msg}`, type: 'error' })
-    }
-
-    setScanning(false)
-    // Clear message after 3s
-    setTimeout(() => setScanMessage(null), 3000)
-    // Re-focus
-    setTimeout(() => barcodeRef.current?.focus(), 50)
-  }
 
   // ── Manual add item ───────────────────────────────────────────────────────
 

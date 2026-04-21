@@ -1,6 +1,6 @@
 
 import { FieldGuard } from '@/components/FieldGuard'
-import { useRole } from '@/lib/useRole'
+import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 
 import { useEffect, useState, useMemo } from 'react'
@@ -37,7 +37,8 @@ const PAGE_SIZE = 50
 
 function InventoryPageInner() {
   const supabase = createClient()
-  const { isField, loading: roleLoading } = useRole()
+  const roleLoading = usePermissionLoading()
+  const isField = !usePermission('inventory.view')
   const assignment = useUserAssignment()
   const detailMatch = useMatch('/inventory/:id')
   const [items, setItems] = useState<InventoryItem[]>([])

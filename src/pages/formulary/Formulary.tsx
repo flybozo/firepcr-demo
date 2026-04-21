@@ -1,5 +1,5 @@
 import { FieldGuard } from '@/components/FieldGuard'
-import { useRole } from '@/lib/useRole'
+import { usePermission } from '@/hooks/usePermission'
 
 import { useEffect, useState } from 'react'
 import { toast } from '@/lib/toast'
@@ -37,7 +37,7 @@ const SELECT_FIELDS = 'id, item_name, category, unit_of_measure, supplier, units
 
 function FormularyPageInner() {
   const supabase = createClient()
-  const { isAdmin } = useRole()
+  const isAdmin = usePermission('admin.settings')
   const [activeTab, setActiveTab] = useState('Ambulance')
   const [items, setItems] = useState<FormulaItem[]>([])
   const [unitTypes, setUnitTypes] = useState<Record<string, string>>({})

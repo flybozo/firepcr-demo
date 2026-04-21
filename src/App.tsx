@@ -115,6 +115,7 @@ const Financial = lazy(() => import('@/pages/admin/Financial'))
 const FireDashboard = lazy(() => import('@/pages/admin/FireDashboard'))
 const FireAdminDashboard = lazy(() => import('@/pages/fire-admin/FireAdminDashboard'))
 const PushNotifications = lazy(() => import('@/pages/admin/PushNotifications'))
+const RoleManagement = lazy(() => import('@/pages/admin/RoleManagement'))
 
 // Shared loading fallback
 function PageLoader() {
@@ -253,6 +254,7 @@ function App() {
               <Route path="admin/company" element={<Company />} />
               <Route path="admin/fire-dashboard" element={<FireDashboard />} />
               <Route path="admin/financial" element={<Financial />} />
+              <Route path="admin/roles" element={<RoleManagement />} />
             </Route>
 
             {/* Catch-all */}

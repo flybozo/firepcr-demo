@@ -44,6 +44,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const supabase = createServiceClient()
       let incidentId: string
       let codeLabel: string | null = null
+      let codeAvatarUrl: string | null = null
+      let externalChannelId: string | null = null
 
       if (directIncidentId) {
         // Authenticated internal access — require logged-in employee
@@ -60,7 +62,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
         incidentId = codeRow.incident_id
         codeLabel = codeRow.label
+        codeAvatarUrl = codeRow.avatar_url || null
+
+        // Look up external chat channel linked to this access code
+        const { data: extChannel } = await supabase
+          .from('chat_channels')
+          .select('id')
+          .eq('access_code_id', codeRow.id)
+          .eq('type', 'external')
+          .single()
+        externalChannelId = extChannel?.id || null
       }
+
       const [incR, orgR, encR, iuR, compR, ics214R, amaR, medDirectorsR] = await Promise.all([
         supabase.from('incidents').select('id, name, status, location, start_date, end_date, incident_number, agreement_number, resource_order_number, financial_code').eq('id', incidentId).single(),
         supabase.from('organizations').select('name, dba, logo_url').limit(1).single(),
@@ -149,7 +162,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       return res.json({
         incident: incR.data, org: orgR.data || null,
-        stats: { total_patients: encounters.length, total_encounters: encounters.length, units_deployed: (iuR.data || []).length, unique_units: [...new Set(encounters.map((e: any) => e.unit).filter(Boolean))], comp_claims_count: (compR.data || []).length, ics214_count: (ics214R.data || []).length, supply_runs_count: runIds.length },
+        stats: { total_patients: encounters.length, total_encounters: encounters.length, units_deployed: (iuR.data || []).filter((iu: any) => !iu.released_at).length, unique_units: [...new Set((iuR.data || []).map((iu: any) => iu.unit?.name).filter(Boolean))], comp_claims_count: (compR.data || []).length, ics214_count: (ics214R.data || []).length, supply_runs_count: runIds.length },
         encounters,
         encountersByDay: Object.entries(dailyCounts).sort(([a], [b]) => a.localeCompare(b)).map(([date, count]) => ({ date, count })),
         analytics: {
@@ -189,6 +202,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           })),
         })),
         code_label: codeLabel,
+        code_avatar_url: codeAvatarUrl,
+        channel_id: externalChannelId,
       })
     }
 
@@ -207,7 +222,53 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
       const { data, error } = await supabase.from('incident_access_codes').insert({ incident_id, access_code: code, label: label || null, created_by: employee.name, active: true, expires_at: expires_at || null }).select().single()
       if (error) return res.status(500).json({ error: error.message })
-      return res.status(201).json({ code: data })
+
+      // Create external chat channel for this access code
+      let channelId: string | null = null
+      try {
+        const { data: incident } = await supabase.from('incidents').select('name').eq('id', incident_id).single()
+        const channelName = `🔥 ${incident?.name || 'Incident'} — ${data.label || 'External'}`
+        const { data: channel } = await supabase
+          .from('chat_channels')
+          .insert({ type: 'external', name: channelName, incident_id, access_code_id: data.id, created_by: employee.id })
+          .select('id')
+          .single()
+        if (channel) {
+          channelId = channel.id
+          // Add all currently-assigned crew as chat members
+          const { data: incUnits } = await supabase
+            .from('incident_units')
+            .select('unit_assignments(employee_id)')
+            .eq('incident_id', incident_id)
+            .is('released_at', null)
+          const employeeIds = new Set<string>()
+          for (const iu of incUnits || []) {
+            const assignments = (iu as { unit_assignments: { employee_id: string }[] | null }).unit_assignments
+            for (const ua of assignments || []) {
+              if (ua.employee_id) employeeIds.add(ua.employee_id)
+            }
+          }
+          // Also add all active medical directors so they can participate in external chat
+          const { data: medDirs } = await supabase
+            .from('employees')
+            .select('id')
+            .eq('is_medical_director', true)
+            .eq('status', 'Active')
+          for (const md of medDirs || []) {
+            employeeIds.add(md.id)
+          }
+
+          if (employeeIds.size > 0) {
+            await supabase.from('chat_members').insert(
+              [...employeeIds].map((employee_id) => ({ channel_id: channel.id, employee_id, role: 'member' }))
+            )
+          }
+        }
+      } catch (e) {
+        console.warn('[incident-access] failed to create external channel:', e)
+      }
+
+      return res.status(201).json({ code: data, channel_id: channelId })
     }
 
     if (req.method === 'PATCH') {
@@ -220,6 +281,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       if (Object.keys(updates).length === 0) return res.status(400).json({ error: 'Nothing to update' })
       const { data, error } = await supabase.from('incident_access_codes').update(updates).eq('id', code_id).select().single()
       if (error) return res.status(500).json({ error: error.message })
+      // Auto-archive associated external chat channel when code is deactivated
+      if (active === false) {
+        await supabase
+          .from('chat_channels')
+          .update({ archived_at: new Date().toISOString() })
+          .eq('access_code_id', code_id)
+          .eq('type', 'external')
+      }
       return res.json({ code: data })
     }
 
@@ -228,6 +297,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const code_id = (req.query['code_id'] as string) || (req.body as any)?.code_id
       if (!code_id) return res.status(400).json({ error: 'code_id required' })
       const { supabase } = await requireEmployee(req, { admin: true })
+      // Auto-archive associated external chat channel before deletion
+      await supabase
+        .from('chat_channels')
+        .update({ archived_at: new Date().toISOString() })
+        .eq('access_code_id', code_id)
+        .eq('type', 'external')
       const { error } = await supabase.from('incident_access_codes').delete().eq('id', code_id)
       if (error) return res.status(500).json({ error: error.message })
       return res.status(200).json({ ok: true })

@@ -7,7 +7,7 @@ import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-ki
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useParams, useNavigate } from 'react-router-dom'
-import { useRole } from '@/lib/useRole'
+import { usePermission } from '@/hooks/usePermission'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useNEMSISWarnings } from '@/hooks/useNEMSISWarnings'
 import PinSignature from '@/components/PinSignature'
@@ -42,7 +42,7 @@ export default function EncounterDetailPage() {
   const params = useParams()
   const navigate = useNavigate()
   const id = params.id as string
-  const { isAdmin } = useRole()
+  const canEdit = usePermission('encounters.edit')
   const currentUser = useUserAssignment()
 
   const {
@@ -151,7 +151,7 @@ export default function EncounterDetailPage() {
   const isDraft = !enc.pcr_status || enc.pcr_status === 'Draft'
   const isCreator = currentUser.employee?.name === enc.created_by ||
     (currentUser.employee?.id && enc.created_by_employee_id === currentUser.employee.id)
-  const canDeleteDraft = isDraft && !isSigned && (isAdmin || isCreator)
+  const canDeleteDraft = isDraft && !isSigned && isCreator
   const canMedicate = !['EMT', 'Tech'].includes(currentUser.employee?.role || '')
 
   const SectionBadge = ({ section }: { section: string }) => {
@@ -195,14 +195,20 @@ export default function EncounterDetailPage() {
                 🗑️ Delete
               </button>
             )}
-            {!isSigned && <Link to={`/encounters/${enc.id}/edit`} className="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors">Edit</Link>}
-            {(!enc.pcr_status || enc.pcr_status === 'Draft') ? (
+            {canEdit && !isSigned && <Link to={`/encounters/${enc.id}/edit`} className="px-3 py-1 text-xs bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors">Edit</Link>}
+            {isCreator && (!enc.pcr_status || enc.pcr_status === 'Draft') && (
               <button onClick={async () => { setActionLoading(true); await markComplete(nemsisErrorCountRef.current, nemsisErrorsRef.current); setActionLoading(false) }} disabled={actionLoading}
                 className="px-3 py-1 text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg font-semibold">Mark Complete</button>
-            ) : enc.pcr_status === 'Complete' ? (
+            )}
+            {isCreator && enc.pcr_status === 'Complete' && (
               <button onClick={() => setShowSignModal(true)} disabled={actionLoading}
                 className="px-3 py-1 text-xs bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg font-semibold">🔐 Sign & Lock</button>
-            ) : null}
+            )}
+            {!isCreator && !isSigned && (
+              <span className="text-xs text-amber-400 bg-amber-900/30 px-3 py-1 rounded-lg">
+                📋 Created by {enc.created_by || 'unknown'} — pending review
+              </span>
+            )}
           </div>
         </div>
 
@@ -287,7 +293,7 @@ export default function EncounterDetailPage() {
                   case 'forms':
                     return <DraggableSection key="forms" id="forms" colSpan={span} onCycleSpan={cycleFn}><FormsSection enc={enc} isLocked={isLocked} consentForms={consentForms} compClaims={compClaims} formPdfUrls={formPdfUrls} /></DraggableSection>
                   case 'notes':
-                    return <DraggableSection key="notes" id="notes" colSpan={span} onCycleSpan={cycleFn}><ProgressNotesSection enc={enc} currentUser={currentUser} isAdmin={isAdmin} isSigned={isSigned} progressNotes={progressNotes} setProgressNotes={setProgressNotes} /></DraggableSection>
+                    return <DraggableSection key="notes" id="notes" colSpan={span} onCycleSpan={cycleFn}><ProgressNotesSection enc={enc} currentUser={currentUser} isAdmin={canEdit} isSigned={isSigned} progressNotes={progressNotes} setProgressNotes={setProgressNotes} /></DraggableSection>
                   default: return null
                 }
               })}

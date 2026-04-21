@@ -6,7 +6,7 @@ import { Link, useNavigate, useMatch } from 'react-router-dom'
 
 const DocThumbnail = React.lazy(() => import('@/components/DocThumbnail'))
 import { useUserAssignment } from '@/lib/useUserAssignment'
-import { useRole } from '@/lib/useRole'
+import { usePermission } from '@/hooks/usePermission'
 import { PageHeader, LoadingSkeleton, EmptyState, ConfirmDialog } from '@/components/ui'
 
 type Doc = {
@@ -34,7 +34,7 @@ const CAT_COLORS: Record<string, string> = {
 export default function DocumentsPage() {
   const supabase = createClient()
   const assignment = useUserAssignment()
-  const { isAdmin } = useRole()
+  const isAdmin = usePermission('admin.documents')
   const navigate = useNavigate()
   const detailMatch = useMatch('/documents/:id')
   const [docs, setDocs] = useState<Doc[]>([])

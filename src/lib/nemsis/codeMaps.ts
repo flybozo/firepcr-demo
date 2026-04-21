@@ -537,3 +537,5 @@ export const UNIT_DISPOSITION_MAP: Record<string, string> = {
   'Non-Patient Incident (Not Otherwise Listed)':   '4227011',
 }
 
+export { INDUSTRY_MAP, OCCUPATION_MAP } from './occupationData.js';
+

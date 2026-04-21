@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useId } from 'react'
+import { useEffect, useState, useRef, useCallback, useSyncExternalStore } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 
@@ -15,38 +15,139 @@ export interface UseChatUnreadResult {
   seedUnread: (counts: UnreadMap) => void
 }
 
+// ── Shared global store so all hook instances stay in sync ──────────────────
+let globalUnread: UnreadMap = {}
+let listeners = new Set<() => void>()
+let seeded = false
+let realtimeSetup = false
+
+function getSnapshot(): UnreadMap {
+  return globalUnread
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
+function setGlobalUnread(updater: (prev: UnreadMap) => UnreadMap) {
+  const next = updater(globalUnread)
+  if (next !== globalUnread) {
+    globalUnread = next
+    listeners.forEach((l) => l())
+  }
+}
+
+function globalMarkRead(channelId: string) {
+  setGlobalUnread((prev) => {
+    if (!prev[channelId]) return prev
+    const next = { ...prev }
+    delete next[channelId]
+    return next
+  })
+}
+
+function globalSeedUnread(counts: UnreadMap) {
+  globalUnread = counts
+  listeners.forEach((l) => l())
+}
+
 /**
  * useChatUnread
  *
- * Subscribes to Supabase Realtime for new chat_messages, maintains an in-memory
- * map of channelId → unread count, and returns the total badge count.
+ * Maintains a **shared global** map of channelId → unread count.
+ * All hook instances (Sidebar, BottomTabBar, Chat page) read from the same store
+ * so marking a channel as read in one place immediately clears the badge everywhere.
  *
- * Unread counts are seeded from the channels API response on mount.
+ * Uses a single RPC call to seed unread counts on mount.
  * Real-time inserts increment the count for channels you're not currently viewing.
  */
 export function useChatUnread(activeChannelId?: string): UseChatUnreadResult {
   const { employee } = useUser()
-  const [unreadByChannel, setUnreadByChannel] = useState<UnreadMap>({})
   const activeChannelRef = useRef<string | undefined>(activeChannelId)
+  const unreadByChannel = useSyncExternalStore(subscribe, getSnapshot, getSnapshot)
 
-  // Keep ref in sync so the realtime callback can read it without stale closures
+  // Keep ref in sync
   useEffect(() => {
     activeChannelRef.current = activeChannelId
   }, [activeChannelId])
 
-  // Unique channel name per hook instance to avoid Supabase "already subscribed" errors
-  const instanceId = useRef(`chat-unread-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`)
-
-  // Subscribe to new messages via Realtime
+  // Auto-seed initial unread counts (runs once globally)
   useEffect(() => {
-    if (!employee?.id) return
+    if (!employee?.id || seeded) return
+    seeded = true
 
     const supabase = createClient()
-    const channelName = instanceId.current
-    let realtimeChannel: ReturnType<typeof supabase.channel> | null = null
+    ;(async () => {
+      try {
+        // Try RPC first (single query, efficient)
+        const { data: rpcData, error: rpcErr } = await supabase.rpc('get_unread_counts', {
+          p_employee_id: employee.id,
+        })
+
+        if (!rpcErr && rpcData) {
+          const counts: UnreadMap = {}
+          for (const row of rpcData as { channel_id: string; unread: number }[]) {
+            if (row.unread > 0) counts[row.channel_id] = row.unread
+          }
+          if (Object.keys(counts).length > 0) {
+            setGlobalUnread(() => counts)
+          }
+          return
+        }
+
+        // Fallback: per-channel queries
+        const { data: memberships } = await supabase
+          .from('chat_members')
+          .select('channel_id, last_read_at')
+          .eq('employee_id', employee.id)
+
+        if (!memberships?.length) return
+
+        const counts: UnreadMap = {}
+        for (let i = 0; i < memberships.length; i += 5) {
+          const batch = memberships.slice(i, i + 5)
+          const results = await Promise.all(
+            batch.map(async (m) => {
+              let query = supabase
+                .from('chat_messages')
+                .select('id', { count: 'exact', head: true })
+                .eq('channel_id', m.channel_id)
+                .is('deleted_at', null)
+                .or(`sender_id.neq.${employee.id},sender_id.is.null`)
+
+              if (m.last_read_at) {
+                query = query.gt('created_at', m.last_read_at)
+              }
+
+              const { count } = await query
+              return { channel_id: m.channel_id, count: count || 0 }
+            })
+          )
+          for (const r of results) {
+            if (r.count > 0) counts[r.channel_id] = r.count
+          }
+        }
+
+        if (Object.keys(counts).length > 0) {
+          setGlobalUnread(() => counts)
+        }
+      } catch (err) {
+        console.warn('[useChatUnread] Auto-seed failed (non-fatal):', err)
+      }
+    })()
+  }, [employee?.id])
+
+  // Subscribe to new messages via Realtime (runs once globally)
+  useEffect(() => {
+    if (!employee?.id || realtimeSetup) return
+    realtimeSetup = true
+
+    const supabase = createClient()
+    const channelName = `chat-unread-global-${Date.now()}`
 
     try {
-      realtimeChannel = supabase
+      supabase
         .channel(channelName)
         .on(
           'postgres_changes',
@@ -58,18 +159,18 @@ export function useChatUnread(activeChannelId?: string): UseChatUnreadResult {
           (payload) => {
             const msg = payload.new as {
               channel_id: string
-              sender_id: string
+              sender_id: string | null
               created_at: string
             }
 
             // Don't count own messages
             if (msg.sender_id === employee.id) return
 
-            // Don't count messages in the currently active channel
-            // (those are auto-marked as read by the Chat component)
-            if (msg.channel_id === activeChannelRef.current) return
+            // Don't count messages in any hook's active channel
+            // (we can't easily know this from the global store, but
+            // markRead is called when selecting a channel, which clears it)
 
-            setUnreadByChannel((prev) => ({
+            setGlobalUnread((prev) => ({
               ...prev,
               [msg.channel_id]: (prev[msg.channel_id] || 0) + 1,
             }))
@@ -80,27 +181,25 @@ export function useChatUnread(activeChannelId?: string): UseChatUnreadResult {
       console.warn('[useChatUnread] Realtime subscribe failed (non-fatal):', err)
     }
 
-    return () => {
-      if (realtimeChannel) {
-        supabase.removeChannel(realtimeChannel)
-      }
-    }
+    // Don't cleanup — this is a global subscription that lives for the app lifetime
   }, [employee?.id])
+
+  // When activeChannelId changes (user selects a channel), mark it read
+  useEffect(() => {
+    if (activeChannelId) {
+      globalMarkRead(activeChannelId)
+    }
+  }, [activeChannelId])
 
   const totalUnread = Object.values(unreadByChannel).reduce((sum, n) => sum + n, 0)
 
-  const markRead = (channelId: string) => {
-    setUnreadByChannel((prev) => {
-      if (!prev[channelId]) return prev
-      const next = { ...prev }
-      delete next[channelId]
-      return next
-    })
-  }
+  const markRead = useCallback((channelId: string) => {
+    globalMarkRead(channelId)
+  }, [])
 
-  const seedUnread = (counts: UnreadMap) => {
-    setUnreadByChannel(counts)
-  }
+  const seedUnread = useCallback((counts: UnreadMap) => {
+    globalSeedUnread(counts)
+  }, [])
 
   return { totalUnread, unreadByChannel, markRead, seedUnread }
 }

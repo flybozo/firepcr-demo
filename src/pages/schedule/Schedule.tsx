@@ -7,7 +7,8 @@ import { createClient } from '@/lib/supabase/client'
 import { LoadingSkeleton, ConfirmDialog } from '@/components/ui'
 import { getIsOnline } from '@/lib/syncManager'
 import { useUserAssignment } from '@/lib/useUserAssignment'
-import { useRole } from '@/lib/useRole'
+import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
+import { inputCls, labelCls } from '@/components/ui/FormField'
 
 type DeploymentRecord = {
   id: string
@@ -146,9 +147,6 @@ type Request = {
   employee?: { name: string; role: string }
 }
 
-const inputCls = 'w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500'
-const labelCls = 'block text-xs font-bold uppercase tracking-wide text-gray-400 mb-1'
-
 function statusBadge(status: string) {
   if (status === 'approved') return <span className="px-2 py-0.5 rounded text-xs font-semibold bg-green-900 text-green-300">✅ Approved</span>
   if (status === 'denied') return <span className="px-2 py-0.5 rounded text-xs font-semibold bg-red-900 text-red-300">❌ Denied</span>
@@ -172,7 +170,8 @@ function dayCount(start: string, end: string) {
 export default function SchedulePage() {
   const supabase = createClient()
   const assignment = useUserAssignment()
-  const { isAdmin, loading: roleLoading } = useRole()
+  const isAdmin = usePermission('schedule.manage')
+  const roleLoading = usePermissionLoading()
 
   const [activeTab, setActiveTab] = useState<'requests' | 'unit_calendar'>('requests')
   const [requests, setRequests] = useState<Request[]>([])

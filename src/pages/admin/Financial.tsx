@@ -5,20 +5,7 @@ import {
   ResponsiveContainer, BarChart, Bar,
   XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts'
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function fmtCurrency(n: number) {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
-}
-
-function calcDays(startDate: string, endDate: string | null): number {
-  const start = new Date(startDate)
-  const end = endDate ? new Date(endDate) : new Date()
-  const startMs = Date.UTC(start.getFullYear(), start.getMonth(), start.getDate())
-  const endMs = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate())
-  return Math.max(1, Math.floor((endMs - startMs) / 86400000) + 1)
-}
+import { fmtCurrency, calcDays } from '@/utils/incidentFormatters'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

@@ -2,8 +2,8 @@
 
 **App:** https://ram-field-ops.vercel.app (staging)  
 **Repo:** https://github.com/flybozo/ram-field-ops  
-**Last updated:** 2026-04-20 10:32 PDT  
-**Current version:** v1.14.0
+**Last updated:** 2026-04-20 15:41 PDT  
+**Current version:** v1.16.0
 
 ---
 
@@ -25,6 +25,13 @@ RAM Field Ops (branded **FirePCR**) is a Progressive Web App for Remote Area Med
 - Transactional email via Resend
 - Analytics and incident dashboards
 - Fire admin dashboard (external access via access codes)
+- External chat (fire agency liaisons ↔ RAM units via access codes)
+- Granular RBAC with role-based permissions
+- Channel archiving with auto-archive on access code deactivation
+- Photo sharing in external chat
+- External user avatar uploads
+- Patients-by-agency analytics with agency logo charts
+- Encounter ownership restrictions (creator-only delete/complete/sign)
 
 ---
 
@@ -79,7 +86,14 @@ ram-field-ops/
 │   │   ├── messages.ts           # Send/get/delete messages + push notifications
 │   │   ├── read.ts               # Mark channel as read
 │   │   ├── members.ts            # List/add channel members
-│   │   └── upload.ts             # File upload metadata
+│   │   ├── upload.ts             # File upload metadata
+│   │   └── archive.ts            # Channel archive/unarchive endpoint
+│   ├── incident-access/          # Fire admin dashboard (external access)
+│   │   ├── index.ts              # Access code auth + dashboard data
+│   │   ├── chat.ts               # External chat (GET/POST messages)
+│   │   ├── download.ts           # Signed URL generation for PDFs
+│   │   ├── log.ts                # Access log
+│   │   └── avatar.ts             # External user avatar upload → chat-files bucket
 │   ├── employee-chat.ts          # Employee ↔ AI chat relay
 │   └── health.ts                 # Health check
 ├── public/
@@ -87,6 +101,8 @@ ram-field-ops/
 ├── src/
 │   ├── App.tsx                   # Route definitions (70+ lazy-loaded routes)
 │   ├── components/               # Shared UI components
+│   │   ├── charts/
+│   │   │   └── AgencyBarChart.tsx # Reusable agency bar chart with logos on bars (Recharts)
 │   │   ├── ui/                   # Shared primitives (barrel: ui/index.ts)
 │   │   │   ├── StatCard.tsx      # Metric display (big number + label)
 │   │   │   ├── EmptyState.tsx    # No-data display (icon + message + CTA)
@@ -116,15 +132,31 @@ ram-field-ops/
 │   │   ├── ChatBubble.tsx        # AI assistant bubble (draggable)
 │   │   ├── UpdateBanner.tsx      # New version detection + reload prompt
 │   │   └── SplitShell.tsx        # Desktop split-pane layout
+│   │   ├── BadgePopover.tsx       # Shared badge detail popover
+│   │   ├── encounters/
+│   │   │   └── VitalsSection.tsx  # Shared vitals input section
+│   │   └── AgencyLogo.tsx         # Agency logo with PNG/SVG + emoji fallback
 │   ├── contexts/
-│   │   └── UserContext.tsx        # Single user identity fetch (shared)
+│   │   ├── UserContext.tsx         # Single user identity fetch (shared)
+│   │   └── PermissionProvider.tsx  # RBAC permission context (fetches + caches)
 │   ├── constants/
-│   │   └── nemsis.ts             # 33 NEMSIS option arrays (shared by encounters + PCR)
+│   │   └── nemsis.ts              # 33 NEMSIS option arrays (shared by encounters + PCR)
+│   ├── data/
+│   │   └── clinicalOptions.ts     # Shared dropdown arrays (complaints, acuity, etc.)
 │   ├── types/
-│   │   └── chat.ts               # Chat message/channel/sender types
+│   │   └── chat.ts                # Chat message/channel/sender types (incl. external)
 │   ├── hooks/
-│   │   ├── useChatMessages.ts    # Chat Realtime + polling + dedup + CRUD (248 lines)
-│   │   └── useNEMSISWarnings.ts  # Real-time NEMSIS field validation
+│   │   ├── usePermission.ts       # RBAC permission checking (single, all, any)
+│   │   ├── useChatMessages.ts     # Chat Realtime + polling + dedup + CRUD
+│   │   ├── useChatUnread.ts       # Chat unread badge counts (auto-seed + Realtime)
+│   │   ├── useBarcodeScan.ts      # Barcode scanner for supply runs
+│   │   ├── useSpeechRecognition.ts # Speech-to-text for AI chat
+│   │   ├── useDraggablePosition.ts # Draggable position persistence
+│   │   └── useNEMSISWarnings.ts   # Real-time NEMSIS field validation
+│   ├── pages/
+│   │   └── ics214/
+│   │       ├── useICS214DataLoad.ts  # Data loading hook (units, incidents, crew)
+│   │       └── useICS214Form.ts      # Form state + handlers hook
 │   ├── utils/
 │   │   └── chatHelpers.ts        # Time formatters, normalizers, channel icons
 │   ├── lib/
@@ -151,8 +183,13 @@ ram-field-ops/
 │   │   ├── generateConsentPdf.ts # Consent to Treat PDF builder
 │   │   ├── generateAMApdf.ts     # AMA/Refusal PDF builder
 │   │   └── nemsis/
-│   │       ├── buildPcrXml.ts    # NEMSIS 3.5.1 XML builder
-│   │       └── codeMaps.ts       # NEMSIS code translations
+│   │       ├── buildPcrXml.ts    # NEMSIS 3.5.1 XML builder (main assembler)
+│   │       ├── vitalsBuilder.ts  # buildVitalsBlock() — vital signs XML block
+│   │       ├── codeMaps.ts       # NEMSIS code translations
+│   │       ├── occupationData.ts # INDUSTRY_MAP + OCCUPATION_MAP (eSituation.15/16)
+│   │       ├── nemsisUtils.ts    # mapVal(), gcsNum() — shared lookup utilities
+│   │       ├── xmlHelpers.ts     # xmlEsc, nilEl, optEl, valEl — XML element builders
+│   │       └── nemsisDateUtils.ts# fmtDatetime, fmtDate — NEMSIS date formatters
 │   └── pages/                    # Route pages (lazy-loaded)
 │       ├── encounters/           # PCR charting (SOAP narrative)
 │       ├── mar/                  # Medication admin records (void + reversal)
@@ -169,6 +206,14 @@ ram-field-ops/
 │       ├── fire-admin/           # External fire admin dashboard
 │       └── ...
 ├── supabase/migrations/          # SQL migration files
+│   ├── 20260420_rbac_foundation.sql           # RBAC tables + seed + get_my_permissions() RPC
+│   ├── 20260420_add_is_owner_flag.sql         # is_owner column on employees
+│   ├── 20260420_external_chat.sql             # External channel type, nullable sender, access_code_id
+│   ├── 20260420_unread_counts_rpc.sql         # get_unread_counts(p_employee_id) RPC
+│   ├── 20260420_access_code_avatar.sql        # avatar_url on incident_access_codes
+│   └── 20260420_fix_access_code_fk_cascade.sql # FK CASCADE/SET NULL for access code delete
+├── migrations/
+│   └── add_archived_at_to_chat_channels.sql   # archived_at column on chat_channels
 └── ARCHITECTURE.md               # This file
 ```
 
@@ -269,29 +314,105 @@ All controlled substance movements are logged in `cs_transactions`:
 
 | Table | Purpose |
 |-------|---------|
-| `employees` | Master roster (app_role: admin/field, is_medical_director flag) |
+| `employees` | Master roster (app_role, is_medical_director — legacy; use RBAC roles; `npi_number` for providers) |
 | `employees_sync` | PII-stripped view for client sync |
 | `employee_credentials` | Credential documents |
 | `employee_chats` | Employee ↔ AI chat |
-| `chat_channels` | Team chat channels (company/incident/unit/direct) |
+| `chat_channels` | Chat channels (company/incident/unit/direct/external); `archived_at` for archiving; `access_code_id` FK |
 | `chat_members` | Channel membership + last_read_at |
-| `chat_messages` | Team chat messages (text/image/file/system) |
+| `chat_messages` | Chat messages (text/image/file/system; nullable sender for external; `external_sender_name`, `access_code_id`) |
+| `incident_access_codes` | External access codes; `avatar_url` for external user headshots |
 | `organizations` | Multi-org support (branding) |
+
+**New RPCs (2026-04-20)**
+
+| RPC | Purpose |
+|-----|--------|
+| `get_my_permissions()` | Returns all effective permissions for the authenticated employee (roles + overrides) |
+| `get_unread_counts(p_employee_id)` | Returns per-channel unread counts in a single query (replaces N+1 polling) |
+
+### RBAC (Role-Based Access Control)
+
+| Table | Purpose |
+|-------|--------|
+| `roles` | Permission role definitions (8 built-in + custom) |
+| `employee_roles` | Employee ↔ Role assignments (many-to-many) |
+| `employee_permission_overrides` | Per-employee grant/revoke overrides |
 
 ---
 
-## 6. Role System
+## 6. Role & Permission System
 
+### Legacy (being phased out)
 | Role | app_role | Access |
 |------|----------|--------|
-| **Admin** | `admin` | Full access — all units, incidents, employees, settings, push notifications |
+| **Admin** | `admin` | Full access |
 | **Field** | `field` | Scoped to assigned unit + incident only |
+
+### RBAC (Active — Phase 6)
+
+Granular permission-based access control. Roles are named bundles of permissions.
+
+| Role | Key Permissions | Members |
+|------|----------------|--------|
+| **Super Admin** | `*` (all) | Aaron, Rodney, Rob |
+| **Operations Manager** | incidents.*, units.*, roster.manage, schedule.*, cs.* | Zach, Ben, Chaz, Jenn |
+| **Medical Director** | encounters.*, mar.*, cs.audit, admin.analytics — **grants admin app access** | (assigned via roles page) |
+| **Charge Medic** | encounters.*, mar.*, cs.count/transfer, inventory.*, ics214.* | Unit leaders |
+| **Field Medic** | encounters.view/create/edit, mar.view/create, cs.view/count | Standard field crew |
+| **REMS Lead** | Same as Charge Medic + units.crew | Rope rescue leads |
+| **Finance** | payroll.*, billing.*, expenses.*, admin.analytics | Bookkeepers |
+| **Read Only** | *.view permissions only | Observers, auditors |
+
+**Permission format:** `domain.action` (e.g., `encounters.edit`, `cs.transfer`, `admin.push`)
+**Wildcards:** `*` (all), `domain.*` (all actions in domain), `*.view` (all view permissions)
+
+**Frontend hook:** `usePermission('cs.audit')` / `useAnyPermission('admin.settings', 'admin.push')`
+**Provider:** `PermissionProvider` wraps the app, fetches via `get_my_permissions()` RPC, caches in IndexedDB
+**Admin UI:** `/admin/roles` — manage roles, permissions, employee assignments
+
+**`useRole()` admin checks (updated 2026-04-20):** Any of `*`, `admin.settings`, `admin.*`, `admin.analytics`, `encounters.*` grants admin-level app access. Medical Directors hold `admin.analytics` + `encounters.*`, so they receive the admin shell automatically.
+
+**Med unit authorization:** `mar.authorize` permission required for Rx/CS meds on MSU/REMS units. Ambulances (RAMBO) allow autonomous dispensing.
 
 Field users see only their unit's encounters, inventory, supply runs, and their own unsigned items.
 
 ---
 
-## 7. Notification System
+## 7. External Chat (Fire Admin Dashboard)
+
+Fire agency liaisons can communicate with RAM units via the external dashboard without any app account.
+
+### How It Works
+1. Admin generates an **access code** for an incident (e.g., label: "Cal Fire IC")
+2. System auto-creates an **external chat channel** (`type: 'external'`) linked to the access code
+3. All incident crew are added as channel members
+4. External user opens dashboard with code → sees a Chat panel
+5. Messages sent as the code label (e.g., "Cal Fire IC"), stored with `external_sender_name`
+6. Internal crew sees the channel in their Chat list with a 🔥 badge
+
+### Security
+- External users authenticated via access code only (no Supabase auth)
+- Rate limited: 1 message per 2 seconds per access code
+- Text only — no file uploads for external users
+- Channel dies when access code is deactivated/expires
+- API: `api/incident-access/chat.ts` (GET/POST)
+
+### Channel Types
+| Type | Scope | Created By |
+|------|-------|------------|
+| `company` | All employees | Auto (first admin) |
+| `incident` | Incident crew | Auto (on incident create) |
+| `unit` | Unit crew | Auto (on unit assignment) |
+| `direct` | 2 employees (DM) | Any employee |
+| `external` | Incident crew + external liaison | Auto (on access code gen) |
+
+### Super Admin DM Visibility
+Users with `*` or `chat.admin` permission see ALL DMs in their channel list as read-only observers. Channel names show both participants (e.g., "Zach Smith ↔ Delores Meehan").
+
+---
+
+## 8. Notification System
 
 ### Push Notifications
 - **Web Push API** with VAPID keys
@@ -320,7 +441,7 @@ Field users see only their unit's encounters, inventory, supply runs, and their 
 
 ---
 
-## 8. Offline Architecture
+## 9. Offline Architecture
 
 ### Data Flow
 1. **Render from cache** — pages show IndexedDB data instantly on mount
@@ -336,7 +457,7 @@ Field users see only their unit's encounters, inventory, supply runs, and their 
 
 ---
 
-## 9. Security
+## 10. Security
 
 - **PIN signatures** — 4-digit PIN, bcrypt hashed, rate-limited 5/min
 - **Inactivity lock** — 30-min timeout, password to unlock
@@ -348,7 +469,7 @@ Field users see only their unit's encounters, inventory, supply runs, and their 
 
 ---
 
-## 10. Consent Forms
+## 11. Consent Forms
 
 Two types, both with finger signature + PDF generation:
 
@@ -361,7 +482,7 @@ Both generate branded PDFs (jsPDF, client-side) uploaded to Supabase storage.
 
 ---
 
-## 11. NEMSIS 3.5.1 Pipeline
+## 12. NEMSIS 3.5.1 Pipeline
 
 - Real-time field validation via `useNEMSISWarnings` hook
 - Mark Complete blocks on critical NEMSIS errors
@@ -370,7 +491,7 @@ Both generate branded PDFs (jsPDF, client-side) uploaded to Supabase storage.
 
 ---
 
-## 12. Deployment
+## 13. Deployment
 
 ### Current (Staging)
 - **Vercel** — auto-deploys from `main` branch
@@ -390,7 +511,7 @@ CRON_SECRET (CS reminder endpoint auth)
 
 ---
 
-## 13. Incident Dashboard Architecture
+## 14. Incident Dashboard Architecture
 
 ### Internal Dashboard (`/incidents/:id` — IncidentDetail.tsx)
 - **Full-width layout** — no SplitShell wrapper (removed in v1.6.8)
@@ -427,6 +548,13 @@ CRON_SECRET (CS reminder endpoint auth)
 - **Internal-only additions**: AccessCodesPanel (generate/manage codes), AccessLogTab (who accessed with what code)
 - 1237 → 670 lines after unification (46% reduction)
 
+### Encounter Ownership (added 2026-04-20)
+- Only the **creator** of an encounter can delete (draft), mark complete, or sign & lock it
+- Non-creators see a **"pending review" indicator** on those actions
+- **Edit remains available** to all authorized users for collaborative charting
+- **Progress notes:** Only the note's author can delete their own unsigned notes (admin bypass removed)
+- Prevents accidental completion/signing by the wrong provider in multi-provider handoff scenarios
+
 ### Encounter Detail (`/encounters/:id` — EncounterDetail.tsx)
 - **2-column resizable grid** (md+) with `grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch`
 - Narrative + Vitals default to half-width (colSpan: 1, side by side)
@@ -458,7 +586,7 @@ CRON_SECRET (CS reminder endpoint auth)
 - Storage bucket: `headshots` (public read, authenticated INSERT/UPDATE/DELETE)
 - All via `headshot_url` / `photo_url` columns in employees/units tables
 
-## 14. Team Chat Architecture
+## 15. Team Chat Architecture
 
 ### Overview
 Two separate chat systems coexist:
@@ -507,23 +635,47 @@ Two separate chat systems coexist:
 - Badges: Sidebar "Team Chat" (red), BottomTabBar "Chat" main tab (red)
 - Unsigned encounter badges remain orange for visual distinction
 
+### Unread Badge System (updated 2026-04-20)
+- `useChatUnread` hook rewritten with **shared global store** (`useSyncExternalStore`)
+- Single `get_unread_counts(p_employee_id)` RPC fetches all channel unread counts in one query (replaces N+1)
+- All badge consumers (Sidebar, BottomTabBar, section headers) share one store — instant cross-component sync
+- Section headers show aggregate unread count for all channels in the section
+
+### Channel List UX (added 2026-04-20)
+- **Color-coded section headers:** Company=blue, Incidents=red, Units=green, DMs=purple, External=orange
+- **Collapsible sections:** Click header to collapse/expand; persisted in `localStorage`
+- **Drag-and-drop section reorder:** Powered by `@dnd-kit`; order persisted in `localStorage`
+- **Channel archiving:** `archived_at` on `chat_channels`; archived channels hidden by default
+  - Swipe right (mobile) or right-click (desktop) → Archive
+  - Auto-archive: when an access code is deactivated, its external channel archives automatically
+  - API: `POST /api/chat/archive` (archive), `DELETE /api/chat/archive` (unarchive)
+
+### External Chat Enhancements (added 2026-04-20)
+- **Photo sharing:** 📷 button in external chat; 5MB max; inline rendering with lightbox; stored in `chat-files`
+- **External user avatar upload:** Click 🔥 → file picker → headshot stored in `chat-files`, URL saved to `incident_access_codes.avatar_url`
+- **External avatars in Team Chat:** Internal chat looks up `incident_access_codes.avatar_url` to render external user headshots
+- **Medical directors auto-added:** All medical directors auto-joined to new external channels on access code creation
+- API: `POST /api/incident-access/avatar`
+
 ### Security
-- All 6 API routes require JWT auth via `requireEmployee()`
+- All API routes require JWT auth via `requireEmployee()`
 - RLS on all 3 chat tables (channel membership scoped)
 - Rate limiting: 30 messages/min, 10 uploads/min per employee
 - Input validation: content max 4000 chars, UUIDs validated
 
 ### Database
 ```sql
-chat_channels (id, type, name, description, incident_id, unit_id, created_by, created_at, updated_at)
+chat_channels (id, type, name, description, incident_id, unit_id, access_code_id, archived_at, created_by, created_at, updated_at)
 chat_members (id, channel_id, employee_id, role, joined_at, last_read_at)
-chat_messages (id, channel_id, sender_id, content, message_type, file_url, file_name, reply_to, edited_at, deleted_at, created_at)
+chat_messages (id, channel_id, sender_id, content, message_type, file_url, file_name, reply_to,
+               external_sender_name, access_code_id, edited_at, deleted_at, created_at)
+incident_access_codes (..., avatar_url)  -- external user headshot
 ```
-Storage bucket: `chat-files` (public, authenticated upload)
+Storage bucket: `chat-files` (public read, authenticated upload)
 
 ---
 
-## 15. Theme System
+## 16. Theme System
 
 - CSS variables applied by `ThemeProvider.tsx`, overridden globally in `globals.css`
 - `getContrastText(hex)` computes W3C luminance → black/white for `--color-primary-text`
@@ -533,7 +685,7 @@ Storage bucket: `chat-files` (public, authenticated upload)
 
 ---
 
-## 16. Key Design Decisions
+## 17. Key Design Decisions
 
 - **Vite over Next.js** — client-side PWA doesn't need SSR; 1s builds vs 30s
 - **Formulary = source of truth** — inventory items locked to templates per unit type
@@ -549,7 +701,7 @@ Storage bucket: `chat-files` (public, authenticated upload)
 
 ---
 
-## 17. Refactoring Roadmap (2026-04-19)
+## 18. Refactoring Roadmap (2026-04-19)
 
 See `REFACTORING-PLAN.md` for the full plan. Summary:
 
@@ -620,7 +772,7 @@ src/
 
 ---
 
-## 18. API Brand Architecture
+## 19. API Brand Architecture
 
 Vercel serverless functions (`api/`) cannot import from `src/lib/` due to compilation isolation. Two separate brand config files exist:
 
@@ -647,7 +799,7 @@ Field users never see admin-only items. Routes are also guarded server-side by `
 
 ---
 
-## 19. Refactoring Status (Phase 4: Component Decomposition)
+## 20. Refactoring Status (Phase 4: Component Decomposition)
 
 **Goal:** No component exceeds ~500 lines. Break god components into focused sub-components + hooks.
 
@@ -711,8 +863,29 @@ src/utils/incidentFormatters.ts
 
 All Phase 4 targets complete as of 2026-04-20. Full details in `docs/AUDIT-DECOMPOSITION.md`.
 
-### Remaining Refactoring (Phase 5+)
-- **Phase 5:** Feature module colocation (`src/features/cs/`, `src/features/encounters/`, etc.)
+### Phase 5 Results (2026-04-20)
+
+| Item | Extraction | Result |
+|------|-----------|--------|
+| NewICS214.tsx | useICS214Form + useICS214DataLoad hooks + createICS214 service | 616 → 300 lines (-51%) |
+| buildPcrXml.ts | vitalsBuilder.ts + nemsisUtils.ts + occupationData.ts | 738 → 610 lines (-17%) |
+| Sidebar.tsx | BadgePopover component | Phase 5 Tier 2 partial |
+| ChatBubble.tsx | useSpeechRecognition + useDraggablePosition | Phase 5 Tier 2 partial |
+| SupplyRunDetail.tsx | useBarcodeScan | Phase 5 Tier 2 partial |
+| NewSimpleEncounter.tsx | buildEncounterData | Phase 5 Tier 2 partial |
+
+### New Files Added (Phase 5 Tier 2)
+```
+src/lib/nemsis/
+  vitalsBuilder.ts      # buildVitalsBlock() extracted from buildPcrXml
+  nemsisUtils.ts        # mapVal(), gcsNum() shared utilities
+  occupationData.ts     # INDUSTRY_MAP + OCCUPATION_MAP (eSituation.15/16)
+src/pages/ics214/
+  useICS214DataLoad.ts  # Data loading hook (units, incidents, crew)
+  useICS214Form.ts      # Form state + all handlers
+```
+
+### Remaining Refactoring (Phase 6+)
 - **Phase 6:** Granular RBAC (`usePermission('financial.view')`)
 
 ### New Infrastructure Added (2026-04-20)
@@ -722,7 +895,7 @@ All Phase 4 targets complete as of 2026-04-20. Full details in `docs/AUDIT-DECOM
 
 ---
 
-## 20. Employee Multi-Role Support
+## 21. Employee Multi-Role Support
 
 Employees can hold multiple clinical roles (e.g., RN + Paramedic).
 
@@ -735,7 +908,7 @@ The `RolePills` component in RosterList.tsx renders all roles from the array. Ro
 
 ---
 
-## 21. Payroll Architecture
+## 22. Payroll Architecture
 
 **Source of truth:** `unit_assignments` table (same as incident dashboard deployments card)
 
@@ -756,7 +929,7 @@ The `deployment_records` table still exists as an optional enrichment layer but 
 
 ---
 
-## 22. Chat Privacy Model
+## 23. Chat Privacy Model
 
 ### DM Visibility
 - **`is_owner` flag** on `employees` table controls org-level DM access
@@ -777,7 +950,7 @@ The `deployment_records` table still exists as an optional enrichment layer but 
 
 ---
 
-## 23. Incident Dashboard Filters
+## 24. Incident Dashboard Filters
 
 ### Unit Filter
 - **Desktop:** Color-coded pill buttons (Warehouse=purple, Med Unit=blue, Ambulance=red, REMS=green)

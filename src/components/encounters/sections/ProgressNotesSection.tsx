@@ -160,7 +160,7 @@ export function ProgressNotesSection({
                             🔐 Sign this note
                           </button>
                         )}
-                        {!note.signed_at && (isAdmin || note.author_name === currentUser.employee?.name) && (
+                        {!note.signed_at && note.author_name === currentUser.employee?.name && (
                           <button
                             onClick={(e) => { e.stopPropagation(); setNoteToDelete(note.id) }}
                             className="text-xs text-gray-500 hover:text-red-400 transition-colors">

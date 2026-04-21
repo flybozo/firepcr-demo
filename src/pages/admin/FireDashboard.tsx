@@ -9,7 +9,7 @@ import { useEffect, useState, useCallback, useMemo } from 'react'
 import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
 import { authFetch } from '@/lib/authFetch'
-import { useRole } from '@/lib/useRole'
+import { usePermission } from '@/hooks/usePermission'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import {
   type DashboardData,
@@ -18,6 +18,7 @@ import {
 } from '@/pages/fire-admin/FireAdminDashboard'
 import { ContactCards } from '@/components/ContactCards'
 import { ConfirmDialog } from '@/components/ui'
+import { TimelineTab } from '@/components/timeline/TimelineTab'
 
 const BASE_URL = import.meta.env.VITE_SITE_URL || 'https://ram-field-ops.vercel.app'
 
@@ -99,7 +100,12 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
         const res = await authFetch(`/api/incident-access?code_id=${encodeURIComponent(codeId)}`, {
           method: 'DELETE',
         })
-        if (res.ok) loadCodes()
+        if (res.ok) {
+          loadCodes()
+        } else {
+          const err = await res.json().catch(() => ({ error: 'Failed to delete' }))
+          toast.error(err.error || 'Failed to delete access code')
+        }
       },
       title: 'Delete Access Code',
       message: `Delete access code ${codeStr}? This cannot be undone.`,
@@ -250,7 +256,7 @@ function AccessCodesPanel({ incidentId, incidentName }: { incidentId: string; in
 }
 
 // ── Incident Dashboard (uses same API + shared tab components as external) ──
-type DashTab = 'overview' | 'patients' | 'ics214' | 'supply' | 'access-log'
+type DashTab = 'overview' | 'timeline' | 'patients' | 'ics214' | 'supply' | 'access-log'
 
 function IncidentDashboard({ incidentId }: { incidentId: string }) {
   const [data, setData] = useState<DashboardData | null>(null)
@@ -282,6 +288,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
 
   const tabs: { id: DashTab; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: '📊' },
+    { id: 'timeline', label: 'Timeline', icon: '🕒' },
     { id: 'patients', label: 'Patient Log', icon: '📋' },
     { id: 'ics214', label: 'ICS 214s', icon: '📝' },
     { id: 'supply', label: 'Supply', icon: '🧰' },
@@ -322,6 +329,19 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
 
       {/* Shared tab content — same components as external dashboard */}
       {tab === 'overview' && <OverviewTab data={data} filteredEncounters={applyDateFilter(data.encounters)} />}
+      {tab === 'timeline' && (
+        <TimelineTab
+          fetchFn={async ({ limit, before, types }) => {
+            const params = new URLSearchParams()
+            params.set('incident_id', incidentId)
+            params.set('limit', String(limit))
+            if (before) params.set('before', before)
+            if (types?.length) params.set('types', types.join(','))
+            const res = await authFetch(`/api/timeline?${params}`)
+            return res.json()
+          }}
+        />
+      )}
       {tab === 'patients' && <PatientLogTab data={{ ...data, encounters: applyDateFilter(data.encounters) }} code="" logEvent={noopLog} />}
       {tab === 'ics214' && <ICS214Tab data={data} code="" logEvent={noopLog} />}
       {tab === 'supply' && <SupplyTab data={data} dateFilter={dateFilter} />}
@@ -481,14 +501,14 @@ function AccessLogTab({ incidentId }: { incidentId: string }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 function FireDashboardContent() {
-  const { isField } = useRole()
+  const canSettings = usePermission('admin.settings')
   const assignment = useUserAssignment()
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [loadingIncidents, setLoadingIncidents] = useState(true)
 
   useEffect(() => {
-    if (isField) {
+    if (!canSettings) {
       const assignedId = assignment.incidentUnit?.incident_id || null
       if (assignedId) setSelectedId(assignedId)
       setLoadingIncidents(false)
@@ -510,9 +530,9 @@ function FireDashboardContent() {
         if (sorted.length > 0 && !selectedId) setSelectedId(sorted[0].id)
         setLoadingIncidents(false)
       })
-  }, [isField, assignment.loading])
+  }, [canSettings, assignment.loading])
 
-  const selectedIncident = isField
+  const selectedIncident = !canSettings
     ? (selectedId ? { id: selectedId, name: assignment.incident?.name || 'Your Incident', status: 'Active', start_date: null, incident_number: null } : undefined)
     : incidents.find(i => i.id === selectedId)
 
@@ -530,7 +550,7 @@ function FireDashboardContent() {
           <p className="text-xs text-gray-600 uppercase tracking-wide mb-2 font-medium">Incident</p>
           {loadingIncidents ? (
             <div className="flex gap-2">{[1, 2, 3].map(i => <div key={i} className="h-8 w-32 bg-gray-800/50 rounded-xl animate-pulse" />)}</div>
-          ) : isField ? (
+          ) : !canSettings ? (
             <div className="flex items-center gap-2 px-3 py-2 bg-gray-800 border border-gray-700 rounded-xl w-fit">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
               <span className="text-sm font-medium text-white">{selectedIncident?.name || 'Your assigned incident'}</span>

@@ -6,7 +6,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useMatch, Link } from 'react-router-dom'
 import { createClient } from '@/lib/supabase/client'
-import { useRole } from '@/lib/useRole'
+import { usePermission } from '@/hooks/usePermission'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
 import { PageHeader, LoadingSkeleton, EmptyState } from '@/components/ui'
@@ -48,7 +48,7 @@ export default function CSList() {
   const supabase = createClient()
   const navigate = useNavigate()
   const detailMatch = useMatch('/cs/item/:id')
-  const { isField } = useRole()
+  const isField = !usePermission('cs.view')
   const assignment = useUserAssignment()
 
   const [items, setItems] = useState<CSItem[]>([])

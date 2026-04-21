@@ -1,6 +1,6 @@
 
 import { FieldGuard } from '@/components/FieldGuard'
-import { useRole } from '@/lib/useRole'
+import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 
 import { useEffect, useState, useMemo } from 'react'
@@ -25,7 +25,8 @@ type SupplyRun = {
 
 function SupplyRunsPageInner() {
   const supabase = createClient()
-  const { isField, loading: roleLoading } = useRole()
+  const roleLoading = usePermissionLoading()
+  const isField = !usePermission('supply_runs.view')
   const [incidentFilter, setIncidentFilter] = useState('All')
   const [activeIncidents, setActiveIncidents] = useState<{id:string;name:string}[]>([])
   const assignment = useUserAssignment()
