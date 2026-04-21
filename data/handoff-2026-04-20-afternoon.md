@@ -141,7 +141,7 @@ Fire agency liaisons can now chat with RAM units via the external dashboard.
 - New permission: `mar.authorize` — grants ability to authorize Rx/CS on med units
 - Added to Super Admin, Medical Director, Ops Manager roles
 - **Med units (MSU/REMS):** Rx and CS meds now REQUIRE prescribing provider selection + signature
-- **Ambulances (RAMBO):** No change — autonomous dispensing continues, provider optional
+- **Ambulances (Medic units):** No change — autonomous dispensing continues, provider optional
 - Provider section shows ⚠️ amber warning banner when provider is required but not selected
 - `useMARForm.ts` exports `requiresProviderAuth`, `isAmbulance`, `isMedUnit`, `isRx`
 - **Commit:** `16efc49`

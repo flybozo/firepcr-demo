@@ -85,7 +85,7 @@ export function useMARForm() {
       form.prescribing_provider === assignment.employee.name)
   const isSelfOrder = !!(form.dispensed_by && form.prescribing_provider && form.dispensed_by === form.prescribing_provider)
   // Med units (MSU/REMS) require provider authorization for Rx and CS meds
-  // Ambulances (RAMBO) allow autonomous dispensing by paramedics/EMTs
+  // Ambulances (Medic units) allow autonomous dispensing by paramedics/EMTs
   const isAmbulance = form.med_unit?.toLowerCase().startsWith('rambo') || false
   const isMedUnit = !isAmbulance && form.med_unit?.length > 0
   const isCS = form.category === 'CS'
@@ -95,7 +95,7 @@ export function useMARForm() {
   const hasUnitInventory = unitInventory.length > 0
 
   // Provider roles who can authorize Rx/CS on med units
-  // On ambulances (RAMBO), crew dispenses autonomously — no provider signature needed
+  // On ambulances (Medic units), crew dispenses autonomously — no provider signature needed
   // On med units (MSU/REMS), Rx and CS require an authorized provider
   const providerRoles = ['MD', 'DO', 'NP', 'PA']
   const providerEmployees = employees.filter(e => providerRoles.includes(e.role))
