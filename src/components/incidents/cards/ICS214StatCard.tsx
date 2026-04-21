@@ -21,7 +21,7 @@ export function ICS214StatCard({
 
   return (
     <StatCard
-      title="ICS 214 Logs"
+      title="📋 ICS 214 Logs"
       count={filteredIcs.length}
       viewAllHref={`/ics214?activeIncidentId=${activeIncidentId}`}
       newHref={`/ics214/new?activeIncidentId=${activeIncidentId}`}

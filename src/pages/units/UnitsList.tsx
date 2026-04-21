@@ -8,6 +8,17 @@ import { Link } from 'react-router-dom'
 import { useNavigate, useMatch } from 'react-router-dom'
 import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
 import { loadList } from '@/lib/offlineFirst'
+
+const ROLE_COLORS: Record<string, string> = {
+  'MD': 'bg-purple-900 text-purple-300',
+  'DO': 'bg-purple-900 text-purple-300',
+  'NP': 'bg-blue-900 text-blue-300',
+  'PA': 'bg-blue-900 text-blue-300',
+  'RN': 'bg-teal-900 text-teal-300',
+  'Paramedic': 'bg-red-900 text-red-300',
+  'EMT': 'bg-orange-900 text-orange-300',
+  'Tech': 'bg-gray-700 text-gray-300',
+}
 import { PageHeader, LoadingSkeleton, EmptyState, ConfirmDialog } from '@/components/ui'
 
 type Unit = {
@@ -274,12 +285,23 @@ function UnitsPageInner() {
                 </span>
 
                 {/* Crew — read-only, assign via detail pane */}
-                <span className="w-48 shrink-0 text-xs text-gray-300 truncate pr-2"
+                <span className="w-56 shrink-0 text-xs text-gray-300 pr-2 flex flex-wrap items-center gap-1"
                   title={crew.map((ua: any) => ua.employee?.name).filter(Boolean).join(', ')}>
                   {crew.length > 0
-                    ? crew.map((ua: any) =>
-                        (ua.employee?.name || '').split(' ').filter(Boolean).slice(-1)[0]
-                      ).filter(Boolean).join(', ')
+                    ? crew.map((ua: any, i: number) => {
+                        const emp = ua.employee
+                        if (!emp?.name) return null
+                        const lastName = emp.name.split(' ').filter(Boolean).slice(-1)[0]
+                        const role = emp.role || ''
+                        const roleClass = ROLE_COLORS[role] || ROLE_COLORS.Tech
+                        return (
+                          <span key={ua.id} className="inline-flex items-center gap-0.5 shrink-0">
+                            <span>{lastName}</span>
+                            {role && <span className={`text-[9px] px-1 py-px rounded-full leading-tight ${roleClass}`}>{role === 'Paramedic' ? 'PM' : role}</span>}
+                            {i < crew.length - 1 && <span className="text-gray-600 mr-0.5">,</span>}
+                          </span>
+                        )
+                      })
                     : <span className="text-gray-600">—</span>
                   }
                 </span>

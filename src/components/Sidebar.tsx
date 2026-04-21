@@ -260,7 +260,7 @@ function SortableNavItem({
                 className="pr-4 py-3 text-gray-600 hover:text-gray-400 transition-colors"
                 title="Toggle sub-menu"
               >
-                <span className={`text-xs transition-transform block ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
+                <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
               </button>
             )}
           </>
@@ -317,14 +317,14 @@ function SortableNavItem({
               )}
             </div>
             {visibleSub.length > 0 && (
-              <span className={`text-xs text-gray-600 transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
+              <svg className={`w-4 h-4 text-gray-600 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" /></svg>
             )}
           </button>
         )}
       </div>
 
       {isExpanded && (
-        <div className="ml-[42px] mr-2 mb-1">
+        <div className="ml-[42px] mr-3 mb-1 pl-2 border-l border-white/[0.06] rounded-bl-lg">
           {!item.directLink && (
             <Link
               to={href}
@@ -475,10 +475,10 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <nav
-      className="flex flex-col h-full border-r"
-      style={{ backgroundColor: 'var(--color-sidebar-bg, #111827)', borderColor: 'var(--color-border, #1f2937)' }}
+      className="flex flex-col h-full"
+      style={{ backgroundColor: 'var(--color-sidebar-bg, #111827)' }}
     >
-      <Link to="/" style={{ borderColor: 'var(--color-border, #1f2937)', paddingTop: 'max(env(safe-area-inset-top, 0px) + 12px, 16px)' }} className="px-4 pb-4 border-b flex items-center gap-3 hover:bg-gray-800/50 transition-colors">
+      <Link to="/" style={{ paddingTop: 'max(env(safe-area-inset-top, 0px) + 12px, 16px)' }} className="px-4 pb-4 mb-2 flex items-center gap-3 hover:bg-white/[0.04] transition-colors rounded-b-xl">
         {org?.logo_url ? (
           <img
             src={org.logo_url}
@@ -526,7 +526,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </DndContext>
       </div>
 
-      <div className="border-t px-3 py-2 space-y-0.5" style={{ borderColor: 'var(--color-border, #1f2937)' }}>
+      <div className="mt-2 px-3 py-2 space-y-0.5 border-t border-white/[0.06] mx-2 rounded-t-lg">
         {!roleLoading && assignment.employee && (
           <div className="flex items-center justify-between px-2 py-1">
             <div className="text-xs truncate" style={{ color: sidebarText.muted }}>

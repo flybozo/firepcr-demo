@@ -37,7 +37,7 @@ export function EncountersStatCard({
 
   return (
     <StatCard
-      title="Patient Encounters"
+      title="🩺 Patient Encounters"
       count={encounterCount}
       viewAllHref={`/encounters?activeIncidentId=${activeIncidentId}`}
       newHref={`/encounters/new?activeIncidentId=${activeIncidentId}`}

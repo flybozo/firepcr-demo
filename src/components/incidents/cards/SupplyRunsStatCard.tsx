@@ -27,7 +27,7 @@ export function SupplyRunsStatCard({
 
   return (
     <StatCard
-      title="Supply Runs"
+      title="📦 Supply Runs"
       count={supplyCount}
       viewAllHref={`/supply-runs?activeIncidentId=${activeIncidentId}`}
       newHref={`/supply-runs/new?activeIncidentId=${activeIncidentId}`}

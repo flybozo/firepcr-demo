@@ -65,6 +65,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           channel_id,
           content,
           message_type,
+          file_url,
+          file_name,
           created_at,
           external_sender_name,
           access_code_id,
@@ -95,6 +97,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         channel_id: m.channel_id,
         content: m.content,
         message_type: m.message_type,
+        file_url: m.file_url || null,
+        file_name: m.file_name || null,
         created_at: m.created_at,
         external_sender_name: m.external_sender_name,
         sender: m.sender_id

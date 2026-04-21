@@ -19,7 +19,7 @@ export function BillingSummaryStatCard({
 
   return (
     <StatCard
-      title="Billing Summary"
+      title="💰 Billing Summary"
       count={billingTotal != null
         ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(billingTotal)
         : '…'}

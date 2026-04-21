@@ -5,6 +5,17 @@ import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 
+const ROLE_COLORS: Record<string, string> = {
+  'MD': 'bg-purple-900 text-purple-300',
+  'DO': 'bg-purple-900 text-purple-300',
+  'NP': 'bg-blue-900 text-blue-300',
+  'PA': 'bg-blue-900 text-blue-300',
+  'RN': 'bg-teal-900 text-teal-300',
+  'Paramedic': 'bg-red-900 text-red-300',
+  'EMT': 'bg-orange-900 text-orange-300',
+  'Tech': 'bg-gray-700 text-gray-300',
+}
+
 type Employee = {
   id: string
   name: string | null
@@ -296,8 +307,8 @@ export default function HRCredentialsPage() {
 
                   {/* Role */}
                   <div className="w-20 shrink-0">
-                    <span className="text-xs bg-gray-700 text-gray-300 px-1.5 py-0.5 rounded-full truncate block max-w-full">
-                      {emp.role || '—'}
+                    <span className={`text-xs px-1.5 py-0.5 rounded-full inline-block w-fit ${ROLE_COLORS[emp.role || ''] || ROLE_COLORS.Tech}`}>
+                      {emp.role === 'Paramedic' ? 'Medic' : (emp.role || '—')}
                     </span>
                   </div>
 

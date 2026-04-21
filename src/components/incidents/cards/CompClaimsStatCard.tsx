@@ -23,7 +23,7 @@ export function CompClaimsStatCard({
 
   return (
     <StatCard
-      title="Comp Claims"
+      title="⚠️ Comp Claims"
       count={compCount}
       viewAllHref={`/comp-claims?activeIncidentId=${activeIncidentId}`}
       newHref={`/comp-claims/new?activeIncidentId=${activeIncidentId}`}

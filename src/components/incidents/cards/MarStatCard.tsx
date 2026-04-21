@@ -32,7 +32,7 @@ export function MarStatCard({
 
   return (
     <StatCard
-      title="Medication Administration"
+      title="💊 Medication Administration"
       count={marCount}
       viewAllHref={`/mar?activeIncidentId=${activeIncidentId}`}
       dragHandleProps={dragHandleProps}

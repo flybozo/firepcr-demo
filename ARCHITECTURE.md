@@ -2,8 +2,8 @@
 
 **App:** https://ram-field-ops.vercel.app (staging)  
 **Repo:** https://github.com/flybozo/ram-field-ops  
-**Last updated:** 2026-04-20 15:41 PDT  
-**Current version:** v1.16.0
+**Last updated:** 2026-04-20 20:14 PDT  
+**Current version:** v1.17.0
 
 ---
 
@@ -24,11 +24,15 @@ RAM Field Ops (branded **FirePCR**) is a Progressive Web App for Remote Area Med
 - Push notifications (admin compose, CS count reminders, discrepancy alerts)
 - Transactional email via Resend
 - Analytics and incident dashboards
+- Activity timeline feed (unified event stream from 9 data sources)
+- CSV export of de-identified patient log
+- Agency logo badges on patient records (Cal Fire, USFS, BLM, NPS, ODF, etc.)
 - Fire admin dashboard (external access via access codes)
 - External chat (fire agency liaisons ↔ RAM units via access codes)
 - Granular RBAC with role-based permissions
 - Channel archiving with auto-archive on access code deactivation
 - Photo sharing in external chat
+- CS audit log with patient initials + click-to-MAR navigation
 - External user avatar uploads
 - Patients-by-agency analytics with agency logo charts
 - Encounter ownership restrictions (creator-only delete/complete/sign)
@@ -95,7 +99,9 @@ ram-field-ops/
 │   │   ├── log.ts                # Access log
 │   │   └── avatar.ts             # External user avatar upload → chat-files bucket
 │   ├── employee-chat.ts          # Employee ↔ AI chat relay
-│   └── health.ts                 # Health check
+│   ├── health.ts                 # Health check
+│   └── timeline/
+│       └── index.ts              # Activity timeline API (authenticated)
 ├── public/
 │   └── sw.js                     # Service worker v11 (cache + push + update)
 ├── src/
@@ -136,6 +142,11 @@ ram-field-ops/
 │   │   ├── encounters/
 │   │   │   └── VitalsSection.tsx  # Shared vitals input section
 │   │   └── AgencyLogo.tsx         # Agency logo with PNG/SVG + emoji fallback
+│   ├── timeline/              # Activity timeline components
+│   │   ├── Timeline.tsx          # Scrollable feed with date dividers + infinite scroll
+│   │   ├── TimelineEvent.tsx     # Single event row (icon, unit pill, actor, time)
+│   │   ├── TimelineFilters.tsx   # Type + unit filter pills
+│   │   └── TimelineTab.tsx       # Full tab with fetch, 60s auto-refresh, filter wiring
 │   ├── contexts/
 │   │   ├── UserContext.tsx         # Single user identity fetch (shared)
 │   │   └── PermissionProvider.tsx  # RBAC permission context (fetches + caches)

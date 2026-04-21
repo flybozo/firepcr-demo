@@ -19,6 +19,9 @@ type CSTransaction = {
   witness: string | null
   notes: string | null
   created_at: string
+  encounter_id: string | null
+  patient_initials?: string | null
+  mar_id?: string | null
 }
 
 const CS_DRUGS = ['Morphine Sulfate', 'Fentanyl', 'Midazolam (Versed)', 'Ketamine']
@@ -84,7 +87,32 @@ function AuditLogInner() {
     }
 
     const { data, count } = await query
-    setTransactions(data || [])
+    const rows = (data || []) as CSTransaction[]
+
+    // For administrations, look up patient initials from encounter
+    const adminRows = rows.filter(t => t.encounter_id && ['Administration', 'Administer'].includes(t.transfer_type || t.transaction_type || ''))
+    if (adminRows.length > 0) {
+      const encIds = [...new Set(adminRows.map(t => t.encounter_id!))]
+      const { data: encounters } = await supabase
+        .from('patient_encounters')
+        .select('encounter_id, id, patient_first_name, patient_last_name')
+        .in('encounter_id', encIds)
+      const encMap = new Map<string, { initials: string; encUuid: string }>()
+      for (const pe of encounters || []) {
+        const fn = (pe as any).patient_first_name || ''
+        const ln = (pe as any).patient_last_name || ''
+        if (fn && ln) encMap.set((pe as any).encounter_id, { initials: `${fn[0]}${ln[0]}`.toUpperCase(), encUuid: (pe as any).id })
+      }
+      for (const t of rows) {
+        if (t.encounter_id && encMap.has(t.encounter_id)) {
+          const m = encMap.get(t.encounter_id)!
+          t.patient_initials = m.initials
+          t.mar_id = t.encounter_id
+        }
+      }
+    }
+
+    setTransactions(rows)
     setTotal(count || 0)
     setLoading(false)
   }
@@ -231,22 +259,32 @@ function AuditLogInner() {
                   </tr>
                 </thead>
                 <tbody>
-                  {transactions.map(t => (
-                    <tr key={t.id} className="border-b border-gray-800/50 hover:theme-card-footer" title={t.notes || undefined}>
-                      <td className="py-2 pr-3 text-gray-400 whitespace-nowrap">{formatDate(t.created_at)}</td>
-                      <td className="py-2 pr-3">
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${TYPE_COLORS[(t.transfer_type || t.transaction_type) ?? ""] || 'text-gray-400'}`}>
-                          {t.transfer_type || t.transaction_type || "—"}
-                        </span>
-                      </td>
-                      <td className="py-2 pr-3 text-white">{t.drug_name}</td>
-                      <td className="py-2 pr-3 text-gray-400">{t.lot_number || '—'}</td>
-                      <td className="py-2 pr-3 text-gray-400 whitespace-nowrap">{t.from_unit || '—'} → {t.to_unit || '—'}</td>
-                      <td className="py-2 pr-3 text-orange-300 font-bold">{t.quantity}</td>
-                      <td className="py-2 pr-3 text-gray-400">{t.performed_by || '—'}</td>
-                      <td className="py-2 text-gray-400">{t.witness || '—'}</td>
-                    </tr>
-                  ))}
+                  {transactions.map(t => {
+                    const isAdmin = ['Administration', 'Administer'].includes(t.transfer_type || t.transaction_type || '')
+                    const toLabel = isAdmin && t.patient_initials
+                      ? <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-orange-900/50 text-orange-300 text-[10px] font-bold border border-orange-700/40" title="Patient">{t.patient_initials}</span>
+                      : <span>{t.to_unit || '—'}</span>
+                    return (
+                      <tr key={t.id}
+                        className={`border-b border-gray-800/50 hover:bg-gray-800/40 transition-colors ${isAdmin && t.encounter_id ? 'cursor-pointer' : ''}`}
+                        title={t.notes || undefined}
+                        onClick={isAdmin && t.encounter_id ? () => navigate(`/mar/${t.encounter_id}`) : undefined}
+                      >
+                        <td className="py-2 pr-3 text-gray-400 whitespace-nowrap">{formatDate(t.created_at)}</td>
+                        <td className="py-2 pr-3">
+                          <span className={`px-2 py-0.5 rounded text-xs font-medium ${TYPE_COLORS[(t.transfer_type || t.transaction_type) ?? ""] || 'text-gray-400'}`}>
+                            {t.transfer_type || t.transaction_type || "—"}
+                          </span>
+                        </td>
+                        <td className="py-2 pr-3 text-white">{t.drug_name}</td>
+                        <td className="py-2 pr-3 text-gray-400">{t.lot_number || '—'}</td>
+                        <td className="py-2 pr-3 text-gray-400 whitespace-nowrap">{t.from_unit || '—'} → {toLabel}</td>
+                        <td className="py-2 pr-3 text-orange-300 font-bold">{t.quantity}</td>
+                        <td className="py-2 pr-3 text-gray-400">{t.performed_by || '—'}</td>
+                        <td className="py-2 text-gray-400">{t.witness || '—'}</td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -254,7 +292,10 @@ function AuditLogInner() {
             {/* Mobile cards */}
             <div className="md:hidden space-y-2">
               {transactions.map(t => (
-                <div key={t.id} className="bg-gray-800/50 rounded-lg p-3 border border-gray-700">
+                <div key={t.id}
+                  className={`bg-gray-800/50 rounded-lg p-3 border border-gray-700 ${['Administration', 'Administer'].includes(t.transfer_type || t.transaction_type || '') && t.encounter_id ? 'cursor-pointer active:bg-gray-700/50' : ''}`}
+                  onClick={['Administration', 'Administer'].includes(t.transfer_type || t.transaction_type || '') && t.encounter_id ? () => navigate(`/mar/${t.encounter_id}`) : undefined}
+                >
                   <div className="flex items-center justify-between mb-1">
                     <span className={`px-2 py-0.5 rounded text-xs font-medium ${TYPE_COLORS[(t.transfer_type || t.transaction_type) ?? ""] || 'text-gray-400'}`}>
                       {t.transfer_type || t.transaction_type || "—"}
@@ -262,7 +303,7 @@ function AuditLogInner() {
                     <span className="text-gray-500 text-xs">{formatDate(t.created_at)}</span>
                   </div>
                   <p className="text-white text-sm font-medium">{t.drug_name}</p>
-                  <p className="text-gray-400 text-xs">Lot: {t.lot_number || '—'} | {t.from_unit || '—'} → {t.to_unit || '—'}</p>
+                  <p className="text-gray-400 text-xs">Lot: {t.lot_number || '—'} | {t.from_unit || '—'} → {['Administration', 'Administer'].includes(t.transfer_type || t.transaction_type || '') && t.patient_initials ? <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-900/50 text-orange-300 text-[9px] font-bold border border-orange-700/40 ml-0.5 align-middle">{t.patient_initials}</span> : (t.to_unit || '—')}</p>
                   <div className="flex items-center justify-between mt-1">
                     <span className="text-gray-400 text-xs">By: {t.performed_by || '—'}</span>
                     <span className="text-orange-300 font-bold text-sm">×{t.quantity}</span>

@@ -23,7 +23,7 @@ export function ReorderStatCard({
 
   return (
     <StatCard
-      title="Reorder Needed"
+      title="🔄 Reorder Needed"
       count={reorderCount ?? '…'}
       viewAllHref={`/inventory/reorder?activeIncidentId=${activeIncidentId}`}
       dragHandleProps={dragHandleProps}

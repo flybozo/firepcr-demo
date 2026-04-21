@@ -20,11 +20,11 @@ import type { ChatChannel } from '@/types/chat'
 type SectionKey = 'company' | 'incident' | 'unit' | 'direct' | 'external'
 
 const SECTION_META: Record<SectionKey, { title: string; color: string; icon: string }> = {
-  company:  { title: 'Company',          color: 'bg-blue-900/40 border-blue-700/30',    icon: '🏢' },
-  incident: { title: 'Incidents',        color: 'bg-red-900/40 border-red-700/30',      icon: '🔥' },
-  unit:     { title: 'Units',            color: 'bg-green-900/40 border-green-700/30',  icon: '🚑' },
-  direct:   { title: 'Direct Messages',  color: 'bg-purple-900/40 border-purple-700/30',icon: '💬' },
-  external: { title: 'External',         color: 'bg-orange-900/40 border-orange-700/30',icon: '🔥' },
+  company:  { title: 'Company',          color: 'bg-blue-900/30 text-blue-300/80',     icon: '🏢' },
+  incident: { title: 'Incidents',        color: 'bg-red-900/30 text-red-300/80',       icon: '🔥' },
+  unit:     { title: 'Units',            color: 'bg-green-900/30 text-green-300/80',   icon: '🚑' },
+  direct:   { title: 'Direct Messages',  color: 'bg-purple-900/30 text-purple-300/80', icon: '💬' },
+  external: { title: 'External',         color: 'bg-orange-900/30 text-orange-300/80', icon: '🔥' },
 }
 
 const DEFAULT_ORDER: SectionKey[] = ['company', 'incident', 'unit', 'direct', 'external']
@@ -93,7 +93,7 @@ function Section({ sectionKey, items, activeChannelId, onSelectChannel, unreadBy
     <div>
       <button
         onClick={onToggle}
-        className={`w-full flex items-center gap-2 px-3 py-2 text-[11px] font-bold uppercase tracking-wider border-b ${meta.color} transition-colors hover:brightness-110`}
+        className={`w-full flex items-center gap-2 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider rounded-lg mx-1 mt-1 ${meta.color} transition-colors hover:brightness-110`}
       >
         {/* Drag handle */}
         <span
@@ -200,8 +200,8 @@ export function ChannelListPanel({
 
   return (
     <div className="flex flex-col h-full bg-gray-950">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
-        <h2 className="text-base font-bold text-white">Team Chat</h2>
+      <div className="flex items-center justify-between px-4 py-3 mb-1">
+        <h2 className="text-lg font-bold text-white">Team Chat</h2>
         <button
           onClick={onNewDM}
           className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded-lg transition-colors"
@@ -249,7 +249,7 @@ export function ChannelListPanel({
               <div>
                 <button
                   onClick={() => setArchivedExpanded((v) => !v)}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-bold uppercase tracking-wider border-b bg-gray-800/40 border-gray-700/30 text-gray-400 hover:text-gray-300 transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-[11px] font-semibold uppercase tracking-wider rounded-lg mx-1 mt-1 bg-gray-800/30 text-gray-400 hover:text-gray-300 transition-colors"
                 >
                   <span className="text-gray-600">⠿</span>
                   <span>📦</span>

@@ -334,24 +334,54 @@ function PatientLogTab({ data, code, logEvent, isPreview }: { data: DashboardDat
           <div className="px-4 py-2.5 border-b theme-card-header">
             <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">🚑 {unitName} — {encs.length} patient{encs.length !== 1 ? 's' : ''}</h3>
           </div>
-          <div className="overflow-x-auto">
-          {/* Column headers: ID | Date | Age | Agency | Chief Complaint | Disposition | CC/OSHA | Supervisor | Acuity */}
-          <div className="grid grid-cols-[60px_60px_44px_90px_1fr_100px_110px_110px_72px] gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header min-w-[760px]">
-            <span>ID</span><span>Date</span><span>Age</span><span>Agency</span><span>Chief Complaint</span><span>Disposition</span><span>CC / OSHA</span><span>Supervisor</span><span>Acuity</span>
-          </div>
-          <div className="divide-y divide-gray-800/50 min-w-[760px]">
+          {/* Mobile layout: compact card-style rows */}
+          <div className="md:hidden divide-y divide-gray-800/30">
             {encs.map(enc => {
               const claim = claimBySeqId[enc.seq_id]
               return (
                 <button key={enc.id} onClick={() => setSelected(enc === selected ? null : enc)}
-                  className="w-full text-left grid grid-cols-[60px_60px_44px_90px_1fr_100px_110px_110px_72px] gap-2 px-4 py-2.5 text-sm hover:bg-gray-800/50 transition-colors items-center">
+                  className="w-full text-left px-4 py-3 hover:bg-gray-800/40 transition-colors">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-mono text-blue-400 text-xs font-semibold">{enc.seq_id}</span>
+                    <span className="text-gray-500 text-xs">{enc.date ? new Date(enc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : ''}</span>
+                    {enc.patient_agency && <AgencyLogo agency={enc.patient_agency} size={20} />}
+                    <span className={`ml-auto text-xs px-1.5 py-0.5 rounded font-medium ${ACUITY_PILL[enc.acuity] ?? 'bg-gray-800 text-gray-400 border border-gray-700'}`}>
+                      {enc.acuity?.split(' ')[0] || '—'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-white">{enc.chief_complaint || <span className="text-gray-600 italic">Not recorded</span>}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    {enc.age && <span className="text-xs text-gray-500">Age {enc.age}</span>}
+                    {enc.has_comp_claim && claim?.has_pdf && (
+                      <button onClick={e => { e.stopPropagation(); handleDownload(claim.id) }}
+                        disabled={downloading === claim.id}
+                        className="text-xs bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-1.5 py-0.5 rounded transition-colors leading-none">
+                        {downloading === claim.id ? '...' : '⬇ CC PDF'}
+                      </button>
+                    )}
+                    {enc.has_ama && <span className="text-xs bg-orange-900/50 text-orange-300 border border-orange-700/40 px-1.5 py-0.5 rounded leading-none">AMA</span>}
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Desktop layout: full grid table */}
+          <div className="hidden md:block">
+          <div className="grid grid-cols-[60px_60px_44px_90px_1fr_110px_110px_72px] gap-2 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header">
+            <span>ID</span><span>Date</span><span>Age</span><span>Agency</span><span>Chief Complaint</span><span>CC / OSHA</span><span>Supervisor</span><span>Acuity</span>
+          </div>
+          <div className="divide-y divide-gray-800/50">
+            {encs.map(enc => {
+              const claim = claimBySeqId[enc.seq_id]
+              return (
+                <button key={enc.id} onClick={() => setSelected(enc === selected ? null : enc)}
+                  className="w-full text-left grid grid-cols-[60px_60px_44px_90px_1fr_110px_110px_72px] gap-2 px-4 py-2.5 text-sm hover:bg-gray-800/50 transition-colors items-center">
                   <span className="font-mono text-blue-400 text-xs font-semibold">{enc.seq_id}</span>
                   <span className="text-gray-400 text-xs">{enc.date ? new Date(enc.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}</span>
                   <span className="text-gray-400 text-xs">{enc.age || '—'}</span>
                   <span className="flex items-center justify-center">{enc.patient_agency ? <AgencyLogo agency={enc.patient_agency} size={24} /> : <span className="text-gray-600">—</span>}</span>
                   <span className="text-white text-xs truncate">{enc.chief_complaint || <span className="text-gray-600 italic">Not recorded</span>}</span>
-                  {/* Disposition */}
-                  <span className="text-xs text-gray-300 truncate">{enc.disposition || <span className="text-gray-600 italic">In Process</span>}</span>
                   {/* CC / OSHA column */}
                   <span className="flex flex-col gap-1">
                     {enc.has_comp_claim && claim?.has_pdf && (
@@ -374,7 +404,7 @@ function PatientLogTab({ data, code, logEvent, isPreview }: { data: DashboardDat
               )
             })}
           </div>
-          </div>{/* end overflow-x-auto */}
+          </div>{/* end desktop */}
         </div>
       ))}
 
