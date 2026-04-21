@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom'
 import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { ConfirmDialog } from '@/components/ui'
+import { useLocationPing } from '@/hooks/useLocationPing'
 
 type CrewMember = {
   id: string
@@ -45,6 +46,10 @@ type DeploymentRecord = {
 export default function MyUnitDashboard() {
   const supabase = createClient()
   const assignment = useUserAssignment()
+  useLocationPing(
+    assignment.incidentUnit?.incident_id ?? null,
+    assignment.incidentUnit?.unit_id ?? null,
+  )
 
   const [crew, setCrew] = useState<CrewMember[]>([])
   const [encounters, setEncounters] = useState<EncounterRow[]>([])

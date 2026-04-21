@@ -71,6 +71,7 @@ const TABS: Tab[] = [
     subItems: [
       { label: 'Units', href: '/units', icon: 'units' },
       { label: 'CS', href: '/cs', icon: 'cs' },
+      { label: 'Live Map', href: '/map', icon: 'map', adminOnly: true },
       { label: 'Analytics', href: '/analytics', icon: 'analytics', adminOnly: true },
       { label: 'Payroll', href: '/payroll', icon: 'payroll', adminOnly: true },
       { label: 'My Pay', href: '/payroll/my', icon: 'payroll', fieldOnly: true },

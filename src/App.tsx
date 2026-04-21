@@ -106,6 +106,9 @@ const ChatPage = lazy(() => import('@/pages/chat/Chat'))
 const UnsignedOrders = lazy(() => import('@/pages/unsigned-orders/UnsignedOrders'))
 const MyUnit = lazy(() => import('@/pages/dashboard/MyUnit'))
 
+// Map
+const GlobalMap = lazy(() => import('@/pages/map/GlobalMap'))
+
 // Admin
 const Admin = lazy(() => import('@/pages/admin/Admin'))
 const Announcements = lazy(() => import('@/pages/admin/Announcements'))
@@ -222,6 +225,7 @@ function App() {
 
             {/* ── Admin only ── */}
             <Route element={<RouteGuard require="admin" />}>
+              <Route path="map" element={<GlobalMap />} />
               <Route path="incidents/new" element={<NewIncident />} />
               <Route path="units/new" element={<NewUnit />} />
               <Route path="roster/new" element={<NewEmployee />} />

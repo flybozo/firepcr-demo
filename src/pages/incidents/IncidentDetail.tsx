@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
@@ -34,18 +34,20 @@ import { BillingSummaryStatCard } from '@/components/incidents/cards/BillingSumm
 import { ReorderStatCard } from '@/components/incidents/cards/ReorderStatCard'
 import { ICS214StatCard } from '@/components/incidents/cards/ICS214StatCard'
 
+const LazyUnitMap = lazy(() => import('@/components/maps/UnitMap'))
+
 const DEFAULT_CARD_ORDER = [
   'units', 'encounters', 'supply-runs',
   'reorder-summary', 'mar', 'ics214',
   'billing-summary', 'expenses', 'comp-claims',
-  'deployments', 'unit-revenue',
+  'deployments', 'unit-revenue', 'unit-map',
 ]
 
 const DEFAULT_SPANS: Record<string, number> = {
   'units': 1, 'encounters': 1, 'supply-runs': 1,
   'reorder-summary': 1, 'mar': 1, 'ics214': 1,
   'billing-summary': 1, 'expenses': 1, 'comp-claims': 1,
-  'deployments': 3, 'unit-revenue': 3,
+  'deployments': 3, 'unit-revenue': 3, 'unit-map': 3,
 }
 
 
@@ -357,6 +359,27 @@ export default function IncidentDetailPage() {
           />
         )
 
+      case 'unit-map':
+        if (!isAdmin) return null
+        return (
+          <div className="bg-gray-900 rounded-2xl border border-gray-800 overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800 shrink-0">
+              <div className="flex items-center gap-2">
+                <div {...dragHandleProps} className="cursor-grab active:cursor-grabbing text-gray-600 hover:text-gray-400 select-none touch-none">⠿</div>
+                <h3 className="text-sm font-semibold text-white">Unit Locations</h3>
+              </div>
+              {cycleSpan && (
+                <button onClick={cycleSpan} className="text-xs text-gray-500 hover:text-gray-300 transition-colors px-1.5 py-0.5 rounded border border-gray-700 hover:border-gray-600">
+                  {span}→
+                </button>
+              )}
+            </div>
+            <Suspense fallback={<div className="flex items-center justify-center h-48"><div className="w-5 h-5 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>}>
+              <LazyUnitMap incidentId={activeIncidentId} height="480px" />
+            </Suspense>
+          </div>
+        )
+
       default:
         return null
     }
@@ -556,11 +579,14 @@ export default function IncidentDetailPage() {
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext items={cardOrder} strategy={verticalListSortingStrategy}>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
-                {cardOrder.map(cardId => (
-                  <SortableCard key={cardId} id={cardId} colSpan={getSpan(cardId)}>
-                    {(dragHandleProps) => renderCard(cardId, dragHandleProps, () => cycleCardSpan(cardId), getSpan(cardId)) ?? <div />}
-                  </SortableCard>
-                ))}
+                {cardOrder.map(cardId => {
+                  if (cardId === 'unit-map' && !isAdmin) return null
+                  return (
+                    <SortableCard key={cardId} id={cardId} colSpan={getSpan(cardId)}>
+                      {(dragHandleProps) => renderCard(cardId, dragHandleProps, () => cycleCardSpan(cardId), getSpan(cardId)) ?? <div />}
+                    </SortableCard>
+                  )
+                })}
               </div>
             </SortableContext>
           </DndContext>

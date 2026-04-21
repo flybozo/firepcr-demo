@@ -15,6 +15,7 @@ export const RAINBOW_ICON_COLORS: Record<string, string> = {
   roster: '#22c55e',       // green
   payroll: '#ec4899',      // pink
   admin: '#6366f1',        // indigo
+  map: '#10b981',          // emerald
   documents: '#06b6d4',    // cyan
   profile: '#a855f7',      // violet
   schedule: '#f59e0b',     // amber
@@ -67,6 +68,9 @@ export const SidebarIcon = ({ name }: { name: string }) => {
     case 'roles':
       // Shield with person — represents RBAC role management
       return <svg {...iconProps}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><circle cx="12" cy="10" r="2.5" /><path d="M7.8 18c.5-2.2 2.4-3.5 4.2-3.5s3.7 1.3 4.2 3.5" /></svg>
+    case 'map':
+      // Map with location pin
+      return <svg {...iconProps}><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" /><line x1="9" y1="3" x2="9" y2="18" /><line x1="15" y1="6" x2="15" y2="21" /></svg>
     case 'more':
       // Three horizontal dots
       return <svg {...iconProps}><circle cx="5" cy="12" r="1.5" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1.5" fill="currentColor" stroke="none" /></svg>

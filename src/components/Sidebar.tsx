@@ -123,6 +123,14 @@ const NAV: NavItem[] = [
     sub: [{ label: 'My Payroll', href: '/payroll/my' }],
   },
   {
+    icon: 'map',
+    label: 'Live Map',
+    href: '/map',
+    directLink: true,
+    sub: [],
+    adminOnly: true,
+  },
+  {
     icon: 'admin',
     label: 'Admin',
     href: '/admin',
