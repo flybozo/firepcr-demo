@@ -95,7 +95,7 @@ export default function ChatBubble() {
           m.id === pendingMessageId && m.status === 'pending'
             ? {
                 ...m,
-                content: '⏱️ Request timed out, but Codsworth may still be working on it. Check back in a moment.',
+                content: '⏱️ Request timed out, but AI Assistant may still be working on it. Check back in a moment.',
                 status: 'error' as MessageStatus,
               }
             : m
@@ -289,7 +289,7 @@ export default function ChatBubble() {
 
           {/* Pending sub-label */}
           {isPending && (
-            <p className="text-xs text-gray-500 pl-1">Codsworth is working on this…</p>
+            <p className="text-xs text-gray-500 pl-1">AI Assistant is working on this…</p>
           )}
 
           {/* Error retry button */}
@@ -314,7 +314,7 @@ export default function ChatBubble() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        aria-label="Open Codsworth chat"
+        aria-label="Open AI Assistant chat"
         style={{
           position: 'fixed',
           right: bubblePos.right,
@@ -360,7 +360,7 @@ export default function ChatBubble() {
                 🏴‍☠️
               </div>
               <div>
-                <h1 className="text-sm font-semibold text-white">Codsworth</h1>
+                <h1 className="text-sm font-semibold text-white">AI Assistant</h1>
                 <p className="text-xs text-gray-500">RAM AI Assistant · always on</p>
               </div>
             </div>
@@ -413,7 +413,7 @@ export default function ChatBubble() {
                 Hey {assignment.employee.name?.split(' ')[0]}!
               </p>
               <p className="text-gray-400 text-sm mt-1 max-w-xs">
-                I&apos;m Codsworth, your RAM assistant. Ask me about protocols, credentials, the app, or anything else I can help with.
+                I&apos;m AI Assistant, your RAM assistant. Ask me about protocols, credentials, the app, or anything else I can help with.
               </p>
             </div>
           )}
@@ -469,7 +469,7 @@ export default function ChatBubble() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Message Codsworth…"
+              placeholder="Message AI Assistant…"
               rows={1}
               disabled={loading || !assignment.employee}
               className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 resize-none focus:outline-none focus:border-gray-500 disabled:opacity-50 max-h-32 overflow-y-auto"

@@ -1,4 +1,4 @@
-# RAM Field Ops — Handoff: 2026-04-20 Evening Session
+# FirePCR — Handoff: 2026-04-20 Evening Session
 **Session:** 4:00 PM – 8:14 PM PDT  
 **Commits:** 17 commits since `a43195d`  
 **Latest commit:** `e3cc23f`
@@ -9,9 +9,9 @@
 
 | | |
 |---|---|
-| **Prod URL** | https://ram-field-ops.vercel.app |
+| **Prod URL** | https://firepcr-demo.vercel.app |
 | **Demo URL** | https://demo.firepcr.com |
-| **Repo** | https://github.com/flybozo/ram-field-ops |
+| **Repo** | https://github.com/flybozo/firepcr-demo |
 | **Prod Supabase** | `kfkpvazkikpuwatthtow` / pw: `93RV8nx4J^VGR!6V` |
 | **Demo Supabase** | `jlqpycxguovxnqtkjhzs` / pw: `EplVimePP35Zi9MY` |
 | **Latest commit** | `e3cc23f ui: role pills next to crew names in Units list view` |
@@ -128,7 +128,7 @@ cd /tmp/firepcr-demo && git pull
 rsync -av --delete \
   --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='.vercel' \
   --exclude='src/lib/branding.config.ts' --exclude='api/_brand.ts' \
-  /tmp/ram-field-ops/ /tmp/firepcr-demo/
+  /tmp/firepcr-demo/ /tmp/firepcr-demo/
 cd /tmp/firepcr-demo && npm install && npx vite build
 git add -A && git commit -m "sync: evening 2026-04-20" && git push
 ```

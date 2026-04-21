@@ -104,7 +104,7 @@ export default function EncounterDetailPage() {
 
   useEffect(() => {
     if (enc && !savedPrefRef.current) {
-      setCardOrder(enc.unit?.toUpperCase().startsWith('RAMBO') ? AMBULANCE_DEFAULT_ORDER : MEDUNIT_DEFAULT_ORDER)
+      setCardOrder(enc.unit?.toUpperCase().startsWith('Medic') ? AMBULANCE_DEFAULT_ORDER : MEDUNIT_DEFAULT_ORDER)
     }
   }, [enc?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -129,7 +129,7 @@ export default function EncounterDetailPage() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const allNemsisWarnings = useNEMSISWarnings(enc ?? {} as Record<string, any>)
-  const isAmbulance = enc?.unit?.toUpperCase().startsWith('RAMBO') ?? false
+  const isAmbulance = enc?.unit?.toUpperCase().startsWith('Medic') ?? false
   const nemsisWarnings = isAmbulance ? allNemsisWarnings : []
   const nemsisErrors = nemsisWarnings.filter((w: any) => w.severity === 'error')
   const nemsisWarningCount = nemsisWarnings.filter((w: any) => w.severity === 'warning').length

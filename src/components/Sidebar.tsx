@@ -7,6 +7,7 @@ import { brand } from '@/lib/branding.config'
 import { createClient } from '@/lib/supabase/client'
 import { useUnsignedCounts } from '@/lib/useUnsignedPCRCount'
 import { useChatUnread } from '@/hooks/useChatUnread'
+import { useUnreadNotificationCount } from '@/hooks/useUnreadNotificationCount'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
 } from '@dnd-kit/core'
@@ -394,6 +395,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const assignment = useUserAssignment()
   const unsignedCounts = useUnsignedCounts()
   const { totalUnread: chatUnread } = useChatUnread()
+  const { count: notifCount } = useUnreadNotificationCount()
   const { theme } = useTheme()
   const isRainbow = theme.preset === 'rainbow'
   const sidebarText = getSidebarTextColors()
@@ -496,7 +498,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           />
         ) : (
           <img
-            src="https://kfkpvazkikpuwatthtow.supabase.co/storage/v1/object/public/headshots/ram-logo.png"
+            src="/firepcr-logo.png"
             alt={brand.companyName}
             className="w-10 h-10 rounded-full object-contain bg-white p-0.5 shrink-0"
           />
@@ -541,9 +543,14 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <div className="text-xs truncate" style={{ color: sidebarText.muted }}>
               {assignment.employee.name} · {assignment.unit?.name || 'No unit'}
             </div>
-            <button className="relative p-0.5 rounded-md hover:bg-white/[0.06] transition-colors" style={{ color: sidebarText.inactive }} title="Notifications">
-              <span className="w-4 h-4 flex items-center justify-center opacity-60"><SidebarIcon name="bell" /></span>
-            </button>
+            <Link to="/notifications" className="relative p-0.5 rounded-md hover:bg-white/[0.06] transition-colors" style={{ color: sidebarText.inactive }} title="Notifications">
+              <span className={`w-4 h-4 flex items-center justify-center ${notifCount > 0 ? 'opacity-100 text-white' : 'opacity-60'}`}><SidebarIcon name="bell" /></span>
+              {notifCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[14px] h-[14px] px-0.5 rounded-full bg-red-600 text-white text-[9px] font-bold leading-none">
+                  {notifCount > 9 ? '9+' : notifCount}
+                </span>
+              )}
+            </Link>
           </div>
         )}
         <Link to="/documents"

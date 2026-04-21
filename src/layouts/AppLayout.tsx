@@ -10,6 +10,7 @@ import VersionNotifier from '@/components/VersionNotifier'
 import InactivityLock from '@/components/InactivityLock'
 import UpdateBanner from '@/components/UpdateBanner'
 import { ThemeProvider } from '@/components/ThemeProvider'
+import GlobalLocationPing from '@/components/GlobalLocationPing'
 
 export default function AppLayout() {
   return (
@@ -32,6 +33,7 @@ export default function AppLayout() {
         <ChatBubble />
         <VersionNotifier />
         <InactivityLock />
+        <GlobalLocationPing />
       </div>
     </ThemeProvider>
   )

@@ -1,9 +1,9 @@
-# RAM Field Ops — Session Handoff (2026-04-20 10:32 AM PT)
+# FirePCR — Session Handoff (2026-04-20 10:32 AM PT)
 
 ## Current State
-- **Prod:** `/tmp/ram-field-ops` → https://ram-field-ops.vercel.app ✅ Up to date
+- **Prod:** `/tmp/firepcr-demo` → https://firepcr-demo.vercel.app ✅ Up to date
 - **Demo:** `/tmp/firepcr-demo` → https://demo.firepcr.com ⚠️ Not synced with today's changes yet
-- **GitHub:** `flybozo/ram-field-ops` ✅ Pushed (latest: `4f25d87`)
+- **GitHub:** `flybozo/firepcr-demo` ✅ Pushed (latest: `4f25d87`)
 - **Supabase prod:** `kfkpvazkikpuwatthtow` | pw: `93RV8nx4J^VGR!6V`
 - **Supabase demo:** `jlqpycxguovxnqtkjhzs` | pw: `EplVimePP35Zi9MY`
 
@@ -100,7 +100,7 @@ cd /tmp/firepcr-demo && git pull
 rsync -av --delete \
   --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='.vercel' \
   --exclude='src/lib/branding.config.ts' \
-  /tmp/ram-field-ops/ /tmp/firepcr-demo/
+  /tmp/firepcr-demo/ /tmp/firepcr-demo/
 npm run build && git add -A && git commit -m "sync: <description>" && git push origin main
 ```
 Demo uses `branding.demo.ts` — never overwrite during sync.

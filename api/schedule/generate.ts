@@ -22,7 +22,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ] = await Promise.all([
       supabase
         .from('employees')
-        .select('id, name, role, experience_level, rems_capable')
+        .select('id, name, role, experience_level, rescue_capable')
         .eq('status', 'Active')
         .order('name'),
       supabase
@@ -61,7 +61,7 @@ ${JSON.stringify(availableEmployees.map((e: any) => ({
   name: e.name,
   role: e.role,
   experience_level: e.experience_level || 1,
-  rems_capable: (e as any).rems_capable || false,
+  rescue_capable: (e as any).rescue_capable || false,
   wants_to_work: wantToWorkIds.has(e.id),
 })), null, 2)}
 
@@ -81,7 +81,7 @@ Staffing rules (STRICTLY follow these):
 - PREFER employees who want_to_work = true
 - Do NOT assign employees with wants_to_work = false unless necessary
 - Each employee should only appear in one unit at a time
-- Only assign rems_capable=true employees to REMS units
+- Only assign rescue_capable=true employees to REMS units
 
 Return ONLY a valid JSON array (no explanation, no markdown) in this exact format:
 [

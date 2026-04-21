@@ -24,7 +24,7 @@
  *     employeeName: string
  *     signedAt: string        // ISO timestamp
  *     signatureHash: string   // SHA-256(employeeId + documentContext + timestamp + pin)
- *     displayText: string     // Human-readable: "Aaron Stutz — digitally signed 4/13/2026 5:44 PM"
+ *     displayText: string     // Human-readable: "Dr. A. Mitchell — digitally signed 4/13/2026 5:44 PM"
  *   }
  */
 

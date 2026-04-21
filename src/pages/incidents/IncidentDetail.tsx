@@ -501,8 +501,8 @@ export default function IncidentDetailPage() {
         <div>
           {/* Filters */}
           {(() => {
-            const unitTypeOrderMap: Record<string, number> = { 'Warehouse': 0, 'Med Unit': 1, 'Ambulance': 2, 'REMS': 3 }
-            const unitTypeColorMap: Record<string, string> = { 'Warehouse': 'bg-purple-700 text-white', 'Med Unit': 'bg-blue-700 text-white', 'Ambulance': 'bg-red-700 text-white', 'REMS': 'bg-green-700 text-white' }
+            const unitTypeOrderMap: Record<string, number> = { 'Warehouse': 0, 'Med Unit': 1, 'Ambulance': 2, 'Rescue': 3 }
+            const unitTypeColorMap: Record<string, string> = { 'Warehouse': 'bg-purple-700 text-white', 'Med Unit': 'bg-blue-700 text-white', 'Ambulance': 'bg-red-700 text-white', 'Rescue': 'bg-green-700 text-white' }
             const unitsFromData = new Set<string>()
             encounters.forEach(enc => { if (enc.unit) unitsFromData.add(enc.unit) })
             marEntries.forEach(mar => { if ((mar as any).med_unit) unitsFromData.add((mar as any).med_unit) })

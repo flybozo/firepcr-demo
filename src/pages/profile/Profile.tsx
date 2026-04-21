@@ -14,6 +14,7 @@ import { CredentialUpload } from './components/CredentialUpload'
 import { DocumentPreviewPanel } from './components/DocumentPreviewPanel'
 import { PinSetupSection } from './components/PinSetupSection'
 import { AppearanceSection } from './components/AppearanceSection'
+import { LocationSharingSection } from './components/LocationSharingSection'
 
 export default function ProfilePage() {
   const assignment = useUserAssignment()
@@ -157,6 +158,7 @@ export default function ProfilePage() {
         <PersonalInfoForm form={form} set={set} />
 
         <PushNotificationsSection employeeId={assignment.employee?.id} onError={setError} />
+        <LocationSharingSection />
 
         <CredentialWallet
           creds={creds}

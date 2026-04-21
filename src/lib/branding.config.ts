@@ -1,54 +1,54 @@
 /**
- * branding.config.ts — RAM / Remote Area Medicine deployment config.
+ * branding.config.ts — RAM / Ridgeline EMS deployment config.
  * Swap this file (and logo assets) to white-label for another tenant.
  */
 import type { BrandConfig } from './branding.js'
 
 export const brand: BrandConfig = {
   // ── Company Identity ────────────────────────────────────────────────────
-  companyName: 'Remote Area Medicine',
-  companyLegal: 'Mossbrae Medical Group P.C.',
-  appName: 'RAM Field Ops',
+  companyName: 'Ridgeline EMS',
+  companyLegal: 'Ridgeline Medical Group',
+  appName: 'FirePCR',
   appBrand: 'FirePCR',
-  domain: 'wildfiremedical.com',
-  supportEmail: 'codsworth@wildfiremedical.com',
-  notificationsEmail: 'FirePCR <notifications@wildfiremedical.com>',
-  appUrl: 'https://app.wildfiremedical.com',
+  domain: 'ridgelineems.com',
+  supportEmail: 'assistant@ridgelineems.com',
+  notificationsEmail: 'FirePCR <notifications@ridgelineems.com>',
+  appUrl: 'https://app.ridgelineems.com',
 
   // ── Logo & Assets ───────────────────────────────────────────────────────
   logoUrl: '/logo-flame.svg',
   faviconUrl: '/favicon.ico',
 
   // ── NEMSIS / EMS Identifiers ────────────────────────────────────────────
-  nemsisAgencyId: 'S65-52014',
-  nemsisStateAgencyId: 'S65-52014',
+  nemsisAgencyId: 'S00-00000',
+  nemsisStateAgencyId: 'S00-00000',
   nemsisStateCode: '06',
   nemsisLemsa: 'Sierra Sacramento Valley',
-  nemsisSoftware: 'RAM Field Operations v1.0',
-  nemsisSoftwareCreator: 'Mossbrae Medical Group PC',
+  nemsisSoftware: 'FirePCR Field Operations v1.0',
+  nemsisSoftwareCreator: 'Ridgeline Medical Group',
 
   // ── Unit Naming Conventions ─────────────────────────────────────────────
   unitPrefixes: {
-    ambulance: 'RAMBO',
-    medUnit: 'MSU',
-    rems: 'REMS',
-    warehouse: 'The Beast',
+    ambulance: 'Medic',
+    medUnit: 'Aid',
+    rems: 'Rescue',
+    warehouse: 'Command 1',
   },
 
   // ── AI Assistant ────────────────────────────────────────────────────────
-  assistantName: 'Codsworth',
+  assistantName: 'AI Assistant',
   assistantEmoji: '🏴‍☠️',
   assistantContext:
-    'You are Codsworth, an AI assistant for Remote Area Medicine (RAM), a wildfire medical services company.',
+    'You are the AI assistant for Ridgeline EMS (RAM), a wildfire medical services company.',
 
   // ── Legal / Consent Forms ───────────────────────────────────────────────
-  consentEntity: 'Remote Area Medicine',
-  hipaaEntity: 'Mossbrae Medical Group P.C.',
+  consentEntity: 'Ridgeline EMS',
+  hipaaEntity: 'Ridgeline Medical Group',
 
   // ── Scheduling / Ops ────────────────────────────────────────────────────
   schedulerContext:
-    'You are a medical team scheduler for Remote Area Medicine (RAM), a company providing wildfire medical services.',
+    'You are a medical team scheduler for Ridgeline EMS (RAM), a company providing wildfire medical services.',
 
   // ── Push Notifications ──────────────────────────────────────────────────
-  vapidContact: 'mailto:codsworth@wildfiremedical.com',
+  vapidContact: 'mailto:notifications@ridgelineems.com',
 }

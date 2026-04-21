@@ -300,7 +300,7 @@
 
 ### 12. `src/components/ChatBubble.tsx` — 643 lines · **MEDIUM**
 
-**What it does:** Floating AI chat widget (Codsworth) with draggable bubble, message history, async response polling, voice input via Web Speech API, and full-screen overlay UI.
+**What it does:** Floating AI chat widget (AI Assistant) with draggable bubble, message history, async response polling, voice input via Web Speech API, and full-screen overlay UI.
 
 **Decomposition opportunities:**
 

@@ -58,15 +58,15 @@ function statusColor(status: string | null) {
 
 function getUnitType(unitName: string): string {
   if (!unitName) return ''
-  if (unitName.startsWith('RAMBO')) return 'Ambulance'
-  if (unitName.startsWith('MSU') || unitName === 'The Beast') return 'Med Unit'
-  if (unitName.startsWith('REMS')) return 'REMS'
+  if (unitName.startsWith('Medic')) return 'Ambulance'
+  if (unitName.startsWith('Aid') || unitName === 'Command 1') return 'Med Unit'
+  if (unitName.startsWith('Rescue')) return 'Rescue'
   if (unitName === 'Warehouse') return 'Warehouse'
   return ''
 }
 
 // All known unit names in canonical sort order
-const ALL_UNIT_NAMES = ['RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
+const ALL_UNIT_NAMES = ['Medic 1', 'Medic 2', 'Medic 3', 'Medic 4', 'Aid 1', 'Aid 2', 'Command 1', 'Rescue 1', 'Rescue 2']
 
 const sortedUnitNames = [...ALL_UNIT_NAMES].sort((a, b) => {
   const aOrder = UNIT_TYPE_ORDER[getUnitType(a)] ?? 99

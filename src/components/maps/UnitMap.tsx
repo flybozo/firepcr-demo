@@ -17,14 +17,14 @@ const MT_SHASTA: [number, number] = [41.3098, -122.3108]
 const UNIT_TYPE_COLORS: Record<string, string> = {
   'Ambulance': '#ef4444',
   'Med Unit': '#3b82f6',
-  'REMS': '#22c55e',
+  'Rescue': '#22c55e',
   'Warehouse': '#a855f7',
 }
 
 const UNIT_TYPE_EMOJI: Record<string, string> = {
   'Ambulance': '🚑',
   'Med Unit': '🚐',
-  'REMS': '👷',
+  'Rescue': '👷',
   'Warehouse': '🏚️',
 }
 
@@ -258,9 +258,9 @@ export default function UnitMap({ incidentId, prefetchedLocations, accessCode, h
       {/* Legend */}
       <div className="absolute bottom-6 left-3 z-[1000] bg-gray-900/90 backdrop-blur-sm rounded-lg px-3 py-2 text-xs text-white border border-gray-700 shadow-lg">
         <div className="font-semibold text-gray-300 mb-1.5">Unit Types</div>
-        {Object.entries(UNIT_TYPE_COLORS).map(([type, color]) => (
+        {Object.entries(UNIT_TYPE_EMOJI).map(([type, emoji]) => (
           <div key={type} className="flex items-center gap-2 mb-0.5">
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: color, border: '1.5px solid rgba(255,255,255,0.7)', flexShrink: 0 }} />
+            <span className="text-base leading-none">{emoji}</span>
             <span className="text-gray-400">{type}</span>
           </div>
         ))}

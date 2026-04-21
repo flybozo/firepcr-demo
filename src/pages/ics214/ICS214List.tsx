@@ -174,12 +174,12 @@ export default function ICS214ListPage() {
                   All Units
                 </button>
                 {[...units].sort((a,b) => {
-                  const order: Record<string,number> = {'MSU':1,'RAMBO':2,'REMS':3}
+                  const order: Record<string,number> = {'Aid':1,'Medic':2,'Rescue':3}
                   const aK = Object.keys(order).find(k => a.startsWith(k)) || 'z'
                   const bK = Object.keys(order).find(k => b.startsWith(k)) || 'z'
                   return (order[aK]||9) - (order[bK]||9) || a.localeCompare(b)
                 }).map(u => {
-                  const type = u.startsWith('RAMBO') ? 'Ambulance' : u.startsWith('MSU') || u === 'The Beast' ? 'Med Unit' : 'REMS'
+                  const type = u.startsWith('Medic') ? 'Ambulance' : u.startsWith('Aid') || u === 'Command 1' ? 'Med Unit' : 'Rescue'
                   const activeClass = type === 'Ambulance' ? 'bg-red-700 text-white' : type === 'Med Unit' ? 'bg-blue-700 text-white' : 'bg-green-700 text-white'
                   return (
                     <button key={u} onClick={() => setUnitFilter(u)}
@@ -197,7 +197,7 @@ export default function ICS214ListPage() {
               >
                 <option value="">All Units</option>
                 {[...units].sort((a,b) => {
-                  const order: Record<string,number> = {'MSU':1,'RAMBO':2,'REMS':3}
+                  const order: Record<string,number> = {'Aid':1,'Medic':2,'Rescue':3}
                   const aK = Object.keys(order).find(k => a.startsWith(k)) || 'z'
                   const bK = Object.keys(order).find(k => b.startsWith(k)) || 'z'
                   return (order[aK]||9) - (order[bK]||9) || a.localeCompare(b)

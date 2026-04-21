@@ -32,7 +32,7 @@ type CountEntry = {
   discrepancyNote: string
 }
 
-const ALL_UNITS = ['Warehouse', 'RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
+const ALL_UNITS = ['Warehouse', 'Medic 1', 'Medic 2', 'Medic 3', 'Medic 4', 'Aid 1', 'Aid 2', 'Command 1', 'Rescue 1', 'Rescue 2']
 const CLINICAL_ROLES = ['MD', 'DO', 'NP', 'PA', 'Paramedic', 'RN']
 
 function DailyCountInner() {

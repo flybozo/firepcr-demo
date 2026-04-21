@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useAnyPermission } from '@/hooks/usePermission'
 import { useUnsignedCounts } from '@/lib/useUnsignedPCRCount'
 import { useChatUnread } from '@/hooks/useChatUnread'
+import { useUnreadNotificationCount } from '@/hooks/useUnreadNotificationCount'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { SidebarIcon } from './SidebarIcons'
 
@@ -66,6 +67,11 @@ const TABS: Tab[] = [
     ],
   },
   {
+    icon: 'bell',
+    label: 'Alerts',
+    href: '/notifications',
+  },
+  {
     icon: 'more',
     label: 'More',
     href: '/more',
@@ -104,13 +110,14 @@ export default function BottomTabBar() {
   const canAdmin = useAnyPermission('admin.settings', 'admin.push', 'admin.analytics')
   const unsignedCounts = useUnsignedCounts()
   const { totalUnread: chatUnread } = useChatUnread()
+  const { count: notifCount } = useUnreadNotificationCount()
   const [sheetTab, setSheetTab] = useState<string | null>(null)
   const [showAdminSheet, setShowAdminSheet] = useState(false)
   const navigate = useNavigate()
 
   const assignment = useUserAssignment()
   const isUnassigned = !canAdmin && !assignment.loading && !assignment.unit
-  const UNASSIGNED_ALLOWED_HREFS = ['/profile', '/roster', '/schedule/request']
+  const UNASSIGNED_ALLOWED_HREFS = ['/profile', '/roster', '/schedule/request', '/notifications']
 
   const visibleTabs = TABS.filter(tab => {
     if (tab.adminOnly && !canAdmin) return false
@@ -288,7 +295,10 @@ export default function BottomTabBar() {
             const chatBadge = tab.href === '/chat' && chatUnread > 0
               ? chatUnread
               : null
-            const badge = encounterBadge || chatBadge
+            const alertsBadge = tab.href === '/notifications' && notifCount > 0
+              ? notifCount
+              : null
+            const badge = encounterBadge || chatBadge || alertsBadge
 
             return (
               <button
@@ -314,7 +324,7 @@ export default function BottomTabBar() {
                   </>
                 )}
                 {badge && (
-                  <span className={`absolute top-1 right-1/4 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-white text-[9px] font-bold leading-none ${chatBadge ? 'bg-red-600' : 'bg-orange-500'}`}>
+                  <span className={`absolute top-1 right-1/4 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-white text-[9px] font-bold leading-none ${encounterBadge ? 'bg-orange-500' : 'bg-red-600'}`}>
                     {badge > 99 ? '99+' : badge}
                   </span>
                 )}

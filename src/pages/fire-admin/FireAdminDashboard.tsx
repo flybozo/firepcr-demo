@@ -1,6 +1,6 @@
 
 
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
+import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { AgencyBarChart } from '@/components/charts/AgencyBarChart'
 import { AgencyLogo } from '@/components/AgencyLogo'
 import { Avatar } from '@/components/chat/Avatar'
@@ -118,6 +118,17 @@ function OverviewTab({ data, filteredEncounters }: {
   data: DashboardData
   filteredEncounters: DashboardData['encounters']
 }) {
+  const [generatingPdf, setGeneratingPdf] = React.useState(false)
+
+  const handleGenerateReport = async () => {
+    setGeneratingPdf(true)
+    try {
+      const { generateOpsReportPdf } = await import('@/lib/generateOpsReportPdf')
+      generateOpsReportPdf(data)
+    } finally {
+      setGeneratingPdf(false)
+    }
+  }
   const { stats } = data
 
   // Recompute analytics from filtered encounters
@@ -165,6 +176,23 @@ function OverviewTab({ data, filteredEncounters }: {
 
   return (
     <div className="space-y-8">
+      {/* 24hr Report button */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleGenerateReport}
+          disabled={generatingPdf}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors disabled:opacity-50"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+          </svg>
+          {generatingPdf ? 'Generating…' : '📄 24hr Report'}
+        </button>
+      </div>
+
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <StatCard label="Total Patients" value={filteredEncounters.length} accent={C.red} />

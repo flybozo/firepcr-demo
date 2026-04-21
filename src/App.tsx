@@ -106,6 +106,9 @@ const ChatPage = lazy(() => import('@/pages/chat/Chat'))
 const UnsignedOrders = lazy(() => import('@/pages/unsigned-orders/UnsignedOrders'))
 const MyUnit = lazy(() => import('@/pages/dashboard/MyUnit'))
 
+// Notifications
+const NotificationsInbox = lazy(() => import('@/pages/notifications/NotificationsInbox'))
+
 // Map
 const GlobalMap = lazy(() => import('@/pages/map/GlobalMap'))
 
@@ -153,6 +156,8 @@ function App() {
             <Route path="schedule/request" element={<Schedule />} />
             {/* Team Chat — available to all logged-in users */}
             <Route path="chat" element={<ChatPage />} />
+            {/* Notification inbox — available to all logged-in users */}
+            <Route path="notifications" element={<NotificationsInbox />} />
 
             {/* ── Units: field users go straight to their unit; list is admin-only ── */}
             <Route element={<RouteGuard unitListGuard />}>

@@ -239,7 +239,7 @@ export function buildPcrXml(
   }
 
   // ─── eResponse delays ───
-  const unit = String(enc.unit ?? 'RAMBO 1');
+  const unit = String(enc.unit ?? 'Medic 1');
 
   // ─── eArrest ───
   let arrestVal = enc.cardiac_arrest ?? 'No';

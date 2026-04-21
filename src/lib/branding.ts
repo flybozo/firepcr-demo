@@ -5,21 +5,21 @@
  */
 export type BrandConfig = {
   // ── Company Identity ────────────────────────────────────────────────────
-  /** DBA / trade name: "Remote Area Medicine" */
+  /** DBA / trade name: "Ridgeline EMS" */
   companyName: string
-  /** Legal entity name: "Mossbrae Medical Group P.C." */
+  /** Legal entity name: "Ridgeline Medical Group" */
   companyLegal: string
-  /** Short app title shown in headers: "RAM Field Ops" */
+  /** Short app title shown in headers: "FirePCR" */
   appName: string
   /** Marketing / white-label app name: "FirePCR" */
   appBrand: string
-  /** Primary email domain: "wildfiremedical.com" */
+  /** Primary email domain: "ridgelineems.com" */
   domain: string
-  /** System/support email: "codsworth@wildfiremedical.com" */
+  /** System/support email: "assistant@ridgelineems.com" */
   supportEmail: string
-  /** Notification sender: "FirePCR <notifications@wildfiremedical.com>" */
+  /** Notification sender: "FirePCR <notifications@ridgelineems.com>" */
   notificationsEmail: string
-  /** Public app URL: "https://app.wildfiremedical.com" */
+  /** Public app URL: "https://app.ridgelineems.com" */
   appUrl: string
 
   // ── Logo & Assets ───────────────────────────────────────────────────────
@@ -29,7 +29,7 @@ export type BrandConfig = {
   faviconUrl: string
 
   // ── NEMSIS / EMS Identifiers ────────────────────────────────────────────
-  /** CEMSIS agency number: "S65-52014" */
+  /** CEMSIS agency number: "S00-00000" */
   nemsisAgencyId: string
   /** CEMSIS state agency ID (often same as agencyId) */
   nemsisStateAgencyId: string
@@ -44,14 +44,14 @@ export type BrandConfig = {
 
   // ── Unit Naming Conventions ─────────────────────────────────────────────
   unitPrefixes: {
-    ambulance: string   // "RAMBO"
-    medUnit: string     // "MSU"
-    rems: string        // "REMS"
-    warehouse: string   // "The Beast"
+    ambulance: string   // "Medic"
+    medUnit: string     // "Aid"
+    rems: string        // "Rescue"
+    warehouse: string   // "Command 1"
   }
 
   // ── AI Assistant ────────────────────────────────────────────────────────
-  /** AI assistant display name: "Codsworth" */
+  /** AI assistant display name: "AI Assistant" */
   assistantName: string
   /** Assistant emoji: "🏴‍☠️" */
   assistantEmoji: string

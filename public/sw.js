@@ -1,7 +1,7 @@
 // FirePCR Service Worker v11 — Vite SPA
 // Caches index.html + all JS/CSS assets for true offline
 
-const CACHE_NAME = 'firepcr-v13';
+const CACHE_NAME = 'firepcr-v14';
 
 // Install: cache the app shell
 self.addEventListener('install', (event) => {
@@ -37,9 +37,17 @@ self.addEventListener('message', (event) => {
 // Push notification handler
 self.addEventListener('push', (event) => {
   let data = { title: 'FirePCR', body: 'You have a new notification', url: '/' };
+  let debugInfo = 'no event.data';
   try {
-    if (event.data) data = { ...data, ...event.data.json() };
-  } catch {}
+    if (event.data) {
+      const raw = event.data.text();
+      debugInfo = 'raw: ' + raw.substring(0, 100);
+      data = { ...data, ...JSON.parse(raw) };
+    }
+  } catch (e) {
+    debugInfo = 'parse error: ' + String(e);
+    data.body = debugInfo;
+  }
 
   // Don't show notification if the app is already visible in the foreground
   event.waitUntil(
@@ -47,15 +55,25 @@ self.addEventListener('push', (event) => {
       const appInForeground = clients.some((c) => c.visibilityState === 'visible');
       // If app is open and the notification is a chat message, skip it
       if (appInForeground && data.url === '/chat') return;
-      return self.registration.showNotification(data.title, {
-        body: data.body,
-        icon: '/icons/icon-192.png',
-        badge: '/icons/icon-192.png',
+      const origin = self.location.origin;
+      // iOS Safari only reliably renders: title, body, icon, data
+      // vibrate/renotify/requireInteraction/badge cause body to be silently dropped on iOS
+      const isIOS = /iP(hone|ad|od)/.test(self.navigator?.userAgent || '');
+      const opts = {
+        body: data.body || '',
+        icon: origin + '/icons/icon-512.png',
         data: { url: data.url || '/' },
-        vibrate: [200, 100, 200],
-        tag: data.tag || undefined,
-        renotify: false,
-      });
+      };
+      if (!isIOS) {
+        Object.assign(opts, {
+          badge: origin + '/icons/icon-192.png',
+          vibrate: [200, 100, 200],
+          tag: data.tag || 'firepcr-' + Date.now(),
+          renotify: true,
+          silent: false,
+        });
+      }
+      return self.registration.showNotification(data.title || 'FirePCR', opts);
     })
   );
 });

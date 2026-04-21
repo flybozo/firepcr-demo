@@ -6,7 +6,7 @@ import { brand } from './_brand.js'
 // Vercel Pro: max 60s, Enterprise: 900s. Needed for executive tool calls.
 // Vercel serverless
 
-// iMac Codsworth relay — admin users get full context via Tailscale
+// iMac AI Assistant relay — admin users get full context via Tailscale
 const IMAC_GATEWAY_URL = process.env.IMAC_GATEWAY_URL || 'https://aarons-imac-2.tailebc17f.ts.net'
 const REQUEST_KEYWORDS = [
   'request', 'can i', 'could i', 'i would like', 'i need approval',
@@ -25,7 +25,7 @@ function detectRequestType(message: string): 'request' | 'bug_report' | null {
   return null
 }
 
-// ── Admin relay: send message to iMac Codsworth via OpenAI-compatible endpoint ─
+// ── Admin relay: send message to iMac AI Assistant via OpenAI-compatible endpoint ─
 async function relayToImac(
   message: string,
   employee: { name: string; role: string; chat_authority?: string },
@@ -38,11 +38,11 @@ async function relayToImac(
 
     const executiveBlock = authority === 'executive' ? `
 
-EXECUTIVE AUTHORITY GRANTED — This is Aaron Stutz, MD — owner and medical director.
+EXECUTIVE AUTHORITY GRANTED — This is Dr. A. Mitchell, MD — owner and medical director.
 You have FULL executive authority for this session. Treat this exactly like a direct conversation with your boss.
 You MAY:
 - Execute shell commands (git, deploy, database operations)
-- Modify the app codebase at /tmp/ram-field-ops and push to production via git
+- Modify the app codebase at /tmp/firepcr-demo and push to production via git
 - Make direct database changes (incidents, units, employees, assignments) via psycopg2 or Supabase API
 - Send emails via gog gmail
 - Check calendars, manage files, search the web
@@ -67,7 +67,7 @@ Do NOT reveal: patient PHI, company financials, contracts, other employees' sala
 For anything requiring management approval, acknowledge warmly and say it's been forwarded to Aaron.` : ''
 
     const systemPrompt = `[${brand.appName} Employee Chat — relayed from app]
-You are ${brand.assistantName}, assistant to Aaron Stutz MD and the ${brand.companyName} team. You have full company context.
+You are ${brand.assistantName}, assistant to Dr. A. Mitchell MD and the ${brand.companyName} team. You have full company context.
 
 Employee chatting with you: ${employee.name} (${employee.role})
 Authority level: ${authority.toUpperCase()}

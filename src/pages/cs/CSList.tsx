@@ -22,12 +22,12 @@ type CSItem = {
   unitName: string
 }
 
-const ALL_UNITS = ['RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2', 'Warehouse']
+const ALL_UNITS = ['Medic 1', 'Medic 2', 'Medic 3', 'Medic 4', 'Aid 1', 'Aid 2', 'Command 1', 'Rescue 1', 'Rescue 2', 'Warehouse']
 
 function unitType(name: string) {
-  if (name.startsWith('RAMBO')) return 'Ambulance'
-  if (name.startsWith('MSU') || name === 'The Beast') return 'Med Unit'
-  if (name.startsWith('REMS')) return 'REMS'
+  if (name.startsWith('Medic')) return 'Ambulance'
+  if (name.startsWith('Aid') || name === 'Command 1') return 'Med Unit'
+  if (name.startsWith('Rescue')) return 'Rescue'
   if (name === 'Warehouse') return 'Warehouse'
   return ''
 }
