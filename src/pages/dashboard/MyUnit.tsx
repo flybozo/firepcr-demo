@@ -46,7 +46,7 @@ type DeploymentRecord = {
 export default function MyUnitDashboard() {
   const supabase = createClient()
   const assignment = useUserAssignment()
-  useLocationPing(
+  const { permState, sharing, requestPermission } = useLocationPing(
     assignment.incidentUnit?.incident_id ?? null,
     assignment.incidentUnit?.unit_id ?? null,
   )
@@ -274,6 +274,47 @@ export default function MyUnitDashboard() {
           <h1 className="text-2xl font-bold text-white">🚑 My Unit: {unitName}</h1>
           <p className="text-gray-400 text-sm mt-1">Active Incident: {incidentName}</p>
         </div>
+
+        {/* Location sharing banner */}
+        {assignment.incidentUnit && permState !== 'granted' && permState !== 'unknown' && (
+          <div className={`rounded-xl border px-4 py-3 flex items-start gap-3 ${
+            permState === 'denied'
+              ? 'bg-gray-900 border-gray-700'
+              : 'bg-blue-950/60 border-blue-700/60'
+          }`}>
+            <span className="text-xl mt-0.5">{permState === 'denied' ? '🚫' : '📍'}</span>
+            <div className="flex-1 min-w-0">
+              {permState === 'denied' ? (
+                <>
+                  <p className="text-sm font-semibold text-gray-300">Location access denied</p>
+                  <p className="text-xs text-gray-500 mt-0.5">To share your unit's position on the Live Map, enable location access for this app in your device Settings.</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-blue-300">Share your unit's location?</p>
+                  <p className="text-xs text-gray-400 mt-0.5">Your position will appear on the Live Map for incident commanders. Only shared while you're on an active incident.</p>
+                  <button
+                    onClick={requestPermission}
+                    className="mt-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold rounded-lg transition-colors"
+                  >
+                    Enable Location Sharing
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Sharing active indicator */}
+        {sharing && assignment.incidentUnit && (
+          <div className="flex items-center gap-2 px-1">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+            </span>
+            <span className="text-xs text-gray-500">Sharing location on Live Map</span>
+          </div>
+        )}
 
         {/* Deployment Check-In Widget */}
         {!deploymentLoading && deployment && (

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 export function LocationEditField({
   value,
@@ -68,6 +69,7 @@ export function LocationEditField({
   void onSaveCoords
 
   const hasCoords = latitude != null && longitude != null
+  const navigate = useNavigate()
 
   if (readOnly) {
     return (
@@ -75,10 +77,9 @@ export function LocationEditField({
         <span className="text-xs text-gray-500">Location</span>
         <span className={`text-sm ${value ? 'text-white' : 'text-gray-600 italic'}`}>{value || '—'}</span>
         {hasCoords && (
-          <a href={`https://maps.google.com/?q=${latitude},${longitude}`} target="_blank" rel="noopener noreferrer"
-            className="text-xs text-blue-500 hover:text-blue-400 flex items-center gap-1">
-            📍 {latitude}, {longitude} — Open in Maps
-          </a>
+          <button onClick={() => navigate('/map')} className="text-xs text-blue-500 hover:text-blue-400 flex items-center gap-1 text-left">
+            📍 {latitude}, {longitude} — View on Live Map
+          </button>
         )}
       </div>
     )
@@ -132,14 +133,12 @@ export function LocationEditField({
         </button>
       )}
       {hasCoords && !editing && (
-        <a
-          href={`https://maps.google.com/?q=${latitude},${longitude}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-xs text-blue-500 hover:text-blue-400 flex items-center gap-1"
+        <button
+          onClick={() => navigate('/map')}
+          className="text-xs text-blue-500 hover:text-blue-400 flex items-center gap-1 text-left"
         >
-          📍 {latitude}, {longitude} — Open in Maps
-        </a>
+          📍 {latitude}, {longitude} — View on Live Map
+        </button>
       )}
     </div>
   )

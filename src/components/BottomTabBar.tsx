@@ -24,6 +24,7 @@ const TABS: Tab[] = [
     href: '/incidents',
     subItems: [
       { label: 'New Incident', href: '/incidents/new' },
+      { label: 'Closed Incidents', href: '/incidents?status=Closed' },
       { label: 'All 214 Logs', href: '/ics214' },
       { label: 'New ICS 214', href: '/ics214/new' },
     ],

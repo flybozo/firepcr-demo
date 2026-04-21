@@ -24,7 +24,7 @@ function IncidentsPageInner() {
   const detailMatch = useMatch('/incidents/:id')
   const [incidents, setIncidents] = useState<Incident[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const statusParam = searchParams.get('status')
   const [tab, setTab] = useState<'Active' | 'Closed'>(statusParam === 'Closed' ? 'Closed' : 'Active')
   const [search, setSearch] = useState('')
@@ -92,7 +92,7 @@ function IncidentsPageInner() {
         {/* Tab bar */}
         <div className="flex gap-2">
           {(['Active', 'Closed'] as const).map(t => (
-            <button key={t} onClick={() => setTab(t)}
+            <button key={t} onClick={() => { setTab(t); setSearchParams(t === 'Closed' ? { status: 'Closed' } : {}, { replace: true }) }}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 tab === t
                   ? t === 'Active' ? 'bg-green-700 text-white' : 'bg-gray-600 text-white'

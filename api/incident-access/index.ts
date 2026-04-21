@@ -74,7 +74,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         externalChannelId = extChannel?.id || null
       }
 
-      const [incR, orgR, encR, iuR, compR, ics214R, amaR, medDirectorsR] = await Promise.all([
+      const [incR, orgR, encR, iuR, compR, ics214R, amaR, medDirectorsR, locR] = await Promise.all([
         supabase.from('incidents').select('id, name, status, location, start_date, end_date, incident_number, agreement_number, resource_order_number, financial_code').eq('id', incidentId).single(),
         supabase.from('organizations').select('name, dba, logo_url').limit(1).single(),
         supabase.from('patient_encounters').select('id, encounter_id, date, unit, patient_agency, patient_age, patient_age_units, primary_symptom_text, initial_acuity, final_acuity, patient_disposition, created_at').eq('incident_id', incidentId).order('date', { ascending: false }).limit(500),
@@ -90,6 +90,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         supabase.from('ics214_headers').select('id, ics214_id, unit_name, op_date, status, pdf_url, created_at, created_by').eq('incident_id', incidentId).order('op_date', { ascending: false }),
         supabase.from('consent_forms').select('id, encounter_id, form_type, created_at').eq('incident_id', incidentId).eq('form_type', 'AMA'),
         supabase.from('employees').select('id, name, role, phone, wf_email, headshot_url').eq('is_medical_director', true).eq('status', 'Active'),
+        supabase.rpc('get_unit_locations', { p_incident_id: incidentId }),
       ])
       if (!incR.data) return res.status(404).json({ error: 'Incident not found' })
 
@@ -204,6 +205,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         code_label: codeLabel,
         code_avatar_url: codeAvatarUrl,
         channel_id: externalChannelId,
+        unit_locations: locR.data ?? [],
       })
     }
 

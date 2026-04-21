@@ -9,6 +9,8 @@ import { useParams } from 'react-router-dom'
 import { createClient } from '@/lib/supabase/client'
 import { ContactCards } from '@/components/ContactCards'
 import { TimelineTab } from '@/components/timeline/TimelineTab'
+import { lazy, Suspense } from 'react'
+const LazyUnitMap = lazy(() => import('@/components/maps/UnitMap'))
 import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, CartesianGrid,
@@ -81,6 +83,7 @@ export type DashboardData = {
   supply_items?: { item_name: string; quantity: number; unit_of_measure: string; category: string; created_at: string }[]
   medical_directors?: { id: string; name: string; role: string; phone: string | null; email: string | null; headshot_url: string | null }[]
   deployed_units?: { unit_name: string; crew: { name: string; role: string; role_on_unit: string; phone: string | null; email: string | null; headshot_url: string | null }[] }[]
+  unit_locations?: { unit_id: string; unit_name: string; unit_type: string; latitude: number; longitude: number; accuracy_meters: number | null; heading: number | null; last_seen: string; reporter_name: string | null }[]
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -884,7 +887,7 @@ function ChatTab({ code, channelId, codeLabel, codeAvatarUrl }: { code: string; 
   )
 }
 
-export type Tab = 'overview' | 'timeline' | 'patients' | 'ics214' | 'supply' | 'chat'
+export type Tab = 'overview' | 'timeline' | 'map' | 'patients' | 'ics214' | 'supply' | 'chat'
 export type DateFilter = 'all' | '24h' | '48h' | '7d'
 
 export { OverviewTab, PatientLogTab, ICS214Tab, SupplyTab, STATUS_COLOR, C }
@@ -997,6 +1000,7 @@ export default function FireAdminPage() {
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: '📊' },
     { id: 'timeline', label: 'Timeline', icon: '🕒' },
+    { id: 'map', label: 'Live Map', icon: '🗺️' },
     { id: 'patients', label: 'Patient Log', icon: '📋' },
     { id: 'ics214', label: 'ICS 214s', icon: '📝' },
     { id: 'supply', label: 'Supply', icon: '🧰' },
@@ -1122,6 +1126,11 @@ export default function FireAdminPage() {
 
         {/* ── Tab content ── */}
         {tab === 'overview' && <OverviewTab data={data} filteredEncounters={applyDateFilter(data.encounters)} />}
+        {tab === 'map' && (
+          <Suspense fallback={<div className="flex items-center justify-center h-96"><div className="w-6 h-6 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" /></div>}>
+            <LazyUnitMap incidentId={data.incident.id} accessCode={code} height="calc(100vh - 200px)" className="rounded-xl overflow-hidden" />
+          </Suspense>
+        )}
         {tab === 'timeline' && (
           <TimelineTab
             isExternal={!isPreview}

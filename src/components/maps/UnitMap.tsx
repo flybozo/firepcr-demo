@@ -21,14 +21,28 @@ const UNIT_TYPE_COLORS: Record<string, string> = {
   'Warehouse': '#a855f7',
 }
 
+const UNIT_TYPE_EMOJI: Record<string, string> = {
+  'Ambulance': '🚑',
+  'Med Unit': '🚐',
+  'REMS': '👷',
+  'Warehouse': '🏚️',
+}
+
 function createUnitIcon(unitType: string) {
   const color = UNIT_TYPE_COLORS[unitType] ?? '#6b7280'
+  const emoji = UNIT_TYPE_EMOJI[unitType] ?? '🚗'
   return L.divIcon({
-    html: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2.5px solid rgba(255,255,255,0.95);box-shadow:0 1px 5px rgba(0,0,0,0.6)"></div>`,
+    html: `<div style="
+      display:flex;align-items:center;justify-content:center;
+      width:36px;height:36px;border-radius:50%;
+      background:${color};border:3px solid rgba(255,255,255,0.95);
+      box-shadow:0 2px 8px rgba(0,0,0,0.5);
+      font-size:18px;line-height:1;
+    ">${emoji}</div>`,
     className: '',
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
-    popupAnchor: [0, -10],
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -20],
   })
 }
 
@@ -101,12 +115,14 @@ function formatLastSeen(ts: string) {
 
 export interface UnitMapProps {
   incidentId?: string
+  prefetchedLocations?: UnitLocation[]
+  accessCode?: string
   height?: string
   className?: string
 }
 
-export default function UnitMap({ incidentId, height = '400px', className }: UnitMapProps) {
-  const [unitLocations, setUnitLocations] = useState<UnitLocation[]>([])
+export default function UnitMap({ incidentId, prefetchedLocations, accessCode, height = '400px', className }: UnitMapProps) {
+  const [unitLocations, setUnitLocations] = useState<UnitLocation[]>(prefetchedLocations ?? [])
   const [globalLocations, setGlobalLocations] = useState<IncidentLocation[]>([])
   const [nifcData, setNifcData] = useState<any | null>(null)
   const supabase = createClient()
@@ -115,7 +131,16 @@ export default function UnitMap({ incidentId, height = '400px', className }: Uni
     let mounted = true
 
     const load = async () => {
-      if (incidentId) {
+      if (accessCode) {
+        // External dashboard — poll via access-code-authenticated endpoint
+        try {
+          const res = await fetch(`/api/incident-access/locations?code=${encodeURIComponent(accessCode)}`)
+          if (res.ok) {
+            const json = await res.json()
+            if (mounted) setUnitLocations(json.locations ?? [])
+          }
+        } catch {}
+      } else if (incidentId) {
         const { data } = await supabase.rpc('get_unit_locations', { p_incident_id: incidentId })
         if (mounted) setUnitLocations((data as UnitLocation[]) ?? [])
       } else {
@@ -128,15 +153,15 @@ export default function UnitMap({ incidentId, height = '400px', className }: Uni
     }
 
     load()
-    const interval = setInterval(load, 60_000)
+    const interval = setInterval(load, 30_000) // 30s refresh on map
     return () => {
       mounted = false
       clearInterval(interval)
     }
-  }, [incidentId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [incidentId, accessCode]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const markers = incidentId ? unitLocations : globalLocations
-  const positions: [number, number][] = markers.map(m => [m.latitude, m.longitude])
+  const positions: [number, number][] = markers.map(m => [m.latitude, m.longitude] as [number, number])
 
   return (
     <div style={{ height, position: 'relative' }} className={className}>
@@ -185,7 +210,13 @@ export default function UnitMap({ incidentId, height = '400px', className }: Uni
                 position={[loc.latitude, loc.longitude]}
                 icon={createUnitIcon(loc.unit_type)}
               >
-                <Tooltip permanent={false}>{loc.unit_name}</Tooltip>
+                <Tooltip permanent direction="top" offset={[0, -20]}>
+                  <div style={{fontSize:'13px',lineHeight:'1.5'}}>
+                    <strong>{loc.unit_name}</strong><br/>
+                    <span style={{color:'#888',fontSize:'11px'}}>Last ping: {formatLastSeen(loc.last_seen)}</span><br/>
+                    <span style={{color:'#aaa',fontSize:'11px'}}>{new Date(loc.last_seen).toLocaleString()}</span>
+                  </div>
+                </Tooltip>
                 <Popup>
                   <div className="text-sm space-y-0.5 min-w-[160px]">
                     <div className="font-semibold text-gray-900">{loc.unit_name}</div>
@@ -204,7 +235,14 @@ export default function UnitMap({ incidentId, height = '400px', className }: Uni
                 position={[loc.latitude, loc.longitude]}
                 icon={createUnitIcon(loc.unit_type)}
               >
-                <Tooltip permanent={false}>{loc.unit_name}</Tooltip>
+                <Tooltip permanent direction="top" offset={[0, -20]}>
+                  <div style={{fontSize:'13px',lineHeight:'1.5'}}>
+                    <strong>{loc.unit_name}</strong><br/>
+                    <span style={{color:'#666',fontSize:'11px'}}>{loc.incident_name}</span><br/>
+                    <span style={{color:'#888',fontSize:'11px'}}>Last ping: {formatLastSeen(loc.last_seen)}</span><br/>
+                    <span style={{color:'#aaa',fontSize:'11px'}}>{new Date(loc.last_seen).toLocaleString()}</span>
+                  </div>
+                </Tooltip>
                 <Popup>
                   <div className="text-sm space-y-0.5 min-w-[160px]">
                     <div className="font-semibold text-gray-900">{loc.unit_name}</div>

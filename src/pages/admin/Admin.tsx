@@ -66,7 +66,8 @@ function AdminDashboardPageInner() {
     { icon: '📄', label: 'Policies & Procedures', desc: 'Upload & manage documents', href: '/documents' },
     { icon: '💰', label: 'Billing Report', desc: 'Incident cost reports', href: '/billing' },
     { icon: '📊', label: 'CS Audit Log', desc: 'Full controlled substance history', href: '/cs/audit' },
-    { icon: '🔥', label: 'Incidents', desc: 'Manage active deployments', href: '/incidents' },
+    { icon: '🔥', label: 'Active Incidents', desc: 'Manage active deployments', href: '/incidents' },
+    { icon: '📁', label: 'Closed Incidents', desc: 'View past/closed fires', href: '/incidents?status=Closed' },
     { icon: '🔬', label: 'Formulary Templates', desc: 'Manage unit drug formularies', href: '/formulary' },
     { icon: '🛡️', label: 'Roles & Permissions', desc: 'Manage RBAC roles and access control', href: '/admin/roles' },
   ]
