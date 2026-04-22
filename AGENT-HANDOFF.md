@@ -9,7 +9,7 @@ This is the **white-label demo** of FirePCR, a Progressive Web App for wildfire 
 
 ## Demo Database
 - Supabase project: jlqpycxguovxnqtkjhzs (separate from production)
-- Demo accounts: admin@ridgelineems.com, demo@firepcr.com (password: RAMops2026!)
+- Demo accounts: admin@ridgelineems.com, demo@firepcr.com (password: DemoPass2026!)
 
 ## Branding
 - Company: "Ridgeline EMS" / "Ridgeline Medical Group"

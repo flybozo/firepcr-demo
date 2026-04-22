@@ -161,7 +161,7 @@ export default function DocumentsPage() {
                 {!doc.file_url && (
                   <span className="px-3 py-1.5 bg-gray-800 rounded-lg text-xs text-gray-500">No file</span>
                 )}
-                {doc.file_name === 'RAM-Employee-Handbook-2026-CA.pdf' && (
+                {doc.file_name === 'Employee-Handbook-2026.pdf' && (
                   <Link to="/documents/handbook"
                     className="px-3 py-1.5 bg-red-700 hover:bg-red-600 text-white rounded-lg text-xs font-semibold transition-colors whitespace-nowrap">
                     ✍️ Sign

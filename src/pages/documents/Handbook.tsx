@@ -8,7 +8,7 @@ import PinSignature, { type SignatureRecord } from '@/components/PinSignature'
 import { Link } from 'react-router-dom'
 
 const HANDBOOK_VERSION = '2026'
-const HANDBOOK_URL = 'https://kfkpvazkikpuwatthtow.supabase.co/storage/v1/object/public/documents/RAM-Employee-Handbook-2026-CA.pdf'
+const HANDBOOK_URL = 'https://jlqpycxguovxnqtkjhzs.supabase.co/storage/v1/object/public/documents/Employee-Handbook-2026.pdf'
 
 export default function HandbookAcknowledgmentPage() {
   const supabase = createClient()

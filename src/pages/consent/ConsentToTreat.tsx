@@ -108,7 +108,7 @@ function ConsentToTreatInner() {
 
   // Preload logo
   useEffect(() => {
-    fetch('https://kfkpvazkikpuwatthtow.supabase.co/storage/v1/object/public/headshots/ram-logo.png')
+    fetch('https://jlqpycxguovxnqtkjhzs.supabase.co/storage/v1/object/public/headshots/logo.png')
       .then(r => r.blob())
       .then(blob => { const reader = new FileReader(); reader.onload = () => setLogoDataUrl(reader.result as string); reader.readAsDataURL(blob) })
       .catch(() => {})
