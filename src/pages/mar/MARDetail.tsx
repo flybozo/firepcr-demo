@@ -104,26 +104,21 @@ export default function MARDetailPage() {
       const itemType = entry?.item_type || null
 
       if (qtyToReturn > 0 && unitName && itemName) {
-        // Return to general unit_inventory
+        // Return to general unit_inventory (by unit_id — inventory belongs to the truck)
         try {
           const { data: unitRow } = await supabase.from('units').select('id').eq('name', unitName).single()
           if (unitRow) {
-            const { data: iuRows } = await supabase.from('incident_units').select('id').eq('unit_id', unitRow.id)
-            if (iuRows?.length) {
-              const iuIds = iuRows.map((r: any) => r.id)
-              // Match by item name (and lot number if available)
-              let invQuery = supabase.from('unit_inventory')
-                .select('id, quantity')
-                .in('incident_unit_id', iuIds)
-                .eq('item_name', itemName)
-                .limit(1)
-              if (lotNumber) invQuery = invQuery.eq('lot_number', lotNumber)
-              const { data: invRows } = await invQuery
-              if (invRows?.length) {
-                await supabase.from('unit_inventory')
-                  .update({ quantity: (invRows[0].quantity || 0) + qtyToReturn })
-                  .eq('id', invRows[0].id)
-              }
+            let invQuery = supabase.from('unit_inventory')
+              .select('id, quantity')
+              .eq('unit_id', unitRow.id)
+              .eq('item_name', itemName)
+              .limit(1)
+            if (lotNumber) invQuery = invQuery.eq('lot_number', lotNumber)
+            const { data: invRows } = await invQuery
+            if (invRows?.length) {
+              await supabase.from('unit_inventory')
+                .update({ quantity: (invRows[0].quantity || 0) + qtyToReturn })
+                .eq('id', invRows[0].id)
             }
           }
         } catch { /* inventory reversal is best-effort */ }
@@ -218,26 +213,20 @@ export default function MARDetailPage() {
     // Update log
     await supabase.from('dispense_admin_log').update({ qty_used: parsed }).eq('id', id)
 
-    // Adjust inventory if unit is known
+    // Adjust inventory if unit is known (by unit_id — inventory belongs to the truck)
     if (entry.med_unit && delta !== 0) {
       const { data: unitData } = await supabase.from('units').select('id').eq('name', entry.med_unit).single()
       const unitId = unitData?.id
       if (!unitId) { console.error('Unit not found for inventory adjustment:', entry.med_unit); return }
-      const { data: iuRows } = await supabase.from('incident_units')
-        .select('id')
+      const { data: invRows } = await supabase.from('unit_inventory')
+        .select('id, quantity')
         .eq('unit_id', unitId)
-      if (iuRows?.length) {
-        const iuIds = iuRows.map((r: any) => r.id)
-        const { data: invRows } = await supabase.from('unit_inventory')
-          .select('id, quantity')
-          .in('incident_unit_id', iuIds)
-          .eq('item_name', entry.item_name)
-          .order('quantity', { ascending: false })
-          .limit(1)
-        if (invRows?.length) {
-          const newInvQty = Math.max(0, (invRows[0].quantity || 0) - delta)
-          await supabase.from('unit_inventory').update({ quantity: newInvQty }).eq('id', invRows[0].id)
-        }
+        .eq('item_name', entry.item_name)
+        .order('quantity', { ascending: false })
+        .limit(1)
+      if (invRows?.length) {
+        const newInvQty = Math.max(0, (invRows[0].quantity || 0) - delta)
+        await supabase.from('unit_inventory').update({ quantity: newInvQty }).eq('id', invRows[0].id)
       }
     }
 

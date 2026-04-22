@@ -18,7 +18,8 @@ export type InventoryItem = {
   item_name: string
   category: string
   quantity: number
-  incident_unit_id: string
+  unit_id?: string
+  incident_unit_id?: string
   cs_lot_number?: string | null
   cs_expiration_date?: string | null
 }

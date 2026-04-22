@@ -17,15 +17,15 @@ const MT_SHASTA: [number, number] = [41.3098, -122.3108]
 const UNIT_TYPE_COLORS: Record<string, string> = {
   'Ambulance': '#ef4444',
   'Med Unit': '#3b82f6',
-  'Rescue': '#22c55e',
-  'Warehouse': '#a855f7',
+  'REMS': '#22c55e',
+  // Warehouse excluded — never deployed near a fire
 }
 
 const UNIT_TYPE_EMOJI: Record<string, string> = {
   'Ambulance': '🚑',
   'Med Unit': '🚐',
-  'Rescue': '👷',
-  'Warehouse': '🏚️',
+  'REMS': '👷',
+  // Warehouse excluded — never deployed near a fire
 }
 
 function createUnitIcon(unitType: string) {

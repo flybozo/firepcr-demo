@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
+import OfflineGate from '@/components/OfflineGate'
 
 const ROLE_COLORS: Record<string, string> = {
   'MD': 'bg-purple-900 text-purple-300',
@@ -216,6 +217,7 @@ export default function HRCredentialsPage() {
     }`
 
   return (
+    <OfflineGate page message="Employee credentials require a connection to load.">
     <div className="bg-gray-950 text-white pb-8">
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-4">
         {/* Header */}
@@ -443,5 +445,6 @@ export default function HRCredentialsPage() {
         )}
       </div>
     </div>
+    </OfflineGate>
   )
 }

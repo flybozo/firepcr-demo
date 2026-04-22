@@ -7,6 +7,7 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import { Link } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 import { authFetch } from '@/lib/authFetch'
+import OfflineGate from '@/components/OfflineGate'
 
 type ScheduleEntry = {
   unit_id: string
@@ -41,7 +42,7 @@ function expStars(level: number) {
 const UNIT_TYPE_BG: Record<string, string> = {
   'Ambulance': 'bg-red-900/40 border-red-800',
   'Med Unit':  'bg-blue-900/40 border-blue-800',
-  'Rescue':      'bg-green-900/40 border-green-800',
+  'REMS':      'bg-green-900/40 border-green-800',
   'Warehouse': 'bg-purple-900/40 border-purple-800',
 }
 
@@ -201,6 +202,7 @@ export default function GenerateSchedulePage() {
   }, {} as Record<string, { unit_name: string; entries: ScheduleEntry[] }>)
 
   return (
+    <OfflineGate page message="Schedule generation requires a connection.">
     <div className="bg-gray-950 text-white pb-8 mt-8 md:mt-0">
       <div className="max-w-4xl mx-auto p-4 md:p-6 space-y-6">
 
@@ -396,5 +398,6 @@ export default function GenerateSchedulePage() {
         )}
       </div>
     </div>
+    </OfflineGate>
   )
 }

@@ -19,8 +19,9 @@ import {
 import { ContactCards } from '@/components/ContactCards'
 import { ConfirmDialog } from '@/components/ui'
 import { TimelineTab } from '@/components/timeline/TimelineTab'
+import OfflineGate from '@/components/OfflineGate'
 
-const BASE_URL = import.meta.env.VITE_SITE_URL || 'https://firepcr-demo.vercel.app'
+const BASE_URL = import.meta.env.VITE_SITE_URL || 'https://demo.firepcr.com'
 
 type Incident = { id: string; name: string; status: string; start_date: string | null; incident_number: string | null }
 type AccessCode = { id: string; access_code: string; incident_id: string; label: string | null; active: boolean; expires_at: string | null; created_at: string; created_by: string | null }
@@ -537,6 +538,7 @@ function FireDashboardContent() {
     : incidents.find(i => i.id === selectedId)
 
   return (
+    <OfflineGate page message="External dashboard requires a connection to load.">
     <div className="bg-gray-950 text-white pb-8">
       <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-6">
         <div className="flex items-center justify-between pt-2">
@@ -631,6 +633,7 @@ function FireDashboardContent() {
         )}
       </div>
     </div>
+    </OfflineGate>
   )
 }
 

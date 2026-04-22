@@ -9,6 +9,7 @@ interface FirePCRDB extends DBSchema {
   formulary: { key: string; value: any }
   inventory: { key: string; value: any }
   supply_runs: { key: string; value: any }
+  supply_run_items: { key: string; value: any; indexes: { 'by-supply-run': string } }
   incident_units: { key: string; value: any }
   ics214s: { key: string; value: any }
   ics214_activities: { key: string; value: any }
@@ -36,7 +37,7 @@ let dbPromise: ReturnType<typeof openDB<FirePCRDB>> | null = null
 function getDB() {
   if (typeof window === 'undefined') return null as any
   if (!dbPromise) {
-    dbPromise = openDB<FirePCRDB>('firepcr-offline', 6, {
+    dbPromise = openDB<FirePCRDB>('firepcr-offline', 7, {
       upgrade(db, oldVersion) {
         // Version 1 stores (always create if missing)
         if (!db.objectStoreNames.contains('encounters')) {
@@ -76,6 +77,12 @@ function getDB() {
         if (!db.objectStoreNames.contains('vitals')) {
           const vitalsStore = db.createObjectStore('vitals', { keyPath: 'id' })
           vitalsStore.createIndex('by-encounter', 'encounter_id')
+        }
+
+        // Version 7 stores
+        if (!db.objectStoreNames.contains('supply_run_items')) {
+          const sriStore = db.createObjectStore('supply_run_items', { keyPath: 'id' })
+          sriStore.createIndex('by-supply-run', 'supply_run_id')
         }
 
         // Version 3 stores

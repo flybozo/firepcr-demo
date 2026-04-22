@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { PageHeader } from '@/components/ui'
+import OfflineGate from '@/components/OfflineGate'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -258,6 +259,7 @@ export default function AdminPayrollPage() {
   // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
+    <OfflineGate page message="Payroll data requires a connection to load.">
     <div className="bg-gray-950 text-white pb-8">
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
 
@@ -374,6 +376,7 @@ export default function AdminPayrollPage() {
         )}
       </div>
     </div>
+    </OfflineGate>
   )
 }
 

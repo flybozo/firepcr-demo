@@ -248,6 +248,7 @@ export function useEncounterData(id: string, currentUser: any, navigate?: Naviga
     } else {
       await queueOfflineWrite('patient_encounters', 'update', { id, deleted_at: now, deleted_by: deletedBy })
     }
+    try { const { refreshUnsignedCounts } = await import('@/lib/useUnsignedPCRCount'); refreshUnsignedCounts() } catch {}
     navigate?.('/encounters')
   }, [id, enc, currentUser, navigate])
 

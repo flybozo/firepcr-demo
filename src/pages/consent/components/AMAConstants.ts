@@ -1,7 +1,7 @@
 export const PROVIDERS = [
-  'Dr. A. Mitchell, MD',
-  'Dr. R. Chen, MD',
-  'Dr. R. Evans, MD',
+  'Dr. Alex Morgan',
+  'Dr. Sam Rivera',
+  'Dr. Casey Chen',
   'Paul Bailey, NP',
   'Matt Butler, PA',
   'Stephanie Casteele, NP',

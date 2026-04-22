@@ -34,9 +34,9 @@ export default function LoginPage() {
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <img
-            src={import.meta.env.VITE_LOGO_URL || brand.logoUrl}
+            src="/ram-company-logo.png"
             alt={brand.companyName}
-            className="w-24 h-24 mx-auto mb-4 rounded-full object-contain bg-white p-1"
+            className="w-24 h-24 mx-auto mb-4 rounded-full object-contain bg-white p-2"
           />
           <h1 className="text-2xl font-bold text-white">{brand.appName}</h1>
           <p className="text-gray-400 text-sm mt-1">{brand.companyName}</p>

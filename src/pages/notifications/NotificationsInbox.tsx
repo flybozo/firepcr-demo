@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { createClient } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import PageHeader from '@/components/ui/PageHeader'
+import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
 import { triggerNotificationBadgeRefresh } from '@/hooks/useUnreadNotificationCount'
 
 type PushNotification = {
@@ -33,6 +34,8 @@ export default function NotificationsInbox() {
   const [readIds, setReadIds] = useState<Set<string>>(new Set())
   const [loading, setLoading] = useState(true)
   const [dismissing, setDismissing] = useState<Set<string>>(new Set())
+  const [isOffline, setIsOffline] = useState(!getIsOnline())
+  useEffect(() => onConnectionChange((online) => setIsOffline(!online)), [])
 
   useEffect(() => {
     if (!employee) return
@@ -143,6 +146,11 @@ export default function NotificationsInbox() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
+      {isOffline && (
+        <div className="bg-amber-900/30 border border-amber-700 rounded-lg px-3 py-2 text-amber-300 text-xs mb-4 flex items-center gap-2">
+          📶 You're offline — showing cached notifications. New alerts won't appear until you reconnect.
+        </div>
+      )}
       <div className="flex items-center justify-between mb-6">
         <PageHeader title="🔔 Notifications" className="mb-0" />
         {notifications.length > 0 && (

@@ -65,9 +65,10 @@ function SupplyRunsPageInner() {
         const cached = await getCachedData('supply_runs') as any[]
         if (cached.length > 0) {
           setRuns(cached as SupplyRun[])
-          setLoading(false)
         }
       } catch {}
+      // Always unblock loading after cache attempt
+      setLoading(false)
       try {
         let query = supabase
           .from('supply_runs')
@@ -92,13 +93,19 @@ function SupplyRunsPageInner() {
         const cached = await getCachedData('supply_runs')
         if (cached.length > 0) {
           setRuns(cached as SupplyRun[])
-          setIsOfflineData(true)
+          // Only show offline banner if actually offline — don't show for query errors
+          setIsOfflineData(typeof navigator !== 'undefined' && !navigator.onLine)
         }
       }
       setLoading(false)
     }
     if (roleLoading || assignment.loading) return
     load()
+
+    // Re-fetch when coming back online to clear stale banner
+    const handleOnline = () => { load() }
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
   }, [isField, assignment.loading, assignment.incidentUnit?.incident_id, incidentIdParam, incidentFilter, dateRange])
 
   const units = ['All', ...Array.from(new Set(

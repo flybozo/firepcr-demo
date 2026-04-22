@@ -7,6 +7,7 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import { LoadingSkeleton, EmptyState, ConfirmDialog } from '@/components/ui'
 import { authFetch } from '@/lib/authFetch'
 import { inputCls, labelCls } from '@/components/ui/FormField'
+import OfflineGate from '@/components/OfflineGate'
 
 // ── Push Notification constants ───────────────────────────────────────────────
 const PUSH_ROLES = ['EMT', 'Paramedic', 'RN', 'NP', 'PA', 'MD', 'DO', 'Tech']
@@ -181,6 +182,7 @@ export default function AnnouncementsPage() {
   }
 
   return (
+    <OfflineGate page message="Announcements require a connection to load.">
     <div className="min-h-screen bg-gray-950 text-white mt-8 md:mt-0">
       <div className="max-w-3xl mx-auto p-6 space-y-6">
         <div>
@@ -494,5 +496,6 @@ export default function AnnouncementsPage() {
         onCancel={() => setConfirmAction(null)}
       />
     </div>
+    </OfflineGate>
   )
 }

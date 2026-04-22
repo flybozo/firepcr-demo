@@ -1,9 +1,9 @@
-# FirePCR — Afternoon Session Handoff (2026-04-20 1:15 PM PT)
+# RAM Field Ops — Afternoon Session Handoff (2026-04-20 1:15 PM PT)
 
 ## Current State
-- **Prod:** `/tmp/firepcr-demo` → https://firepcr-demo.vercel.app ✅ Deployed
+- **Prod:** `/tmp/ram-field-ops` → https://ram-field-ops.vercel.app ✅ Deployed
 - **Demo:** `/tmp/firepcr-demo` → https://demo.firepcr.com ⚠️ NOT synced with afternoon changes
-- **GitHub:** `flybozo/firepcr-demo` ✅ Pushed (latest: `16efc49`)
+- **GitHub:** `flybozo/ram-field-ops` ✅ Pushed (latest: `16efc49`)
 - **Supabase prod:** `kfkpvazkikpuwatthtow` | pw: `93RV8nx4J^VGR!6V`
 - **Supabase demo:** `jlqpycxguovxnqtkjhzs` | pw: `EplVimePP35Zi9MY`
 
@@ -130,7 +130,7 @@ Fire agency liaisons can now chat with RAM units via the external dashboard.
 
 - Super admins (anyone with `*` or `chat.admin` permission) now see ALL DMs in their channel list
 - DMs show as read-only with `observer` role — visible but not a participant
-- Channel names show both participants (e.g. "Z. Taylor ↔ Delores Meehan")
+- Channel names show both participants (e.g. "Zach Smith ↔ Delores Meehan")
 - Checks `employee_roles` → `roles.permissions` for `*` or `chat.admin`
 - **Commit:** `16efc49`
 
@@ -141,7 +141,7 @@ Fire agency liaisons can now chat with RAM units via the external dashboard.
 - New permission: `mar.authorize` — grants ability to authorize Rx/CS on med units
 - Added to Super Admin, Medical Director, Ops Manager roles
 - **Med units (MSU/REMS):** Rx and CS meds now REQUIRE prescribing provider selection + signature
-- **Ambulances (Medic units):** No change — autonomous dispensing continues, provider optional
+- **Ambulances (RAMBO):** No change — autonomous dispensing continues, provider optional
 - Provider section shows ⚠️ amber warning banner when provider is required but not selected
 - `useMARForm.ts` exports `requiresProviderAuth`, `isAmbulance`, `isMedUnit`, `isRx`
 - **Commit:** `16efc49`
@@ -208,7 +208,7 @@ cd /tmp/firepcr-demo && git pull
 rsync -av --delete \
   --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='.vercel' \
   --exclude='src/lib/branding.config.ts' \
-  /tmp/firepcr-demo/ /tmp/firepcr-demo/
+  /tmp/ram-field-ops/ /tmp/firepcr-demo/
 npm run build && git add -A && git commit -m "sync: <description>" && git push origin main
 ```
 Demo uses `branding.demo.ts` — never overwrite during sync.

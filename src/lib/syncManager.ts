@@ -50,20 +50,25 @@ export function getIsOnline(): boolean {
   return isOnline
 }
 
+export async function getPendingWriteCount(): Promise<number> {
+  return getPendingCount()
+}
+
 // ── Pull fresh data from Supabase ─────────────────────────────────────────────
 
 let syncFromServerInProgress = false
 
 export async function syncDataFromServer(): Promise<void> {
-  if (!isOnline || syncFromServerInProgress) return
+  if (!getIsOnline() || syncFromServerInProgress) return
   syncFromServerInProgress = true
 
   const supabase = createClient()
 
   try {
     const {
-      data: { user },
-    } = await supabase.auth.getUser()
+      data: { session },
+    } = await supabase.auth.getSession()
+    const user = session?.user
     if (!user) return
 
     const { data: emp } = await supabase
@@ -108,21 +113,16 @@ export async function syncDataFromServer(): Promise<void> {
     console.log('[Sync] Phase 2 done — patient data cached')
 
     // Phase 3: Operations data
-    const [inventory, supplyRuns, ics214s, ics214Activities, ics214Personnel] = await Promise.all([
-      supabase.from('unit_inventory').select('id, item_name, category, quantity, par_qty, lot_number, expiration_date, unit_id, incident_unit_id, barcode, upc').order('item_name').limit(2000),
+    const [inventory, supplyRuns, supplyRunItems] = await Promise.all([
+      supabase.from('unit_inventory').select('id, item_name, category, quantity, par_qty, lot_number, expiration_date, unit_id, incident_unit_id, barcode, upc').order('item_name').limit(5000),
       supabase.from('supply_runs').select('*, incident:incidents(name), supply_run_items(*)').order('run_date', { ascending: false }).limit(200),
-      supabase.from('ics214_headers').select('id, ics214_id, incident_id, incident_name, unit_id, unit_name, op_date, op_start, op_end, leader_name, leader_position, status, pdf_url, pdf_file_name, notes, created_by, created_at, closed_at, closed_by').order('created_at', { ascending: false }).limit(100),
-      supabase.from('ics214_activities').select('id, ics214_id, log_datetime, description, logged_by, activity_type').order('log_datetime', { ascending: false }).limit(500),
-      supabase.from('ics214_personnel').select('id, ics214_id, employee_name, ics_position, home_agency').limit(500),
+      supabase.from('supply_run_items').select('*').order('created_at', { ascending: false }).limit(200),
     ])
 
-    console.log('[Sync] Phase 3:', { inventory: inventory.data?.length, supplyRuns: supplyRuns.data?.length, ics214s: ics214s.data?.length })
+    console.log('[Sync] Phase 3:', { inventory: inventory.data?.length, supplyRuns: supplyRuns.data?.length, supplyRunItems: supplyRunItems.data?.length })
     if (inventory.data) await cacheData('inventory', inventory.data)
     if (supplyRuns.data) await cacheData('supply_runs', supplyRuns.data)
-    // ICS 214 headers — no dedicated store, but cache attempt won't crash
-    try { if (ics214s.data) await cacheData('ics214s' as any, ics214s.data) } catch {}
-    try { if (ics214Activities.data) await cacheData('ics214_activities' as any, ics214Activities.data) } catch {}
-    try { if (ics214Personnel.data) await cacheData('ics214_personnel' as any, ics214Personnel.data) } catch {}
+    if (supplyRunItems.data) await cacheData('supply_run_items', supplyRunItems.data)
     console.log('[Sync] Phase 3 done — operations data cached')
 
     // Phase 4: Progress notes + procedures (for encounter detail views)
@@ -154,53 +154,96 @@ export async function syncDataFromServer(): Promise<void> {
 // ── Flush pending offline writes to Supabase ──────────────────────────────────
 
 export async function flushPendingWrites(): Promise<void> {
-  if (!isOnline || syncInProgress) return
+  // Use getIsOnline() (reads navigator.onLine directly) instead of the module-level
+  // isOnline flag, which can be stale if the browser 'online' event was missed.
+  if (!getIsOnline() || syncInProgress) return
   syncInProgress = true
 
-  const supabase = createClient()
-  const pending = await getPendingWrites()
+  // Idempotent tables: a 23505 unique-violation means the row already exists — treat as success
+  const idempotentTables = ['dispense_admin_log', 'patient_encounters', 'supply_runs', 'supply_run_items', 'encounter_procedures', 'mar_entries']
+  // Permanent errors: remove from queue immediately so they don't block future syncs
+  const permanentErrorCodes = [
+    '42703', // column does not exist
+    '42P01', // table does not exist
+    '23502', // NOT NULL violation (payload missing a required column)
+    // 23503 (FK violation) removed — child rows may sync before parent; retry instead of dropping
+    '22P02', // invalid input syntax
+    '42501', // insufficient privilege (RLS blocked the write)
+  ]
 
-  if (pending.length === 0) {
-    syncInProgress = false
-    return
-  }
+  try {
+    const supabase = createClient()
+    const pending = await getPendingWrites()
 
-  console.log('[Sync] Flushing', pending.length, 'pending writes...')
+    if (pending.length === 0) return
 
-  // Process in chronological order
-  pending.sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+    console.log('[Sync] Flushing', pending.length, 'pending writes...')
 
-  for (const item of pending) {
-    try {
-      if (item.operation === 'insert') {
-        const { error } = await supabase.from(item.table).insert(item.data)
-        if (error) {
-          // 23505 = unique_violation — record already exists (idempotent duplicate)
-          // Treat as success so offline retries don't loop forever
-          const idempotentTables = ['dispense_admin_log', 'patient_encounters', 'supply_runs', 'encounter_procedures']
-          if (error.code === '23505' && idempotentTables.includes(item.table)) {
-            console.warn(`[Sync] Duplicate ${item.table} entry (client_request_id collision) — marking synced:`, item.id)
-            await markSynced(item.id)
-            continue
+    // Process in chronological order (ensures supply_runs before supply_run_items)
+    // Fall back to auto-increment id for entries with identical timestamps
+    pending.sort((a, b) => {
+      const cmp = a.timestamp.localeCompare(b.timestamp)
+      if (cmp !== 0) return cmp
+      return (a.id as number) - (b.id as number)
+    })
+
+    for (const item of pending) {
+      try {
+        console.log('[Sync] Processing pending write:', {
+          id: item.id,
+          table: item.table,
+          operation: item.operation,
+          timestamp: item.timestamp,
+          data: item.data,
+        })
+
+        if (item.operation === 'insert') {
+          const { error } = await supabase.from(item.table).insert(item.data)
+          if (error) {
+            if (error.code === '23505' && idempotentTables.includes(item.table)) {
+              console.warn(`[Sync] Duplicate ${item.table} — already exists, marking synced:`, item.id)
+              await markSynced(item.id)
+              continue
+            }
+            throw error
           }
-          throw error
+        } else if (item.operation === 'update') {
+          const { id, ...rest } = item.data
+          const { error } = await supabase.from(item.table).update(rest).eq('id', id)
+          if (error) throw error
+        } else if (item.operation === 'delete') {
+          const { error } = await supabase.from(item.table).delete().eq('id', item.data.id)
+          if (error) throw error
         }
-      } else if (item.operation === 'update') {
-        const { id, ...rest } = item.data
-        const { error } = await supabase.from(item.table).update(rest).eq('id', id)
-        if (error) throw error
-      } else if (item.operation === 'delete') {
-        const { error } = await supabase.from(item.table).delete().eq('id', item.data.id)
-        if (error) throw error
-      }
-      await markSynced(item.id)
-    } catch (err: any) {
-      console.error('[Sync] Failed for', item.table, item.operation, ':', err?.message || err)
-      // Don't mark synced — retry next time
-    }
-  }
 
-  syncInProgress = false
-  await updateSyncMeta('global', new Date().toISOString())
-  await notifyListeners()
+        console.log(`[Sync] ✓ Synced ${item.table} ${item.operation} queue-id=${item.id}`)
+        await markSynced(item.id)
+      } catch (err: any) {
+        const errCode: string = err?.code || ''
+        const msg: string = err?.message || String(err)
+        console.error('[Sync] Pending write failed:', {
+          queueId: item.id,
+          table: item.table,
+          operation: item.operation,
+          timestamp: item.timestamp,
+          message: msg,
+          code: errCode,
+          details: err?.details,
+          hint: err?.hint,
+          payload: item.data,
+        })
+        const isPermanent = permanentErrorCodes.some(code => msg.includes(code) || errCode === code)
+        if (isPermanent) {
+          console.warn('[Sync] Permanent error — removing from queue:', item.id, errCode, msg)
+          await markSynced(item.id)
+        } else {
+          console.warn('[Sync] Transient error — will retry next flush:', item.id)
+        }
+      }
+    }
+  } finally {
+    syncInProgress = false
+    await updateSyncMeta('global', new Date().toISOString())
+    await notifyListeners()
+  }
 }

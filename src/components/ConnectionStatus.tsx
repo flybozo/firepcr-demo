@@ -1,6 +1,42 @@
 import { useEffect, useState, useRef } from 'react'
-import { initConnectionMonitor, onConnectionChange, getIsOnline, syncDataFromServer } from '@/lib/syncManager'
-import { getSyncMeta, getPendingCount } from '@/lib/offlineStore'
+import { initConnectionMonitor, onConnectionChange, getIsOnline, syncDataFromServer, getPendingWriteCount } from '@/lib/syncManager'
+import { getSyncMeta } from '@/lib/offlineStore'
+
+// Warn user if they try to close/background the app with unsynced data
+function usePendingCloseWarning(pendingCount: number) {
+  const pendingRef = useRef(pendingCount)
+  pendingRef.current = pendingCount
+
+  useEffect(() => {
+    // Standard browser unload warning (works on desktop, limited on iOS)
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (pendingRef.current > 0) {
+        e.preventDefault()
+        e.returnValue = ''
+      }
+    }
+
+    // iOS PWA: fires when user switches away or goes to home screen
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && pendingRef.current > 0) {
+        // Can't show a dialog here, but we can log to console and
+        // attempt an emergency flush if online
+        if (getIsOnline()) {
+          import('@/lib/syncManager').then(({ flushPendingWrites }) => {
+            flushPendingWrites().catch(() => {})
+          })
+        }
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [])
+}
 
 function timeAgo(iso: string): string {
   const secs = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
@@ -37,7 +73,7 @@ export default function ConnectionStatus() {
     try {
       const meta = await getSyncMeta()
       if (meta) setLastSynced(meta.lastSynced)
-      const count = await getPendingCount()
+      const count = await getPendingWriteCount()
       setPendingCount(count)
     } catch {}
   }
@@ -64,17 +100,27 @@ export default function ConnectionStatus() {
           await flushPendingWrites()
           await syncDataFromServer()
         } catch {}
-        refresh()
+        await refresh()
       }
     })
 
     // Refresh pending count periodically (don't re-render bar, just state)
-    const interval = setInterval(refresh, 60000) // Every 60s, not 30
+    // Also try to flush any pending writes on mount if already online
+    if (getIsOnline()) {
+      import('@/lib/syncManager').then(({ flushPendingWrites }) => {
+        flushPendingWrites().then(() => refresh()).catch(() => {})
+      })
+    }
+
+    const interval = setInterval(refresh, 10000) // Poll every 10s so banner clears promptly
 
     return () => { unsub(); clearInterval(interval) }
   }, [])
 
   const isOffline = !online
+
+  // Attempt flush whenever we come back online and have pending items
+  usePendingCloseWarning(pendingCount)
 
   return (
     <div
@@ -97,9 +143,9 @@ export default function ConnectionStatus() {
         </>
       ) : pendingCount > 0 ? (
         <>
-          <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-          <span style={{ color: '#fcd34d' }}>{pendingCount} pending sync</span>
-          {lastSynced && <span style={{ color: '#fcd34d', opacity: 0.5 }}>· Synced {timeAgo(lastSynced)}</span>}
+          <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+          <span style={{ color: '#fcd34d' }}>⚠️ {pendingCount} unsynced — stay online until complete</span>
+          {lastSynced && <span style={{ color: '#fcd34d', opacity: 0.5 }}>· Last sync: {timeAgo(lastSynced)}</span>}
         </>
       ) : (
         <>

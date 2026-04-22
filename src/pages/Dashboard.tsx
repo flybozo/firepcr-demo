@@ -7,7 +7,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      const user = session?.user ?? null
       if (!user) {
         navigate('/login', { replace: true })
         return

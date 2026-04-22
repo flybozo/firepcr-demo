@@ -220,7 +220,7 @@ function SimpleEHRInner() {
         client_request_id: requestId.current,
       })
       if (!result.success) throw new Error(result.error || 'Save failed')
-      navigate(`/encounters?success=1`)
+      navigate('/encounters', { state: { success: true } })
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Submission failed')
       setSubmitting(false)

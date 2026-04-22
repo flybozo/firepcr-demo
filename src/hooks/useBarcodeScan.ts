@@ -5,6 +5,7 @@ type ScanMessage = { text: string; type: 'success' | 'warn' | 'error' }
 
 type ScanRun = {
   incident_unit_id: string | null
+  unit_id?: string | null
   raw_barcodes: string[] | null
 }
 
@@ -26,7 +27,6 @@ type ScanInventoryRow = {
 interface UseBarcodeScanOptions {
   supplyRunId: string
   run: ScanRun | null
-  items: unknown[]
   formulary: ScanFormulary[]
   onScanComplete: () => Promise<void>
   onRunUpdate: (updater: (prev: any) => any) => void
@@ -36,7 +36,6 @@ interface UseBarcodeScanOptions {
 export function useBarcodeScan({
   supplyRunId,
   run,
-  items,
   formulary,
   onScanComplete,
   onRunUpdate,
@@ -61,15 +60,15 @@ export function useBarcodeScan({
     setScanning(true)
     setBarcodeInput('')
 
-    const incidentUnitId = run?.incident_unit_id
+    const unitId = run?.unit_id
     let added = false
 
     try {
-      if (incidentUnitId) {
+      if (unitId) {
         const { data: invRows } = await supabase
           .from('unit_inventory')
           .select('id, item_name, quantity, barcode, upc')
-          .eq('incident_unit_id', incidentUnitId)
+          .eq('unit_id', unitId)
 
         const match = (invRows as ScanInventoryRow[] | null)?.find(
           row => row.barcode === code || row.upc === code
@@ -87,9 +86,6 @@ export function useBarcodeScan({
 
           const newQty = Math.max(0, (match.quantity || 0) - 1)
           await supabase.from('unit_inventory').update({ quantity: newQty }).eq('id', match.id)
-
-          const newCount = items.length + 1
-          await supabase.from('supply_runs').update({ item_count: newCount }).eq('id', supplyRunId)
 
           setScanMessage({ text: `✓ Added: ${match.item_name}`, type: 'success' })
           added = true
@@ -109,9 +105,6 @@ export function useBarcodeScan({
             barcode: code,
           })
           if (itemErr) throw new Error(itemErr.message)
-
-          const newCount = items.length + 1
-          await supabase.from('supply_runs').update({ item_count: newCount }).eq('id', supplyRunId)
 
           setScanMessage({ text: `✓ Added from formulary: ${formularyMatch.item_name}`, type: 'success' })
           added = true

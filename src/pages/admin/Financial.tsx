@@ -6,6 +6,7 @@ import {
   XAxis, YAxis, Tooltip, CartesianGrid,
 } from 'recharts'
 import { fmtCurrency, calcDays } from '@/utils/incidentFormatters'
+import OfflineGate from '@/components/OfflineGate'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -253,6 +254,7 @@ export default function Financial() {
   const tooltipFormatter = (value: number) => fmtCurrency(value)
 
   return (
+    <OfflineGate page message="Financial data requires a connection to load.">
     <div className="space-y-6 pb-8">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -455,5 +457,6 @@ export default function Financial() {
         </>
       )}
     </div>
+    </OfflineGate>
   )
 }

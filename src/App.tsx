@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react'
+import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import SplitShell from '@/components/SplitShell'
 import AuthGuard from '@/components/AuthGuard'
@@ -136,6 +137,7 @@ function App() {
   return (
     <BrowserRouter>
       <ToastContainer />
+      <RouteErrorBoundary>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -271,6 +273,7 @@ function App() {
           </Route>
         </Routes>
       </Suspense>
+      </RouteErrorBoundary>
     </BrowserRouter>
   )
 }

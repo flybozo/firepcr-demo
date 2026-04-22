@@ -23,7 +23,7 @@ type DeploymentRecord = {
 const UNIT_TYPE_COLORS: Record<string, string> = {
   'Ambulance': 'bg-red-800 text-red-200 border-red-700',
   'Med Unit':  'bg-blue-800 text-blue-200 border-blue-700',
-  'Rescue':      'bg-green-800 text-green-200 border-green-700',
+  'REMS':      'bg-green-800 text-green-200 border-green-700',
   'Warehouse': 'bg-purple-800 text-purple-200 border-purple-700',
 }
 

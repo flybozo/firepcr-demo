@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useLocation, useSearchParams } from 'react-router-dom'
 import { useRole } from '@/lib/useRole'
 import { useUserAssignment } from '@/lib/useUserAssignment'
@@ -17,6 +17,13 @@ function FieldGuardInner({
   const [searchParams] = useSearchParams()
   const { isField, loading: roleLoading } = useRole()
   const assignment = useUserAssignment()
+  const [timedOut, setTimedOut] = useState(false)
+
+  // Never block forever: if resolved hasn't settled after 3 s, force-render children.
+  useEffect(() => {
+    const t = setTimeout(() => setTimedOut(true), 3000)
+    return () => clearTimeout(t)
+  }, [])
 
   const resolved = !roleLoading && !assignment.loading
 
@@ -44,8 +51,8 @@ function FieldGuardInner({
     navigate(target, { replace: true })
   }, [resolved, isField, target, alreadyAtTarget])
 
-  // Block rendering until resolved
-  if (!resolved) {
+  // Block rendering until resolved — but never longer than the timeout
+  if (!resolved && !timedOut) {
     return (
       <div className="min-h-screen bg-gray-950 flex items-center justify-center">
         <p className="text-gray-500 text-sm">Loading...</p>

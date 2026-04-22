@@ -10,6 +10,8 @@ import { useParams } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { inputCls, labelCls } from '@/components/ui/FormField'
 import { useBarcodeScan } from '@/hooks/useBarcodeScan'
+import { getIsOnline } from '@/lib/syncManager'
+import { queueOfflineWrite, getCachedData } from '@/lib/offlineStore'
 
 type SupplyRun = {
   id: string
@@ -19,7 +21,6 @@ type SupplyRun = {
   dispensed_by: string | null
   crew_member: string | null
   notes: string | null
-  item_count: number
   incident_unit_id: string | null
   raw_barcodes: string[] | null
   incident_unit: {
@@ -160,9 +161,15 @@ export default function SupplyRunDetailPage() {
     itemData = _items
     inventoryData = (invResult as any).data || []
     } catch {
-      // Offline — try to get items from the cached supply run itself
+      // Offline — try cached supply run embedded items first, then filtered cache
       if (runData && (runData as any).supply_run_items) {
         itemData = (runData as any).supply_run_items
+      }
+      if (!itemData || (itemData as any[]).length === 0) {
+        try {
+          const cachedItems = await getCachedData('supply_run_items') as any[]
+          itemData = cachedItems.filter((i: any) => i.supply_run_id === id && !i.deleted_at)
+        } catch {}
       }
     }
     setRun(runData as unknown as SupplyRun)
@@ -180,13 +187,18 @@ export default function SupplyRunDetailPage() {
 
   useEffect(() => { loadData() }, [loadData])
 
+  // Extract unit_id from nested incident_unit for barcode hook
+  const runWithUnitId = run ? {
+    ...run,
+    unit_id: (run.incident_unit as unknown as { unit?: { id?: string } } | null)?.unit?.id ?? null,
+  } : null
+
   const {
     scanMode, setScanMode, barcodeInput, setBarcodeInput,
     scanMessage, scanning, barcodeRef, handleBarcodeScan,
   } = useBarcodeScan({
     supplyRunId: id,
-    run,
-    items,
+    run: runWithUnitId,
     formulary,
     onScanComplete: loadData,
     onRunUpdate: setRun,
@@ -209,6 +221,31 @@ export default function SupplyRunDetailPage() {
     try {
       const qty = parseFloat(newItem.quantity) || 0
 
+      if (!getIsOnline()) {
+        const itemId = crypto.randomUUID()
+        await queueOfflineWrite('supply_run_items', 'insert', {
+          id: itemId,
+          supply_run_id: id,
+          item_name: newItem.item_name,
+          category: newItem.category || 'OTC',
+          quantity: qty,
+        })
+        const unitId = run?.incident_unit?.unit?.id
+        if (unitId) {
+          const inv = await getCachedData('inventory') as any[]
+          const invItem = inv.find((i: any) => i.item_name === newItem.item_name && i.unit_id === unitId)
+          if (invItem) {
+            await queueOfflineWrite('unit_inventory', 'update', { id: invItem.id, quantity: Math.max(0, (invItem.quantity || 0) - qty) })
+          }
+        }
+        setItems(prev => [...prev, { id: itemId, supply_run_id: id, item_name: newItem.item_name, category: newItem.category || 'OTC', quantity: qty, unit_cost: 0 }])
+        setNewItem({ item_name: '', category: '', quantity: '' })
+        setItemSearch('')
+        setShowAddForm(false)
+        setAddingItem(false)
+        return
+      }
+
       const { error: itemErr } = await supabase.from('supply_run_items').insert({
         supply_run_id: id,
         item_name: newItem.item_name,
@@ -218,19 +255,13 @@ export default function SupplyRunDetailPage() {
       if (itemErr) throw new Error(itemErr.message)
 
       // Zero-quantity guard + subtract from unit inventory
-      // Look up by unit_id (any incident_unit for this unit) since inventory is per-unit not per-deployment
+      // Query by unit_id directly — inventory belongs to the truck, not the incident deployment
       const unitId = run?.incident_unit?.unit?.id
       if (unitId) {
-        // Find all incident_unit IDs for this unit to search across deployments
-        const { data: iuRows } = await supabase
-          .from('incident_units')
-          .select('id')
-          .eq('unit_id', unitId)
-        const iuIds = (iuRows || []).map((r: any) => r.id)
         const { data: existing } = await supabase
           .from('unit_inventory')
           .select('id, quantity')
-          .in('incident_unit_id', iuIds)
+          .eq('unit_id', unitId)
           .eq('item_name', newItem.item_name)
           .order('quantity', { ascending: false })
           .limit(1)
@@ -246,9 +277,6 @@ export default function SupplyRunDetailPage() {
           await supabase.from('unit_inventory').update({ quantity: newQty }).eq('id', existing[0].id)
         }
       }
-
-      const newItemCount = items.length + 1
-      await supabase.from('supply_runs').update({ item_count: newItemCount }).eq('id', id)
 
       setNewItem({ item_name: '', category: '', quantity: '' })
       setItemSearch('')
@@ -277,19 +305,35 @@ export default function SupplyRunDetailPage() {
     setDeletingId(itemId)
     try {
       const deletedItem = items.find(i => i.id === itemId)
+
+      if (!getIsOnline()) {
+        await queueOfflineWrite('supply_run_items', 'update', { id: itemId, deleted_at: new Date().toISOString() })
+        if (deletedItem) {
+          const unitId = run?.incident_unit?.unit?.id
+          if (unitId) {
+            const inv = await getCachedData('inventory') as any[]
+            const invItem = inv.find((i: any) => i.item_name === deletedItem.item_name && i.unit_id === unitId)
+            if (invItem) {
+              await queueOfflineWrite('unit_inventory', 'update', { id: invItem.id, quantity: (invItem.quantity || 0) + deletedItem.quantity })
+            }
+          }
+        }
+        setItems(prev => prev.filter(i => i.id !== itemId))
+        setDeletingId(null)
+        return
+      }
+
       // Soft delete — mark as deleted, don't actually remove
       await supabase.from('supply_run_items').update({ deleted_at: new Date().toISOString() }).eq('id', itemId)
 
-      // Add quantity BACK using unit_id pattern (mirrors the deduction logic)
+      // Add quantity BACK using unit_id (inventory belongs to the truck, not the deployment)
       if (deletedItem) {
         const unitId = run?.incident_unit?.unit?.id
         if (unitId) {
-          const { data: iuRows } = await supabase.from('incident_units').select('id').eq('unit_id', unitId)
-          const iuIds = (iuRows || []).map((r: any) => r.id)
           const { data: invRows } = await supabase
             .from('unit_inventory')
             .select('id, quantity')
-            .in('incident_unit_id', iuIds)
+            .eq('unit_id', unitId)
             .eq('item_name', deletedItem.item_name)
             .order('quantity', { ascending: false })
             .limit(1)
@@ -301,8 +345,6 @@ export default function SupplyRunDetailPage() {
         }
       }
 
-      const newItemCount = Math.max(0, (run?.item_count || 1) - 1)
-      await supabase.from('supply_runs').update({ item_count: newItemCount }).eq('id', id)
       await loadData()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
@@ -321,17 +363,31 @@ export default function SupplyRunDetailPage() {
     const delta = newQty - item.quantity // positive = used more, negative = used less
 
     try {
+      if (!getIsOnline()) {
+        await queueOfflineWrite('supply_run_items', 'update', { id: item.id, quantity: newQty })
+        const unitId = run?.incident_unit?.unit?.id
+        if (unitId && delta !== 0) {
+          const inv = await getCachedData('inventory') as any[]
+          const invItem = inv.find((i: any) => i.item_name === item.item_name && i.unit_id === unitId)
+          if (invItem) {
+            const newInvQty = Math.max(0, (invItem.quantity || 0) - delta)
+            await queueOfflineWrite('unit_inventory', 'update', { id: invItem.id, quantity: newInvQty })
+          }
+        }
+        setItems(prev => prev.map(i => i.id === item.id ? { ...i, quantity: newQty } : i))
+        setEditingQtyId(null)
+        return
+      }
+
       await supabase.from('supply_run_items').update({ quantity: newQty }).eq('id', item.id)
 
-      // Adjust inventory by delta
+      // Adjust inventory by delta — query by unit_id (truck-level inventory)
       const unitId = run?.incident_unit?.unit?.id
       if (unitId) {
-        const { data: iuRows } = await supabase.from('incident_units').select('id').eq('unit_id', unitId)
-        const iuIds = (iuRows || []).map((r: any) => r.id)
         const { data: invRows } = await supabase
           .from('unit_inventory')
           .select('id, quantity')
-          .in('incident_unit_id', iuIds)
+          .eq('unit_id', unitId)
           .eq('item_name', item.item_name)
           .order('quantity', { ascending: false })
           .limit(1)

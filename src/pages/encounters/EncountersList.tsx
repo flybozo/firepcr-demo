@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { queryActiveIncidentsForEncounters } from '@/lib/services/encounters'
 import { PageHeader, EmptyState, LoadingSkeleton } from '@/components/ui'
-import { useNavigate, useSearchParams, useMatch } from 'react-router-dom'
+import { useNavigate, useSearchParams, useMatch, useLocation } from 'react-router-dom'
 import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
 import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
 import { getCachedData, cacheData } from '@/lib/offlineStore'
@@ -59,8 +59,8 @@ function statusColor(status: string | null) {
 function getUnitType(unitName: string): string {
   if (!unitName) return ''
   if (unitName.startsWith('Medic')) return 'Ambulance'
-  if (unitName.startsWith('Aid') || unitName === 'Command 1') return 'Med Unit'
-  if (unitName.startsWith('Rescue')) return 'Rescue'
+  if (unitName.startsWith('MSU') || unitName === 'Command 1') return 'Med Unit'
+  if (unitName.startsWith('REMS')) return 'REMS'
   if (unitName === 'Warehouse') return 'Warehouse'
   return ''
 }
@@ -81,10 +81,11 @@ function EncountersInner() {
   const isField = !usePermission('incidents.manage')
   const assignment = useUserAssignment()
   const navigate = useNavigate()
+  const location = useLocation()
   const [searchParams] = useSearchParams()
   const detailMatch = useMatch('/encounters/:id')
   const incidentId = searchParams.get('incidentId')
-  const success = searchParams.get('success')
+  const success = searchParams.get('success') || (location.state as any)?.success
 
   const [encounters, setEncounters] = useState<Encounter[]>([])
   const [loading, setLoading] = useState(true)
@@ -106,6 +107,13 @@ function EncountersInner() {
     return onConnectionChange((online) => setIsOffline(!online))
   }, [])
 
+  // Belt-and-suspenders: Phase 1 cache load should be near-instant, but if
+  // IndexedDB somehow hangs, force unblock after 3 s.
+  useEffect(() => {
+    const t = setTimeout(() => setLoading(false), 3000)
+    return () => clearTimeout(t)
+  }, [])
+
   // Load active incidents for admin filter pills
   useEffect(() => {
     if (isField || roleLoading) return
@@ -120,11 +128,12 @@ function EncountersInner() {
         const cached = await getCachedData('encounters') as any[]
         if (cached.length > 0) {
           const mapped = cached.map((e: any) => ({ ...e, incident_name: e.incident?.name || e.incident_name || null }))
-          mapped.sort((a: any, b: any) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''))
+          mapped.sort((a: any, b: any) => (b.created_at || b.date || '').localeCompare(a.created_at || a.date || ''))
           setEncounters(mapped)
-          setLoading(false)
         }
       } catch {}
+      // Always unblock loading after cache attempt — network refresh happens in Phase 2
+      setLoading(false)
     }
     preload()
   }, [])
@@ -137,7 +146,7 @@ function EncountersInner() {
       try {
         let query = supabase
           .from('patient_encounters')
-          .select('id, encounter_id, date, unit, patient_first_name, patient_last_name, patient_dob, primary_symptom_text, initial_acuity, patient_disposition, pcr_status, provider_of_record, incident:incidents(name)')
+          .select('id, encounter_id, date, created_at, unit, patient_first_name, patient_last_name, patient_dob, primary_symptom_text, initial_acuity, patient_disposition, pcr_status, provider_of_record, incident:incidents(name)')
           .is('deleted_at', null)
           .order('date', { ascending: false })
           .order('created_at', { ascending: false })
@@ -152,7 +161,7 @@ function EncountersInner() {
         if (error) throw error
         // Update encounters — use whatever the network returned (empty is valid for filtered queries)
         const mapped = (data || []).map((e: any) => ({ ...e, incident_name: e.incident?.name || e.incident_name || null }))
-        mapped.sort((a: any, b: any) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''))
+        mapped.sort((a: any, b: any) => (b.created_at || b.date || '').localeCompare(a.created_at || a.date || ''))
         setEncounters(mapped)
         if (data && data.length > 0) await cacheData('encounters', data).catch(() => {})
       } catch {
@@ -325,7 +334,10 @@ function EncountersInner() {
                   onClick={() => navigate(`/encounters/${enc.id}`)}
                   className={`flex items-center px-4 py-2.5 cursor-pointer border-b border-gray-800/50 text-sm ${detailMatch?.params?.id === enc.id ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
                 >
-                  <span className="w-24 shrink-0 text-gray-400 text-xs">{enc.date || '—'}</span>
+                  <span className="w-24 shrink-0 text-gray-400 text-xs">
+                    {enc.date || '—'}
+                    {(enc as any).created_at && <span className="text-gray-600 ml-1">{new Date((enc as any).created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
+                  </span>
                   <span className="w-20 shrink-0 font-medium truncate pr-2">
                     {enc.patient_last_name
                       ? `${(enc.patient_last_name || '')[0] || '?'}${(enc.patient_first_name || '')[0] || '?'}`.toUpperCase()

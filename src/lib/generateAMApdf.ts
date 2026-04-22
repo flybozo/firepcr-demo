@@ -34,7 +34,7 @@ export function generateAMAPDF(data: AMAData, logoDataUrl?: string | null): jsPD
   }
 
   doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(255, 255, 255)
-  doc.text('REMOTE AREA MEDICINE', W / 2, 22, { align: 'center' })
+  doc.text('RIDGELINE EMS', W / 2, 22, { align: 'center' })
   doc.setFontSize(8); doc.setFont('helvetica', 'normal')
   doc.text(`${brand.companyLegal}  |  Medical Director: ${data.provider_name}`, W / 2, 38, { align: 'center' })
   doc.setTextColor(0, 0, 0)

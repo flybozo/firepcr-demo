@@ -1,4 +1,4 @@
-# FirePCR — Handoff: 2026-04-20 Late Afternoon Session
+# RAM Field Ops — Handoff: 2026-04-20 Late Afternoon Session
 **Session:** 1:53 PM – 3:41 PM PDT  
 **Commits:** 16 commits since `5a14dd7`  
 **Latest commit:** `7f5c3d2`
@@ -9,9 +9,9 @@
 
 | | |
 |---|---|
-| **Prod URL** | https://firepcr-demo.vercel.app |
+| **Prod URL** | https://ram-field-ops.vercel.app |
 | **Demo URL** | https://demo.firepcr.com |
-| **Repo** | https://github.com/flybozo/firepcr-demo |
+| **Repo** | https://github.com/flybozo/ram-field-ops |
 | **Prod Supabase** | `kfkpvazkikpuwatthtow` / pw: `93RV8nx4J^VGR!6V` |
 | **Demo Supabase** | `jlqpycxguovxnqtkjhzs` / pw: `EplVimePP35Zi9MY` |
 | **Latest commit** | `7f5c3d2 feat: encounter ownership, note author delete, DEA/NPI provider-only` |
@@ -141,7 +141,7 @@ All 6 migrations have been applied to prod Supabase (`kfkpvazkikpuwatthtow`).
 | Migration File | What It Does |
 |---|---|
 | `supabase/migrations/20260420_rbac_foundation.sql` | Phase 6 Wave 1: Creates `roles`, `employee_roles`, `employee_permission_overrides` tables. Seeds 8 built-in roles. Migrates existing employees. Creates `get_my_permissions()` RPC. |
-| `supabase/migrations/20260420_add_is_owner_flag.sql` | Adds `is_owner boolean` to `employees`. Sets `is_owner = true` for `admin@ridgelineems.com`. |
+| `supabase/migrations/20260420_add_is_owner_flag.sql` | Adds `is_owner boolean` to `employees`. Sets `is_owner = true` for `aaron@wildfiremedical.com`. |
 | `supabase/migrations/20260420_external_chat.sql` | Adds `external` channel type. Adds `access_code_id` to `chat_channels` and `chat_messages`. Makes `chat_messages.sender_id` nullable. Adds `external_sender_name` column. Index on `chat_channels.access_code_id`. |
 | `supabase/migrations/20260420_unread_counts_rpc.sql` | Creates `get_unread_counts(p_employee_id uuid)` RPC — single-query unread counts for all channels a user is a member of. |
 | `supabase/migrations/20260420_access_code_avatar.sql` | Adds `avatar_url text` to `incident_access_codes` for external user headshots. |
@@ -186,7 +186,7 @@ rsync -av --delete \
   --exclude='.vercel' \
   --exclude='src/lib/branding.config.ts' \
   --exclude='api/_brand.ts' \
-  /tmp/firepcr-demo/ /tmp/firepcr-demo/
+  /tmp/ram-field-ops/ /tmp/firepcr-demo/
 
 # Demo uses branding.demo.ts — NEVER overwrite branding.config.ts or api/_brand.ts during sync.
 

@@ -68,12 +68,21 @@ export function useOfflineWrite(): UseOfflineWriteResult {
 
           if (error) {
             // 23505 = unique_violation — record already exists (idempotent duplicate / offline retry race)
-            const idempotentTables = ['dispense_admin_log', 'patient_encounters', 'supply_runs', 'encounter_procedures']
+            const idempotentTables = ['dispense_admin_log', 'patient_encounters', 'supply_runs', 'supply_run_items', 'encounter_procedures', 'mar_entries']
             if (error.code === '23505' && idempotentTables.includes(table)) {
               console.warn(`[OfflineWrite] Duplicate ${table} entry — treating as success (client_request_id collision)`)
               return { success: true, offline: false }
             }
             // Other online write failure — queue offline
+            console.error('[OfflineWrite] Online write failed; queueing for sync:', {
+              table,
+              operation,
+              message: error.message,
+              code: error.code,
+              details: error.details,
+              hint: error.hint,
+              data,
+            })
             await queueOfflineWrite(table, operation, data)
             await refreshPending()
             return { success: true, offline: true, error: error.message }
@@ -82,6 +91,15 @@ export function useOfflineWrite(): UseOfflineWriteResult {
           return { success: true, offline: false }
         } catch (err: any) {
           // Network error — queue offline
+          console.error('[OfflineWrite] Online write threw; queueing for sync:', {
+            table,
+            operation,
+            message: err?.message || 'Network error',
+            code: err?.code,
+            details: err?.details,
+            hint: err?.hint,
+            data,
+          })
           await queueOfflineWrite(table, operation, data)
           await refreshPending()
           return { success: true, offline: true, error: err?.message || 'Network error' }

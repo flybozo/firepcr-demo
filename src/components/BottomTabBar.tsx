@@ -95,7 +95,6 @@ const ADMIN_SUB_ITEMS: SubItem[] = [
   { label: 'Announcements & Push', href: '/admin/announcements', icon: 'announcements' },
   { label: 'AI Requests', href: '/admin/chat-requests', icon: 'chat-requests' },
   { label: 'Company Profile', href: '/admin/company', icon: 'company' },
-  { label: 'Analytics', href: '/analytics', icon: 'analytics' },
   { label: 'Financial', href: '/admin/financial', icon: 'financial' },
   { label: 'External Dashboard', href: '/admin/fire-dashboard', icon: 'fire-dashboard' },
   { label: 'Schedule', href: '/schedule', icon: 'schedule' },

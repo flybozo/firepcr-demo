@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { queryAllUnits, queryActiveEmployees, insertCSTransaction } from '@/lib/services/cs'
 import { getIsOnline } from '@/lib/syncManager'
+import OfflineGate from '@/components/OfflineGate'
 import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
@@ -272,6 +273,7 @@ export default function CSTransferPage() {
   )
 
   return (
+    <OfflineGate page message="CS transfers and daily counts require a connection.">
     <div className="p-6 md:p-8 max-w-lg mt-8 md:mt-0 pb-20">
       <div className="flex items-center gap-3 mb-6">
         <Link to="/cs" className="text-gray-500 hover:text-white text-sm">← CS</Link>
@@ -469,5 +471,6 @@ export default function CSTransferPage() {
         />
       )}
     </div>
+    </OfflineGate>
   )
 }

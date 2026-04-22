@@ -40,9 +40,9 @@ const TYPE_COLORS: Record<string, string> = {
 function getUnitType(name: string): string {
   if (!name) return ''
   const n = name.toLowerCase()
-  if (n.startsWith('rambo')) return 'Ambulance'
-  if (n.startsWith('msu') || n === 'the beast') return 'Med Unit'
-  if (n.startsWith('rems')) return 'Rescue'
+  if (n.startsWith('medic')) return 'Ambulance'
+  if (n.startsWith('aid') || n === 'command 1') return 'Med Unit'
+  if (n.startsWith('rescue')) return 'REMS'
   return 'Warehouse'
 }
 
@@ -139,9 +139,10 @@ function MARListInner() {
             : cached
           const sorted = [...filtered].sort((a: any, b: any) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''))
           setEntries(sorted as any[])
-          setLoading(false)
         }
       } catch {}
+      // Always unblock loading after cache attempt
+      setLoading(false)
     }
     preload()
   }, [roleLoading, assignment.loading, isField, assignment.unit?.name, unitParam])

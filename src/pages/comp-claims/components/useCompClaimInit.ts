@@ -22,7 +22,7 @@ export function useCompClaimInit(
   const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/firepcr-logo.png')
+    fetch('https://kfkpvazkikpuwatthtow.supabase.co/storage/v1/object/public/headshots/ram-logo.png')
       .then(r => r.blob())
       .then(blob => { const reader = new FileReader(); reader.onload = () => setLogoDataUrl(reader.result as string); reader.readAsDataURL(blob) })
       .catch(() => {})

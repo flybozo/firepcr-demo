@@ -64,7 +64,7 @@ function NewEncounterInner() {
 
   useEffect(() => {
     const load = async () => {
-      // Preload dropdown data from cache
+      // Preload dropdown data from cache — unblock UI immediately
       try {
         const { getCachedData } = await import('@/lib/offlineStore')
         const cachedUnits = await getCachedData('units') as any[]
@@ -72,20 +72,19 @@ function NewEncounterInner() {
         const cachedInc = await getCachedData('incidents') as any[]
         if (cachedInc.length > 0) setIncidents(cachedInc)
       } catch {}
-      const [unitResult, incResult] = await Promise.all([
-        loadList(
-          () => queryUnitsWithIncidents() as any,
-          'units'
-        ),
-        loadList(
-          () => queryAllIncidents(),
-          'incidents'
-        ),
-      ])
-      setUnits(unitResult.data as any)
-      setDisplayedUnits(unitResult.data as any)
-      setIncidents(incResult.data)
+      // Unblock UI as soon as cache is loaded — don't wait for network
       setLoading(false)
+      // Background network refresh (non-blocking)
+      if (!navigator.onLine) return
+      try {
+        const [unitResult, incResult] = await Promise.all([
+          loadList(() => queryUnitsWithIncidents() as any, 'units'),
+          loadList(() => queryAllIncidents(), 'incidents'),
+        ])
+        setUnits(unitResult.data as any)
+        setDisplayedUnits(unitResult.data as any)
+        setIncidents(incResult.data)
+      } catch { /* offline — already showing cached data */ }
     }
     load()
   }, [])
@@ -195,7 +194,7 @@ function NewEncounterInner() {
             ) : (
               <select value={form.unit_id} onChange={e => handleUnitChange(e.target.value)} className={inputCls}>
                 <option value="">Select unit...</option>
-                {['Med Unit', 'Ambulance', 'Rescue'].map(type => {
+                {['Med Unit', 'Ambulance', 'REMS'].map(type => {
                   const typeUnits = displayedUnits.filter(u => (u.unit_type as any)?.name === type)
                   if (!typeUnits.length) return null
                   return (

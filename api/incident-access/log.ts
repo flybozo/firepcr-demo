@@ -10,7 +10,7 @@ function setCors(req: VercelRequest, res: VercelResponse) {
   const allowedOrigins = new Set([
     process.env.APP_BASE_URL,
     process.env.VITE_APP_BASE_URL,
-    'https://firepcr-demo.vercel.app',
+    'https://demo.firepcr.com',
     'https://firepcr-demo.vercel.app',
     'http://localhost:3000',
     'http://localhost:5173',

@@ -7,19 +7,19 @@ export type BrandConfig = {
   // ── Company Identity ────────────────────────────────────────────────────
   /** DBA / trade name: "Ridgeline EMS" */
   companyName: string
-  /** Legal entity name: "Ridgeline Medical Group" */
+  /** Legal entity name: "Ridgeline Emergency Medical Services LLC" */
   companyLegal: string
-  /** Short app title shown in headers: "FirePCR" */
+  /** Short app title shown in headers: "Ridgeline Field Ops" */
   appName: string
   /** Marketing / white-label app name: "FirePCR" */
   appBrand: string
-  /** Primary email domain: "ridgelineems.com" */
+  /** Primary email domain: "firepcr.com" */
   domain: string
-  /** System/support email: "assistant@ridgelineems.com" */
+  /** System/support email: "support@firepcr.com" */
   supportEmail: string
-  /** Notification sender: "FirePCR <notifications@ridgelineems.com>" */
+  /** Notification sender: "FirePCR <notifications@firepcr.com>" */
   notificationsEmail: string
-  /** Public app URL: "https://app.ridgelineems.com" */
+  /** Public app URL: "https://app.firepcr.com" */
   appUrl: string
 
   // ── Logo & Assets ───────────────────────────────────────────────────────
@@ -29,7 +29,7 @@ export type BrandConfig = {
   faviconUrl: string
 
   // ── NEMSIS / EMS Identifiers ────────────────────────────────────────────
-  /** CEMSIS agency number: "S00-00000" */
+  /** CEMSIS agency number: "DEMO-00001" */
   nemsisAgencyId: string
   /** CEMSIS state agency ID (often same as agencyId) */
   nemsisStateAgencyId: string
@@ -45,15 +45,15 @@ export type BrandConfig = {
   // ── Unit Naming Conventions ─────────────────────────────────────────────
   unitPrefixes: {
     ambulance: string   // "Medic"
-    medUnit: string     // "Aid"
-    rems: string        // "Rescue"
+    medUnit: string     // "MSU"
+    rems: string        // "REMS"
     warehouse: string   // "Command 1"
   }
 
   // ── AI Assistant ────────────────────────────────────────────────────────
-  /** AI assistant display name: "AI Assistant" */
+  /** AI assistant display name: "Scout" */
   assistantName: string
-  /** Assistant emoji: "🏴‍☠️" */
+  /** Assistant emoji: "🔥" */
   assistantEmoji: string
   /** System prompt context for in-app AI chat */
   assistantContext: string

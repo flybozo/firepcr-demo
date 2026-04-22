@@ -105,7 +105,19 @@ export function queryIncidentMARCount(incidentId: string) {
 export function queryIncidentSupplyRuns(incidentId: string, limit = 3) {
   return createClient()
     .from('supply_runs')
-    .select('id, recipient_name, unit, items_count, created_at, run_date')
+    .select(`
+      id,
+      run_date,
+      time,
+      resource_number,
+      dispensed_by,
+      notes,
+      created_at,
+      incident_id,
+      incident:incidents(name),
+      incident_unit:incident_units(unit:units(name)),
+      supply_run_items(id)
+    `)
     .eq('incident_id', incidentId)
     .order('created_at', { ascending: false })
     .limit(limit)

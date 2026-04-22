@@ -179,7 +179,7 @@ export default function ICS214ListPage() {
                   const bK = Object.keys(order).find(k => b.startsWith(k)) || 'z'
                   return (order[aK]||9) - (order[bK]||9) || a.localeCompare(b)
                 }).map(u => {
-                  const type = u.startsWith('Medic') ? 'Ambulance' : u.startsWith('Aid') || u === 'Command 1' ? 'Med Unit' : 'Rescue'
+                  const type = u.startsWith('Medic') ? 'Ambulance' : u.startsWith('MSU') || u === 'Command 1' ? 'Med Unit' : 'REMS'
                   const activeClass = type === 'Ambulance' ? 'bg-red-700 text-white' : type === 'Med Unit' ? 'bg-blue-700 text-white' : 'bg-green-700 text-white'
                   return (
                     <button key={u} onClick={() => setUnitFilter(u)}

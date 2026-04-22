@@ -4,6 +4,7 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import { ClinicalTab } from './components/ClinicalTab'
 import { OperationsTab } from './components/OperationsTab'
 import { WorkforceTab } from './components/WorkforceTab'
+import OfflineGate from '@/components/OfflineGate'
 
 type Tab = 'clinical' | 'operations' | 'workforce'
 
@@ -23,6 +24,7 @@ export default function AnalyticsPage() {
   const tabs = !canAnalytics ? allTabs.filter(t => t.id === 'clinical') : allTabs
 
   return (
+    <OfflineGate page message="Analytics requires a connection to load report data.">
     <div className="bg-gray-950 text-white pb-8">
       <div className="p-4 md:p-6 space-y-5">
 
@@ -55,5 +57,6 @@ export default function AnalyticsPage() {
         {tab === 'workforce'  && <WorkforceTab />}
       </div>
     </div>
+    </OfflineGate>
   )
 }

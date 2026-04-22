@@ -498,7 +498,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           />
         ) : (
           <img
-            src="/firepcr-logo.png"
+            src="/ram-company-logo.png"
             alt={brand.companyName}
             className="w-10 h-10 rounded-full object-contain bg-white p-0.5 shrink-0"
           />

@@ -10,6 +10,8 @@ import { usePermission } from '@/hooks/usePermission'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
 import { PageHeader, LoadingSkeleton, EmptyState } from '@/components/ui'
+import { getCachedData } from '@/lib/offlineStore'
+import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
 
 type CSItem = {
   id: string
@@ -26,8 +28,8 @@ const ALL_UNITS = ['Medic 1', 'Medic 2', 'Medic 3', 'Medic 4', 'Aid 1', 'Aid 2',
 
 function unitType(name: string) {
   if (name.startsWith('Medic')) return 'Ambulance'
-  if (name.startsWith('Aid') || name === 'Command 1') return 'Med Unit'
-  if (name.startsWith('Rescue')) return 'Rescue'
+  if (name.startsWith('MSU') || name === 'Command 1') return 'Med Unit'
+  if (name.startsWith('REMS')) return 'REMS'
   if (name === 'Warehouse') return 'Warehouse'
   return ''
 }
@@ -55,6 +57,7 @@ export default function CSList() {
   const [loading, setLoading] = useState(true)
   const [unitFilter, setUnitFilter] = useState('All')
   const [search, setSearch] = useState('')
+  const [isOfflineData, setIsOfflineData] = useState(false)
 
   // Field users locked to their unit
   useEffect(() => {
@@ -66,19 +69,42 @@ export default function CSList() {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase
-        .from('unit_inventory')
-        .select('id, item_name, quantity, par_qty, cs_lot_number, cs_expiration_date, unit_id, unit:units(name)')
-        .eq('category', 'CS')
-        .order('item_name')
-      const mapped: CSItem[] = (data || []).map((r: any) => ({
-        ...r,
-        unitName: r.unit?.name || 'Unknown',
-      }))
-      setItems(mapped)
+      // Show cached CS inventory instantly
+      try {
+        const cached = await getCachedData('inventory') as any[]
+        const csItems = cached.filter((i: any) => i.category === 'CS')
+        if (csItems.length > 0) {
+          setItems(csItems.map((r: any) => ({
+            ...r,
+            unitName: r.unit?.name || r.unit_name || 'Unknown',
+          })))
+          setLoading(false)
+        }
+      } catch {}
+
+      // Try network refresh
+      try {
+        const { data } = await supabase
+          .from('unit_inventory')
+          .select('id, item_name, quantity, par_qty, cs_lot_number, cs_expiration_date, unit_id, unit:units(name)')
+          .eq('category', 'CS')
+          .order('item_name')
+        const mapped: CSItem[] = (data || []).map((r: any) => ({
+          ...r,
+          unitName: r.unit?.name || 'Unknown',
+        }))
+        setItems(mapped)
+        setIsOfflineData(false)
+      } catch {
+        setIsOfflineData(typeof navigator !== 'undefined' && !navigator.onLine)
+      }
       setLoading(false)
     }
     load()
+
+    const handleOnline = () => { load() }
+    window.addEventListener('online', handleOnline)
+    return () => window.removeEventListener('online', handleOnline)
   }, [])
 
   const availableUnits = [...new Set(items.map(i => i.unitName))]
@@ -96,6 +122,11 @@ export default function CSList() {
 
   return (
     <div className="flex flex-col min-h-full">
+      {isOfflineData && (
+        <div className="bg-amber-900/30 border border-amber-700 px-3 py-2 text-amber-300 text-xs flex items-center gap-2">
+          📶 Offline — showing cached CS inventory. Transfers are unavailable until you reconnect.
+        </div>
+      )}
       {/* Header */}
       <div className="px-4 pt-4 pb-3 border-b border-gray-800 mt-8 md:mt-0 space-y-3">
         <PageHeader

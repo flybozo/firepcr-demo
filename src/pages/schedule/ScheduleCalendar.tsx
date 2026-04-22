@@ -6,6 +6,7 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import { LoadingSkeleton } from '@/components/ui'
 import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
 import { Link } from 'react-router-dom'
+import OfflineGate from '@/components/OfflineGate'
 
 type CalEvent = {
   id: string
@@ -217,6 +218,7 @@ export default function ScheduleCalendarPage() {
   const DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
 
   return (
+    <OfflineGate page message="Coverage calendar requires a connection to load.">
     <div className="bg-gray-950 text-white mt-8 md:mt-0 pb-8">
       <div className="max-w-5xl mx-auto p-4 md:p-6 space-y-4">
 
@@ -369,5 +371,6 @@ export default function ScheduleCalendarPage() {
 
       </div>
     </div>
+    </OfflineGate>
   )
 }

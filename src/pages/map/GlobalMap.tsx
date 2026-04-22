@@ -1,9 +1,11 @@
 import { lazy, Suspense } from 'react'
+import OfflineGate from '@/components/OfflineGate'
 
 const UnitMap = lazy(() => import('@/components/maps/UnitMap'))
 
 export default function GlobalMapPage() {
   return (
+    <OfflineGate page message="Live Map requires a connection to display unit locations.">
     <div className="flex flex-col bg-gray-950 text-white" style={{ height: '100%', minHeight: 0 }}>
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-800 shrink-0">
         <h1 className="text-lg font-bold text-white">Live Map</h1>
@@ -21,5 +23,6 @@ export default function GlobalMapPage() {
         </Suspense>
       </div>
     </div>
+    </OfflineGate>
   )
 }

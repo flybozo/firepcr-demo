@@ -1,4 +1,4 @@
-# FirePCR — Code Audit Report
+# RAM Field Ops — Code Audit Report
 
 **Date:** 2026-04-19  
 **Scope:** Post Phase 4 decomposition audit — import/export integrity, type safety, dead code, consistency, offline patterns, security  

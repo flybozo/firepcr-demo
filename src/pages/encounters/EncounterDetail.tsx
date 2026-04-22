@@ -80,7 +80,9 @@ export default function EncounterDetailPage() {
 
   useEffect(() => {
     const loadPrefs = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
+      // Use getSession() — works offline (reads localStorage)
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user
       if (!user) return
       const { data: pref } = await supabase
         .from('user_preferences').select('encounter_section_order')
@@ -115,7 +117,8 @@ export default function EncounterDetailPage() {
     if (over && active.id !== over.id) {
       setCardOrder(prev => {
         const newOrder = arrayMove(prev, prev.indexOf(active.id as string), prev.indexOf(over.id as string))
-        supabase.auth.getUser().then(({ data: { user } }) => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          const user = session?.user
           if (!user) return
           supabase.from('user_preferences').upsert({
             auth_user_id: user.id, encounter_section_order: newOrder, updated_at: new Date().toISOString(),
@@ -242,7 +245,7 @@ export default function EncounterDetailPage() {
                 {enc.patient_age ? <span className="text-gray-500 text-xs self-end pb-1">{enc.patient_age}y</span> : null}
               </div>
               <p className="text-gray-500 text-xs mt-1">
-                {enc.encounter_id} · {enc.date} · {enc.unit}
+                {enc.encounter_id} · {enc.date}{enc.created_at && <span className="text-gray-600"> {new Date(enc.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>} · {enc.unit}
                 {enc.crew_resource_number && <span className="text-blue-400"> · CRN: {enc.crew_resource_number}</span>}
                 {incidentName && <span className="text-orange-400"> · 🔥 {incidentName}</span>}
               </p>

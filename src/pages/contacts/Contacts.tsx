@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { usePermission } from '@/hooks/usePermission'
 import { PageHeader, EmptyState } from '@/components/ui'
+import OfflineGate from '@/components/OfflineGate'
 
 type Contact = {
   id: string
@@ -396,6 +397,7 @@ export default function ContactsPage() {
   })
 
   return (
+    <OfflineGate page message="Contacts require a connection to load.">
     <div className="p-6 md:p-8 max-w-5xl mt-8 md:mt-0">
       {/* Header */}
       <PageHeader
@@ -481,5 +483,6 @@ export default function ContactsPage() {
         />
       )}
     </div>
+    </OfflineGate>
   )
 }

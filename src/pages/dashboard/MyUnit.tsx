@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { ConfirmDialog } from '@/components/ui'
 import { useLocationPing } from '@/hooks/useLocationPing'
+import { getCachedData } from '@/lib/offlineStore'
 
 type CrewMember = {
   id: string
@@ -59,6 +60,7 @@ export default function MyUnitDashboard() {
   const [marEntries, setMarEntries] = useState<{id:string;date:string|null;item_name:string|null;patient_name:string|null}[]>([])
   const [supplyRuns, setSupplyRuns] = useState<{id:string;run_date:string|null;dispensed_by:string|null}[]>([])
   const [dataLoading, setDataLoading] = useState(true)
+  const [isOffline, setIsOffline] = useState(false)
   const [deployment, setDeployment] = useState<DeploymentRecord | null>(null)
   const [deploymentLoading, setDeploymentLoading] = useState(true)
   const [checkingIn, setCheckingIn] = useState(false)
@@ -178,6 +180,34 @@ export default function MyUnitDashboard() {
         setUnsignedCount(unsignedC ?? 0)
       } catch (e) {
         console.error('Dashboard load error:', e)
+        // Offline fallback: reconstruct from cache
+        try {
+          setIsOffline(true)
+          const [cachedUnits, cachedEncounters, cachedInv, cachedMar, cachedRuns] = await Promise.all([
+            getCachedData('units') as Promise<any[]>,
+            getCachedData('encounters') as Promise<any[]>,
+            getCachedData('inventory') as Promise<any[]>,
+            getCachedData('mar_entries') as Promise<any[]>,
+            getCachedData('supply_runs') as Promise<any[]>,
+          ])
+          // Crew from cached units → incident_units → unit_assignments
+          const cachedUnit = cachedUnits.find((u: any) =>
+            (u.incident_units || []).some((iu: any) => iu.id === incidentUnitId)
+          )
+          const cachedIU = cachedUnit?.incident_units?.find((iu: any) => iu.id === incidentUnitId)
+          const cachedAssignments = (cachedIU?.unit_assignments || []).filter((a: any) => !a.released_at)
+          setCrew(cachedAssignments.filter((a: any) => a.employee).map((a: any) => ({ id: a.employee.id ?? '', employee: { name: a.employee.name, role: a.employee.role } })))
+
+          setEncounters(cachedEncounters.filter((e: any) => e.incident_id === incidentId && e.unit === unitName && !e.deleted_at).sort((a: any, b: any) => (b.date ?? '').localeCompare(a.date ?? '')).slice(0, 8))
+
+          const unitInv = cachedInv.filter((i: any) => i.incident_unit_id === incidentUnitId)
+          setCsItems(unitInv.filter((i: any) => ['Morphine', 'Fentanyl', 'Midazolam', 'Ketamine'].includes(i.item_name)).map((i: any) => ({ item_name: i.item_name, quantity: i.quantity ?? 0 })))
+          const low = unitInv.filter((i: any) => i.quantity <= i.par_qty).sort((a: any, b: any) => (a.quantity / Math.max(a.par_qty, 1)) - (b.quantity / Math.max(b.par_qty, 1))).slice(0, 5)
+          setLowStock(low)
+
+          setMarEntries(cachedMar.filter((m: any) => m.med_unit === unitName).sort((a: any, b: any) => (b.date ?? '').localeCompare(a.date ?? '')).slice(0, 5))
+          setSupplyRuns(cachedRuns.filter((r: any) => r.incident_id === incidentId).sort((a: any, b: any) => (b.run_date ?? '').localeCompare(a.run_date ?? '')).slice(0, 5))
+        } catch {}
       } finally {
         setDataLoading(false)
       }
@@ -274,6 +304,13 @@ export default function MyUnitDashboard() {
           <h1 className="text-2xl font-bold text-white">🚑 My Unit: {unitName}</h1>
           <p className="text-gray-400 text-sm mt-1">Active Incident: {incidentName}</p>
         </div>
+
+        {/* Offline indicator */}
+        {isOffline && (
+          <div className="rounded-xl border border-amber-700/60 bg-amber-950/30 px-4 py-2 text-amber-300 text-sm">
+            📶 Offline — showing cached data
+          </div>
+        )}
 
         {/* Location sharing banner */}
         {assignment.incidentUnit && permState !== 'granted' && permState !== 'unknown' && (

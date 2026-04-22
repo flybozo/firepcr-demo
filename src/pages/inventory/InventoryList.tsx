@@ -67,7 +67,60 @@ function InventoryPageInner() {
         if (cached.length > 0) { setItems(cached); setLoading(false) }
       } catch {}
 
+      // Offline reconstruction — used when offline or when live query throws
+      const buildFromCache = async () => {
+        const [cachedInv, cachedFormulary, cachedUnits] = await Promise.all([
+          getCachedData('inventory') as Promise<any[]>,
+          getCachedData('formulary') as Promise<any[]>,
+          getCachedData('units') as Promise<any[]>,
+        ])
+        const invData = cachedInv
+        const formularyData = cachedFormulary
+        const unitsData = cachedUnits as any[]
+        const formularyByType: Record<string, any[]> = {}
+        formularyData.forEach((f: any) => {
+          if (!f.unit_type_id) return
+          if (!formularyByType[f.unit_type_id]) formularyByType[f.unit_type_id] = []
+          formularyByType[f.unit_type_id].push(f)
+        })
+        const invByUnit: Record<string, Record<string, any[]>> = {}
+        invData.forEach((inv: any) => {
+          const uid = inv.unit_id || ''
+          if (!invByUnit[uid]) invByUnit[uid] = {}
+          if (!invByUnit[uid][inv.item_name]) invByUnit[uid][inv.item_name] = []
+          invByUnit[uid][inv.item_name].push(inv)
+        })
+        const mergedItems: any[] = []
+        unitsData.forEach((unit: any) => {
+          const typeId = unit.unit_type_id
+          const templateItems = formularyByType[typeId] || []
+          const unitInv = invByUnit[unit.id] || {}
+          templateItems.forEach((tmpl: any) => {
+            const invRows = unitInv[tmpl.item_name] || []
+            if (tmpl.category === 'CS' && invRows.length > 0) {
+              invRows.forEach((inv: any) => {
+                mergedItems.push({ id: inv.id, item_name: tmpl.item_name, category: tmpl.category, quantity: inv.quantity ?? 0, par_qty: inv.par_qty ?? tmpl.default_par_qty ?? 0, lot_number: inv.lot_number || null, expiration_date: inv.expiration_date || null, unit_id: unit.id, unit: unit, is_als: tmpl.is_als || false })
+              })
+            } else if (tmpl.category === 'CS') {
+              mergedItems.push({ id: `tmpl-${unit.id}-${tmpl.id}`, item_name: tmpl.item_name, category: tmpl.category, quantity: 0, par_qty: tmpl.default_par_qty ?? 0, lot_number: null, expiration_date: null, unit_id: unit.id, unit: unit, is_als: tmpl.is_als || false })
+            } else {
+              const inv = invRows[0] || null
+              mergedItems.push({ id: inv?.id || `tmpl-${unit.id}-${tmpl.id}`, item_name: tmpl.item_name, category: tmpl.category, quantity: inv?.quantity ?? 0, par_qty: inv?.par_qty ?? tmpl.default_par_qty ?? 0, lot_number: inv?.lot_number || null, expiration_date: inv?.expiration_date || null, unit_id: unit.id, unit: unit, is_als: tmpl.is_als || false })
+            }
+          })
+        })
+        setItems(mergedItems)
+        setIsOfflineData(true)
+        setLoading(false)
+      }
+
+      if (!navigator.onLine) {
+        await buildFromCache()
+        return
+      }
+
       // Load inventory + formulary templates + units in parallel
+      try {
       const [invResult, formularyResult, unitsResult] = await Promise.all([
         supabase
           .from('unit_inventory')
@@ -177,8 +230,9 @@ function InventoryPageInner() {
       // Any inventory rows not matching a template are ignored.
 
       setItems(mergedItems)
-      setIsOfflineData(!!invResult.error && !navigator.onLine)
+      setIsOfflineData(false)
       setLoading(false)
+      } catch { await buildFromCache() }
     }
     load()
   }, [])

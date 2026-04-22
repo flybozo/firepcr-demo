@@ -117,7 +117,7 @@ export function generateCompClaimsPDF(d: CompClaimsData, logoDataUrl?: string | 
     }
   }
 
-  // ── Page header with RAM logo ──
+  // ── Page header with company logo ──
   // Circular logo upper-left
   if (logoDataUrl) {
     try {

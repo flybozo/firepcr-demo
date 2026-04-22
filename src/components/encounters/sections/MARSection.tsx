@@ -39,6 +39,19 @@ export function MARSection({
       }
     } else {
       await queueOfflineWrite('dispense_admin_log', 'update', { id: m.id, qty_used: newQty })
+      if (delta !== 0 && m.med_unit) {
+        const { getCachedData } = await import('@/lib/offlineStore')
+        const [inv, units] = await Promise.all([
+          getCachedData('inventory') as Promise<any[]>,
+          getCachedData('units') as Promise<any[]>,
+        ])
+        const unit = (units as any[]).find((u: any) => u.name === m.med_unit)
+        const matched = (inv as any[]).find((i: any) => i.item_name === m.item_name && i.unit_id === unit?.id)
+        if (matched) {
+          const newInvQty = Math.max(0, (matched.quantity || 0) - delta)
+          await queueOfflineWrite('unit_inventory', 'update', { id: matched.id, quantity: newInvQty })
+        }
+      }
     }
     setMarEntries(prev => prev.map(x => x.id === m.id ? { ...x, qty_used: newQty } : x))
     setEditingMarQtyId(null)

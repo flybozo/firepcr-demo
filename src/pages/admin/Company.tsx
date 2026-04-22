@@ -5,6 +5,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useTheme, THEME_PRESETS, DEFAULT_THEME } from '@/components/ThemeProvider'
 import type { Theme, ThemeColors } from '@/components/ThemeProvider'
+import OfflineGate from '@/components/OfflineGate'
 
 type Organization = {
   id: string
@@ -489,6 +490,7 @@ function CompanyProfilePageInner() {
   }
 
   return (
+    <OfflineGate page message="Company profile requires a connection to load.">
     <div className="p-6 md:p-8 max-w-4xl mt-8 md:mt-0">
       {/* Header */}
       <div className="flex items-center gap-4 mb-6">
@@ -579,6 +581,7 @@ function CompanyProfilePageInner() {
         </Section>
       </div>
     </div>
+    </OfflineGate>
   )
 }
 

@@ -159,7 +159,7 @@ export function useIncidentData(
           unit_assignments(id)
         `).eq('incident_id', activeIncidentId),
         supabaseClient.from('units').select('id, name, unit_type:unit_types(name, default_contract_rate)').eq('is_storage', false).order('name'),
-        supabaseClient.auth.getUser(),
+        supabaseClient.auth.getSession(),
       ])
       iUnits = iuRes.data; allUnitsData = unitsRes.data; userData = authRes.data
       const allIuMapped: IncidentUnit[] = ((allIuRes.data as unknown as any[]) || []).map((u: any) => {
@@ -190,7 +190,7 @@ export function useIncidentData(
     }
     setActiveIncidents(allActive)
 
-    const userId = userData?.user?.id ?? null
+    const userId = (userData as any)?.session?.user?.id ?? null
     setCurrentUserId(userId)
 
     if (userId) {

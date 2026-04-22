@@ -10,10 +10,23 @@ export default function AuthGuard({ children }: { children?: React.ReactNode }) 
 
   useEffect(() => {
     const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setAuthenticated(!!user)
+
+    // Use getSession() first — reads from localStorage, works offline.
+    // Then verify with getUser() in the background when online.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setAuthenticated(!!session?.user)
       setLoading(false)
+      // Background verify when online (don't block render)
+      if (session?.user && navigator.onLine) {
+        supabase.auth.getUser().then(({ data: { user } }) => {
+          if (!user) setAuthenticated(false)
+        }).catch(() => { /* offline — session already set from local */ })
+      }
+    }).catch(() => {
+      setLoading(false)
+      setAuthenticated(false)
     })
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
       setAuthenticated(!!session?.user)
     })

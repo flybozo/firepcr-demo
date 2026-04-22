@@ -31,7 +31,7 @@ export const brand: BrandConfig = {
   unitPrefixes: {
     ambulance: 'Unit',
     medUnit: 'Med',
-    rems: 'Rescue',
+    rems: 'REMS',
     warehouse: 'Cache',
   },
 

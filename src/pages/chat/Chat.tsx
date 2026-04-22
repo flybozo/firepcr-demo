@@ -16,6 +16,7 @@ import { ChannelListPanel } from '@/components/chat/ChannelListPanel'
 import { MessageThread } from '@/components/chat/MessageThread'
 import { NewDMModal } from '@/components/chat/NewDMModal'
 import type { ChatChannel } from '@/types/chat'
+import OfflineGate from '@/components/OfflineGate'
 
 export default function ChatPage() {
   const { employee, incident, unit } = useUser()
@@ -134,7 +135,7 @@ export default function ChatPage() {
   }
 
   return (
-    <>
+    <OfflineGate page message="Team Chat requires a connection to send and receive messages.">
       {showDMModal && (
         <NewDMModal
           onClose={() => setShowDMModal(false)}
@@ -203,6 +204,6 @@ export default function ChatPage() {
           />
         ) : null}
       </div>
-    </>
+    </OfflineGate>
   )
 }

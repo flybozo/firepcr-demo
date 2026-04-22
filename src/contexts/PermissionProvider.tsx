@@ -38,22 +38,45 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
         setLoading(false)
       }
 
-      const { data: { user } } = await supabase.auth.getUser()
+      // getSession() reads from localStorage — works offline
+      const { data: { session } } = await supabase.auth.getSession()
+      const user = session?.user ?? null
       if (!user || cancelled) {
         if (!cached) {
           setPermissions(new Set())
           setLoading(false)
+          // Seed so subsequent offline loads resolve immediately as field user
+          saveCachedPermissions([])
         }
         return
       }
 
-      const { data } = await supabase.rpc('get_my_permissions')
-      if (!cancelled) {
-        const perms = data as string[] | null
-        const permSet = new Set<string>(perms || [])
-        setPermissions(permSet)
-        setLoading(false)
-        await saveCachedPermissions(perms || [])
+      // Only fetch live permissions when online
+      if (!navigator.onLine) {
+        if (!cached) {
+          setPermissions(new Set())
+          setLoading(false)
+          // Seed so subsequent offline loads resolve immediately as field user
+          saveCachedPermissions([])
+        }
+        return
+      }
+
+      try {
+        const { data } = await supabase.rpc('get_my_permissions')
+        if (!cancelled) {
+          const perms = data as string[] | null
+          const permSet = new Set<string>(perms || [])
+          setPermissions(permSet)
+          setLoading(false)
+          await saveCachedPermissions(perms || [])
+        }
+      } catch {
+        // Network failed — use cached permissions or empty set
+        if (!cancelled && cached === null) {
+          setPermissions(new Set())
+          setLoading(false)
+        }
       }
     }
 

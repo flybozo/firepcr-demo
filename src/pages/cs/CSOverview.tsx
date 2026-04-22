@@ -41,8 +41,8 @@ const CS_UNIT_TYPE: Record<string, string> = {
   'Warehouse': 'Warehouse',
   'Medic 1': 'Ambulance', 'Medic 2': 'Ambulance', 'Medic 3': 'Ambulance', 'Medic 4': 'Ambulance',
   'Aid 1': 'Med Unit', 'Aid 2': 'Med Unit', 'Command 1': 'Med Unit',
-  'Rescue 1': 'Rescue', 'Rescue 1 Trailer': 'Rescue', 'Rescue 2': 'Rescue',
-  'Truck 1': 'Rescue', 'Truck 2': 'Rescue', 'Truck 3': 'Rescue', 'UTV 1': 'Rescue', 'UTV 2': 'Rescue',
+  'Rescue 1': 'REMS', 'Rescue 1 Trailer': 'REMS', 'Rescue 2': 'REMS',
+  'Truck 1': 'REMS', 'Truck 2': 'REMS', 'Truck 3': 'REMS', 'UTV 1': 'REMS', 'UTV 2': 'REMS',
 }
 
 const UNITS = ['Warehouse', 'Medic 1', 'Medic 2', 'Medic 3', 'Medic 4', 'Aid 1', 'Aid 2', 'Command 1', 'Rescue 1', 'Rescue 2']

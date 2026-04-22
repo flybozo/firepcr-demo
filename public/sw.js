@@ -3,15 +3,28 @@
 
 const CACHE_NAME = 'firepcr-v14';
 
-// Install: cache the app shell
+// Install: cache the app shell + all JS/CSS asset chunks
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(async (cache) => {
+    (async () => {
+      const cache = await caches.open(CACHE_NAME);
       // Cache index.html
       try { await cache.add('/'); } catch (e) { console.error('[SW] Failed to cache /', e); }
       // Cache static assets
       try { await cache.addAll(['/manifest.json', '/icons/icon-192.png', '/icons/icon-512.png']); } catch {}
-    }).then(() => self.skipWaiting())
+      // Pre-cache all hashed JS/CSS chunks so the app works offline after cache clear
+      try {
+        const res = await fetch('/asset-manifest.json');
+        if (res.ok) {
+          const { assets } = await res.json();
+          await Promise.allSettled(assets.map(url => cache.add(url)));
+          console.log(`[SW] Pre-cached ${assets.length} asset chunks`);
+        }
+      } catch (e) {
+        console.warn('[SW] Could not pre-cache asset chunks:', e);
+      }
+      self.skipWaiting();
+    })()
   );
 });
 

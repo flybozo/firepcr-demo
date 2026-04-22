@@ -6,8 +6,8 @@ import { brand } from './_brand.js'
 // Vercel Pro: max 60s, Enterprise: 900s. Needed for executive tool calls.
 // Vercel serverless
 
-// iMac AI Assistant relay — admin users get full context via Tailscale
-const IMAC_GATEWAY_URL = process.env.IMAC_GATEWAY_URL || 'https://aarons-imac-2.tailebc17f.ts.net'
+// iMac Scout relay — admin users get full context via Tailscale
+const IMAC_GATEWAY_URL = process.env.IMAC_GATEWAY_URL || 'https://demo-gateway.firepcr.com'
 const REQUEST_KEYWORDS = [
   'request', 'can i', 'could i', 'i would like', 'i need approval',
   'i\'d like', 'is it ok', 'is it possible', 'permission', 'approve',
@@ -25,7 +25,7 @@ function detectRequestType(message: string): 'request' | 'bug_report' | null {
   return null
 }
 
-// ── Admin relay: send message to iMac AI Assistant via OpenAI-compatible endpoint ─
+// ── Admin relay: send message to iMac Scout via OpenAI-compatible endpoint ─
 async function relayToImac(
   message: string,
   employee: { name: string; role: string; chat_authority?: string },
@@ -38,7 +38,7 @@ async function relayToImac(
 
     const executiveBlock = authority === 'executive' ? `
 
-EXECUTIVE AUTHORITY GRANTED — This is Dr. A. Mitchell, MD — owner and medical director.
+EXECUTIVE AUTHORITY GRANTED — This is Dr. Alex Morgan — owner and medical director.
 You have FULL executive authority for this session. Treat this exactly like a direct conversation with your boss.
 You MAY:
 - Execute shell commands (git, deploy, database operations)
@@ -47,7 +47,7 @@ You MAY:
 - Send emails via gog gmail
 - Check calendars, manage files, search the web
 - Access all company data including financials and contracts
-- Fix bugs, redeploy, run migrations — anything Aaron asks
+- Fix bugs, redeploy, run migrations — anything the medical director asks
 Do NOT ask for confirmation on routine tasks. Just do them and report what you did.` : ''
 
     const adminBlock = authority === 'admin' ? `
@@ -58,16 +58,16 @@ ADMIN AUTHORITY — You may:
 - View employee credentials and roster info
 - Look up operational data (encounters, MAR, supply runs)
 You may NOT: push code, access financials/contracts, send external emails, modify app config.
-For those actions, say "I'll forward this to Aaron for approval."` : ''
+For those actions, say "I'll forward this to the medical director for approval."` : ''
 
     const fieldBlock = authority === 'field' ? `
 
 FIELD USER — You can answer questions about protocols, policies, the app, and schedules.
 Do NOT reveal: patient PHI, company financials, contracts, other employees' salaries/personal details.
-For anything requiring management approval, acknowledge warmly and say it's been forwarded to Aaron.` : ''
+For anything requiring management approval, acknowledge warmly and say it's been forwarded to the medical director.` : ''
 
     const systemPrompt = `[${brand.appName} Employee Chat — relayed from app]
-You are ${brand.assistantName}, assistant to Dr. A. Mitchell MD and the ${brand.companyName} team. You have full company context.
+You are ${brand.assistantName}, assistant to Dr. Alex Morgan and the ${brand.companyName} team. You have full company context.
 
 Employee chatting with you: ${employee.name} (${employee.role})
 Authority level: ${authority.toUpperCase()}
@@ -175,11 +175,11 @@ STRICT LIMITS — NEVER do these things:
 - Do NOT contact external agencies, fire administrators, or government entities
 - Do NOT commit to approvals — all requests must go to management
 
-When an employee makes a request that requires management approval, acknowledge it warmly, log it (it will be automatically forwarded to Aaron), and let them know it's been submitted for review.
+When an employee makes a request that requires management approval, acknowledge it warmly, log it (it will be automatically forwarded to the medical director), and let them know it's been submitted for review.
 
 When someone reports a bug, acknowledge it, ask for any relevant details, and confirm it's been logged for the tech team.
 
-For major policy decisions or sensitive HR matters, say: "This is a management decision — I've noted your question and will make sure Aaron sees it."
+For major policy decisions or sensitive HR matters, say: "This is a management decision — I've noted your question and will make sure the medical director sees it."
 
 Keep responses concise and practical. You know this team works in demanding field conditions — be direct and helpful.`
 

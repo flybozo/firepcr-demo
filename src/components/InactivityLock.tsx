@@ -49,9 +49,9 @@ export default function InactivityLock() {
 
     try {
       const supabase = createClient()
-      // Get the current user's email
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user?.email) {
+      // getSession() reads from localStorage — works offline
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.user?.email) {
         setError('Session expired. Please reload and sign in.')
         setUnlocking(false)
         return
@@ -59,7 +59,7 @@ export default function InactivityLock() {
 
       // Re-authenticate with password
       const { error: authErr } = await supabase.auth.signInWithPassword({
-        email: user.email,
+        email: session.user.email,
         password,
       })
 

@@ -9,6 +9,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useOfflineWrite } from '@/lib/useOfflineWrite'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import PinSignature, { type SignatureRecord } from '@/components/PinSignature'
+import OfflineGate from '@/components/OfflineGate'
 import { inputCls, labelCls } from '@/components/ui/FormField'
 
 type Employee = {
@@ -233,6 +234,7 @@ function DailyCountInner() {
   }
 
   return (
+    <OfflineGate page message="CS transfers and daily counts require a connection.">
     <div className="p-4 md:p-8 max-w-lg mt-8 md:mt-0">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">📋 Daily CS Count</h1>
@@ -406,6 +408,7 @@ function DailyCountInner() {
           onCancel={() => setShowWitnessSig(false)} />
       )}
     </div>
+    </OfflineGate>
   )
 }
 

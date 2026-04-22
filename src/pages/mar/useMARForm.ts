@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useOfflineWrite } from '@/lib/useOfflineWrite'
+import { queueOfflineWrite } from '@/lib/offlineStore'
 import type { Employee, FormularyItem, InventoryItem, FormState } from './types'
 import { ROUTE_SUGGESTIONS, DOSAGE_UNIT_SUGGESTIONS } from './types'
 
@@ -86,7 +87,7 @@ export function useMARForm() {
   const isSelfOrder = !!(form.dispensed_by && form.prescribing_provider && form.dispensed_by === form.prescribing_provider)
   // Med units (MSU/REMS) require provider authorization for Rx and CS meds
   // Ambulances (Medic units) allow autonomous dispensing by paramedics/EMTs
-  const isAmbulance = form.med_unit?.toLowerCase().startsWith('rambo') || false
+  const isAmbulance = form.med_unit?.toLowerCase().startsWith('medic') || false
   const isMedUnit = !isAmbulance && form.med_unit?.length > 0
   const isCS = form.category === 'CS'
   const isRx = form.category === 'Rx'
@@ -134,7 +135,7 @@ export function useMARForm() {
       if (error) {
         try {
           const { getCachedData } = await import('@/lib/offlineStore')
-          const cached = await getCachedData('patient_encounters') as EncounterOption[]
+          const cached = await getCachedData('encounters') as EncounterOption[]
           setEncounterOptions(cached.filter(e => (e as any).unit === unitName).sort((a: any, b: any) => (b.date || '').localeCompare(a.date || '')).slice(0, 50))
         } catch { setEncounterOptions([]) }
         return
@@ -143,47 +144,66 @@ export function useMARForm() {
     } catch {
       try {
         const { getCachedData } = await import('@/lib/offlineStore')
-        const cached = await getCachedData('patient_encounters') as EncounterOption[]
+        const cached = await getCachedData('encounters') as EncounterOption[]
         setEncounterOptions(cached.filter(e => (e as any).unit === unitName).sort((a: any, b: any) => (b.date || '').localeCompare(a.date || '')).slice(0, 50))
       } catch { setEncounterOptions([]) }
     }
+  }
+
+  const resolveUnitId = async (unitName: string): Promise<string | null> => {
+    // Try cached units first (works offline)
+    try {
+      const { getCachedData } = await import('@/lib/offlineStore')
+      const cachedUnits = await getCachedData('units') as any[]
+      const match = cachedUnits.find((u: any) => u.name?.toLowerCase() === unitName.toLowerCase())
+      if (match) return match.id
+    } catch {}
+    // Fallback to network
+    try {
+      const { data } = await supabase.from('units').select('id').eq('name', unitName).single()
+      return data?.id || null
+    } catch {}
+    return null
   }
 
   const loadUnitInventory = async (unitName: string) => {
     if (!unitName) { setUnitInventory([]); return }
     setLoadingInventory(true)
     try {
-      const { data: inv } = await supabase
-        .from('unit_inventory')
-        .select('id, item_name, category, quantity, incident_unit_id, cs_lot_number, cs_expiration_date, incident_unit:incident_units(unit:units(name))')
-        .gt('quantity', 0)
-        .in('category', ['Rx', 'CS'])
-        .order('category')
-        .order('item_name')
+      const unitId = await resolveUnitId(unitName)
+      if (!unitId) { setUnitInventory([]); setLoadingInventory(false); return }
 
-      const rawItems = (inv || []) as unknown as Array<{
-        id: string
-        item_name: string
-        category: string
-        quantity: number
-        incident_unit_id: string
-        cs_lot_number?: string | null
-        cs_expiration_date?: string | null
-        incident_unit: { unit: { name: string } | null } | null
-      }>
+      let inv: any[] | null = null
+      try {
+        const { data } = await supabase
+          .from('unit_inventory')
+          .select('id, item_name, category, quantity, unit_id, cs_lot_number, cs_expiration_date')
+          .eq('unit_id', unitId)
+          .gt('quantity', 0)
+          .in('category', ['Rx', 'CS'])
+          .order('category')
+          .order('item_name')
+        inv = data
+      } catch {
+        // Offline fallback — read from IndexedDB cache, filter by unit_id
+        const { getCachedData } = await import('@/lib/offlineStore')
+        const cached = await getCachedData('inventory') as any[]
+        inv = cached.filter(item =>
+          item.unit_id === unitId &&
+          item.quantity > 0 &&
+          ['Rx', 'CS'].includes(item.category)
+        )
+      }
 
-      setUnitInventory(rawItems
-        .filter(item => item.incident_unit?.unit?.name?.toLowerCase() === unitName.toLowerCase())
-        .map(item => ({
-          id: item.id,
-          item_name: item.item_name,
-          category: item.category,
-          quantity: item.quantity,
-          incident_unit_id: item.incident_unit_id,
-          cs_lot_number: item.cs_lot_number ?? null,
-          cs_expiration_date: item.cs_expiration_date ?? null,
-        }))
-      )
+      setUnitInventory((inv || []).map((item: any) => ({
+        id: item.id,
+        item_name: item.item_name,
+        category: item.category,
+        quantity: item.quantity,
+        unit_id: item.unit_id,
+        cs_lot_number: item.cs_lot_number ?? null,
+        cs_expiration_date: item.cs_expiration_date ?? null,
+      })))
     } catch (e) {
       console.error('loadUnitInventory error', e)
       setUnitInventory([])
@@ -222,6 +242,7 @@ export function useMARForm() {
         if (cachedFormulary.length > 0) setFormulary(cachedFormulary.filter((i: any) => ['Rx', 'CS'].includes(i.category)) as FormularyItem[])
       } catch {}
       if (unitParam) await loadUnitInventory(unitParam)
+      const rxCsFilter = (items: any[]) => items.filter((i: any) => ['Rx', 'CS'].includes(i.category))
       const [empResult, formularyResult] = await Promise.all([
         loadList(
           () => supabase.from('employees').select('id, name, role').eq('status', 'Active').order('name'),
@@ -233,7 +254,8 @@ export function useMARForm() {
             .in('category', ['Rx', 'CS'])
             .order('category')
             .order('item_name'),
-          'formulary'
+          'formulary',
+          rxCsFilter
         ),
       ])
       setEmployees(empResult.data.map((e: any) => ({ ...e, name: e.name || e.full_name })))
@@ -317,9 +339,9 @@ export function useMARForm() {
     if (!item.unit_type) return true
     const unit = form.med_unit.toLowerCase()
     const uType = item.unit_type.toLowerCase()
-    if (unit.startsWith('rambo') && uType.includes('ambulance')) return true
-    if ((unit.startsWith('msu') || unit === 'the beast') && uType.includes('med')) return true
-    if (unit.startsWith('rems') && uType.includes('rems')) return true
+    if (unit.startsWith('medic') && uType.includes('ambulance')) return true
+    if ((unit.startsWith('aid') || unit === 'command 1') && uType.includes('med')) return true
+    if (unit.startsWith('rescue') && uType.includes('rems')) return true
     return uType === '' || uType === 'all'
   })
 
@@ -355,7 +377,7 @@ export function useMARForm() {
       let finalEntryType = entryType as string
 
       if ((isProviderMatch || isSelfOrder) && providerPin.length >= 4) {
-        providerSignatureUrl = `digital:${(await supabase.auth.getUser()).data?.user?.email ?? 'unknown'}:${new Date().toISOString()}`
+        providerSignatureUrl = `digital:${(await supabase.auth.getSession()).data?.session?.user?.email ?? assignment?.user?.email ?? 'unknown'}:${new Date().toISOString()}`
         if (providerSignatureUrl) {
           providerSignedAt = new Date().toISOString()
           providerSignedBy = assignment.user?.email || null
@@ -411,22 +433,90 @@ export function useMARForm() {
       if (!logResult.success) throw new Error(`Log insert failed: ${logResult.error}`)
 
       if (logResult.offline) {
+        const totalUsed = isCS ? qtyUsed + qtyWasted : qtyUsed
+        if (form.med_unit && totalUsed > 0) {
+          // Try local state first, then fall back to IndexedDB cache
+          let invItem = unitInventory.find(i => i.item_name === form.item_name)
+          if (!invItem) {
+            // unitInventory may be empty if load failed — search the cache directly
+            try {
+              const { getCachedData } = await import('@/lib/offlineStore')
+              const unitId = await resolveUnitId(form.med_unit)
+              if (unitId) {
+                const cachedInv = await getCachedData('inventory') as any[]
+                const match = cachedInv.find((r: any) =>
+                  r.item_name === form.item_name && r.unit_id === unitId && r.quantity > 0
+                )
+                if (match) {
+                  invItem = {
+                    id: match.id,
+                    item_name: match.item_name,
+                    category: match.category,
+                    quantity: match.quantity,
+                    unit_id: match.unit_id,
+                  }
+                }
+              }
+            } catch {}
+          }
+          if (invItem) {
+            const newQty = Math.max(0, invItem.quantity - totalUsed)
+            await queueOfflineWrite('unit_inventory', 'update', { id: invItem.id, quantity: newQty })
+            // Also update IndexedDB cache so subsequent offline MARs see decremented qty
+            try {
+              const { getCachedData, cacheData } = await import('@/lib/offlineStore')
+              const cachedInv = await getCachedData('inventory') as any[]
+              const idx = cachedInv.findIndex((r: any) => r.id === invItem!.id)
+              if (idx >= 0) {
+                cachedInv[idx] = { ...cachedInv[idx], quantity: newQty }
+                await cacheData('inventory', cachedInv)
+              }
+            } catch {}
+            // Update local state so the UI reflects the decrement immediately
+            setUnitInventory(prev => prev.map(i => i.id === invItem!.id ? { ...i, quantity: newQty } : i))
+          }
+        }
+        if (isCS) {
+          await queueOfflineWrite('cs_transactions', 'insert', {
+            id: crypto.randomUUID(),
+            transaction_type: 'Administration',
+            transfer_type: 'Administration',
+            drug_name: form.item_name,
+            lot_number: form.lot_number || null,
+            from_unit: form.med_unit || null,
+            quantity: qtyUsed + qtyWasted,
+            date: form.date,
+            performed_by: form.dispensed_by,
+            witness: form.waste_witness || null,
+            encounter_id: form.encounter_id || null,
+            incident: deriveIncident(),
+          })
+        }
         navigate('/mar?success=1')
         return
       }
 
       const totalUsed = isCS ? qtyUsed + qtyWasted : qtyUsed
       if (form.med_unit && totalUsed > 0) {
-        const { data: invSearch } = await supabase
-          .from('unit_inventory')
-          .select('id, quantity, incident_unit:incident_units(unit:units(name))')
-          .eq('item_name', form.item_name)
-          .gt('quantity', 0)
-          .limit(20)
-        const matched = (invSearch || []).find((r: any) => r.incident_unit?.unit?.name === form.med_unit)
-        if (matched) {
-          const newQty = Math.max(0, (matched.quantity || 0) - totalUsed)
-          await supabase.from('unit_inventory').update({ quantity: newQty }).eq('id', matched.id)
+        // Use unit_id directly — inventory belongs to the truck, not the fire deployment
+        try {
+          const unitId = await resolveUnitId(form.med_unit)
+          if (unitId) {
+            const { data: invSearch } = await supabase
+              .from('unit_inventory')
+              .select('id, quantity')
+              .eq('item_name', form.item_name)
+              .eq('unit_id', unitId)
+              .gt('quantity', 0)
+              .limit(1)
+            const matched = invSearch?.[0]
+            if (matched) {
+              const newQty = Math.max(0, (matched.quantity || 0) - totalUsed)
+              await supabase.from('unit_inventory').update({ quantity: newQty }).eq('id', matched.id)
+            }
+          }
+        } catch (e) {
+          console.error('[MAR] Online inventory decrement failed (MAR still saved):', e)
         }
       }
 

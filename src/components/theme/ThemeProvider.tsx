@@ -28,12 +28,12 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
       if (orgData) setOrgId(orgData.id)
 
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) {
         const { data: emp } = await supabase
           .from('employees')
           .select('id, personal_theme')
-          .eq('auth_user_id', user.id)
+          .eq('auth_user_id', session.user.id)
           .single()
 
         if (emp) {

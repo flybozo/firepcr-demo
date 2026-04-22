@@ -29,6 +29,8 @@ function AddInventoryInner() {
   const navigate = useNavigate()
   const assignment = useUserAssignment()
   const [assignmentApplied, setAssignmentApplied] = useState(false)
+  const isAdmin = ['MD', 'DO', 'Admin', 'NP', 'PA', 'PA-C'].some(r => (assignment.employee?.role || '').toUpperCase().includes(r.toUpperCase()))
+  const isField = !isAdmin && !!assignment.unit
 
   const [units, setUnits] = useState<Unit[]>([])
   const [formulary, setFormulary] = useState<FormularyItem[]>([])
@@ -51,37 +53,62 @@ function AddInventoryInner() {
 
   useEffect(() => {
     const load = async () => {
-      // Load non-Warehouse units
-      const { data: unitsData } = await supabase
-        .from('units')
-        .select('id, name, unit_type:unit_types(name)')
-        .eq('active', true)
-        .eq('is_storage', false)
-        .order('name')
-      setUnits((unitsData as any) || [])
+      // Load non-Warehouse units (try network, fall back to cache)
+      try {
+        const { data: unitsData } = await supabase
+          .from('units')
+          .select('id, name, unit_type:unit_types(name)')
+          .eq('active', true)
+          .eq('is_storage', false)
+          .order('name')
+        if (unitsData && unitsData.length > 0) {
+          setUnits(unitsData as any)
+        } else {
+          throw new Error('no data')
+        }
+      } catch {
+        // Offline fallback: load from cached units
+        try {
+          const { getCachedData } = await import('@/lib/offlineStore')
+          const cached = await getCachedData('units') as any[]
+          setUnits(cached.filter((u: any) => u.active !== false && !u.is_storage))
+        } catch {}
+      }
 
-      // Load employees
-      const { data: emps } = await supabase
-        .from('employees')
-        .select('id, name, role')
-        .eq('status', 'Active')
-        .order('name')
-      setEmployees(emps || [])
+      // Load employees (try network, fall back to cache)
+      try {
+        const { data: emps } = await supabase
+          .from('employees')
+          .select('id, name, role')
+          .eq('status', 'Active')
+          .order('name')
+        if (emps && emps.length > 0) {
+          setEmployees(emps)
+        } else {
+          throw new Error('no data')
+        }
+      } catch {
+        try {
+          const { getCachedData } = await import('@/lib/offlineStore')
+          const cached = await getCachedData('employees') as any[]
+          setEmployees(cached.filter((e: any) => e.status === 'Active').sort((a: any, b: any) => (a.name || '').localeCompare(b.name || '')))
+        } catch {}
+      }
     }
     load()
   }, [])
 
   useEffect(() => {
-    if (!assignment.loading && !assignmentApplied) {
-      setAssignmentApplied(true)
-      if (assignment.employee) {
-        setForm(prev => ({ ...prev, received_by: prev.received_by || assignment.employee!.name }))
-      }
-      if (assignment.unit) {
-        const matchedUnit = units.find(u => u.name === assignment.unit?.name)
-        if (matchedUnit) {
-          handleUnitChange(matchedUnit.id)
-        }
+    // Wait for both assignment AND units to be loaded before auto-populating
+    if (assignment.loading || units.length === 0 || assignmentApplied) return
+    setAssignmentApplied(true)
+    if (assignment.employee) {
+      setForm(prev => ({ ...prev, received_by: prev.received_by || assignment.employee!.name }))
+    }
+    if (assignment.unit) {
+      const matchedUnit = units.find(u => u.name === assignment.unit?.name)
+      if (matchedUnit) {
+        handleUnitChange(matchedUnit.id)
       }
     }
   }, [assignment.loading, assignmentApplied, assignment.employee, assignment.unit, units])
@@ -96,20 +123,44 @@ function AddInventoryInner() {
     const selectedUnit = units.find(u => u.id === unitId)
     const unitTypeName = (selectedUnit?.unit_type as any)?.name || ''
 
-    // Get unit type ID
-    const { data: utData } = await supabase
-      .from('unit_types').select('id').eq('name', unitTypeName).single()
-    const utId = utData?.id
+    try {
+      // Get unit type ID
+      const { data: utData } = await supabase
+        .from('unit_types').select('id').eq('name', unitTypeName).single()
+      const utId = utData?.id
 
-    // Load formulary for this unit type, NO CS (those go through CS receive/transfer)
-    const { data: items } = await supabase
-      .from('formulary_templates')
-      .select('id, item_name, category, unit_type_id')
-      .eq('unit_type_id', utId || '')
-      .neq('category', 'CS')
-      .order('category')
-      .order('item_name')
-    setFormulary((items as any) || [])
+      // Load formulary for this unit type, NO CS (those go through CS receive/transfer)
+      const { data: items } = await supabase
+        .from('formulary_templates')
+        .select('id, item_name, category, unit_type_id')
+        .eq('unit_type_id', utId || '')
+        .neq('category', 'CS')
+        .order('category')
+        .order('item_name')
+      if (items && items.length > 0) {
+        setFormulary(items as any)
+      } else {
+        throw new Error('no data')
+      }
+    } catch {
+      // Offline fallback: filter cached formulary by unit type name
+      try {
+        const { getCachedData } = await import('@/lib/offlineStore')
+        const cached = await getCachedData('formulary') as any[]
+        // Formulary cache may have unit_type_name or we match by convention
+        const filtered = cached.filter((f: any) =>
+          f.category !== 'CS'
+          && (f.unit_type_name === unitTypeName || f.unit_type === unitTypeName)
+        ).sort((a: any, b: any) => (a.category || '').localeCompare(b.category || '') || (a.item_name || '').localeCompare(b.item_name || ''))
+        if (filtered.length > 0) {
+          setFormulary(filtered)
+        } else {
+          // If no type match, show all non-CS formulary items
+          setFormulary(cached.filter((f: any) => f.category !== 'CS')
+            .sort((a: any, b: any) => (a.category || '').localeCompare(b.category || '') || (a.item_name || '').localeCompare(b.item_name || '')))
+        }
+      } catch {}
+    }
     setLoadingFormulary(false)
   }
 
@@ -154,11 +205,11 @@ function AddInventoryInner() {
 
       const incidentUnitId = iuData.id
 
-      // Check if item exists
+      // Check if item exists — query by unit_id (inventory belongs to the truck)
       const { data: existing } = await supabase
         .from('unit_inventory')
         .select('id, quantity')
-        .eq('incident_unit_id', incidentUnitId)
+        .eq('unit_id', form.unit_id)
         .eq('item_name', form.item_name)
         .limit(1)
 
@@ -181,6 +232,7 @@ function AddInventoryInner() {
         const selectedUnit = units.find(u => u.id === form.unit_id)
         const insertPayload: Record<string, unknown> = {
           incident_unit_id: incidentUnitId,
+          unit_id: form.unit_id,
           item_name: form.item_name,
           category: form.category || null,
           quantity: qty,
@@ -240,20 +292,26 @@ function AddInventoryInner() {
           <p className={sectionCls}>Unit & Item</p>
           <div>
             <label className={labelCls}>Unit *</label>
-            <select
-              className={inputCls}
-              value={form.unit_id}
-              onChange={e => handleUnitChange(e.target.value)}
-            >
-              <option value="">Select unit</option>
-              {Object.entries(unitGroups).map(([groupName, groupUnits]) => (
-                <optgroup key={groupName} label={groupName}>
-                  {groupUnits.map(u => (
-                    <option key={u.id} value={u.id}>{u.name}</option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
+            {isField && form.unit_id ? (
+              <div className={`${inputCls} bg-gray-700 text-gray-300 cursor-not-allowed`}>
+                🚑 {units.find(u => u.id === form.unit_id)?.name || assignment.unit?.name || 'Assigned Unit'}
+              </div>
+            ) : (
+              <select
+                className={inputCls}
+                value={form.unit_id}
+                onChange={e => handleUnitChange(e.target.value)}
+              >
+                <option value="">Select unit</option>
+                {Object.entries(unitGroups).map(([groupName, groupUnits]) => (
+                  <optgroup key={groupName} label={groupName}>
+                    {groupUnits.map(u => (
+                      <option key={u.id} value={u.id}>{u.name}</option>
+                    ))}
+                  </optgroup>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Item */}
@@ -331,12 +389,18 @@ function AddInventoryInner() {
           <p className={sectionCls}>Received By</p>
           <div>
             <label className={labelCls}>Received By</label>
-            <select className={inputCls} value={form.received_by} onChange={e => set('received_by', e.target.value)}>
-              <option value="">Select employee</option>
-              {employees.map(emp => (
-                <option key={emp.id} value={emp.name}>{emp.name} — {emp.role}</option>
-              ))}
-            </select>
+            {isField && form.received_by ? (
+              <div className={`${inputCls} bg-gray-700 text-gray-300 cursor-not-allowed`}>
+                {form.received_by}
+              </div>
+            ) : (
+              <select className={inputCls} value={form.received_by} onChange={e => set('received_by', e.target.value)}>
+                <option value="">Select employee</option>
+                {employees.map(emp => (
+                  <option key={emp.id} value={emp.name}>{emp.name} — {emp.role}</option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Notes */}
