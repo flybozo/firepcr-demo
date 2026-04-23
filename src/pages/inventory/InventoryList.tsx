@@ -7,7 +7,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { getCachedData } from '@/lib/offlineStore'
-import { Link, useMatch } from 'react-router-dom'
+import { Link, useMatch, useSearchParams } from 'react-router-dom'
 import { PageHeader, LoadingSkeleton, EmptyState } from '@/components/ui'
 import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
 
@@ -22,6 +22,8 @@ type InventoryItem = {
   unit_id: string | null
   unit: { id: string; name: string; unit_type?: { name: string } | null } | null
   incident_unit?: { unit: { name: string; unit_type?: { name: string } | null } } | null
+  catalog_item_id?: string | null
+  sku?: string | null
 }
 
 const CAT_COLORS: Record<string, string> = {
@@ -33,7 +35,7 @@ const CAT_COLORS: Record<string, string> = {
   RE: 'bg-green-900 text-green-300',
 }
 
-const PAGE_SIZE = 50
+// No pagination — all data is loaded client-side and filtered in-memory
 
 function InventoryPageInner() {
   const supabase = createClient()
@@ -43,17 +45,21 @@ function InventoryPageInner() {
   const detailMatch = useMatch('/inventory/:id')
   const [items, setItems] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [unitFilter, setUnitFilter] = useState('All')
-  // Auto-filter to user's unit when field role
+  const [searchParams] = useSearchParams()
+  const urlUnit = searchParams.get('unit') || ''
+  const [unitFilter, setUnitFilter] = useState(urlUnit || 'All')
+  // Auto-filter to user's unit when field role, or from URL param
   useEffect(() => {
-    if (isField && !assignment.loading && assignment.unit?.name) {
+    if (urlUnit) {
+      setUnitFilter(urlUnit)
+    } else if (isField && !assignment.loading && assignment.unit?.name) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setUnitFilter(assignment.unit.name)
     }
-  }, [roleLoading, isField, assignment.loading, assignment.unit?.name])
+  }, [roleLoading, isField, assignment.loading, assignment.unit?.name, urlUnit])
   const [catFilter, setCatFilter] = useState('All')
   const [search, setSearch] = useState('')
-  const [page, setPage] = useState(1)
+  // Page state kept for compat but unused — all items render
   const [showLowOnly, setShowLowOnly] = useState(false)
   const [showAlsOnly, setShowAlsOnly] = useState(false)
 
@@ -61,11 +67,14 @@ function InventoryPageInner() {
 
   useEffect(() => {
     const load = async () => {
-      // Show cached inventory instantly
-      try {
-        const cached = await getCachedData('inventory') as any[]
-        if (cached.length > 0) { setItems(cached); setLoading(false) }
-      } catch {}
+      // Only show cached data when offline — never flash stale cache over live data
+      const isOnline = navigator.onLine
+      if (!isOnline) {
+        try {
+          const cached = await getCachedData('inventory') as any[]
+          if (cached.length > 0) { setItems(cached); setLoading(false) }
+        } catch {}
+      }
 
       // Offline reconstruction — used when offline or when live query throws
       const buildFromCache = async () => {
@@ -86,9 +95,10 @@ function InventoryPageInner() {
         const invByUnit: Record<string, Record<string, any[]>> = {}
         invData.forEach((inv: any) => {
           const uid = inv.unit_id || ''
+          const key = inv.catalog_item_id || inv.item_name
           if (!invByUnit[uid]) invByUnit[uid] = {}
-          if (!invByUnit[uid][inv.item_name]) invByUnit[uid][inv.item_name] = []
-          invByUnit[uid][inv.item_name].push(inv)
+          if (!invByUnit[uid][key]) invByUnit[uid][key] = []
+          invByUnit[uid][key].push(inv)
         })
         const mergedItems: any[] = []
         unitsData.forEach((unit: any) => {
@@ -96,16 +106,17 @@ function InventoryPageInner() {
           const templateItems = formularyByType[typeId] || []
           const unitInv = invByUnit[unit.id] || {}
           templateItems.forEach((tmpl: any) => {
-            const invRows = unitInv[tmpl.item_name] || []
+            const key = tmpl.catalog_item_id || tmpl.item_name
+            const invRows = unitInv[key] || []
             if (tmpl.category === 'CS' && invRows.length > 0) {
               invRows.forEach((inv: any) => {
-                mergedItems.push({ id: inv.id, item_name: tmpl.item_name, category: tmpl.category, quantity: inv.quantity ?? 0, par_qty: inv.par_qty ?? tmpl.default_par_qty ?? 0, lot_number: inv.lot_number || null, expiration_date: inv.expiration_date || null, unit_id: unit.id, unit: unit, is_als: tmpl.is_als || false })
+                mergedItems.push({ id: inv.id, item_name: tmpl.item_name, category: tmpl.category, quantity: inv.quantity ?? 0, par_qty: inv.par_qty ?? tmpl.default_par_qty ?? 0, lot_number: inv.lot_number || null, expiration_date: inv.expiration_date || null, unit_id: unit.id, unit: unit, is_als: tmpl.is_als || false, catalog_item_id: tmpl.catalog_item_id || null, sku: tmpl.catalog_item?.sku || null })
               })
             } else if (tmpl.category === 'CS') {
-              mergedItems.push({ id: `tmpl-${unit.id}-${tmpl.id}`, item_name: tmpl.item_name, category: tmpl.category, quantity: 0, par_qty: tmpl.default_par_qty ?? 0, lot_number: null, expiration_date: null, unit_id: unit.id, unit: unit, is_als: tmpl.is_als || false })
+              mergedItems.push({ id: `tmpl-${unit.id}-${tmpl.id}`, item_name: tmpl.item_name, category: tmpl.category, quantity: 0, par_qty: tmpl.default_par_qty ?? 0, lot_number: null, expiration_date: null, unit_id: unit.id, unit: unit, is_als: tmpl.is_als || false, catalog_item_id: tmpl.catalog_item_id || null, sku: tmpl.catalog_item?.sku || null })
             } else {
               const inv = invRows[0] || null
-              mergedItems.push({ id: inv?.id || `tmpl-${unit.id}-${tmpl.id}`, item_name: tmpl.item_name, category: tmpl.category, quantity: inv?.quantity ?? 0, par_qty: inv?.par_qty ?? tmpl.default_par_qty ?? 0, lot_number: inv?.lot_number || null, expiration_date: inv?.expiration_date || null, unit_id: unit.id, unit: unit, is_als: tmpl.is_als || false })
+              mergedItems.push({ id: inv?.id || `tmpl-${unit.id}-${tmpl.id}`, item_name: tmpl.item_name, category: tmpl.category, quantity: inv?.quantity ?? 0, par_qty: inv?.par_qty ?? tmpl.default_par_qty ?? 0, lot_number: inv?.lot_number || null, expiration_date: inv?.expiration_date || null, unit_id: unit.id, unit: unit, is_als: tmpl.is_als || false, catalog_item_id: tmpl.catalog_item_id || null, sku: tmpl.catalog_item?.sku || null })
             }
           })
         })
@@ -121,25 +132,39 @@ function InventoryPageInner() {
 
       // Load inventory + formulary templates + units in parallel
       try {
-      const [invResult, formularyResult, unitsResult] = await Promise.all([
-        supabase
-          .from('unit_inventory')
-          .select('id, item_name, category, quantity, par_qty, lot_number, expiration_date, unit_id')
-          .order('item_name')
-          .limit(2000),
-        supabase
+      // Paginate formulary and inventory — PostgREST caps single responses at 1000 rows
+      // regardless of the client .limit() value, so order-based queries drop tail rows.
+      const paginate = async (fetch: (from: number, to: number) => any): Promise<any[]> => {
+        const rows: any[] = []
+        for (let from = 0; ; from += 1000) {
+          const { data } = await fetch(from, from + 999)
+          if (!data || data.length === 0) break
+          rows.push(...data)
+          if (data.length < 1000) break
+        }
+        return rows
+      }
+      const [formularyData, invData, unitsResult] = await Promise.all([
+        paginate((from, to) => supabase
           .from('formulary_templates')
-          .select('id, item_name, category, default_par_qty, unit_type_id, is_als')
-          .order('category, item_name'),
+          .select('id, item_name, category, default_par_qty, unit_type_id, is_als, catalog_item_id, catalog_item:item_catalog(sku)')
+          .order('id')
+          .range(from, to)),
+        paginate((from, to) => supabase
+          .from('unit_inventory')
+          .select('id, item_name, category, quantity, par_qty, lot_number, expiration_date, unit_id, catalog_item_id')
+          .order('id')
+          .range(from, to)),
         supabase
           .from('units')
           .select('id, name, unit_type_id, unit_type:unit_types(name)')
           .eq('active', true),
       ])
 
-      const invData = invResult.data || []
-      const formularyData = formularyResult.data || []
+      if (unitsResult.error) console.error('[Inventory] units query error:', unitsResult.error)
       const unitsData = (unitsResult.data || []) as any[]
+
+      console.log('[Inventory] loaded:', { inv: invData.length, formulary: formularyData.length, units: unitsData.length })
 
       // Build unit lookup maps
       const unitMap: Record<string, any> = {}
@@ -157,14 +182,15 @@ function InventoryPageInner() {
         formularyByType[f.unit_type_id].push(f)
       })
 
-      // Build inventory index: for non-CS items, (unit_id, item_name) -> single row
-      // For CS items, (unit_id, item_name) -> array of rows (one per lot number)
+      // Build inventory index keyed by catalog_item_id (preferred) or item_name fallback.
+      // catalog_item_id is the stable join key; item_name fallback handles items added after migration.
       const invByUnit: Record<string, Record<string, any[]>> = {}
       invData.forEach((inv: any) => {
         const uid = inv.unit_id || ''
+        const key = inv.catalog_item_id || inv.item_name
         if (!invByUnit[uid]) invByUnit[uid] = {}
-        if (!invByUnit[uid][inv.item_name]) invByUnit[uid][inv.item_name] = []
-        invByUnit[uid][inv.item_name].push(inv)
+        if (!invByUnit[uid][key]) invByUnit[uid][key] = []
+        invByUnit[uid][key].push(inv)
       })
 
       // For each unit, merge formulary template with actual inventory
@@ -175,7 +201,8 @@ function InventoryPageInner() {
         const unitInv = invByUnit[unit.id] || {}
 
         templateItems.forEach((tmpl: any) => {
-          const invRows = unitInv[tmpl.item_name] || []
+          const key = tmpl.catalog_item_id || tmpl.item_name
+          const invRows = unitInv[key] || []
 
           if (tmpl.category === 'CS' && invRows.length > 0) {
             // CS items: one row per lot number in inventory
@@ -191,6 +218,8 @@ function InventoryPageInner() {
                 unit_id: unit.id,
                 unit: unit,
                 is_als: tmpl.is_als || false,
+                catalog_item_id: tmpl.catalog_item_id || null,
+                sku: (tmpl.catalog_item as any)?.sku || null,
               })
             })
           } else if (tmpl.category === 'CS' && invRows.length === 0) {
@@ -206,6 +235,8 @@ function InventoryPageInner() {
               unit_id: unit.id,
               unit: unit,
               is_als: tmpl.is_als || false,
+              catalog_item_id: tmpl.catalog_item_id || null,
+              sku: (tmpl.catalog_item as any)?.sku || null,
             })
           } else {
             // Non-CS: one row per template item, merge with first inventory match
@@ -221,6 +252,8 @@ function InventoryPageInner() {
               unit_id: unit.id,
               unit: unit,
               is_als: tmpl.is_als || false,
+              catalog_item_id: tmpl.catalog_item_id || null,
+              sku: (tmpl.catalog_item as any)?.sku || null,
             })
           }
         })
@@ -228,18 +261,25 @@ function InventoryPageInner() {
 
       // No orphaned rows — formulary is the sole source of truth for item types.
       // Any inventory rows not matching a template are ignored.
+      console.log('[Inventory] merge result:', mergedItems.length, 'items.',
+        'By category:', Object.entries(mergedItems.reduce((acc: Record<string, number>, i: any) => {
+          acc[i.category] = (acc[i.category] || 0) + 1; return acc
+        }, {})))
 
       setItems(mergedItems)
       setIsOfflineData(false)
       setLoading(false)
-      } catch { await buildFromCache() }
+      } catch (err) {
+        console.error('[Inventory] online load failed, falling back to cache:', err)
+        await buildFromCache()
+      }
     }
     load()
   }, [])
 
   // Reset page when filters change
   // eslint-disable-next-line react-hooks/set-state-in-effect
-  useEffect(() => { setPage(1) }, [unitFilter, catFilter, search, showLowOnly, showAlsOnly])
+  // Filter changes no longer need page reset
 
   // Unit type lookup map — only recomputes when items changes
   const unitTypeMap = useMemo(() => {
@@ -271,11 +311,7 @@ function InventoryPageInner() {
     return true
   }), [items, unitFilter, catFilter, search, showLowOnly, showAlsOnly, isField, assignment.unit])
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
-  const paginated = useMemo(
-    () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [filtered, page]
-  )
+  const paginated = filtered  // Show all filtered items — no pagination
   const lowCount = useMemo(
     () => items.filter(i => i.quantity <= i.par_qty).length,
     [items]
@@ -387,6 +423,7 @@ function InventoryPageInner() {
             <div className="flex items-center px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header">
               <span className="flex-1 min-w-0">Item</span>
               <span className="w-20 text-center hidden md:block">Unit</span>
+              <span className="w-16 text-center hidden lg:block">SKU</span>
               <span className="w-10 text-center">Cat</span>
               <span className="w-12 text-right">Qty</span>
               <span className="w-10 text-right text-gray-600">Par</span>
@@ -413,6 +450,8 @@ function InventoryPageInner() {
                       })()}
                     </span>
                     <span className="w-20 text-center text-xs text-gray-500 hidden md:block truncate">{unitName}</span>
+                    {item.sku && <span className="w-16 text-center text-xs text-gray-600 font-mono hidden lg:block truncate">{item.sku}</span>}
+                    {!item.sku && <span className="w-16 hidden lg:block" />}
                     <span className="w-10 text-center">
                       <span className={`text-xs px-1 py-0.5 rounded ${CAT_COLORS[item.category] || CAT_COLORS.OTC}`}>
                         {item.category}
@@ -437,43 +476,10 @@ function InventoryPageInner() {
             </div>
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-3">
-              <span className="text-xs text-gray-500">
-                Page {page} of {totalPages} · {filtered.length} items
-              </span>
-              <div className="flex gap-1.5">
-                <button onClick={() => setPage(1)} disabled={page === 1}
-                  className="px-2 py-1 rounded text-xs bg-gray-800 text-gray-400 disabled:opacity-30 hover:bg-gray-700">
-                  «
-                </button>
-                <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
-                  className="px-2 py-1 rounded text-xs bg-gray-800 text-gray-400 disabled:opacity-30 hover:bg-gray-700">
-                  ‹ Prev
-                </button>
-                {/* Page number pills */}
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  const start = Math.max(1, Math.min(page - 2, totalPages - 4))
-                  const pg = start + i
-                  return pg <= totalPages ? (
-                    <button key={pg} onClick={() => setPage(pg)}
-                      className={'px-2 py-1 rounded text-xs transition-colors ' + (pg === page ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700')}>
-                      {pg}
-                    </button>
-                  ) : null
-                })}
-                <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
-                  className="px-2 py-1 rounded text-xs bg-gray-800 text-gray-400 disabled:opacity-30 hover:bg-gray-700">
-                  Next ›
-                </button>
-                <button onClick={() => setPage(totalPages)} disabled={page === totalPages}
-                  className="px-2 py-1 rounded text-xs bg-gray-800 text-gray-400 disabled:opacity-30 hover:bg-gray-700">
-                  »
-                </button>
-              </div>
-            </div>
-          )}
+          {/* Item count */}
+          <div className="mt-2 px-1">
+            <span className="text-xs text-gray-500">{filtered.length} items</span>
+          </div>
         </>
       )}
     </div>

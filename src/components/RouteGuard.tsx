@@ -23,28 +23,34 @@
 
 import { Navigate, useLocation, Outlet } from 'react-router-dom'
 import { useUser } from '@/contexts/UserContext'
+import { useAnyPermission, usePermissionLoading } from '@/hooks/usePermission'
 
 type Props = {
   /** 'admin' — admin only; 'assigned' — must be assigned; 'any' — any logged-in user */
   require?: 'admin' | 'assigned' | 'any'
   /** If true, field users are redirected to their own unit detail instead of the list */
   unitListGuard?: boolean
+  /** Alternative to 'admin': allow if user has ANY of these permissions */
+  permissions?: string[]
 }
 
-export default function RouteGuard({ require: level = 'any', unitListGuard = false }: Props) {
+export default function RouteGuard({ require: level = 'any', unitListGuard = false, permissions }: Props) {
   const { isAdmin, isField, unit, loading } = useUser()
+  const permLoading = usePermissionLoading()
+  const hasPermission = useAnyPermission(...(permissions || []))
   const location = useLocation()
 
   // Wait for context to resolve
-  if (loading) return null
+  if (loading || permLoading) return null
 
-  // Admin-only routes
-  if (level === 'admin' && !isAdmin) {
+  // Admin-only routes — but also allow users with explicit permissions
+  if (level === 'admin' && !isAdmin && !(permissions?.length && hasPermission)) {
     return <Navigate to="/profile" replace state={{ accessDenied: true }} />
   }
 
   // Assignment-required routes — field users without a unit get bounced
-  if (level === 'assigned' && isField && !unit) {
+  // But users with explicit permissions (e.g. inventory manager) bypass this
+  if (level === 'assigned' && isField && !unit && !(permissions?.length && hasPermission)) {
     return <Navigate to="/profile" replace state={{ unassigned: true }} />
   }
 

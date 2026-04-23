@@ -4,14 +4,26 @@ import { FieldGuard } from '@/components/FieldGuard'
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useUserAssignment } from '@/lib/useUserAssignment'
 import { StatCard, PageHeader, LoadingSkeleton } from '@/components/ui'
 
 type Stat = { label: string; value: number; href: string; color: string }
 
+type IncidentOverview = {
+  id: string
+  name: string
+  status: string
+  location: string | null
+  units: { id: string; name: string; type: string | null; crewCount: number }[]
+}
+
 function AdminDashboardPageInner() {
   const supabase = createClient()
+  const assignment = useUserAssignment()
   const [stats, setStats] = useState<Stat[]>([])
   const [loading, setLoading] = useState(true)
+  const [incidents, setIncidents] = useState<IncidentOverview[]>([])
+  const [opsLoading, setOpsLoading] = useState(true)
 
   useEffect(() => {
     const load = async () => {
@@ -54,7 +66,62 @@ function AdminDashboardPageInner() {
       setLoading(false)
     }
     load()
+
+    // Load active incidents with units and crew counts
+    const loadOps = async () => {
+      try {
+        const { data: incData } = await supabase
+          .from('incidents')
+          .select('id, name, status, location')
+          .eq('status', 'Active')
+          .order('name')
+        if (!incData?.length) { setOpsLoading(false); return }
+
+        const { data: iuData } = await supabase
+          .from('incident_units')
+          .select('id, incident_id, released_at, unit:units(id, name, unit_type:unit_types(name))')
+          .in('incident_id', incData.map(i => i.id))
+          .is('released_at', null)
+
+        const iuIds = (iuData || []).map(iu => iu.id)
+        let crewCounts: Record<string, number> = {}
+        if (iuIds.length > 0) {
+          const { data: assignments } = await supabase
+            .from('unit_assignments')
+            .select('incident_unit_id')
+            .in('incident_unit_id', iuIds)
+            .is('released_at', null)
+          for (const a of assignments || []) {
+            crewCounts[a.incident_unit_id] = (crewCounts[a.incident_unit_id] || 0) + 1
+          }
+        }
+
+        const overview: IncidentOverview[] = incData.map(inc => ({
+          id: inc.id,
+          name: inc.name,
+          status: inc.status,
+          location: inc.location,
+          units: (iuData || [])
+            .filter(iu => iu.incident_id === inc.id)
+            .map(iu => ({
+              id: (iu.unit as any)?.id || iu.id,
+              name: (iu.unit as any)?.name || 'Unknown',
+              type: (iu.unit as any)?.unit_type?.name || null,
+              crewCount: crewCounts[iu.id] || 0,
+            }))
+            .sort((a, b) => a.name.localeCompare(b.name)),
+        }))
+        setIncidents(overview)
+      } catch {
+        // Offline — skip ops overview
+      }
+      setOpsLoading(false)
+    }
+    loadOps()
   }, [])
+
+  const myUnit = assignment.unit?.name
+  const myIncident = assignment.incident?.name
 
   const adminTools = [
     { icon: '📢', label: 'Announcements', desc: 'Manage ticker announcements', href: '/admin/announcements' },
@@ -88,6 +155,63 @@ function AdminDashboardPageInner() {
           {stats.map(s => (
             <StatCard key={s.href} value={s.value} label={s.label} color={s.color} href={s.href} />
           ))}
+        </div>
+      )}
+
+      {/* My Assignment (if admin is assigned to a unit) */}
+      {myUnit && (
+        <div className="bg-gradient-to-r from-red-950/40 to-gray-900 rounded-xl border border-red-800/40 p-4 mb-6 flex items-center gap-4">
+          <span className="text-3xl">🚑</span>
+          <div>
+            <p className="text-sm font-bold text-white">Your Assignment: {myUnit}</p>
+            {myIncident && <p className="text-xs text-gray-400 mt-0.5">Active Incident: <span className="text-orange-400 font-medium">{myIncident}</span></p>}
+          </div>
+          <Link to="/dashboard/my-unit" className="ml-auto text-xs text-red-400 hover:text-red-300 font-medium shrink-0">My Unit →</Link>
+        </div>
+      )}
+
+      {/* Active Operations Overview */}
+      {opsLoading ? (
+        <div className="mb-6 space-y-3">
+          <div className="h-6 w-40 bg-gray-800 rounded animate-pulse" />
+          <div className="h-32 bg-gray-800/50 rounded-xl animate-pulse" />
+        </div>
+      ) : incidents.length > 0 && (
+        <div className="mb-6">
+          <h2 className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-3">🔥 Active Operations</h2>
+          <div className="space-y-3">
+            {incidents.map(inc => (
+              <div key={inc.id} className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+                <Link to={`/incidents/${inc.id}`} className="block px-4 py-3 border-b border-gray-800 hover:bg-gray-800/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-sm text-white">🔥 {inc.name}</p>
+                      {inc.location && <p className="text-xs text-gray-500 mt-0.5">{inc.location}</p>}
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs text-gray-500">{inc.units.length} unit{inc.units.length !== 1 ? 's' : ''}</p>
+                      <p className="text-xs text-gray-600">{inc.units.reduce((s, u) => s + u.crewCount, 0)} crew</p>
+                    </div>
+                  </div>
+                </Link>
+                {inc.units.length > 0 && (
+                  <div className="px-4 py-2 flex flex-wrap gap-2">
+                    {inc.units.map(u => (
+                      <Link key={u.id} to={`/units/${u.id}`} className={`text-xs px-2 py-1 rounded-lg border hover:brightness-125 transition-all ${
+                        u.type?.toLowerCase().includes('ambulance') ? 'bg-red-950/40 border-red-800/40 text-red-300' :
+                        u.type?.toLowerCase().includes('med') ? 'bg-blue-950/40 border-blue-800/40 text-blue-300' :
+                        u.type?.toLowerCase().includes('rescue') || u.type?.toLowerCase().includes('rems') ? 'bg-amber-950/40 border-amber-800/40 text-amber-300' :
+                        u.type?.toLowerCase() === 'truck' ? 'bg-stone-800/60 border-stone-700/40 text-stone-300' :
+                        'bg-gray-800 border-gray-700 text-gray-400'
+                      }`}>
+                        {u.name} <span className="text-gray-500 ml-1">({u.crewCount})</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

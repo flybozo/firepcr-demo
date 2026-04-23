@@ -18,6 +18,7 @@ type FormularyItem = {
   item_name: string
   category: string
   unit_type: string | null
+  catalog_item_id: string | null
 }
 
 type Employee = { id: string; name: string; role: string }
@@ -44,6 +45,7 @@ function AddInventoryInner() {
     unit_id: '',
     item_name: '',
     category: '',
+    catalog_item_id: null as string | null,
     quantity_added: '',
     lot_number: '',
     expiration_date: '',
@@ -132,7 +134,7 @@ function AddInventoryInner() {
       // Load formulary for this unit type, NO CS (those go through CS receive/transfer)
       const { data: items } = await supabase
         .from('formulary_templates')
-        .select('id, item_name, category, unit_type_id')
+        .select('id, item_name, category, unit_type_id, catalog_item_id')
         .eq('unit_type_id', utId || '')
         .neq('category', 'CS')
         .order('category')
@@ -166,7 +168,7 @@ function AddInventoryInner() {
 
   const handleItemSelect = (itemName: string) => {
     const item = formulary.find(f => f.item_name === itemName)
-    setForm(prev => ({ ...prev, item_name: itemName, category: item?.category || '' }))
+    setForm(prev => ({ ...prev, item_name: itemName, category: item?.category || '', catalog_item_id: item?.catalog_item_id || null }))
   }
 
   const set = (field: string, value: string) =>
@@ -235,6 +237,7 @@ function AddInventoryInner() {
           unit_id: form.unit_id,
           item_name: form.item_name,
           category: form.category || null,
+          catalog_item_id: form.catalog_item_id || null,
           quantity: qty,
           unit_name: selectedUnit?.name || null,
         }

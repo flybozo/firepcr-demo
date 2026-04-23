@@ -85,9 +85,9 @@ export function useMARForm() {
       assignment.employee?.name &&
       form.prescribing_provider === assignment.employee.name)
   const isSelfOrder = !!(form.dispensed_by && form.prescribing_provider && form.dispensed_by === form.prescribing_provider)
-  // Med units (MSU/REMS) require provider authorization for Rx and CS meds
-  // Ambulances (Medic units) allow autonomous dispensing by paramedics/EMTs
-  const isAmbulance = form.med_unit?.toLowerCase().startsWith('medic') || false
+  // Med units (Med/REMS) require provider authorization for Rx and CS meds
+  // Ambulances (Unit) allow autonomous dispensing by paramedics/EMTs
+  const isAmbulance = form.med_unit?.toLowerCase().startsWith('unit') || false
   const isMedUnit = !isAmbulance && form.med_unit?.length > 0
   const isCS = form.category === 'CS'
   const isRx = form.category === 'Rx'
@@ -96,8 +96,8 @@ export function useMARForm() {
   const hasUnitInventory = unitInventory.length > 0
 
   // Provider roles who can authorize Rx/CS on med units
-  // On ambulances (Medic units), crew dispenses autonomously — no provider signature needed
-  // On med units (MSU/REMS), Rx and CS require an authorized provider
+  // On ambulances (Unit), crew dispenses autonomously — no provider signature needed
+  // On med units (Med/REMS), Rx and CS require an authorized provider
   const providerRoles = ['MD', 'DO', 'NP', 'PA']
   const providerEmployees = employees.filter(e => providerRoles.includes(e.role))
   const witnessOptions = unitCrew.length > 0 ? unitCrew : employees
@@ -177,7 +177,7 @@ export function useMARForm() {
       try {
         const { data } = await supabase
           .from('unit_inventory')
-          .select('id, item_name, category, quantity, unit_id, cs_lot_number, cs_expiration_date')
+          .select('id, item_name, category, quantity, unit_id, cs_lot_number, cs_expiration_date, catalog_item_id')
           .eq('unit_id', unitId)
           .gt('quantity', 0)
           .in('category', ['Rx', 'CS'])
@@ -250,7 +250,7 @@ export function useMARForm() {
         ),
         loadList(
           () => supabase.from('formulary_templates')
-            .select('id, item_name, category, unit_type')
+            .select('id, item_name, category, unit_type, catalog_item_id')
             .in('category', ['Rx', 'CS'])
             .order('category')
             .order('item_name'),
@@ -339,9 +339,10 @@ export function useMARForm() {
     if (!item.unit_type) return true
     const unit = form.med_unit.toLowerCase()
     const uType = item.unit_type.toLowerCase()
-    if (unit.startsWith('medic') && uType.includes('ambulance')) return true
-    if ((unit.startsWith('aid') || unit === 'command 1') && uType.includes('med')) return true
-    if (unit.startsWith('rescue') && uType.includes('rems')) return true
+    if (unit.startsWith('rambo') && uType.includes('ambulance')) return true
+    if ((unit.startsWith('msu') || unit === 'the beast') && uType.includes('med')) return true
+    if (unit.startsWith('rems') && uType.includes('rems')) return true
+    if (unit.startsWith('truck') && uType.includes('truck')) return true
     return uType === '' || uType === 'all'
   })
 

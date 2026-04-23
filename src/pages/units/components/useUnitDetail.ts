@@ -124,18 +124,15 @@ export function useUnitDetail(id: string) {
         vin: u.vin || '', license_plate: u.license_plate || '',
         plate_state: u.plate_state || '', photo_url: u.photo_url || '',
       })
-      const activeIU = u.incident_units?.find(iu => iu.incident?.status === 'Active' && !iu.released_at)
-      if (activeIU) {
-        const { data: inv } = await supabase
-          .from('unit_inventory')
-          .select('id, item_name, category, quantity, par_qty')
-          .eq('incident_unit_id', activeIU.id)
-          .in('category', ['CS', 'Rx'])
-          .order('category')
-          .order('item_name')
-          .limit(10)
-        setInventory(inv || [])
-      }
+      // Load ALL inventory for this unit (by unit_id, not incident_unit_id)
+      const { data: inv } = await supabase
+        .from('unit_inventory')
+        .select('id, item_name, category, quantity, par_qty, catalog_item_id')
+        .eq('unit_id', u.id)
+        .gt('quantity', 0)
+        .order('category')
+        .order('item_name')
+      setInventory(inv || [])
     }
     setLoading(false)
   }

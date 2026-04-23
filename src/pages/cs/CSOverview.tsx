@@ -39,13 +39,12 @@ type UnitData = {
 
 const CS_UNIT_TYPE: Record<string, string> = {
   'Warehouse': 'Warehouse',
-  'Medic 1': 'Ambulance', 'Medic 2': 'Ambulance', 'Medic 3': 'Ambulance', 'Medic 4': 'Ambulance',
-  'Aid 1': 'Med Unit', 'Aid 2': 'Med Unit', 'Command 1': 'Med Unit',
-  'Rescue 1': 'REMS', 'Rescue 1 Trailer': 'REMS', 'Rescue 2': 'REMS',
-  'Truck 1': 'REMS', 'Truck 2': 'REMS', 'Truck 3': 'REMS', 'UTV 1': 'REMS', 'UTV 2': 'REMS',
+  'Unit 1': 'Ambulance', 'Unit 2': 'Ambulance', 'Unit 3': 'Ambulance', 'Unit 4': 'Ambulance',
+  'Med 1': 'Med Unit', 'Med 2': 'Med Unit', 'Cache': 'Med Unit',
+  'REMS 1': 'REMS', 'REMS 2': 'REMS',
 }
 
-const UNITS = ['Warehouse', 'Medic 1', 'Medic 2', 'Medic 3', 'Medic 4', 'Aid 1', 'Aid 2', 'Command 1', 'Rescue 1', 'Rescue 2']
+const UNITS = ['Warehouse', 'Unit 1', 'Unit 2', 'Unit 3', 'Unit 4', 'Med 1', 'Med 2', 'REMS 1', 'REMS 2']
 
 const TYPE_COLORS: Record<string, string> = {
   Receive: 'text-green-400',
@@ -80,32 +79,35 @@ function CSOverviewPageInner() {
   const [selectedUnit, setSelectedUnit] = useState<string>('All')
   const [isOfflineData, setIsOfflineData] = useState(false)
 
-  // Phase 1: render from cache immediately, no role gate
+  // Phase 1: show cache only when offline
   useEffect(() => {
-    const preload = async () => {
-      try {
-        const cached = await getCachedData('inventory') as any[]
-        const csItems = cached.filter((i: any) => i.category === 'CS')
-        if (csItems.length > 0) {
-          const grouped: Record<string, UnitInventoryItem[]> = {}
-          for (const item of csItems) {
-            const key = (item as any).unit_id || 'unknown'
-            if (!grouped[key]) grouped[key] = []
-            grouped[key].push(item)
+    if (!navigator.onLine) {
+      const preload = async () => {
+        try {
+          const cached = await getCachedData('inventory') as any[]
+          const csItems = cached.filter((i: any) => i.category === 'CS')
+          if (csItems.length > 0) {
+            const grouped: Record<string, UnitInventoryItem[]> = {}
+            for (const item of csItems) {
+              const key = (item as any).unit_id || 'unknown'
+              if (!grouped[key]) grouped[key] = []
+              grouped[key].push(item)
+            }
+            const offlineUnits: UnitData[] = Object.entries(grouped).map(([iuid, items]) => ({
+              unitName: UNITS.find(n => n) || 'Unit',
+              incidentUnitId: iuid,
+              items,
+            }))
+            if (offlineUnits.length > 0) {
+              setUnits(offlineUnits)
+              setIsOfflineData(true)
+              setLoading(false)
+            }
           }
-          const offlineUnits: UnitData[] = Object.entries(grouped).map(([iuid, items]) => ({
-            unitName: UNITS.find(n => n) || 'Unit',
-            incidentUnitId: iuid,
-            items,
-          }))
-          if (offlineUnits.length > 0) {
-            setUnits(offlineUnits)
-            setLoading(false)  // show cache immediately
-          }
-        }
-      } catch {}
+        } catch {}
+      }
+      preload()
     }
-    preload()
   }, [])
 
   // Phase 2: network fetch (runs after role resolves, refreshes over cache)
@@ -135,7 +137,7 @@ function CSOverviewPageInner() {
       const { data: inventory } = await loadList(
         () => supabase
           .from('unit_inventory')
-          .select('id, item_name, quantity, cs_lot_number, cs_expiration_date, unit_id')
+          .select('id, item_name, quantity, cs_lot_number, cs_expiration_date, unit_id, catalog_item_id')
           .eq('category', 'CS')
           .gt('quantity', 0),
         'inventory',

@@ -82,20 +82,37 @@ export async function syncDataFromServer(): Promise<void> {
     // No limits on critical tables — field crews need everything
     console.log('[Sync] Starting aggressive data preload...')
 
-    // Phase 1: Core reference data (small, fast)
-    const [incidents, units, employees, formulary, incidentUnits] = await Promise.all([
-      supabase.from('incidents').select('*, incident_units(id, released_at)'),  // ALL incidents with unit counts
-      supabase.from('units').select('*, unit_type:unit_types(name), incident_units(id, released_at, incident:incidents(name, status), unit_assignments(id, released_at, employee:employees(id, name, role)))'),  // ALL units with assignments
-      supabase.from('employees_sync').select('*'),  // Safe view — strips signing_pin_hash, DOB, home_address, emergency_contact, personal_email, personal_phone, daily_rate
-      supabase.from('formulary_templates').select('*'),  // ALL formulary items
-      supabase.from('incident_units').select('id, incident_id, released_at, unit:units(id, name, unit_type:unit_types(name))'),  // For CS/unit mapping
-    ])
+    // Paginate large tables — PostgREST caps single responses at 1000 rows server-side
+    const paginate = async (fetch: (from: number, to: number) => any): Promise<any[]> => {
+      const rows: any[] = []
+      for (let from = 0; ; from += 1000) {
+        const { data } = await fetch(from, from + 999)
+        if (!data || data.length === 0) break
+        rows.push(...data)
+        if (data.length < 1000) break
+      }
+      return rows
+    }
 
-    console.log('[Sync] Phase 1:', { incidents: incidents.data?.length, units: units.data?.length, employees: employees.data?.length, formulary: formulary.data?.length, incidentUnits: incidentUnits.data?.length })
+    // Phase 1: Core reference data (small, fast) + paginated formulary + item_catalog in parallel
+    const [[incidents, units, employees, incidentUnits], formularyRows, catalogRows] = await Promise.all([
+      Promise.all([
+        supabase.from('incidents').select('*, incident_units(id, released_at)'),
+        supabase.from('units').select('*, unit_type:unit_types(name), incident_units(id, released_at, incident:incidents(name, status), unit_assignments(id, released_at, employee:employees(id, name, role)))'),
+        supabase.from('employees_sync').select('*'),
+        supabase.from('incident_units').select('id, incident_id, released_at, unit:units(id, name, unit_type:unit_types(name))'),
+      ]),
+      paginate((from, to) => supabase.from('formulary_templates').select('*').order('id').range(from, to)),
+      paginate((from, to) => supabase.from('item_catalog').select('*').order('id').range(from, to)),
+    ])
+    const formulary = { data: formularyRows }
+
+    console.log('[Sync] Phase 1:', { incidents: incidents.data?.length, units: units.data?.length, employees: employees.data?.length, formulary: formulary.data?.length, catalog: catalogRows.length, incidentUnits: incidentUnits.data?.length })
     if (incidents.data) await cacheData('incidents', incidents.data)
     if (units.data) await cacheData('units', units.data)
     if (employees.data) await cacheData('employees', employees.data)
     if (formulary.data) await cacheData('formulary', formulary.data)
+    if (catalogRows.length) await cacheData('item_catalog', catalogRows)
     if (incidentUnits.data) await cacheData('incident_units', incidentUnits.data)
     console.log('[Sync] Phase 1 done — reference data cached')
 
@@ -112,15 +129,15 @@ export async function syncDataFromServer(): Promise<void> {
     if (vitals.data) await cacheData('vitals', vitals.data)
     console.log('[Sync] Phase 2 done — patient data cached')
 
-    // Phase 3: Operations data
-    const [inventory, supplyRuns, supplyRunItems] = await Promise.all([
-      supabase.from('unit_inventory').select('id, item_name, category, quantity, par_qty, lot_number, expiration_date, unit_id, incident_unit_id, barcode, upc').order('item_name').limit(5000),
+    // Phase 3: Operations data — paginate inventory in parallel with supply runs
+    const [invRows, supplyRuns, supplyRunItems] = await Promise.all([
+      paginate((from, to) => supabase.from('unit_inventory').select('id, item_name, category, quantity, par_qty, lot_number, expiration_date, unit_id, incident_unit_id, barcode, upc, catalog_item_id').order('id').range(from, to)),
       supabase.from('supply_runs').select('*, incident:incidents(name), supply_run_items(*)').order('run_date', { ascending: false }).limit(200),
-      supabase.from('supply_run_items').select('*').order('created_at', { ascending: false }).limit(200),
+      supabase.from('supply_run_items').select('*').order('id', { ascending: false }).limit(200),
     ])
 
-    console.log('[Sync] Phase 3:', { inventory: inventory.data?.length, supplyRuns: supplyRuns.data?.length, supplyRunItems: supplyRunItems.data?.length })
-    if (inventory.data) await cacheData('inventory', inventory.data)
+    console.log('[Sync] Phase 3:', { inventory: invRows.length, supplyRuns: supplyRuns.data?.length, supplyRunItems: supplyRunItems.data?.length })
+    if (invRows.length) await cacheData('inventory', invRows)
     if (supplyRuns.data) await cacheData('supply_runs', supplyRuns.data)
     if (supplyRunItems.data) await cacheData('supply_run_items', supplyRunItems.data)
     console.log('[Sync] Phase 3 done — operations data cached')

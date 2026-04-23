@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
 import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
 
-const UNIT_TYPES = ['Ambulance', 'Med Unit', 'REMS']
+const UNIT_TYPES = ['Ambulance', 'Med Unit', 'REMS', 'Truck', 'Warehouse']
 const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
 
 export default function NewUnitPage() {
@@ -115,7 +115,7 @@ export default function NewUnitPage() {
           <div>
             <label className={labelClass}>Unit Name *</label>
             <input value={form.name} onChange={e => set('name', e.target.value)}
-              placeholder="e.g. Medic 5, MSU 3, REMS 3" className={inputClass} />
+              placeholder="e.g. Unit 5, Med 3, REMS 3" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Unit Type *</label>

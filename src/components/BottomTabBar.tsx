@@ -20,6 +20,11 @@ type Tab = {
 
 const TABS: Tab[] = [
   {
+    icon: 'home',
+    label: 'Home',
+    href: '/',
+  },
+  {
     icon: 'incidents',
     label: 'Incidents',
     href: '/incidents',
@@ -58,15 +63,6 @@ const TABS: Tab[] = [
     ],
   },
   {
-    icon: 'roster',
-    label: 'Roster',
-    href: '/roster',
-    subItems: [
-      { label: 'Employee Roster', href: '/roster' },
-      { label: 'HR Credentials', href: '/roster/hr', adminOnly: true },
-    ],
-  },
-  {
     icon: 'bell',
     label: 'Alerts',
     href: '/notifications',
@@ -76,6 +72,8 @@ const TABS: Tab[] = [
     label: 'More',
     href: '/more',
     subItems: [
+      { label: 'Employee Roster', href: '/roster', icon: 'roster' },
+      { label: 'HR Credentials', href: '/roster/hr', icon: 'roster', adminOnly: true },
       { label: 'Units', href: '/units', icon: 'units' },
       { label: 'CS', href: '/cs', icon: 'cs' },
       { label: 'Live Map', href: '/map', icon: 'map', adminOnly: true },
@@ -116,7 +114,7 @@ export default function BottomTabBar() {
 
   const assignment = useUserAssignment()
   const isUnassigned = !canAdmin && !assignment.loading && !assignment.unit
-  const UNASSIGNED_ALLOWED_HREFS = ['/profile', '/roster', '/schedule/request', '/notifications']
+  const UNASSIGNED_ALLOWED_HREFS = ['/', '/profile', '/roster', '/schedule/request', '/notifications']
 
   const visibleTabs = TABS.filter(tab => {
     if (tab.adminOnly && !canAdmin) return false
@@ -286,7 +284,9 @@ export default function BottomTabBar() {
       >
         <div className="flex h-14 items-stretch">
           {visibleTabs.map(tab => {
-            const isActive = tab.href !== '/more' && pathname.startsWith(tab.href)
+            const isActive = tab.href === '/'
+              ? (pathname === '/' || pathname === '/admin' || pathname === '/dashboard/my-unit')
+              : tab.href !== '/more' && pathname.startsWith(tab.href)
             // Badge: unsigned encounters on Encounters tab, chat unread on More tab
             const encounterBadge = tab.href === '/encounters' && unsignedCounts.total > 0
               ? unsignedCounts.total

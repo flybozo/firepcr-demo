@@ -178,7 +178,7 @@ export function queryUserPreferences(userId: string) {
 export function queryReorderAlerts(incidentId: string) {
   return createClient()
     .from('unit_inventory')
-    .select('id, item_name, quantity, par_qty, unit:units!inner(id, name, incident_units!inner(incident_id))')
+    .select('id, item_name, quantity, par_qty, catalog_item_id, unit:units!inner(id, name, incident_units!inner(incident_id))')
     .lt('quantity', createClient().rpc ? 0 : 999) // will be refined per-page
 }
 

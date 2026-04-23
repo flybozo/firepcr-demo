@@ -78,23 +78,25 @@ function UnitsPageInner() {
 
 
   const load = async () => {
-    // Show cached data instantly
-    try {
-      const { getCachedData } = await import('@/lib/offlineStore')
-      const cached = await getCachedData('units') as any[]
-      if (cached.length > 0) {
-        // Sort cached units same as network result
-        const sorted = (cached as Unit[]).sort((a, b) => {
-          const aType = (a.unit_type as any)?.name || 'REMS'
-          const bType = (b.unit_type as any)?.name || 'REMS'
-          const orderDiff = (TYPE_ORDER[aType] ?? 99) - (TYPE_ORDER[bType] ?? 99)
-          if (orderDiff !== 0) return orderDiff
-          return a.name.localeCompare(b.name)
-        })
-        setUnits(sorted)
-        setLoading(false)
-      }
-    } catch {}
+    // Show cached data only when offline
+    if (!navigator.onLine) {
+      try {
+        const { getCachedData } = await import('@/lib/offlineStore')
+        const cached = await getCachedData('units') as any[]
+        if (cached.length > 0) {
+          const sorted = (cached as Unit[]).sort((a, b) => {
+            const aType = (a.unit_type as any)?.name || 'REMS'
+            const bType = (b.unit_type as any)?.name || 'REMS'
+            const orderDiff = (TYPE_ORDER[aType] ?? 99) - (TYPE_ORDER[bType] ?? 99)
+            if (orderDiff !== 0) return orderDiff
+            return a.name.localeCompare(b.name)
+          })
+          setUnits(sorted)
+          setLoading(false)
+          return
+        }
+      } catch {}
+    }
     const unitResult = await loadList<Unit>(
       () => supabase
         .from('units')

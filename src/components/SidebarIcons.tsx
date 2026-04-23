@@ -24,6 +24,9 @@ export const RAINBOW_ICON_COLORS: Record<string, string> = {
 
 export const SidebarIcon = ({ name }: { name: string }) => {
   switch (name) {
+    case 'home':
+      // House icon
+      return <svg {...iconProps}><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2" /></svg>
     case 'incidents':
       // Map pin with flame
       return <svg {...iconProps}><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" /><path d="M12 6c-1.5 0-3 1.5-3 3.5 0 2.5 3 5 3 5s3-2.5 3-5C15 7.5 13.5 6 12 6z" /><path d="M12 6c.83 0 1.5.9 1.5 2 0 1.5-1.5 3-1.5 3s-1.5-1.5-1.5-3c0-1.1.67-2 1.5-2z" /></svg>

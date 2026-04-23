@@ -37,20 +37,22 @@ function IncidentsPageInner() {
       let defaultIncidentId: string | null = null
       try { defaultIncidentId = localStorage.getItem('default_incident_id') } catch {}
 
-      // Show cached incidents instantly — and auto-redirect to default or most recent active fire
-      try {
-        const { getCachedData } = await import('@/lib/offlineStore')
-        const cached = await getCachedData('incidents') as any[]
-        if (cached.length > 0) {
-          cached.sort((a: any, b: any) => (b.start_date || b.created_at || '').localeCompare(a.start_date || a.created_at || ''))
-          setIncidents(cached as any[])
-          setLoading(false)
-          // Prefer user-set default fire if it's active, else most recent active
-          const defaultFire = defaultIncidentId ? cached.find((i: any) => i.id === defaultIncidentId && i.status === 'Active') : null
-          const target = defaultFire || cached.find((i: any) => i.status === 'Active')
-          if (target && statusParam !== 'Closed') { navigate(`/incidents/${target.id}`, { replace: true }); return }
-        }
-      } catch {}
+      // Show cached incidents only when offline
+      if (!navigator.onLine) {
+        try {
+          const { getCachedData } = await import('@/lib/offlineStore')
+          const cached = await getCachedData('incidents') as any[]
+          if (cached.length > 0) {
+            cached.sort((a: any, b: any) => (b.start_date || b.created_at || '').localeCompare(a.start_date || a.created_at || ''))
+            setIncidents(cached as any[])
+            setLoading(false)
+            const defaultFire = defaultIncidentId ? cached.find((i: any) => i.id === defaultIncidentId && i.status === 'Active') : null
+            const target = defaultFire || cached.find((i: any) => i.status === 'Active')
+            if (target && statusParam !== 'Closed') { navigate(`/incidents/${target.id}`, { replace: true }); return }
+            return
+          }
+        } catch {}
+      }
       const { data, offline } = await loadList(
         () => queryIncidentsList() as any,
         'incidents'

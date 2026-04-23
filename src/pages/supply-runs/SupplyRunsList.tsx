@@ -60,15 +60,20 @@ function SupplyRunsPageInner() {
 
   useEffect(() => {
     const load = async () => {
-      // Show cached data instantly
-      try {
-        const cached = await getCachedData('supply_runs') as any[]
-        if (cached.length > 0) {
-          setRuns(cached as SupplyRun[])
-        }
-      } catch {}
-      // Always unblock loading after cache attempt
-      setLoading(false)
+      // Show cached data only when offline
+      if (!navigator.onLine) {
+        try {
+          const cached = await getCachedData('supply_runs') as any[]
+          if (cached.length > 0) {
+            setRuns(cached as SupplyRun[])
+            setIsOfflineData(true)
+            setLoading(false)
+            return
+          }
+        } catch {}
+        setLoading(false)
+        return
+      }
       try {
         let query = supabase
           .from('supply_runs')

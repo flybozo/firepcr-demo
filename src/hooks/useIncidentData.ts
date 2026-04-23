@@ -409,7 +409,7 @@ export function useIncidentData(
         if (allIuIds.length > 0) {
           const { data: reorderData } = await supabaseClient
             .from('unit_inventory')
-            .select('id, item_name, quantity, par_qty, incident_unit_id')
+            .select('id, item_name, quantity, par_qty, incident_unit_id, catalog_item_id')
             .in('incident_unit_id', allIuIds)
             .lte('quantity', supabaseClient.rpc ? 0 : 999999)
           const iuToUnit = new Map<string, string>()

@@ -137,7 +137,7 @@ export default function MyUnitDashboard() {
           // All inventory for low stock
           supabase
             .from('unit_inventory')
-            .select('id, item_name, quantity, par_qty')
+            .select('id, item_name, quantity, par_qty, catalog_item_id')
             .eq('incident_unit_id', incidentUnitId),
 
           // Unsigned orders count

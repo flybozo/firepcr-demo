@@ -23,6 +23,7 @@ export function getLeaderPosition(unitTypeName: string | null | undefined): stri
   if (unitTypeName.toLowerCase().includes('ambulance')) return 'EMS Supervisor'
   if (unitTypeName.toLowerCase().includes('med unit')) return 'EMS Supervisor'
   if (unitTypeName.toLowerCase().includes('rems')) return 'REMS Leader'
+  if (unitTypeName.toLowerCase() === 'truck') return 'Driver/Operator'
   return 'EMS Supervisor'
 }
 

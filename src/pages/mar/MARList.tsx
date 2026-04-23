@@ -40,9 +40,9 @@ const TYPE_COLORS: Record<string, string> = {
 function getUnitType(name: string): string {
   if (!name) return ''
   const n = name.toLowerCase()
-  if (n.startsWith('medic')) return 'Ambulance'
-  if (n.startsWith('aid') || n === 'command 1') return 'Med Unit'
-  if (n.startsWith('rescue')) return 'REMS'
+  if (n.startsWith('rambo')) return 'Ambulance'
+  if (n.startsWith('msu') || n === 'the beast') return 'Med Unit'
+  if (n.startsWith('rems')) return 'REMS'
   return 'Warehouse'
 }
 
@@ -123,28 +123,26 @@ function MARListInner() {
     return onConnectionChange((online) => setIsOffline(!online))
   }, [])
 
-  // ── Phase 1: render cache instantly ──
-  // Only show unfiltered cache for admins. Field users must wait for role+assignment
-  // to load so we can apply the unit filter — never show other units' MAR data.
+  // ── Phase 1: show cache only when offline ──
   useEffect(() => {
-    if (roleLoading || assignment.loading) return // wait until we know who this is
-    const preload = async () => {
-      try {
-        const cached = await getCachedData('mar_entries') as any[]
-        if (cached.length > 0) {
-          // Apply unit filter to cache for field users
-          const effectiveUnit = unitParam || (isField ? assignment.unit?.name : null)
-          const filtered = effectiveUnit
-            ? cached.filter((e: any) => e.med_unit === effectiveUnit)
-            : cached
-          const sorted = [...filtered].sort((a: any, b: any) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''))
-          setEntries(sorted as any[])
-        }
-      } catch {}
-      // Always unblock loading after cache attempt
-      setLoading(false)
+    if (!navigator.onLine) {
+      if (roleLoading || assignment.loading) return
+      const preload = async () => {
+        try {
+          const cached = await getCachedData('mar_entries') as any[]
+          if (cached.length > 0) {
+            const effectiveUnit = unitParam || (isField ? assignment.unit?.name : null)
+            const filtered = effectiveUnit
+              ? cached.filter((e: any) => e.med_unit === effectiveUnit)
+              : cached
+            const sorted = [...filtered].sort((a: any, b: any) => (b.date || b.created_at || '').localeCompare(a.date || a.created_at || ''))
+            setEntries(sorted as any[])
+          }
+        } catch {}
+        setLoading(false)
+      }
+      preload()
     }
-    preload()
   }, [roleLoading, assignment.loading, isField, assignment.unit?.name, unitParam])
 
   useEffect(() => {

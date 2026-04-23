@@ -61,6 +61,7 @@ const InventoryAdd = lazy(() => import('@/pages/inventory/InventoryAdd'))
 const InventoryDetail = lazy(() => import('@/pages/inventory/InventoryDetail'))
 const BurnRate = lazy(() => import('@/pages/inventory/BurnRate'))
 const Reorder = lazy(() => import('@/pages/inventory/Reorder'))
+const ExpirationDashboard = lazy(() => import('@/pages/inventory/ExpirationDashboard'))
 
 // Supply Runs
 const SupplyRunsList = lazy(() => import('@/pages/supply-runs/SupplyRunsList'))
@@ -99,6 +100,9 @@ const DocumentDetail = lazy(() => import('@/pages/documents/DocumentDetail'))
 const Handbook = lazy(() => import('@/pages/documents/Handbook'))
 const NewDocument = lazy(() => import('@/pages/documents/NewDocument'))
 const Formulary = lazy(() => import('@/pages/formulary/Formulary'))
+const FormularyDetail = lazy(() => import('@/pages/formulary/FormularyDetail'))
+const CatalogList = lazy(() => import('@/pages/catalog/CatalogList'))
+const CatalogDetail = lazy(() => import('@/pages/catalog/CatalogDetail'))
 const Payroll = lazy(() => import('@/pages/payroll/Payroll'))
 const MyPayroll = lazy(() => import('@/pages/payroll/MyPayroll'))
 const Profile = lazy(() => import('@/pages/profile/Profile'))
@@ -199,10 +203,6 @@ function App() {
               </Route>
               <Route path="cs/checklist" element={<CSChecklist />} />
               <Route path="cs-inventory/count" element={<CSInventoryCount />} />
-              {/* Inventory */}
-              <Route path="inventory" element={<SplitShell basePath="/inventory"><InventoryList /></SplitShell>}>
-                <Route path=":id" element={<InventoryDetail />} />
-              </Route>
               {/* Supply Runs */}
               <Route path="supply-runs/new" element={<NewSupplyRun />} />
               <Route path="supply-runs/search" element={<SupplyRunSearch />} />
@@ -230,6 +230,23 @@ function App() {
               <Route path="comp-claims" element={<CompClaimsList />} />
             </Route>
 
+            {/* ── Inventory management (admin OR assigned OR inventory permissions) ── */}
+            <Route element={<RouteGuard require="assigned" permissions={['inventory.manage', 'inventory.view', 'inventory.*']} />}>
+              <Route path="inventory" element={<SplitShell basePath="/inventory"><InventoryList /></SplitShell>}>
+                <Route path=":id" element={<InventoryDetail />} />
+              </Route>
+              <Route path="inventory/add" element={<InventoryAdd />} />
+              <Route path="inventory/burnrate" element={<BurnRate />} />
+              <Route path="inventory/reorder" element={<Reorder />} />
+              <Route path="inventory/expiring" element={<ExpirationDashboard />} />
+              <Route path="formulary" element={<SplitShell basePath="/formulary"><Formulary /></SplitShell>}>
+                <Route path=":id" element={<FormularyDetail />} />
+              </Route>
+              <Route path="catalog" element={<SplitShell basePath="/catalog"><CatalogList /></SplitShell>}>
+                <Route path=":id" element={<CatalogDetail />} />
+              </Route>
+            </Route>
+
             {/* ── Admin only ── */}
             <Route element={<RouteGuard require="admin" />}>
               <Route path="map" element={<GlobalMap />} />
@@ -240,15 +257,11 @@ function App() {
               <Route path="roster/pay-rates" element={<PayRates />} />
               <Route path="cs/receive" element={<CSReceive />} />
               <Route path="cs/audit" element={<CSAudit />} />
-              <Route path="inventory/add" element={<InventoryAdd />} />
-              <Route path="inventory/burnrate" element={<BurnRate />} />
-              <Route path="inventory/reorder" element={<Reorder />} />
               <Route path="schedule" element={<Schedule />} />
               <Route path="schedule/calendar" element={<ScheduleCalendar />} />
               <Route path="schedule/generate" element={<GenerateSchedule />} />
               <Route path="analytics" element={<Analytics />} />
               <Route path="billing" element={<Billing />} />
-              <Route path="formulary" element={<Formulary />} />
               <Route path="payroll" element={<Payroll />} />
               <Route path="contacts" element={<Contacts />} />
               <Route path="documents/handbook" element={<Handbook />} />

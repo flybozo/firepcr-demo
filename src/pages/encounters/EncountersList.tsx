@@ -58,15 +58,15 @@ function statusColor(status: string | null) {
 
 function getUnitType(unitName: string): string {
   if (!unitName) return ''
-  if (unitName.startsWith('Medic')) return 'Ambulance'
-  if (unitName.startsWith('MSU') || unitName === 'Command 1') return 'Med Unit'
+  if (unitName.startsWith('Unit')) return 'Ambulance'
+  if (unitName.startsWith('Med') || unitName === 'Cache') return 'Med Unit'
   if (unitName.startsWith('REMS')) return 'REMS'
   if (unitName === 'Warehouse') return 'Warehouse'
   return ''
 }
 
 // All known unit names in canonical sort order
-const ALL_UNIT_NAMES = ['Medic 1', 'Medic 2', 'Medic 3', 'Medic 4', 'Aid 1', 'Aid 2', 'Command 1', 'Rescue 1', 'Rescue 2']
+const ALL_UNIT_NAMES = ['Unit 1', 'Unit 2', 'Unit 3', 'Unit 4', 'Med 1', 'Med 2', 'REMS 1', 'REMS 2']
 
 const sortedUnitNames = [...ALL_UNIT_NAMES].sort((a, b) => {
   const aOrder = UNIT_TYPE_ORDER[getUnitType(a)] ?? 99
@@ -121,21 +121,22 @@ function EncountersInner() {
       .then(({ data }) => { if (data) setActiveIncidents(data) })
   }, [isField, roleLoading])
 
-  // ── Phase 1: render cache instantly, no role/assignment gate ──
+  // ── Phase 1: show cache only when offline ──
   useEffect(() => {
-    const preload = async () => {
-      try {
-        const cached = await getCachedData('encounters') as any[]
-        if (cached.length > 0) {
-          const mapped = cached.map((e: any) => ({ ...e, incident_name: e.incident?.name || e.incident_name || null }))
-          mapped.sort((a: any, b: any) => (b.created_at || b.date || '').localeCompare(a.created_at || a.date || ''))
-          setEncounters(mapped)
-        }
-      } catch {}
-      // Always unblock loading after cache attempt — network refresh happens in Phase 2
-      setLoading(false)
+    if (!navigator.onLine) {
+      const preload = async () => {
+        try {
+          const cached = await getCachedData('encounters') as any[]
+          if (cached.length > 0) {
+            const mapped = cached.map((e: any) => ({ ...e, incident_name: e.incident?.name || e.incident_name || null }))
+            mapped.sort((a: any, b: any) => (b.created_at || b.date || '').localeCompare(a.created_at || a.date || ''))
+            setEncounters(mapped)
+          }
+        } catch {}
+        setLoading(false)
+      }
+      preload()
     }
-    preload()
   }, [])
 
   useEffect(() => {

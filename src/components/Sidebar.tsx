@@ -67,10 +67,12 @@ const NAV: NavItem[] = [
     href: '/inventory',
     directLink: true,
     sub: [
+      { label: 'Item Catalog', href: '/catalog' },
       { label: 'Add Inventory', href: '/inventory/add' },
       { label: 'Formulary Templates', href: '/formulary' },
       { label: 'Reorder Report', href: '/inventory/reorder' },
       { label: 'Burn Rate', href: '/inventory/burnrate' },
+      { label: 'Expiration Dashboard', href: '/inventory/expiring' },
       { label: 'Itemized Billing', href: '/billing' },
     ],
   },
@@ -207,13 +209,17 @@ function SortableNavItem({
     : (isActive ? 'var(--color-primary, #dc2626)' : undefined)
 
   const PRESCRIBER_ROLES = ['MD', 'DO', 'PA', 'NP']
+  const hasInventoryAccess = useAnyPermission('inventory.manage', 'inventory.view')
   const visibleSub = item.sub.filter(s => {
     if (isField) {
       const adminSubs = [
         '/incidents/new', '/units/new', '/roster/new', '/roster/hr',
-        '/admin', '/formulary', '/cs/audit', '/cs/receive',
-        '/inventory/burnrate', '/billing', '/schedule/generate',
+        '/admin', '/cs/audit', '/cs/receive',
+        '/billing', '/schedule/generate',
       ]
+      // Inventory managers can see formulary, burnrate, and inventory sub-items
+      const inventorySubs = ['/formulary', '/inventory/burnrate']
+      if (inventorySubs.some(a => s.href.startsWith(a)) && hasInventoryAccess) return true
       if (adminSubs.some(a => s.href.startsWith(a))) return false
     }
     return true
@@ -389,6 +395,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = location.pathname
   const roleLoading = usePermissionLoading()
   const canAdmin = useAnyPermission('admin.settings', 'admin.push', 'admin.analytics')
+  const canInventory = useAnyPermission('inventory.manage', 'inventory.view')
   const canBilling = usePermission('billing.view')
   const canPayroll = usePermission('payroll.view_all')
   const canRoster = usePermission('roster.manage')
@@ -423,7 +430,8 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   }, [])
 
   // Field users with no unit assignment can only access profile, roster, schedule request
-  const isUnassigned = !canAdmin && !assignment.loading && !assignment.unit
+  // Users with inventory permissions bypass this restriction (e.g. Inventory Manager role)
+  const isUnassigned = !canAdmin && !canInventory && !assignment.loading && !assignment.unit
   const FIELD_UNASSIGNED_ALLOWED = ['/profile', '/roster']
 
   const visibleNav = NAV.filter(item => {

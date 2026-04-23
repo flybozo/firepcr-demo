@@ -1,7 +1,7 @@
-import { FieldGuard } from '@/components/FieldGuard'
-import { usePermission } from '@/hooks/usePermission'
+import { usePermission, useAnyPermission, usePermissionLoading } from '@/hooks/usePermission'
 
 import { useEffect, useState } from 'react'
+import { useNavigate, useMatch } from 'react-router-dom'
 import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
 import { LoadingSkeleton, ConfirmDialog } from '@/components/ui'
@@ -21,6 +21,16 @@ type FormulaItem = {
   ndc: string | null
   concentration: string | null
   route: string | null
+  catalog_item_id: string | null
+  catalog_item: { sku: string }[] | { sku: string } | null
+}
+
+// PostgREST may return FK joins as array or object depending on cardinality detection
+function skuOf(item: FormulaItem): string | null {
+  const ci = item.catalog_item
+  if (!ci) return null
+  if (Array.isArray(ci)) return ci[0]?.sku || null
+  return ci.sku || null
 }
 
 const CAT_COLORS: Record<string, string> = {
@@ -31,12 +41,14 @@ const CAT_COLORS: Record<string, string> = {
   RE: 'bg-green-900 text-green-300',
 }
 
-const TABS = ['Ambulance', 'Med Unit', 'REMS', 'Warehouse']
+const TABS = ['Ambulance', 'Med Unit', 'REMS', 'Truck', 'Warehouse']
 
-const SELECT_FIELDS = 'id, item_name, category, unit_of_measure, supplier, units_per_case, case_cost, unit_cost, image_url, barcode, ndc, concentration, route'
+const SELECT_FIELDS = 'id, item_name, category, unit_of_measure, supplier, units_per_case, case_cost, unit_cost, image_url, barcode, ndc, concentration, route, catalog_item_id, catalog_item:item_catalog(sku)'
 
 function FormularyPageInner() {
   const supabase = createClient()
+  const navigate = useNavigate()
+  const detailMatch = useMatch('/formulary/:id')
   const isAdmin = usePermission('admin.settings')
   const [activeTab, setActiveTab] = useState('Ambulance')
   const [items, setItems] = useState<FormulaItem[]>([])
@@ -76,15 +88,18 @@ function FormularyPageInner() {
     if (!unitTypes[activeTab]) return
     setLoading(true)
     const load = async () => {
-      // Show cached data instantly
-      try {
-        const { getCachedData } = await import('@/lib/offlineStore')
-        const cached = await getCachedData('formulary') as any[]
-        if (cached.length > 0) {
-          setItems(cached as FormulaItem[])
-          setLoading(false)
-        }
-      } catch {}
+      // Show cached data only when offline
+      if (!navigator.onLine) {
+        try {
+          const { getCachedData } = await import('@/lib/offlineStore')
+          const cached = await getCachedData('formulary') as any[]
+          if (cached.length > 0) {
+            setItems(cached as FormulaItem[])
+            setLoading(false)
+            return
+          }
+        } catch {}
+      }
       const { data, offline } = await loadList<FormulaItem>(
         () => supabase
           .from('formulary_templates')
@@ -331,11 +346,12 @@ function FormularyPageInner() {
           <div className="grid grid-cols-12 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700">
             <span className="col-span-4">Item</span>
             <span className="col-span-1">Cat</span>
+            <span className="col-span-1 hidden lg:block text-gray-600">SKU</span>
             <span className="col-span-2 hidden md:block">Supplier</span>
             <span className="col-span-1 text-right hidden md:block">Qty/Case</span>
             <span className="col-span-1 text-right hidden md:block">$/Case</span>
             <span className="col-span-1 text-right hidden md:block">$/Unit</span>
-            <span className="col-span-2 text-right">Actions</span>
+            <span className="col-span-1 text-right">Actions</span>
           </div>
 
           {/* Rows */}
@@ -392,10 +408,21 @@ function FormularyPageInner() {
                     </div>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-12 px-4 py-2.5 hover:bg-gray-800/50 items-center text-sm">
-                    <div className="col-span-4">
-                      <span className="text-white">{item.item_name}</span>
-                      {item.unit_of_measure && <span className="text-gray-500 text-xs ml-1">({item.unit_of_measure})</span>}
+                  <div
+                    onClick={() => navigate(`/formulary/${item.id}`)}
+                    className={`grid grid-cols-12 px-4 py-2.5 items-center text-sm cursor-pointer transition-colors ${
+                      detailMatch?.params?.id === item.id ? 'bg-gray-700' : 'hover:bg-gray-800/50'
+                    }`}>
+                    <div className="col-span-4 flex items-center gap-2">
+                      {item.image_url ? (
+                        <img src={item.image_url} alt="" className="w-8 h-8 rounded object-cover shrink-0 bg-gray-800" />
+                      ) : (
+                        <div className="w-8 h-8 rounded bg-gray-800 shrink-0 flex items-center justify-center text-gray-600 text-xs">📷</div>
+                      )}
+                      <div className="min-w-0">
+                        <button onClick={() => navigate(`/formulary/${item.id}`)} className="text-white hover:text-red-400 text-left transition-colors truncate block">{item.item_name}</button>
+                        {item.unit_of_measure && <span className="text-gray-500 text-xs">({item.unit_of_measure})</span>}
+                      </div>
                     </div>
                     <div className="col-span-1">
                       <select
@@ -414,6 +441,7 @@ function FormularyPageInner() {
                         ))}
                       </select>
                     </div>
+                    <div className="col-span-1 hidden lg:block text-xs text-gray-600 font-mono truncate">{skuOf(item) || '—'}</div>
                     <div className="col-span-2 hidden md:block text-xs text-gray-400 truncate">{item.supplier || '—'}</div>
                     <div className="col-span-1 hidden md:block text-right text-xs text-gray-400">{item.units_per_case ?? '—'}</div>
                     <div className="col-span-1 hidden md:block text-right text-xs text-gray-400">{item.case_cost ? `$${item.case_cost.toFixed(2)}` : '—'}</div>
@@ -448,7 +476,7 @@ function FormularyPageInner() {
                         </span>
                       )}
                     </div>
-                    <div className="col-span-2 flex gap-1 justify-end">
+                    <div className="col-span-1 flex gap-1 justify-end">
                       {isAdmin && activeTab !== 'Warehouse' && (
                         <>
                           <button onClick={() => { setEditingId(item.id); setEditItem({}) }} className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-gray-300">Edit</button>
@@ -496,10 +524,30 @@ function FormularyPageInner() {
   )
 }
 
+function FormularyPermissionGuard({ children }: { children: React.ReactNode }) {
+  const loading = usePermissionLoading()
+  const hasAccess = useAnyPermission('inventory.manage', 'inventory.view', 'inventory.*', 'admin.settings')
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <p className="text-gray-500 text-sm">Loading...</p>
+      </div>
+    )
+  }
+  if (!hasAccess) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <p className="text-gray-400 text-sm">You don't have permission to view formulary templates.</p>
+      </div>
+    )
+  }
+  return <>{children}</>
+}
+
 export default function FormularyPageWrapped() {
   return (
-    <FieldGuard redirectFn={() => '/'}>
+    <FormularyPermissionGuard>
       <FormularyPageInner />
-    </FieldGuard>
+    </FormularyPermissionGuard>
   )
 }

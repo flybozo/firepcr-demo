@@ -39,6 +39,12 @@ export function registerServiceWorker() {
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (updateNotified) {
       window.location.reload()
+    } else {
+      // SW used skipWaiting() — new version activated without waiting.
+      // Show the banner so user knows to reload for fresh assets.
+      updateNotified = true
+      console.log('[SW] New version activated via skipWaiting — prompting reload')
+      window.dispatchEvent(new CustomEvent('sw-update-available'))
     }
   })
 

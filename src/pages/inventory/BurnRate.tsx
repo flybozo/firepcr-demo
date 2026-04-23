@@ -28,7 +28,7 @@ export default function BurnRatePage() {
       // Get current inventory with unit names
       const { data: inv } = await supabase
         .from('unit_inventory')
-        .select('id, item_name, category, quantity, par_qty, incident_unit:incident_units(unit:units(name))')
+        .select('id, item_name, category, quantity, par_qty, catalog_item_id, incident_unit:incident_units(unit:units(name))')
         .gt('quantity', 0)
         .in('category', ['Rx', 'CS', 'OTC'])
         .order('item_name')

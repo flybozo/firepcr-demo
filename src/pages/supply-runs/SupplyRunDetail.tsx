@@ -151,7 +151,7 @@ export default function SupplyRunDetailPage() {
       unitId
         ? supabase
             .from('unit_inventory')
-            .select('id, item_name, category, quantity, lot_number, barcode, upc, incident_unit_id')
+            .select('id, item_name, category, quantity, lot_number, barcode, upc, incident_unit_id, catalog_item_id')
             .eq('unit_id', unitId)
             .gt('quantity', 0)
             .in('category', ['OTC', 'Supply'])

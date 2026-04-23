@@ -7,6 +7,7 @@ interface FirePCRDB extends DBSchema {
   units: { key: string; value: any }
   employees: { key: string; value: any }
   formulary: { key: string; value: any }
+  item_catalog: { key: string; value: any }
   inventory: { key: string; value: any }
   supply_runs: { key: string; value: any }
   supply_run_items: { key: string; value: any; indexes: { 'by-supply-run': string } }
@@ -37,7 +38,7 @@ let dbPromise: ReturnType<typeof openDB<FirePCRDB>> | null = null
 function getDB() {
   if (typeof window === 'undefined') return null as any
   if (!dbPromise) {
-    dbPromise = openDB<FirePCRDB>('firepcr-offline', 7, {
+    dbPromise = openDB<FirePCRDB>('firepcr-offline', 8, {
       upgrade(db, oldVersion) {
         // Version 1 stores (always create if missing)
         if (!db.objectStoreNames.contains('encounters')) {
@@ -52,6 +53,7 @@ function getDB() {
         if (!db.objectStoreNames.contains('units')) db.createObjectStore('units', { keyPath: 'id' })
         if (!db.objectStoreNames.contains('employees')) db.createObjectStore('employees', { keyPath: 'id' })
         if (!db.objectStoreNames.contains('formulary')) db.createObjectStore('formulary', { keyPath: 'id' })
+        if (!db.objectStoreNames.contains('item_catalog')) db.createObjectStore('item_catalog', { keyPath: 'id' })
         if (!db.objectStoreNames.contains('pending_sync')) db.createObjectStore('pending_sync', { keyPath: 'id', autoIncrement: true })
         if (!db.objectStoreNames.contains('sync_meta')) db.createObjectStore('sync_meta', { keyPath: 'key' })
 

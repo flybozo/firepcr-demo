@@ -27,11 +27,12 @@ const CAT_COLORS: Record<string, string> = {
 function ReorderPageInner() {
   const [searchParams] = useSearchParams()
   const preselectedIncident = searchParams.get('incidentId') ?? ''
+  const preselectedUnit = searchParams.get('unit') ?? ''
 
   const supabase = createClient()
   const [items, setItems] = useState<ReorderItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [unitFilter, setUnitFilter] = useState('All')
+  const [unitFilter, setUnitFilter] = useState(preselectedUnit || 'All')
   const [catFilter, setCatFilter] = useState('All')
 
   useEffect(() => {
@@ -45,6 +46,7 @@ function ReorderPageInner() {
           category,
           quantity,
           par_qty,
+          catalog_item_id,
           incident_unit:incident_units(
             id,
             unit:units(name)

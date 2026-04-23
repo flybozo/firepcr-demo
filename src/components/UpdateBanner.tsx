@@ -16,12 +16,14 @@ export default function UpdateBanner() {
   if (!showUpdate) return null
 
   const handleUpdate = () => {
-    // Tell the waiting service worker to activate
+    // Tell any waiting service worker to activate, then reload
     navigator.serviceWorker.getRegistration().then(reg => {
       if (reg?.waiting) {
         reg.waiting.postMessage({ type: 'SKIP_WAITING' })
       }
-    })
+      // Reload regardless — new SW may have already activated via skipWaiting()
+      window.location.reload()
+    }).catch(() => window.location.reload())
   }
 
   return (

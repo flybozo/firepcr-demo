@@ -82,7 +82,9 @@ export default function SplitShell({ basePath, children, detailPattern, listWidt
               .split-detail-pane a[href$="/units"],
               .split-detail-pane a[href$="/incidents"],
               .split-detail-pane a[href$="/roster"],
-              .split-detail-pane a[href$="/supply-runs"] {
+              .split-detail-pane a[href$="/supply-runs"],
+              .split-detail-pane a[href$="/inventory"],
+              .split-detail-pane a[href$="/formulary"] {
                 display: none !important;
               }
             }

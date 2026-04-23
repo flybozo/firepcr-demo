@@ -144,7 +144,7 @@ export function UnitsCard({
                   {(iu.unit as any)?.photo_url ? (
                     <img src={(iu.unit as any).photo_url} alt={iu.unit?.name || ''} className="w-full h-full object-cover" />
                   ) : (
-                    <span className="text-sm">{(() => { const t = (iu.unit as any)?.unit_type?.name; return t === 'Ambulance' ? '🚑' : t === 'Med Unit' ? '🏥' : t === 'REMS' ? '🧗' : '🚐' })()}</span>
+                    <span className="text-sm">{(() => { const t = (iu.unit as any)?.unit_type?.name; return t === 'Ambulance' ? '🚑' : t === 'Med Unit' ? '🏥' : t === 'REMS' ? '🧗' : t === 'Truck' ? '🚚' : '🚐' })()}</span>
                   )}
                 </div>
                 <div>

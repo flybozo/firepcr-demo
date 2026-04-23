@@ -39,7 +39,7 @@ export function querySupplyRunsByIncident(incidentId: string) {
 export function querySupplyInventory(unitName: string) {
   return createClient()
     .from('unit_inventory')
-    .select('id, item_name, quantity, category')
+    .select('id, item_name, quantity, category, catalog_item_id')
     .eq('unit_name', unitName)
     .in('category', ['OTC', 'Supply'])
     .gt('quantity', 0)

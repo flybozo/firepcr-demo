@@ -45,7 +45,7 @@ export type BrandConfig = {
   // ── Unit Naming Conventions ─────────────────────────────────────────────
   unitPrefixes: {
     ambulance: string   // "Medic"
-    medUnit: string     // "MSU"
+    medUnit: string     // "Med"
     rems: string        // "REMS"
     warehouse: string   // "Command 1"
   }

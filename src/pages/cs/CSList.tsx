@@ -24,11 +24,11 @@ type CSItem = {
   unitName: string
 }
 
-const ALL_UNITS = ['Medic 1', 'Medic 2', 'Medic 3', 'Medic 4', 'Aid 1', 'Aid 2', 'Command 1', 'Rescue 1', 'Rescue 2', 'Warehouse']
+const ALL_UNITS = ['Unit 1', 'Unit 2', 'Unit 3', 'Unit 4', 'Med 1', 'Med 2', 'REMS 1', 'REMS 2', 'Cache', 'Warehouse']
 
 function unitType(name: string) {
-  if (name.startsWith('Medic')) return 'Ambulance'
-  if (name.startsWith('MSU') || name === 'Command 1') return 'Med Unit'
+  if (name.startsWith('Unit')) return 'Ambulance'
+  if (name.startsWith('Med') || name === 'Cache') return 'Med Unit'
   if (name.startsWith('REMS')) return 'REMS'
   if (name === 'Warehouse') return 'Warehouse'
   return ''
@@ -69,24 +69,28 @@ export default function CSList() {
 
   useEffect(() => {
     const load = async () => {
-      // Show cached CS inventory instantly
-      try {
-        const cached = await getCachedData('inventory') as any[]
-        const csItems = cached.filter((i: any) => i.category === 'CS')
-        if (csItems.length > 0) {
-          setItems(csItems.map((r: any) => ({
-            ...r,
-            unitName: r.unit?.name || r.unit_name || 'Unknown',
-          })))
-          setLoading(false)
-        }
-      } catch {}
+      // Show cached CS inventory only when offline
+      if (!navigator.onLine) {
+        try {
+          const cached = await getCachedData('inventory') as any[]
+          const csItems = cached.filter((i: any) => i.category === 'CS')
+          if (csItems.length > 0) {
+            setItems(csItems.map((r: any) => ({
+              ...r,
+              unitName: r.unit?.name || r.unit_name || 'Unknown',
+            })))
+            setIsOfflineData(true)
+            setLoading(false)
+            return
+          }
+        } catch {}
+      }
 
       // Try network refresh
       try {
         const { data } = await supabase
           .from('unit_inventory')
-          .select('id, item_name, quantity, par_qty, cs_lot_number, cs_expiration_date, unit_id, unit:units(name)')
+          .select('id, item_name, quantity, par_qty, cs_lot_number, cs_expiration_date, unit_id, catalog_item_id, unit:units(name)')
           .eq('category', 'CS')
           .order('item_name')
         const mapped: CSItem[] = (data || []).map((r: any) => ({
