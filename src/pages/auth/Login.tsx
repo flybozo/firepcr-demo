@@ -24,8 +24,12 @@ export default function LoginPage() {
       setError(error.message)
       setLoading(false)
     } else {
-      navigate('/')
-      
+      const { data } = await supabase.auth.getUser()
+      if (data.user?.user_metadata?.must_change_password) {
+        navigate('/change-password')
+      } else {
+        navigate('/')
+      }
     }
   }
 

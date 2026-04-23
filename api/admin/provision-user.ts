@@ -27,7 +27,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     email,
     password,
     email_confirm: true,
-    user_metadata: { name },
+    user_metadata: { name, must_change_password: true },
   })
 
   if (error) return res.status(400).json({ error: error.message })

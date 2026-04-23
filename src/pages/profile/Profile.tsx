@@ -13,6 +13,7 @@ import { CredentialWallet } from './components/CredentialWallet'
 import { CredentialUpload } from './components/CredentialUpload'
 import { DocumentPreviewPanel } from './components/DocumentPreviewPanel'
 import { PinSetupSection } from './components/PinSetupSection'
+import { ChangePasswordSection } from './components/ChangePasswordSection'
 import { AppearanceSection } from './components/AppearanceSection'
 import { LocationSharingSection } from './components/LocationSharingSection'
 
@@ -185,6 +186,7 @@ export default function ProfilePage() {
         </button>
 
         <PinSetupSection employeeId={assignment.employee?.id} />
+        <ChangePasswordSection />
         <AppearanceSection />
       </div>
 

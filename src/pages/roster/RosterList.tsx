@@ -5,7 +5,7 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
-import { useNavigate, useMatch } from 'react-router-dom'
+import { useNavigate, useMatch, Link } from 'react-router-dom'
 import { PageHeader, EmptyState, LoadingSkeleton } from '@/components/ui'
 import { ContactIcons } from '@/components/ContactCards'
 
@@ -128,6 +128,14 @@ export default function RosterPage() {
         <PageHeader
           title="Employee Roster"
           subtitle={`${activeEmployees.length} active · ${inactiveEmployees.length} inactive`}
+          actions={isAdmin ? (
+            <Link
+              to="/roster/new"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg transition-colors"
+            >
+              + Add Employee
+            </Link>
+          ) : undefined}
         />
 
         <div className="space-y-3">

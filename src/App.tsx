@@ -9,6 +9,7 @@ import AppLayout from '@/layouts/AppLayout'
 // Eagerly loaded (needed immediately / on every page)
 import Login from '@/pages/auth/Login'
 import Onboard from '@/pages/onboard/Onboard'
+import ChangePassword from '@/pages/auth/ChangePassword'
 import { ToastContainer } from '@/components/ui'
 
 // Lazy-loaded routes
@@ -147,6 +148,8 @@ function App() {
           <Route path="/login" element={<Login />} />
           {/* Self-service employee onboarding — no auth required */}
           <Route path="/onboard" element={<Onboard />} />
+          {/* Forced password change — user is authenticated but blocked until complete */}
+          <Route path="/change-password" element={<ChangePassword />} />
           {/* External fire admin dashboard — no auth required */}
           <Route path="/fire-admin/:code" element={<FireAdminDashboard />} />
 
@@ -247,14 +250,18 @@ function App() {
               </Route>
             </Route>
 
+            {/* ── Roster management (admin OR roster.manage permission) ── */}
+            <Route element={<RouteGuard require="admin" permissions={["roster.manage"]} />}>
+              <Route path="roster/new" element={<NewEmployee />} />
+              <Route path="roster/hr" element={<HRCredentials />} />
+              <Route path="roster/pay-rates" element={<PayRates />} />
+            </Route>
+
             {/* ── Admin only ── */}
             <Route element={<RouteGuard require="admin" />}>
               <Route path="map" element={<GlobalMap />} />
               <Route path="incidents/new" element={<NewIncident />} />
               <Route path="units/new" element={<NewUnit />} />
-              <Route path="roster/new" element={<NewEmployee />} />
-              <Route path="roster/hr" element={<HRCredentials />} />
-              <Route path="roster/pay-rates" element={<PayRates />} />
               <Route path="cs/receive" element={<CSReceive />} />
               <Route path="cs/audit" element={<CSAudit />} />
               <Route path="schedule" element={<Schedule />} />

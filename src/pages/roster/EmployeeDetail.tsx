@@ -42,6 +42,7 @@ type Employee = {
   app_role: string | null
   roles: string[] | null
   is_medical_director: boolean | null
+  admin_notes: string | null
   // Medical certs
   bls: string | null
   acls: string | null
@@ -117,6 +118,20 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   )
 }
 
+function EditField({ label, value, onChange, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-xs text-gray-500 uppercase tracking-wide">{label}</dt>
+      <input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        className="mt-0.5 w-full bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
+      />
+    </div>
+  )
+}
+
 export default function RosterDetailPage() {
   const supabase = createClient()
   const params = useParams()
@@ -137,6 +152,12 @@ export default function RosterDetailPage() {
   const [rolesLoading, setRolesLoading] = useState(false)
   const [selectedRoleId, setSelectedRoleId] = useState('')
   const [assigningRole, setAssigningRole] = useState(false)
+  const [editMode, setEditMode] = useState(false)
+  const [editDraft, setEditDraft] = useState<Record<string, string>>({})
+  const [saving, setSaving] = useState(false)
+  const [adminNotesEditing, setAdminNotesEditing] = useState(false)
+  const [adminNotesDraft, setAdminNotesDraft] = useState('')
+  const [savingNotes, setSavingNotes] = useState(false)
 
   const toggleStatus = () => {
     if (!emp || !isAdmin) return
@@ -164,6 +185,54 @@ export default function RosterDetailPage() {
       message,
       icon: '⚠️',
     })
+  }
+
+  function startEdit() {
+    if (!emp) return
+    setEditDraft({
+      name: emp.name || '',
+      personal_email: emp.personal_email || '',
+      wf_email: emp.wf_email || '',
+      phone: emp.phone || '',
+      personal_phone: emp.personal_phone || '',
+      date_of_birth: emp.date_of_birth || '',
+      home_address: emp.home_address || '',
+      emergency_contact_name: emp.emergency_contact_name || '',
+      emergency_contact_phone: emp.emergency_contact_phone || '',
+      emergency_contact_relationship: emp.emergency_contact_relationship || '',
+      daily_rate: emp.daily_rate != null ? String(emp.daily_rate) : '',
+      default_hours_per_day: emp.default_hours_per_day != null ? String(emp.default_hours_per_day) : '',
+    })
+    setEditMode(true)
+  }
+
+  async function saveEdit() {
+    if (!emp) return
+    setSaving(true)
+    try {
+      const data: Record<string, unknown> = {
+        name: editDraft.name.trim() || emp.name,
+        personal_email: editDraft.personal_email.trim() || null,
+        wf_email: editDraft.wf_email.trim() || null,
+        phone: editDraft.phone.trim() || null,
+        personal_phone: editDraft.personal_phone.trim() || null,
+        date_of_birth: editDraft.date_of_birth.trim() || null,
+        home_address: editDraft.home_address.trim() || null,
+        emergency_contact_name: editDraft.emergency_contact_name.trim() || null,
+        emergency_contact_phone: editDraft.emergency_contact_phone.trim() || null,
+        emergency_contact_relationship: editDraft.emergency_contact_relationship.trim() || null,
+        daily_rate: editDraft.daily_rate ? parseFloat(editDraft.daily_rate) : null,
+        default_hours_per_day: editDraft.default_hours_per_day ? parseFloat(editDraft.default_hours_per_day) : null,
+      }
+      const { error } = await updateEmployee(emp.id, data)
+      if (error) throw error
+      setEmp(prev => prev ? { ...prev, ...data } : prev)
+      setEditMode(false)
+      toast.success('Employee updated')
+    } catch (err: any) {
+      toast.error('Failed to save: ' + (err?.message || err))
+    }
+    setSaving(false)
   }
 
   useEffect(() => {
@@ -306,31 +375,74 @@ export default function RosterDetailPage() {
             </div>
 
           </div>
+          {isAdmin && (
+            <div className="mt-3 pt-3 border-t border-gray-800 flex items-center gap-2">
+              {editMode ? (
+                <>
+                  <button onClick={saveEdit} disabled={saving} className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors">
+                    {saving ? 'Saving…' : 'Save Changes'}
+                  </button>
+                  <button onClick={() => setEditMode(false)} className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs font-bold rounded-lg transition-colors">
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button onClick={startEdit} className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs font-bold rounded-lg transition-colors">
+                  ✏️ Edit Employee
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Personal info */}
         <div className="theme-card rounded-xl p-4 border space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Personal</h2>
           <dl className="grid grid-cols-1 gap-3">
+            {editMode && (
+              <EditField label="Name" value={editDraft.name} onChange={v => setEditDraft(d => ({ ...d, name: v }))} />
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <Field label="Personal Email" value={emp.personal_email || emp.email} />
-              <Field label="WF Email" value={emp.wf_email} />
+              {editMode
+                ? <EditField label="Personal Email" value={editDraft.personal_email} onChange={v => setEditDraft(d => ({ ...d, personal_email: v }))} type="email" />
+                : <Field label="Personal Email" value={emp.personal_email || emp.email} />}
+              {editMode
+                ? <EditField label="WF Email" value={editDraft.wf_email} onChange={v => setEditDraft(d => ({ ...d, wf_email: v }))} type="email" />
+                : <Field label="WF Email" value={emp.wf_email} />}
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <Field label="Phone" value={emp.phone} />
-              <Field label="Personal Phone" value={emp.personal_phone} />
-              <Field label="DOB" value={emp.date_of_birth} />
+              {editMode
+                ? <EditField label="Phone" value={editDraft.phone} onChange={v => setEditDraft(d => ({ ...d, phone: v }))} type="tel" />
+                : <Field label="Phone" value={emp.phone} />}
+              {editMode
+                ? <EditField label="Personal Phone" value={editDraft.personal_phone} onChange={v => setEditDraft(d => ({ ...d, personal_phone: v }))} type="tel" />
+                : <Field label="Personal Phone" value={emp.personal_phone} />}
+              {editMode
+                ? <EditField label="DOB" value={editDraft.date_of_birth} onChange={v => setEditDraft(d => ({ ...d, date_of_birth: v }))} type="date" />
+                : <Field label="DOB" value={emp.date_of_birth} />}
             </div>
-            <Field label="Home Address" value={emp.home_address} />
+            {editMode
+              ? <EditField label="Home Address" value={editDraft.home_address} onChange={v => setEditDraft(d => ({ ...d, home_address: v }))} />
+              : <Field label="Home Address" value={emp.home_address} />}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Field label="Emergency Contact" value={emp.emergency_contact_name} />
-              <Field label="Emergency Phone" value={emp.emergency_contact_phone} />
-              <Field label="Relationship" value={emp.emergency_contact_relationship} />
+              {editMode
+                ? <EditField label="Emergency Contact" value={editDraft.emergency_contact_name} onChange={v => setEditDraft(d => ({ ...d, emergency_contact_name: v }))} />
+                : <Field label="Emergency Contact" value={emp.emergency_contact_name} />}
+              {editMode
+                ? <EditField label="Emergency Phone" value={editDraft.emergency_contact_phone} onChange={v => setEditDraft(d => ({ ...d, emergency_contact_phone: v }))} type="tel" />
+                : <Field label="Emergency Phone" value={emp.emergency_contact_phone} />}
+              {editMode
+                ? <EditField label="Relationship" value={editDraft.emergency_contact_relationship} onChange={v => setEditDraft(d => ({ ...d, emergency_contact_relationship: v }))} />
+                : <Field label="Relationship" value={emp.emergency_contact_relationship} />}
             </div>
             {isAdmin && (
               <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-800">
-                <Field label="Daily Rate" value={emp.daily_rate ? `$${emp.daily_rate.toLocaleString()}` : null} />
-                <Field label="Hours/Day" value={emp.default_hours_per_day ? String(emp.default_hours_per_day) : '16'} />
+                {editMode
+                  ? <EditField label="Daily Rate" value={editDraft.daily_rate} onChange={v => setEditDraft(d => ({ ...d, daily_rate: v }))} type="number" />
+                  : <Field label="Daily Rate" value={emp.daily_rate ? `$${emp.daily_rate.toLocaleString()}` : null} />}
+                {editMode
+                  ? <EditField label="Hours/Day" value={editDraft.default_hours_per_day} onChange={v => setEditDraft(d => ({ ...d, default_hours_per_day: v }))} type="number" />
+                  : <Field label="Hours/Day" value={emp.default_hours_per_day ? String(emp.default_hours_per_day) : '16'} />}
               </div>
             )}
           </dl>
@@ -394,7 +506,7 @@ export default function RosterDetailPage() {
             <div className="flex items-center justify-between py-1.5 border-b border-gray-800">
               <div>
                 <p className="text-sm font-medium text-white">🔴 Red Card</p>
-                <p className="text-xs text-gray-500">Annual RAM wildfire qualification (S-130/190/L-180 + 4hr class + fire shelter)</p>
+                <p className="text-xs text-gray-500">Annual wildfire qualification (S-130/190/L-180 + 4hr class + fire shelter)</p>
               </div>
               <div className="flex items-center gap-2">
                 <input
@@ -408,9 +520,9 @@ export default function RosterDetailPage() {
                     const yr = e.target.value ? parseInt(e.target.value) : null
                     await updateEmployee(emp.id, {
                       red_card_year: yr,
-                      red_card: yr ? `${yr} RAM Red Card` : null
+                      red_card: yr ? `${yr} Red Card` : null
                     })
-                    setEmp((prev: any) => prev ? { ...prev, red_card_year: yr, red_card: yr ? `${yr} RAM Red Card` : null } : prev)
+                    setEmp((prev: any) => prev ? { ...prev, red_card_year: yr, red_card: yr ? `${yr} Red Card` : null } : prev)
                   }}
                 />
                 {emp.red_card_year && (
@@ -740,6 +852,67 @@ export default function RosterDetailPage() {
                     </div>
                   )}
                 </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Admin Notes — admin only */}
+        {isAdmin && (
+          <div className="theme-card rounded-xl border overflow-hidden">
+            <div className="flex items-center gap-2 px-4 py-3 border-b theme-card-header">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">📝 Admin Notes</h3>
+              {!adminNotesEditing && (
+                <button
+                  onClick={() => { setAdminNotesDraft(emp.admin_notes || ''); setAdminNotesEditing(true) }}
+                  className="text-xs px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded transition-colors"
+                >
+                  Edit
+                </button>
+              )}
+            </div>
+            <div className="p-4">
+              {adminNotesEditing ? (
+                <div className="space-y-3">
+                  <textarea
+                    value={adminNotesDraft}
+                    onChange={e => setAdminNotesDraft(e.target.value)}
+                    rows={3}
+                    placeholder="Internal admin notes…"
+                    className="w-full bg-gray-700 border border-gray-600 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500 resize-y"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        setSavingNotes(true)
+                        try {
+                          const { error } = await updateEmployee(emp.id, { admin_notes: adminNotesDraft.trim() || null })
+                          if (error) throw error
+                          setEmp(prev => prev ? { ...prev, admin_notes: adminNotesDraft.trim() || null } : prev)
+                          setAdminNotesEditing(false)
+                          toast.success('Notes saved')
+                        } catch (err: any) {
+                          toast.error('Failed to save notes: ' + (err?.message || err))
+                        }
+                        setSavingNotes(false)
+                      }}
+                      disabled={savingNotes}
+                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold rounded-lg transition-colors"
+                    >
+                      {savingNotes ? 'Saving…' : 'Save'}
+                    </button>
+                    <button
+                      onClick={() => setAdminNotesEditing(false)}
+                      className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs font-bold rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className={`text-sm ${emp.admin_notes ? 'text-white whitespace-pre-wrap' : 'text-gray-600 italic'}`}>
+                  {emp.admin_notes || 'No notes'}
+                </p>
               )}
             </div>
           </div>
