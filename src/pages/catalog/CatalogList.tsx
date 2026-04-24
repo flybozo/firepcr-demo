@@ -3,7 +3,8 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useMatch, useNavigate } from 'react-router-dom'
 import { toast } from '@/lib/toast'
-import { PageHeader, LoadingSkeleton, EmptyState } from '@/components/ui'
+import { PageHeader, LoadingSkeleton, EmptyState, SortableHeader } from '@/components/ui'
+import { useSortable } from '@/hooks/useSortable'
 
 export type CatalogItem = {
   id: string
@@ -282,17 +283,30 @@ export default function CatalogList() {
     }
   }
 
-  const filtered = useMemo(() => items.filter(item => {
-    if (catFilter !== 'All' && item.category !== catFilter) return false
-    if (alsOnly && !item.is_als) return false
-    if (search) {
-      const q = search.toLowerCase()
-      return item.item_name.toLowerCase().includes(q)
-        || item.sku.toLowerCase().includes(q)
-        || (item.ndc || '').toLowerCase().includes(q)
-    }
-    return true
-  }), [items, catFilter, search, alsOnly])
+  type CatSortKey = 'item_name' | 'sku' | 'category' | 'supplier' | 'case_cost'
+  const { sortKey: catSortKey, sortDir: catSortDir, toggleSort: catToggleSort, sortFn: catSortFn } = useSortable<CatSortKey>('item_name', 'asc')
+
+  const filtered = useMemo(() => {
+    const base = items.filter(item => {
+      if (catFilter !== 'All' && item.category !== catFilter) return false
+      if (alsOnly && !item.is_als) return false
+      if (search) {
+        const q = search.toLowerCase()
+        return item.item_name.toLowerCase().includes(q)
+          || item.sku.toLowerCase().includes(q)
+          || (item.ndc || '').toLowerCase().includes(q)
+      }
+      return true
+    })
+    return catSortFn(base, (item, key) => {
+      if (key === 'item_name') return item.item_name
+      if (key === 'sku') return item.sku
+      if (key === 'category') return item.category
+      if (key === 'supplier') return item.supplier ?? ''
+      if (key === 'case_cost') return item.case_cost ?? 0
+      return ''
+    })
+  }, [items, catFilter, search, alsOnly, catSortFn])
 
   return (
     <div className="p-4 md:p-6">
@@ -412,15 +426,15 @@ export default function CatalogList() {
       ) : (
         <div className="theme-card rounded-xl border overflow-hidden">
           {/* Header */}
-          <div className="flex items-center px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header">
-            <span className="w-20 font-mono">SKU</span>
-            <span className="flex-1 min-w-0">Item Name</span>
-            <span className="w-10 text-center">Cat</span>
-            <span className="w-8 text-center hidden sm:block">ALS</span>
-            <span className="w-28 hidden lg:block">Supplier</span>
-            <span className="w-20 text-right hidden lg:block">$/Case</span>
-            <span className="w-20 text-right hidden lg:block">Units/Case</span>
-            <span className="w-20 text-right hidden lg:block">$/Unit</span>
+          <div className="flex items-center px-3 py-1.5 text-xs font-semibold uppercase tracking-wide border-b theme-card-header">
+            <SortableHeader label="SKU" sortKey="sku" currentKey={catSortKey} currentDir={catSortDir} onToggle={catToggleSort} className="w-20 font-mono" />
+            <SortableHeader label="Item Name" sortKey="item_name" currentKey={catSortKey} currentDir={catSortDir} onToggle={catToggleSort} className="flex-1 min-w-0" />
+            <SortableHeader label="Cat" sortKey="category" currentKey={catSortKey} currentDir={catSortDir} onToggle={catToggleSort} className="w-10 justify-center" />
+            <span className="w-8 text-center hidden sm:block text-gray-500">ALS</span>
+            <SortableHeader label="Supplier" sortKey="supplier" currentKey={catSortKey} currentDir={catSortDir} onToggle={catToggleSort} className="w-28 hidden lg:flex" />
+            <SortableHeader label="$/Case" sortKey="case_cost" currentKey={catSortKey} currentDir={catSortDir} onToggle={catToggleSort} className="w-20 justify-end hidden lg:flex" />
+            <span className="w-20 text-right hidden lg:block text-gray-500">Units/Case</span>
+            <span className="w-20 text-right hidden lg:block text-gray-500">$/Unit</span>
           </div>
 
           {/* Rows */}

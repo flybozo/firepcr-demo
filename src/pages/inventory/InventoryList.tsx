@@ -4,12 +4,14 @@ import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 
 import { useEffect, useState, useMemo } from 'react'
+import { useSortable } from '@/hooks/useSortable'
+import { SortableHeader } from '@/components/ui'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { getCachedData } from '@/lib/offlineStore'
 import { Link, useMatch, useSearchParams } from 'react-router-dom'
-import { PageHeader, LoadingSkeleton, EmptyState } from '@/components/ui'
-import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
+import { PageHeader, LoadingSkeleton, EmptyState, UnitFilterPills } from '@/components/ui'
+import { UNIT_TYPE_ORDER } from '@/lib/unitColors'
 
 type InventoryItem = {
   id: string
@@ -62,6 +64,8 @@ function InventoryPageInner() {
   // Page state kept for compat but unused — all items render
   const [showLowOnly, setShowLowOnly] = useState(false)
   const [showAlsOnly, setShowAlsOnly] = useState(false)
+  type InvSortKey = 'item_name' | 'category' | 'quantity' | 'par_qty' | 'unit'
+  const { sortKey, sortDir, toggleSort, sortFn } = useSortable<InvSortKey>('item_name', 'asc')
 
   const [isOfflineData, setIsOfflineData] = useState(false)
 
@@ -108,11 +112,11 @@ function InventoryPageInner() {
           templateItems.forEach((tmpl: any) => {
             const key = tmpl.catalog_item_id || tmpl.item_name
             const invRows = unitInv[key] || []
-            if (tmpl.category === 'CS' && invRows.length > 0) {
+            if ((tmpl.category === 'CS' || tmpl.category === 'Rx') && invRows.length > 0) {
               invRows.forEach((inv: any) => {
                 mergedItems.push({ id: inv.id, item_name: tmpl.item_name, category: tmpl.category, quantity: inv.quantity ?? 0, par_qty: inv.par_qty ?? tmpl.default_par_qty ?? 0, lot_number: inv.lot_number || null, expiration_date: inv.expiration_date || null, unit_id: unit.id, unit: unit, is_als: tmpl.is_als || false, catalog_item_id: tmpl.catalog_item_id || null, sku: tmpl.catalog_item?.sku || null })
               })
-            } else if (tmpl.category === 'CS') {
+            } else if (tmpl.category === 'CS' || tmpl.category === 'Rx') {
               mergedItems.push({ id: `tmpl-${unit.id}-${tmpl.id}`, item_name: tmpl.item_name, category: tmpl.category, quantity: 0, par_qty: tmpl.default_par_qty ?? 0, lot_number: null, expiration_date: null, unit_id: unit.id, unit: unit, is_als: tmpl.is_als || false, catalog_item_id: tmpl.catalog_item_id || null, sku: tmpl.catalog_item?.sku || null })
             } else {
               const inv = invRows[0] || null
@@ -204,8 +208,8 @@ function InventoryPageInner() {
           const key = tmpl.catalog_item_id || tmpl.item_name
           const invRows = unitInv[key] || []
 
-          if (tmpl.category === 'CS' && invRows.length > 0) {
-            // CS items: one row per lot number in inventory
+          if ((tmpl.category === 'CS' || tmpl.category === 'Rx') && invRows.length > 0) {
+            // CS and Rx items: one row per lot number in inventory
             invRows.forEach((inv: any) => {
               mergedItems.push({
                 id: inv.id,
@@ -222,8 +226,8 @@ function InventoryPageInner() {
                 sku: (tmpl.catalog_item as any)?.sku || null,
               })
             })
-          } else if (tmpl.category === 'CS' && invRows.length === 0) {
-            // CS item with no inventory yet — show one row at qty 0
+          } else if ((tmpl.category === 'CS' || tmpl.category === 'Rx') && invRows.length === 0) {
+            // CS/Rx item with no inventory yet — show one row at qty 0
             mergedItems.push({
               id: `tmpl-${unit.id}-${tmpl.id}`,
               item_name: tmpl.item_name,
@@ -239,7 +243,7 @@ function InventoryPageInner() {
               sku: (tmpl.catalog_item as any)?.sku || null,
             })
           } else {
-            // Non-CS: one row per template item, merge with first inventory match
+            // OTC/Supply/Equipment: one row per template item, merge with first inventory match
             const inv = invRows[0] || null
             mergedItems.push({
               id: inv?.id || `tmpl-${unit.id}-${tmpl.id}`,
@@ -311,7 +315,15 @@ function InventoryPageInner() {
     return true
   }), [items, unitFilter, catFilter, search, showLowOnly, showAlsOnly, isField, assignment.unit])
 
-  const paginated = filtered  // Show all filtered items — no pagination
+  const sorted = useMemo(() => sortFn(filtered, (item, key) => {
+    if (key === 'item_name') return item.item_name
+    if (key === 'category') return item.category
+    if (key === 'quantity') return item.quantity
+    if (key === 'par_qty') return item.par_qty
+    if (key === 'unit') return (item as any)?.unit?.name ?? ''
+    return ''
+  }), [filtered, sortFn])
+  const paginated = sorted
   const lowCount = useMemo(
     () => items.filter(i => i.quantity <= i.par_qty).length,
     [items]
@@ -389,27 +401,12 @@ function InventoryPageInner() {
             </div>
           )
         ) : (
-          <>
-            {/* Desktop: unit pills */}
-            <div className="hidden md:flex gap-1.5 overflow-x-auto pb-1">
-              {units.map(u => (
-                <button key={u} onClick={() => setUnitFilter(u)}
-                  className={'px-2 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0 ' + unitFilterButtonClass(unitTypeMap[u] || u, unitFilter === u)}>
-                  {u}
-                </button>
-              ))}
-            </div>
-            {/* Mobile: unit dropdown */}
-            <select
-              value={unitFilter}
-              onChange={e => setUnitFilter(e.target.value)}
-              className="md:hidden w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
-            >
-              {units.map(u => (
-                <option key={u} value={u}>{u}</option>
-              ))}
-            </select>
-          </>
+          <UnitFilterPills
+            units={units}
+            selected={unitFilter}
+            onSelect={setUnitFilter}
+            unitTypeMap={unitTypeMap}
+          />
         )}
       </div>
 
@@ -420,13 +417,13 @@ function InventoryPageInner() {
           {/* Table */}
           <div className="theme-card rounded-xl border overflow-hidden">
             {/* Header */}
-            <div className="flex items-center px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header">
-              <span className="flex-1 min-w-0">Item</span>
-              <span className="w-20 text-center hidden md:block">Unit</span>
-              <span className="w-16 text-center hidden lg:block">SKU</span>
-              <span className="w-10 text-center">Cat</span>
-              <span className="w-12 text-right">Qty</span>
-              <span className="w-10 text-right text-gray-600">Par</span>
+            <div className="flex items-center px-3 py-1.5 text-xs font-semibold uppercase tracking-wide border-b theme-card-header">
+              <SortableHeader label="Item" sortKey="item_name" currentKey={sortKey} currentDir={sortDir} onToggle={toggleSort} className="flex-1 min-w-0" />
+              <SortableHeader label="Unit" sortKey="unit" currentKey={sortKey} currentDir={sortDir} onToggle={toggleSort} className="w-20 justify-center hidden md:flex" />
+              <span className="w-16 text-center hidden lg:block text-gray-500">SKU</span>
+              <SortableHeader label="Cat" sortKey="category" currentKey={sortKey} currentDir={sortDir} onToggle={toggleSort} className="w-10 justify-center" />
+              <SortableHeader label="Qty" sortKey="quantity" currentKey={sortKey} currentDir={sortDir} onToggle={toggleSort} className="w-12 justify-end" />
+              <SortableHeader label="Par" sortKey="par_qty" currentKey={sortKey} currentDir={sortDir} onToggle={toggleSort} className="w-10 justify-end text-gray-600" />
             </div>
 
             {/* Rows */}

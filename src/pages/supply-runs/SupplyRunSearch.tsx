@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useNavigate, Link } from 'react-router-dom'
+import { SortableHeader } from '@/components/ui'
+import { useSortable } from '@/hooks/useSortable'
 
 type SupplyRun = {
   id: string
@@ -20,6 +22,8 @@ export default function SupplyRunSearch() {
   const [searchInput, setSearchInput] = useState('')
   const [results, setResults] = useState<SupplyRun[] | null>(null)
   const [loading, setLoading] = useState(false)
+  type SRSearchSortKey = 'run_date' | 'unit' | 'incident'
+  const { sortKey: srsSortKey, sortDir: srsSortDir, toggleSort: srsToggleSort, sortFn: srsSortFn } = useSortable<SRSearchSortKey>('run_date', 'desc')
 
   useEffect(() => {
     const trimmed = searchInput.trim()
@@ -94,15 +98,20 @@ export default function SupplyRunSearch() {
       {results !== null && results.length > 0 && (
         <div className="theme-card rounded-xl border overflow-hidden">
           {/* Header */}
-          <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header">
-            <span className="w-24 shrink-0">Date</span>
-            <span className="w-28 shrink-0 hidden sm:block">Unit</span>
-            <span className="flex-1 min-w-0">Incident</span>
-            <span className="w-32 shrink-0 hidden md:block">Crew Resource #</span>
-            <span className="w-28 shrink-0 hidden md:block">Dispensed By</span>
+          <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b theme-card-header">
+            <SortableHeader label="Date" sortKey="run_date" currentKey={srsSortKey} currentDir={srsSortDir} onToggle={srsToggleSort} className="w-24 shrink-0" />
+            <SortableHeader label="Unit" sortKey="unit" currentKey={srsSortKey} currentDir={srsSortDir} onToggle={srsToggleSort} className="w-28 shrink-0 hidden sm:flex" />
+            <SortableHeader label="Incident" sortKey="incident" currentKey={srsSortKey} currentDir={srsSortDir} onToggle={srsToggleSort} className="flex-1 min-w-0" />
+            <span className="w-32 shrink-0 hidden md:block text-gray-500">Crew Resource #</span>
+            <span className="w-28 shrink-0 hidden md:block text-gray-500">Dispensed By</span>
           </div>
           <div className="divide-y divide-gray-800/60">
-            {results.map(run => {
+            {srsSortFn(results, (r, key) => {
+              if (key === 'run_date') return r.run_date ?? ''
+              if (key === 'unit') return (r.incident_unit as any)?.unit?.name ?? ''
+              if (key === 'incident') return (r.incident as any)?.name ?? ''
+              return ''
+            }).map(run => {
               const unitName = (run.incident_unit as any)?.unit?.name
               const incName = (run.incident as any)?.name
               return (

@@ -7,9 +7,10 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { queryActiveIncidentsForEncounters } from '@/lib/services/encounters'
-import { PageHeader, EmptyState, LoadingSkeleton } from '@/components/ui'
+import { PageHeader, EmptyState, LoadingSkeleton, UnitFilterPills, SortableHeader } from '@/components/ui'
+import { useSortable } from '@/hooks/useSortable'
 import { useNavigate, useSearchParams, useMatch, useLocation } from 'react-router-dom'
-import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
+import { UNIT_TYPE_ORDER } from '@/lib/unitColors'
 import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
 import { getCachedData, cacheData } from '@/lib/offlineStore'
 
@@ -58,15 +59,15 @@ function statusColor(status: string | null) {
 
 function getUnitType(unitName: string): string {
   if (!unitName) return ''
-  if (unitName.startsWith('Unit')) return 'Ambulance'
-  if (unitName.startsWith('Med') || unitName === 'Cache') return 'Med Unit'
+  if (unitName.startsWith('RAMBO')) return 'Ambulance'
+  if (unitName.startsWith('MSU') || unitName === 'The Beast') return 'Med Unit'
   if (unitName.startsWith('REMS')) return 'REMS'
   if (unitName === 'Warehouse') return 'Warehouse'
   return ''
 }
 
 // All known unit names in canonical sort order
-const ALL_UNIT_NAMES = ['Unit 1', 'Unit 2', 'Unit 3', 'Unit 4', 'Med 1', 'Med 2', 'REMS 1', 'REMS 2']
+const ALL_UNIT_NAMES = ['RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
 
 const sortedUnitNames = [...ALL_UNIT_NAMES].sort((a, b) => {
   const aOrder = UNIT_TYPE_ORDER[getUnitType(a)] ?? 99
@@ -74,6 +75,7 @@ const sortedUnitNames = [...ALL_UNIT_NAMES].sort((a, b) => {
   if (aOrder !== bOrder) return aOrder - bOrder
   return a.localeCompare(b)
 })
+const UNIT_TYPE_MAP = Object.fromEntries(ALL_UNIT_NAMES.map(u => [u, getUnitType(u)]))
 
 function EncountersInner() {
   const supabase = createClient()
@@ -96,6 +98,8 @@ function EncountersInner() {
   const [page, setPage] = useState(1)
   const [dateRange, setDateRange] = useState('7d')
   const [isOffline, setIsOffline] = useState(false)
+  type EncSortKey = 'date' | 'patient' | 'unit' | 'incident' | 'acuity'
+  const { sortKey: encSortKey, sortDir: encSortDir, toggleSort: encToggleSort, sortFn: encSortFn } = useSortable<EncSortKey>('date', 'desc')
 
   const DATE_RANGES = ['2d', '7d', '14d', '30d'] as const
   const dateRangeDays: Record<string, number> = { '2d': 2, '7d': 7, '14d': 14, '30d': 30 }
@@ -190,8 +194,16 @@ function EncountersInner() {
     )
   })
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
-  const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+  const sorted = encSortFn(filtered, (e, key) => {
+    if (key === 'date') return e.date ?? ''
+    if (key === 'patient') return `${e.patient_last_name ?? ''}${e.patient_first_name ?? ''}`
+    if (key === 'unit') return e.unit ?? ''
+    if (key === 'incident') return e.incident_name ?? ''
+    if (key === 'acuity') return e.initial_acuity ?? ''
+    return ''
+  })
+  const totalPages = Math.ceil(sorted.length / PAGE_SIZE)
+  const paginated = sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
 
   return (
     <div className="bg-gray-950 text-white pb-8">
@@ -251,28 +263,12 @@ function EncountersInner() {
           </>
         )}
         {!isField && (
-          <>
-            {/* Desktop: unit pills */}
-            <div className="hidden md:flex gap-1.5 overflow-x-auto pb-1">
-              {['All', ...sortedUnitNames].map(u => (
-                <button key={u} onClick={() => { setUnitFilter(u); setPage(1) }}
-                  className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors
-                    ${unitFilterButtonClass(getUnitType(u), unitFilter === u)}`}>
-                  {u}
-                </button>
-              ))}
-            </div>
-            {/* Mobile: unit dropdown */}
-            <select
-              value={unitFilter}
-              onChange={e => { setUnitFilter(e.target.value); setPage(1) }}
-              className="md:hidden w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
-            >
-              {['All', ...sortedUnitNames].map(u => (
-                <option key={u} value={u}>{u}</option>
-              ))}
-            </select>
-          </>
+          <UnitFilterPills
+            units={['All', ...sortedUnitNames]}
+            selected={unitFilter}
+            onSelect={u => { setUnitFilter(u); setPage(1) }}
+            unitTypeMap={UNIT_TYPE_MAP}
+          />
         )}
 
         {/* Date range pills */}
@@ -319,15 +315,15 @@ function EncountersInner() {
           <>
             <div className="theme-card rounded-xl overflow-hidden border">
               {/* Header */}
-              <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700">
-                <span className="w-24 shrink-0">Date</span>
-                <span className="w-20 shrink-0">Patient</span>
-                <span className="w-20 hidden sm:block shrink-0">DOB</span>
-                <span className="w-32 hidden sm:block shrink-0">Incident</span>
-                <span className="w-28 hidden md:block shrink-0">Unit</span>
-                <span className="flex-1 hidden lg:block min-w-0">Chief Complaint</span>
-                <span className="w-20 shrink-0 text-right">Acuity</span>
-                <span className="w-24 shrink-0 text-right">Status</span>
+              <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b border-gray-700">
+                <SortableHeader label="Date" sortKey="date" currentKey={encSortKey} currentDir={encSortDir} onToggle={encToggleSort} className="w-24 shrink-0" />
+                <SortableHeader label="Patient" sortKey="patient" currentKey={encSortKey} currentDir={encSortDir} onToggle={encToggleSort} className="w-20 shrink-0" />
+                <span className="w-20 hidden sm:block shrink-0 text-gray-500">DOB</span>
+                <SortableHeader label="Incident" sortKey="incident" currentKey={encSortKey} currentDir={encSortDir} onToggle={encToggleSort} className="w-32 hidden sm:flex shrink-0" />
+                <SortableHeader label="Unit" sortKey="unit" currentKey={encSortKey} currentDir={encSortDir} onToggle={encToggleSort} className="w-28 hidden md:flex shrink-0" />
+                <span className="flex-1 hidden lg:block min-w-0 text-gray-500">Chief Complaint</span>
+                <SortableHeader label="Acuity" sortKey="acuity" currentKey={encSortKey} currentDir={encSortDir} onToggle={encToggleSort} className="w-20 shrink-0 justify-end" />
+                <span className="w-24 shrink-0 text-right text-gray-500">Status</span>
               </div>
               {paginated.map(enc => (
                 <div

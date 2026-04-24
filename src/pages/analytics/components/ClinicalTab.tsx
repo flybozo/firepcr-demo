@@ -16,6 +16,8 @@ import { Skeleton } from './Skeleton'
 import { SectionHeader } from './SectionHeader'
 import { DatePills } from './DatePills'
 import { AgencyBarChart } from '@/components/charts/AgencyBarChart'
+import { UnitFilterPills } from '@/components/ui'
+import { getUnitTypeName } from '@/lib/unitColors'
 
 export function ClinicalTab({ isField = false, assignedIncidentId = null, assignedUnitNames = [] }: {
   isField?: boolean
@@ -196,16 +198,12 @@ export function ClinicalTab({ isField = false, assignedIncidentId = null, assign
           {availableUnits.length > 1 && (
             <div className="flex-1 min-w-[140px]">
               <label className="text-xs text-gray-500 mb-1 block">Unit</label>
-              <select
-                value={unitFilter}
-                onChange={e => setUnitFilter(e.target.value)}
-                className="bg-gray-800 text-white text-sm px-3 py-2 rounded-lg border border-gray-700 focus:outline-none focus:border-red-500 w-full"
-              >
-                <option value="All">All units</option>
-                {availableUnits.sort().map(u => (
-                  <option key={u} value={u}>{u}</option>
-                ))}
-              </select>
+              <UnitFilterPills
+                units={availableUnits}
+                selected={unitFilter}
+                onSelect={setUnitFilter}
+                unitTypeMap={Object.fromEntries(availableUnits.map(u => [u, getUnitTypeName(u)]))}
+              />
             </div>
           )}
         </div>

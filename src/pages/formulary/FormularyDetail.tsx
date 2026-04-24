@@ -6,6 +6,9 @@ import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
 import { LoadingSkeleton } from '@/components/ui'
 
+// Fields that live on formulary_templates (thin join table)
+const FORMULARY_FIELDS = new Set(['item_name', 'default_par_qty', 'notes'])
+
 type FormularyItem = {
   id: string
   item_name: string
@@ -26,10 +29,10 @@ type FormularyItem = {
   is_als: boolean
   unit_type_id: string | null
   catalog_item_id: string | null
-  catalog_item: { sku: string }[] | { sku: string } | null
+  catalog_item: { sku: string; [key: string]: any }[] | { sku: string; [key: string]: any } | null
 }
 
-function skuOf(item: { catalog_item: { sku: string }[] | { sku: string } | null }): string | null {
+function skuOf(item: { catalog_item: { sku: string; [key: string]: any }[] | { sku: string; [key: string]: any } | null }): string | null {
   const ci = item.catalog_item
   if (!ci) return null
   if (Array.isArray(ci)) return ci[0]?.sku || null
@@ -54,8 +57,6 @@ export type InventoryContext = {
   parQty: number
   lotNumber: string | null
   expirationDate: string | null
-  csLotNumber: string | null
-  csExpirationDate: string | null
 }
 
 export function FormularyDetailInner({ inventoryCtx, backPath, templateId }: { inventoryCtx?: InventoryContext; backPath?: string; templateId?: string }) {
@@ -80,13 +81,20 @@ export function FormularyDetailInner({ inventoryCtx, backPath, templateId }: { i
     const load = async () => {
       const { data, error } = await supabase
         .from('formulary_templates')
-        .select('*, unit_type:unit_types(name), catalog_item:item_catalog(sku)')
+        .select('*, unit_type:unit_types(name), catalog_item:item_catalog(*)')
         .eq('id', id)
         .single()
       if (error || !data) { setLoading(false); return }
-      setItem(data as any)
+
+      // Flatten catalog_item fields into the item object for unified form state
+      const rawCi = (data as any).catalog_item
+      const ci = Array.isArray(rawCi) ? rawCi[0] : rawCi
+      const { id: _ciId, ...ciRest } = ci || {}
+      const flat = { ...data, ...ciRest, catalog_item: (data as any).catalog_item } as any
+
+      setItem(flat)
       setUnitTypeName((data as any).unit_type?.name || '')
-      setForm(data as any)
+      setForm(flat)
 
       // Load current stock across all units for this item
       const { data: inv } = await supabase
@@ -110,7 +118,10 @@ export function FormularyDetailInner({ inventoryCtx, backPath, templateId }: { i
   const save = async () => {
     if (!id || !item) return
     setSaving(true)
-    const updates: Record<string, any> = {}
+
+    const formularyUpdates: Record<string, any> = {}
+    const catalogUpdates: Record<string, any> = {}
+
     const fields: (keyof FormularyItem)[] = [
       'item_name', 'category', 'unit_of_measure', 'supplier',
       'units_per_case', 'case_cost', 'unit_cost', 'barcode', 'upc',
@@ -118,19 +129,33 @@ export function FormularyDetailInner({ inventoryCtx, backPath, templateId }: { i
     ]
     for (const f of fields) {
       if (form[f] !== undefined && form[f] !== item[f]) {
-        updates[f] = form[f] === '' ? null : form[f]
+        const val = form[f] === '' ? null : form[f]
+        if (FORMULARY_FIELDS.has(f)) formularyUpdates[f] = val
+        else catalogUpdates[f] = val
       }
     }
-    if (Object.keys(updates).length > 0) {
-      // Convert numeric fields
-      for (const nf of ['units_per_case', 'case_cost', 'unit_cost', 'default_par_qty']) {
-        if (updates[nf] !== undefined && updates[nf] !== null) {
-          updates[nf] = parseFloat(updates[nf]) || null
-        }
-      }
-      const { error } = await supabase.from('formulary_templates').update(updates).eq('id', id)
+
+    // Convert numeric fields
+    for (const nf of ['units_per_case', 'case_cost', 'unit_cost', 'default_par_qty']) {
+      if (formularyUpdates[nf] !== undefined && formularyUpdates[nf] !== null)
+        formularyUpdates[nf] = parseFloat(formularyUpdates[nf]) || null
+      if (catalogUpdates[nf] !== undefined && catalogUpdates[nf] !== null)
+        catalogUpdates[nf] = parseFloat(catalogUpdates[nf]) || null
+    }
+
+    if (Object.keys(formularyUpdates).length > 0) {
+      const { error } = await supabase.from('formulary_templates').update(formularyUpdates).eq('id', id)
       if (error) { toast.error('Save failed: ' + error.message); setSaving(false); return }
-      setItem(prev => prev ? { ...prev, ...updates } : prev)
+    }
+
+    if (Object.keys(catalogUpdates).length > 0 && item.catalog_item_id) {
+      const { error } = await supabase.from('item_catalog').update(catalogUpdates).eq('id', item.catalog_item_id)
+      if (error) { toast.error('Save failed: ' + error.message); setSaving(false); return }
+    }
+
+    const allUpdates = { ...formularyUpdates, ...catalogUpdates }
+    if (Object.keys(allUpdates).length > 0) {
+      setItem(prev => prev ? { ...prev, ...allUpdates } : prev)
     }
     setEditing(false)
     setSaving(false)
@@ -139,7 +164,7 @@ export function FormularyDetailInner({ inventoryCtx, backPath, templateId }: { i
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file || !id) return
+    if (!file || !id || !item?.catalog_item_id) return
     setUploading(true)
     const ext = file.name.split('.').pop() || 'jpg'
     const path = `formulary/${id}.${ext}`
@@ -147,7 +172,7 @@ export function FormularyDetailInner({ inventoryCtx, backPath, templateId }: { i
     if (error) { toast.error('Upload failed: ' + error.message); setUploading(false); return }
     const { data: urlData } = supabase.storage.from('headshots').getPublicUrl(data.path)
     const publicUrl = urlData.publicUrl
-    await supabase.from('formulary_templates').update({ image_url: publicUrl }).eq('id', id)
+    await supabase.from('item_catalog').update({ image_url: publicUrl }).eq('id', item.catalog_item_id)
     setItem(prev => prev ? { ...prev, image_url: publicUrl } : prev)
     setForm(prev => ({ ...prev, image_url: publicUrl }))
     setUploading(false)
@@ -155,8 +180,8 @@ export function FormularyDetailInner({ inventoryCtx, backPath, templateId }: { i
   }
 
   const removePhoto = async () => {
-    if (!id) return
-    await supabase.from('formulary_templates').update({ image_url: null }).eq('id', id)
+    if (!id || !item?.catalog_item_id) return
+    await supabase.from('item_catalog').update({ image_url: null }).eq('id', item.catalog_item_id)
     setItem(prev => prev ? { ...prev, image_url: null } : prev)
     setForm(prev => ({ ...prev, image_url: null }))
     toast.success('Photo removed')
@@ -253,13 +278,13 @@ export function FormularyDetailInner({ inventoryCtx, backPath, templateId }: { i
             </div>
             <div className="bg-gray-900 px-4 py-3">
               <p className="text-xs text-gray-500 mb-0.5">Lot #</p>
-              <p className="text-sm text-white font-mono">{inventoryCtx.lotNumber || inventoryCtx.csLotNumber || '—'}</p>
+              <p className="text-sm text-white font-mono">{inventoryCtx.lotNumber || '—'}</p>
             </div>
             <div className="bg-gray-900 px-4 py-3">
               <p className="text-xs text-gray-500 mb-0.5">Expiration</p>
               <p className={`text-sm font-mono ${
                 inventoryCtx.expirationDate && new Date(inventoryCtx.expirationDate) < new Date() ? 'text-red-400' : 'text-white'
-              }`}>{inventoryCtx.expirationDate || inventoryCtx.csExpirationDate || '—'}</p>
+              }`}>{inventoryCtx.expirationDate || '—'}</p>
             </div>
             <div className="bg-gray-900 px-4 py-3">
               <p className="text-xs text-gray-500 mb-0.5">Unit</p>
@@ -270,7 +295,8 @@ export function FormularyDetailInner({ inventoryCtx, backPath, templateId }: { i
       )}
 
       {editing ? (
-        /* Edit form */
+        /* Edit form — formulary fields (default_par_qty, notes) go to formulary_templates;
+           all other metadata goes to item_catalog */
         <div className="bg-gray-900 rounded-xl p-5 border border-gray-800 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">

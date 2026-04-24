@@ -14,8 +14,6 @@ type CSItem = {
   category: string
   quantity: number
   par_qty: number
-  cs_lot_number: string | null
-  cs_expiration_date: string | null
   lot_number: string | null
   expiration_date: string | null
   unit_of_measure: string | null
@@ -75,7 +73,7 @@ export default function CSItemDetail() {
 
       // Fetch transactions matching this item name + lot
       if (itemData) {
-        const lot = (itemData as CSItem).cs_lot_number || (itemData as CSItem).lot_number
+        const lot = (itemData as CSItem).lot_number
         let q = supabase.from('dispense_admin_log')
           .select('id, date, time, patient_name, item_name, qty_used, qty_wasted, dispensed_by, lot_number, indication, witness_name, entry_type')
           .eq('item_name', itemData.item_name)
@@ -94,8 +92,8 @@ export default function CSItemDetail() {
   if (loading) return <div className="flex items-center justify-center h-64 text-gray-500 text-sm">Loading…</div>
   if (!item) return <div className="flex items-center justify-center h-64 text-gray-500 text-sm">Item not found.</div>
 
-  const lot = item.cs_lot_number || item.lot_number
-  const exp = item.cs_expiration_date || item.expiration_date
+  const lot = item.lot_number
+  const exp = item.expiration_date
   const expired = isExpired(exp)
   const expiring = !expired && isExpiringSoon(exp)
   const low = item.quantity <= item.par_qty

@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
-import { EmptyState } from '@/components/ui'
+import { EmptyState, UnitFilterPills } from '@/components/ui'
+import { getUnitTypeName } from '@/lib/unitColors'
 
 type BurnItem = {
   item_name: string
@@ -110,6 +111,7 @@ export default function BurnRatePage() {
   }, [])
 
   const units = ['All', ...Array.from(new Set(items.map(i => i.unit_name))).sort()]
+  const unitTypeMap = Object.fromEntries(units.filter(u => u !== 'All').map(u => [u, getUnitTypeName(u)]))
   const filtered = items.filter(i => unitFilter === 'All' || i.unit_name === unitFilter)
   const critical = filtered.filter(i => i.status === 'critical').length
   const warning = filtered.filter(i => i.status === 'warning').length
@@ -141,13 +143,13 @@ export default function BurnRatePage() {
       </div>
 
       {/* Unit filter */}
-      <div className="flex gap-1.5 overflow-x-auto pb-2 mb-4">
-        {units.map(u => (
-          <button key={u} onClick={() => setUnitFilter(u)}
-            className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${unitFilter === u ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
-            {u}
-          </button>
-        ))}
+      <div className="mb-4">
+        <UnitFilterPills
+          units={units}
+          selected={unitFilter}
+          onSelect={setUnitFilter}
+          unitTypeMap={unitTypeMap}
+        />
       </div>
 
       {loading ? (

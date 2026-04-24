@@ -49,6 +49,16 @@ export function unitFilterButtonClass(typeName: string, isActive: boolean): stri
   return UNIT_FILTER_ACTIVE[typeName] || 'bg-gray-600 text-white'
 }
 
+// Map a unit display name to its canonical type string using naming conventions
+export function getUnitTypeName(name: string): string {
+  if (!name) return ''
+  if (name.startsWith('RAMBO')) return 'Ambulance'
+  if (name.startsWith('MSU') || name === 'The Beast') return 'Med Unit'
+  if (name.startsWith('REMS')) return 'REMS'
+  if (name === 'Warehouse') return 'Warehouse'
+  return ''
+}
+
 // Sort an array of unit names in canonical order (Warehouse → Med Unit → Ambulance → REMS → alpha)
 export function sortUnitNames(
   unitNames: string[],

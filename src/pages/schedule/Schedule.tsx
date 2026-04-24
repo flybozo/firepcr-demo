@@ -4,7 +4,8 @@ import { Link } from 'react-router-dom'
 import { useEffect, useState, useCallback } from 'react'
 import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
-import { LoadingSkeleton, ConfirmDialog } from '@/components/ui'
+import { LoadingSkeleton, ConfirmDialog, UnitFilterPills } from '@/components/ui'
+import { getUnitTypeName } from '@/lib/unitColors'
 import { getIsOnline } from '@/lib/syncManager'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
@@ -35,14 +36,14 @@ function CalendarGrid({ deployments, units }: {
     const now = new Date()
     return new Date(now.getFullYear(), now.getMonth(), 1)
   })
-  const [unitFilter, setUnitFilter] = useState('all')
+  const [unitFilter, setUnitFilter] = useState('All')
 
   const year = viewMonth.getFullYear()
   const month = viewMonth.getMonth()
   const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
 
-  const filtered = unitFilter === 'all' ? deployments : deployments.filter(d => d.unit_id === unitFilter)
+  const filtered = unitFilter === 'All' ? deployments : deployments.filter(d => d.unit?.name === unitFilter)
 
   const getDeploymentsForDay = (day: number) => {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
@@ -62,14 +63,12 @@ function CalendarGrid({ deployments, units }: {
           <button onClick={() => setViewMonth(new Date(year, month + 1, 1))}
             className="px-2 py-1 bg-gray-800 hover:bg-gray-700 rounded text-sm transition-colors">›</button>
         </div>
-        <select
-          value={unitFilter}
-          onChange={e => setUnitFilter(e.target.value)}
-          className="bg-gray-800 text-white text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-red-500 border border-gray-700"
-        >
-          <option value="all">All Units</option>
-          {units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-        </select>
+        <UnitFilterPills
+          units={units.map(u => u.name)}
+          selected={unitFilter}
+          onSelect={setUnitFilter}
+          unitTypeMap={Object.fromEntries(units.map(u => [u.name, getUnitTypeName(u.name)]))}
+        />
       </div>
 
       {/* Grid */}
@@ -409,7 +408,7 @@ export default function SchedulePage() {
               value={notes}
               onChange={e => setNotes(e.target.value)}
               className={`${inputCls} h-16 resize-none`}
-              placeholder={type === 'time_off' ? 'Reason, travel plans, etc.' : 'Available for any assignment, prefer Medic 1, etc.'}
+              placeholder={type === 'time_off' ? 'Reason, travel plans, etc.' : 'Available for any assignment, prefer RAMBO 1, etc.'}
             />
           </div>
 

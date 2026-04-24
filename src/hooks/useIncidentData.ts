@@ -368,11 +368,13 @@ export function useIncidentData(
         if (ids.length > 0) {
           const { data: marCostData } = await supabaseClient
             .from('dispense_admin_log')
-            .select('qty_used, formulary:formulary_templates(case_cost, units_per_case)')
+            .select('qty_used, formulary:formulary_templates(catalog_item:item_catalog(case_cost, units_per_case))')
             .in('encounter_id', ids)
           marTotal = ((marCostData as any[]) || []).reduce((sum: number, row: any) => {
-            const unitCost = row.formulary?.case_cost != null && row.formulary?.units_per_case > 0
-              ? row.formulary.case_cost / row.formulary.units_per_case
+            const cat = row.formulary?.catalog_item
+            const ci = Array.isArray(cat) ? cat[0] : cat
+            const unitCost = ci?.case_cost != null && ci?.units_per_case > 0
+              ? ci.case_cost / ci.units_per_case
               : 0
             return sum + unitCost * (row.qty_used ?? 1)
           }, 0)

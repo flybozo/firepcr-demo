@@ -6,9 +6,10 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useEffect, useState, useMemo, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
-import { PageHeader, EmptyState, LoadingSkeleton } from '@/components/ui'
+import { PageHeader, EmptyState, LoadingSkeleton, UnitFilterPills, SortableHeader } from '@/components/ui'
+import { useSortable } from '@/hooks/useSortable'
 import { useNavigate, useSearchParams, useMatch } from 'react-router-dom'
-import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
+import { UNIT_TYPE_ORDER } from '@/lib/unitColors'
 import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
 import { getCachedData, cacheData } from '@/lib/offlineStore'
 import { loadList } from '@/lib/offlineFirst'
@@ -111,6 +112,8 @@ function MARListInner() {
   const [incidentFilter, setIncidentFilter] = useState('All')
   const [activeIncidents, setActiveIncidents] = useState<{id: string; name: string}[]>([])
   const [dateRange, setDateRange] = useState('7d')
+  type MARSortKey = 'date' | 'patient' | 'item_name' | 'med_unit'
+  const { sortKey: marSortKey, sortDir: marSortDir, toggleSort: marToggleSort, sortFn: marSortFn } = useSortable<MARSortKey>('date', 'desc')
 
   const DATE_RANGES = ['2d', '7d', '14d', '30d'] as const
   const dateRangeDays: Record<string, number> = { '2d': 2, '7d': 7, '14d': 14, '30d': 30 }
@@ -195,9 +198,15 @@ function MARListInner() {
     return a.localeCompare(b)
   })
 
-  const filtered = entries.filter(e => {
+  const filtered = marSortFn(entries.filter(e => {
     if (unitFilter !== 'All' && e.med_unit !== unitFilter) return false
     return true
+  }), (e, key) => {
+    if (key === 'date') return e.date ?? ''
+    if (key === 'patient') return e.patient_name ?? ''
+    if (key === 'item_name') return e.item_name ?? ''
+    if (key === 'med_unit') return e.med_unit ?? ''
+    return ''
   })
 
   return (
@@ -279,37 +288,12 @@ function MARListInner() {
           </>
         )}
         {unitNames.length > 0 && !isField && (
-          <>
-            {/* Desktop: unit pills */}
-            <div className="hidden md:flex gap-2 flex-wrap">
-              <button
-                onClick={() => setUnitFilter('All')}
-                className={'px-2 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0 ' + unitFilterButtonClass('All', unitFilter === 'All')}
-              >
-                All
-              </button>
-              {unitNames.map(u => (
-                <button
-                  key={u}
-                  onClick={() => setUnitFilter(u)}
-                  className={'px-2 py-1 rounded text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0 ' + unitFilterButtonClass(getUnitType(u), unitFilter === u)}
-                >
-                  {u}
-                </button>
-              ))}
-            </div>
-            {/* Mobile: unit dropdown */}
-            <select
-              value={unitFilter}
-              onChange={e => setUnitFilter(e.target.value)}
-              className="md:hidden w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
-            >
-              <option value="All">All</option>
-              {unitNames.map(u => (
-                <option key={u} value={u}>{u}</option>
-              ))}
-            </select>
-          </>
+          <UnitFilterPills
+            units={unitNames}
+            selected={unitFilter}
+            onSelect={setUnitFilter}
+            unitTypeMap={Object.fromEntries(unitNames.map(u => [u, getUnitType(u)]))}
+          />
         )}
         {isField && assignment.unit?.name && (
           <div className="flex items-center gap-2">
@@ -328,16 +312,16 @@ function MARListInner() {
             <div className="overflow-x-auto">
               <div className="min-w-[740px]">
                 {/* Header */}
-                <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header">
-                  <span className="w-20 shrink-0">Date</span>
-                  <span className="w-20 shrink-0">Patient</span>
-                  <span className="flex-1 min-w-[120px]">Medication</span>
-                  <span className="w-14 shrink-0">Route</span>
-                  <span className="w-20 shrink-0">Qty</span>
-                  <span className="w-20 shrink-0">Unit</span>
-                  <span className="w-20 shrink-0">Incident</span>
-                  <span className="w-14 shrink-0">Type</span>
-                  <span className="w-28 shrink-0 text-right">Status</span>
+                <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b theme-card-header">
+                  <SortableHeader label="Date" sortKey="date" currentKey={marSortKey} currentDir={marSortDir} onToggle={marToggleSort} className="w-20 shrink-0" />
+                  <SortableHeader label="Patient" sortKey="patient" currentKey={marSortKey} currentDir={marSortDir} onToggle={marToggleSort} className="w-20 shrink-0" />
+                  <SortableHeader label="Medication" sortKey="item_name" currentKey={marSortKey} currentDir={marSortDir} onToggle={marToggleSort} className="flex-1 min-w-[120px]" />
+                  <span className="w-14 shrink-0 text-gray-500">Route</span>
+                  <span className="w-20 shrink-0 text-gray-500">Qty</span>
+                  <SortableHeader label="Unit" sortKey="med_unit" currentKey={marSortKey} currentDir={marSortDir} onToggle={marToggleSort} className="w-20 shrink-0" />
+                  <span className="w-20 shrink-0 text-gray-500">Incident</span>
+                  <span className="w-14 shrink-0 text-gray-500">Type</span>
+                  <span className="w-28 shrink-0 text-right text-gray-500">Status</span>
                 </div>
                 {filtered.map(entry => (
                   <div

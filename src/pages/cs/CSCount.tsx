@@ -22,8 +22,8 @@ type CSItem = {
   id: string
   item_name: string
   quantity: number
-  cs_lot_number: string | null
-  cs_expiration_date: string | null
+  lot_number: string | null
+  expiration_date: string | null
   incident_unit_id: string
 }
 
@@ -33,7 +33,7 @@ type CountEntry = {
   discrepancyNote: string
 }
 
-const ALL_UNITS = ['Warehouse', 'Medic 1', 'Medic 2', 'Medic 3', 'Medic 4', 'Aid 1', 'Aid 2', 'Command 1', 'Rescue 1', 'Rescue 2']
+const ALL_UNITS = ['Warehouse', 'RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
 const CLINICAL_ROLES = ['MD', 'DO', 'NP', 'PA', 'Paramedic', 'RN']
 
 function DailyCountInner() {
@@ -103,7 +103,7 @@ function DailyCountInner() {
       () => unitId
         ? supabase
             .from('unit_inventory')
-            .select('id, item_name, quantity, cs_lot_number, cs_expiration_date, incident_unit_id')
+            .select('id, item_name, quantity, lot_number, expiration_date, incident_unit_id')
             .eq('incident_unit_id', unitId)
             .eq('category', 'CS')
         : Promise.resolve({ data: [], error: null }),
@@ -138,7 +138,7 @@ function DailyCountInner() {
     // Check all discrepancies have notes
     for (const entry of entries) {
       if (hasDiscrepancy(entry) && !entry.discrepancyNote.trim()) {
-        setError(`Discrepancy note required for ${entry.inv.item_name} (Lot: ${entry.inv.cs_lot_number || 'N/A'})`)
+        setError(`Discrepancy note required for ${entry.inv.item_name} (Lot: ${entry.inv.lot_number || 'N/A'})`)
         return
       }
     }
@@ -163,19 +163,19 @@ function DailyCountInner() {
         // Log discrepancy if any
         if (actual !== expected) {
           const diff = actual - expected
-          discrepancySummary.push(`${entry.inv.item_name} (Lot ${entry.inv.cs_lot_number || 'N/A'}): expected ${expected}, found ${actual} (${diff > 0 ? '+' : ''}${diff}). ${entry.discrepancyNote}`)
+          discrepancySummary.push(`${entry.inv.item_name} (Lot ${entry.inv.lot_number || 'N/A'}): expected ${expected}, found ${actual} (${diff > 0 ? '+' : ''}${diff}). ${entry.discrepancyNote}`)
 
           await insertCSTransaction({
             transfer_type: 'Audit',
             drug_name: entry.inv.item_name,
-            lot_number: entry.inv.cs_lot_number,
+            lot_number: entry.inv.lot_number,
             from_unit: selectedUnit,
             to_unit: selectedUnit,
             quantity: Math.abs(diff),
             performed_by: counterName,
             witness: witnessName,
             notes: `DISCREPANCY: Expected ${expected}, Found ${actual}. ${entry.discrepancyNote}`,
-            expiration_date: entry.inv.cs_expiration_date,
+            expiration_date: entry.inv.expiration_date,
           })
         }
       }
@@ -277,7 +277,7 @@ function DailyCountInner() {
                       <div className="flex items-start justify-between gap-2 mb-2">
                         <div>
                           <p className="text-white font-medium text-sm">{entry.inv.item_name}</p>
-                          <p className="text-gray-400 text-xs">Lot: {entry.inv.cs_lot_number || '—'} | Exp: {entry.inv.cs_expiration_date || '—'}</p>
+                          <p className="text-gray-400 text-xs">Lot: {entry.inv.lot_number || '—'} | Exp: {entry.inv.expiration_date || '—'}</p>
                           <p className="text-gray-500 text-xs">Expected: <span className="text-white font-bold">{entry.inv.quantity}</span></p>
                         </div>
                         {disc && <span className="text-red-400 text-xs font-bold bg-red-900/40 px-2 py-1 rounded">DISCREPANCY</span>}

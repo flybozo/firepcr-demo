@@ -16,7 +16,7 @@ type Unit = {
 type FormularyItem = {
   id: string
   item_name: string
-  category: string
+  category: string  // normalized from catalog_item join at load time
   unit_type: string | null
   catalog_item_id: string | null
 }
@@ -132,15 +132,18 @@ function AddInventoryInner() {
       const utId = utData?.id
 
       // Load formulary for this unit type, NO CS (those go through CS receive/transfer)
+      // category lives on item_catalog now; join and normalize at load time
       const { data: items } = await supabase
         .from('formulary_templates')
-        .select('id, item_name, category, unit_type_id, catalog_item_id')
+        .select('id, item_name, unit_type_id, catalog_item_id, catalog_item:item_catalog(category)')
         .eq('unit_type_id', utId || '')
-        .neq('category', 'CS')
-        .order('category')
         .order('item_name')
       if (items && items.length > 0) {
-        setFormulary(items as any)
+        const normalized = (items as any[]).map((f: any) => {
+          const ci = Array.isArray(f.catalog_item) ? f.catalog_item[0] : f.catalog_item
+          return { ...f, category: ci?.category || '' }
+        }).filter((f: any) => f.category !== 'CS')
+        setFormulary(normalized as any)
       } else {
         throw new Error('no data')
       }
@@ -207,16 +210,19 @@ function AddInventoryInner() {
 
       const incidentUnitId = iuData.id
 
-      // Check if item exists — query by unit_id (inventory belongs to the truck)
-      const { data: existing } = await supabase
+      // Check if item exists — match by unit_id + item_name + lot_number (if provided)
+      let existingQuery = supabase
         .from('unit_inventory')
         .select('id, quantity')
         .eq('unit_id', form.unit_id)
         .eq('item_name', form.item_name)
-        .limit(1)
+      if (form.lot_number) {
+        existingQuery = existingQuery.eq('lot_number', form.lot_number)
+      }
+      const { data: existing } = await existingQuery.limit(1)
 
       if (existing && existing.length > 0) {
-        // UPDATE
+        // UPDATE — same item + same lot (or no lot)
         const inv = existing[0]
         const newQty = (inv.quantity || 0) + qty
         const updatePayload: Record<string, unknown> = { quantity: newQty }

@@ -137,7 +137,7 @@ export default function ReceiveCSPage() {
         .select('id, quantity')
         .eq('item_name', drugName)
         .eq('category', 'CS')
-        .eq('cs_lot_number', form.lot_number)
+        .eq('lot_number', form.lot_number)
         .maybeSingle()
 
       if (existingWh) {
@@ -145,7 +145,7 @@ export default function ReceiveCSPage() {
           .from('warehouse_inventory')
           .update({
             quantity: existingWh.quantity + Number(form.quantity_received),
-            cs_expiration_date: form.expiration_date,
+            expiration_date: form.expiration_date,
           })
           .eq('id', existingWh.id)
       } else {
@@ -153,8 +153,8 @@ export default function ReceiveCSPage() {
           item_name: drugName,
           category: 'CS',
           quantity: Number(form.quantity_received),
-          cs_lot_number: form.lot_number,
-          cs_expiration_date: form.expiration_date,
+          lot_number: form.lot_number,
+          expiration_date: form.expiration_date,
         })
       }
 

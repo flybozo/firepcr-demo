@@ -35,7 +35,7 @@ export default function InventoryDetailPage() {
       const { data } = await loadSingle(
         () => supabase
           .from('unit_inventory')
-          .select('id, item_name, category, quantity, par_qty, lot_number, expiration_date, cs_lot_number, cs_expiration_date, unit_id, catalog_item_id, unit:units(id, name)')
+          .select('id, item_name, category, quantity, par_qty, lot_number, expiration_date, unit_id, catalog_item_id, unit:units(id, name)')
           .eq('id', id)
           .single() as any,
         'inventory',
@@ -54,8 +54,6 @@ export default function InventoryDetailPage() {
         parQty: inv.par_qty ?? 0,
         lotNumber: inv.lot_number || null,
         expirationDate: inv.expiration_date || null,
-        csLotNumber: inv.cs_lot_number || null,
-        csExpirationDate: inv.cs_expiration_date || null,
       })
 
       // Find the matching formulary template — prefer catalog_item_id join, fall back to item_name

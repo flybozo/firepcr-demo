@@ -25,7 +25,9 @@ export function MedicationSection({
   onItemSelect, onUnitChange, set, setDaysSupply, setRouteAutoSuggested, setDosageAutoSuggested,
 }: MedicationSectionProps) {
   const matchingItems = unitInventory.filter(i => i.item_name === form.item_name && i.quantity > 0)
-  const hasMultipleLots = form.category === 'CS' && matchingItems.length > 1
+  const isLotTracked = form.category === 'CS' || form.category === 'Rx'
+  const hasMultipleLots = isLotTracked && matchingItems.length > 1
+  const lotAutoFilled = isLotTracked && matchingItems.length > 0
   const csAutoFilled = form.category === 'CS' && matchingItems.length > 0
 
   return (
@@ -94,21 +96,25 @@ export function MedicationSection({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="min-w-0">
-          <label className={labelCls}>Lot Number{csAutoFilled ? ' — select from inventory' : ''}</label>
+          <label className={labelCls}>
+            Lot Number{hasMultipleLots ? ' — select from inventory' : ''}
+            {form.category === 'CS' && lotAutoFilled && !hasMultipleLots ? ' — auto-filled' : ''}
+            {form.category === 'Rx' && ' (recommended)'}
+          </label>
           {hasMultipleLots ? (
             <select
               className={inputCls}
               value={form.lot_number}
               onChange={e => {
-                const item = matchingItems.find(i => i.cs_lot_number === e.target.value)
+                const item = matchingItems.find(i => i.lot_number === e.target.value)
                 set('lot_number', e.target.value)
-                if (item?.cs_expiration_date) set('exp_date', item.cs_expiration_date)
+                if (item?.expiration_date) set('exp_date', item.expiration_date)
               }}
             >
               <option value="">Select lot...</option>
               {matchingItems.map(i => (
-                <option key={i.cs_lot_number || i.id} value={i.cs_lot_number || ''}>
-                  {i.cs_lot_number || 'No lot'} (qty: {i.quantity}{i.cs_expiration_date ? `, exp ${i.cs_expiration_date}` : ''})
+                <option key={i.lot_number || i.id} value={i.lot_number || ''}>
+                  {i.lot_number || 'No lot'} (qty: {i.quantity}{i.expiration_date ? `, exp ${i.expiration_date}` : ''})
                 </option>
               ))}
             </select>
@@ -123,7 +129,7 @@ export function MedicationSection({
           )}
         </div>
         <div className="min-w-0">
-          <label className={labelCls}>Expiration Date{csAutoFilled ? ' (auto-filled)' : ''}</label>
+          <label className={labelCls}>Expiration Date{lotAutoFilled ? ' (auto-filled)' : ''}</label>
           <input
             type="date"
             className={`${inputCls} min-w-0 ${csAutoFilled ? 'opacity-70 cursor-not-allowed' : ''}`}

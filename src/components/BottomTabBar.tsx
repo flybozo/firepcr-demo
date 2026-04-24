@@ -73,7 +73,6 @@ const TABS: Tab[] = [
     href: '/more',
     subItems: [
       { label: 'Employee Roster', href: '/roster', icon: 'roster' },
-      { label: 'HR Credentials', href: '/roster/hr', icon: 'roster', adminOnly: true },
       { label: 'Units', href: '/units', icon: 'units' },
       { label: 'CS', href: '/cs', icon: 'cs' },
       { label: 'Live Map', href: '/map', icon: 'map', adminOnly: true },
@@ -90,6 +89,7 @@ const TABS: Tab[] = [
 
 // Admin sub-items for the second-level sheet
 const ADMIN_SUB_ITEMS: SubItem[] = [
+  { label: 'HR Credentials', href: '/roster/hr', icon: 'roster' },
   { label: 'Announcements & Push', href: '/admin/announcements', icon: 'announcements' },
   { label: 'AI Requests', href: '/admin/chat-requests', icon: 'chat-requests' },
   { label: 'Company Profile', href: '/admin/company', icon: 'company' },

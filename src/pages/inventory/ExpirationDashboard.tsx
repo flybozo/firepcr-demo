@@ -1,8 +1,10 @@
 import { useEffect, useState, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { Navigate } from 'react-router-dom'
-import { PageHeader, LoadingSkeleton, EmptyState } from '@/components/ui'
+import { Navigate, useSearchParams } from 'react-router-dom'
+import { PageHeader, LoadingSkeleton, EmptyState, UnitFilterPills } from '@/components/ui'
 import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
+import { getUnitTypeName } from '@/lib/unitColors'
+import DisposeModal, { type DisposeItem } from '@/components/inventory/DisposeModal'
 
 type ExpiringItem = {
   id: string
@@ -15,6 +17,7 @@ type ExpiringItem = {
   unit_name: string
   sku: string | null
   days_until_expiry: number
+  catalog_item_id: string | null
 }
 
 const CAT_COLORS: Record<string, string> = {
@@ -62,22 +65,24 @@ export default function ExpirationDashboard() {
   const supabase = createClient()
   const canView = usePermission('inventory')
   const permLoading = usePermissionLoading()
+  const [searchParams] = useSearchParams()
 
   const [items, setItems] = useState<ExpiringItem[]>([])
   const [loading, setLoading] = useState(true)
   const [windowDays, setWindowDays] = useState<number>(90)
   const [unitFilter, setUnitFilter] = useState('All')
-  const [catFilter, setCatFilter] = useState('All')
+  const [catFilter, setCatFilter] = useState(() => searchParams.get('cat') || 'All')
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [csRxFirst, setCsRxFirst] = useState(true)
+  const [disposeItem, setDisposeItem] = useState<DisposeItem | null>(null)
 
   useEffect(() => {
     const load = async () => {
       const [invResult, unitsResult] = await Promise.all([
         supabase
           .from('unit_inventory')
-          .select('id, item_name, category, quantity, lot_number, cs_lot_number, expiration_date, cs_expiration_date, unit_id, catalog_item_id, catalog_item:item_catalog(sku)')
-          .or('expiration_date.not.is.null,cs_expiration_date.not.is.null'),
+          .select('id, item_name, category, quantity, lot_number, expiration_date, unit_id, catalog_item_id, catalog_item:item_catalog(sku)')
+          .not('expiration_date', 'is', null),
         supabase
           .from('units')
           .select('id, name')
@@ -95,19 +100,20 @@ export default function ExpirationDashboard() {
 
       const processed: ExpiringItem[] = ((invResult.data as any[]) || [])
         .map(row => {
-          const effectiveExpiry = row.expiration_date || row.cs_expiration_date
+          const effectiveExpiry = row.expiration_date
           if (!effectiveExpiry) return null
           return {
             id: row.id,
             item_name: row.item_name,
             category: row.category || 'OTC',
             quantity: row.quantity ?? 0,
-            lot_number: row.lot_number || row.cs_lot_number || null,
+            lot_number: row.lot_number || null,
             effective_expiry: effectiveExpiry,
             unit_id: row.unit_id || null,
             unit_name: row.unit_id ? (unitMap[row.unit_id] || 'Unknown') : 'Unknown',
             sku: (row.catalog_item as any)?.sku || null,
             days_until_expiry: daysUntil(effectiveExpiry),
+            catalog_item_id: row.catalog_item_id || null,
           }
         })
         .filter(Boolean) as ExpiringItem[]
@@ -121,6 +127,7 @@ export default function ExpirationDashboard() {
   const filtered = useMemo(() => {
     return items
       .filter(item => {
+        if (item.quantity <= 0) return false
         if (unitFilter !== 'All' && item.unit_name !== unitFilter) return false
         if (catFilter !== 'All' && item.category !== catFilter) return false
         if (isFinite(windowDays) && item.days_until_expiry > windowDays) return false
@@ -130,11 +137,15 @@ export default function ExpirationDashboard() {
   }, [items, unitFilter, catFilter, windowDays])
 
   const allUnits = useMemo(
-    () => ['All', ...Array.from(new Set(items.map(i => i.unit_name))).sort()],
+    () => ['All', ...Array.from(new Set(items.filter(i => i.quantity > 0).map(i => i.unit_name))).sort()],
     [items]
   )
+  const unitTypeMap = useMemo(
+    () => Object.fromEntries(allUnits.filter(u => u !== 'All').map(u => [u, getUnitTypeName(u)])),
+    [allUnits]
+  )
   const allCats = useMemo(
-    () => ['All', ...Array.from(new Set(items.map(i => i.category))).sort()],
+    () => ['All', ...Array.from(new Set(items.filter(i => i.quantity > 0).map(i => i.category))).sort()],
     [items]
   )
 
@@ -176,6 +187,27 @@ export default function ExpirationDashboard() {
       if (next.has(name)) next.delete(name)
       else next.add(name)
       return next
+    })
+  }
+
+  const handleDisposeSuccess = (itemId: string, disposedQty: number) => {
+    setItems(prev => prev.map(item =>
+      item.id === itemId ? { ...item, quantity: item.quantity - disposedQty } : item
+    ))
+    setDisposeItem(null)
+  }
+
+  const openDispose = (item: ExpiringItem) => {
+    setDisposeItem({
+      id: item.id,
+      item_name: item.item_name,
+      category: item.category,
+      quantity: item.quantity,
+      lot_number: item.lot_number,
+      effective_expiry: item.effective_expiry,
+      unit_id: item.unit_id,
+      unit_name: item.unit_name,
+      catalog_item_id: item.catalog_item_id,
     })
   }
 
@@ -224,17 +256,12 @@ export default function ExpirationDashboard() {
             </button>
           ))}
         </div>
-        <div className="flex gap-1.5 overflow-x-auto pb-1">
-          {allUnits.map(u => (
-            <button key={u} onClick={() => setUnitFilter(u)}
-              className={`px-2 py-1 rounded text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${
-                unitFilter === u ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-              }`}
-            >
-              {u}
-            </button>
-          ))}
-        </div>
+        <UnitFilterPills
+          units={allUnits}
+          selected={unitFilter}
+          onSelect={setUnitFilter}
+          unitTypeMap={unitTypeMap}
+        />
       </div>
 
       {loading ? (
@@ -313,6 +340,7 @@ export default function ExpirationDashboard() {
                             <span className="w-24 shrink-0 text-right">Expiry Date</span>
                             <span className="w-20 shrink-0 text-right">Days</span>
                             <span className="w-12 shrink-0 text-right">Qty</span>
+                            <span className="w-16 shrink-0 text-right">Action</span>
                           </div>
 
                           <div className="divide-y divide-gray-800/60">
@@ -338,7 +366,15 @@ export default function ExpirationDashboard() {
                                       <span className="text-xs font-medium text-white truncate flex-1 mr-2">
                                         {item.item_name}
                                       </span>
-                                      <span className={`text-xs shrink-0 ${daysColor}`}>{daysLabel}</span>
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        <span className={`text-xs ${daysColor}`}>{daysLabel}</span>
+                                        <button
+                                          onClick={() => openDispose(item)}
+                                          className="px-2 py-0.5 rounded text-xs font-medium bg-red-900/60 hover:bg-red-800 text-red-300 transition-colors"
+                                        >
+                                          Dispose
+                                        </button>
+                                      </div>
                                     </div>
                                     <div className="flex items-center gap-2 flex-wrap text-xs">
                                       <span className={`px-1 py-0.5 rounded ${CAT_COLORS[item.category] || 'bg-gray-700 text-gray-300'}`}>
@@ -375,6 +411,14 @@ export default function ExpirationDashboard() {
                                     <span className="w-12 shrink-0 text-right text-xs font-mono text-white">
                                       {item.quantity}
                                     </span>
+                                    <span className="w-16 shrink-0 text-right">
+                                      <button
+                                        onClick={() => openDispose(item)}
+                                        className="px-2 py-0.5 rounded text-xs font-medium bg-red-900/60 hover:bg-red-800 text-red-300 transition-colors"
+                                      >
+                                        Dispose
+                                      </button>
+                                    </span>
                                   </div>
                                 </div>
                               )
@@ -388,6 +432,14 @@ export default function ExpirationDashboard() {
             </div>
           )}
         </>
+      )}
+
+      {disposeItem && (
+        <DisposeModal
+          item={disposeItem}
+          onClose={() => setDisposeItem(null)}
+          onSuccess={handleDisposeSuccess}
+        />
       )}
     </div>
   )

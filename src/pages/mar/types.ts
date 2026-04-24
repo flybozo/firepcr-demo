@@ -20,8 +20,8 @@ export type InventoryItem = {
   quantity: number
   unit_id?: string
   incident_unit_id?: string
-  cs_lot_number?: string | null
-  cs_expiration_date?: string | null
+  lot_number?: string | null
+  expiration_date?: string | null
 }
 
 export type FormState = {
@@ -99,7 +99,7 @@ export const DOSAGE_UNIT_SUGGESTIONS: Record<string, string> = {
 }
 
 export const UNIT_OPTIONS = [
-  'Medic 1', 'Medic 2', 'Medic 3', 'Medic 4',
-  'Aid 1', 'Aid 2', 'Command 1',
-  'Rescue 1', 'Rescue 2',
+  'RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4',
+  'MSU 1', 'MSU 2', 'The Beast',
+  'REMS 1', 'REMS 2',
 ]

@@ -102,7 +102,7 @@ export async function syncDataFromServer(): Promise<void> {
         supabase.from('employees_sync').select('*'),
         supabase.from('incident_units').select('id, incident_id, released_at, unit:units(id, name, unit_type:unit_types(name))'),
       ]),
-      paginate((from, to) => supabase.from('formulary_templates').select('*').order('id').range(from, to)),
+      paginate((from, to) => supabase.from('formulary_templates').select('*, catalog_item:item_catalog(category, sku, is_als)').order('id').range(from, to)),
       paginate((from, to) => supabase.from('item_catalog').select('*').order('id').range(from, to)),
     ])
     const formulary = { data: formularyRows }

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useNavigate, Link } from 'react-router-dom'
-import { PageHeader, EmptyState } from '@/components/ui'
+import { PageHeader, EmptyState, SortableHeader } from '@/components/ui'
+import { useSortable } from '@/hooks/useSortable'
 
 type MAREntry = {
   id: string
@@ -80,6 +81,8 @@ export default function MARSearch() {
   const [searchInput, setSearchInput] = useState('')
   const [results, setResults] = useState<MAREntry[] | null>(null)
   const [loading, setLoading] = useState(false)
+  type MARSearchSortKey = 'date' | 'patient' | 'item_name'
+  const { sortKey: srchSortKey, sortDir: srchSortDir, toggleSort: srchToggleSort, sortFn: srchSortFn } = useSortable<MARSearchSortKey>('date', 'desc')
 
   useEffect(() => {
     const trimmed = searchInput.trim()
@@ -146,18 +149,23 @@ export default function MARSearch() {
             <div className="overflow-x-auto">
               <div className="min-w-[720px]">
                 {/* Header */}
-                <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header">
-                  <span className="w-20 shrink-0">Date</span>
-                  <span className="w-20 shrink-0">Patient</span>
-                  <span className="flex-1 min-w-[120px]">Medication</span>
-                  <span className="w-14 shrink-0">Route</span>
-                  <span className="w-20 shrink-0">Qty</span>
-                  <span className="w-20 shrink-0">Unit</span>
-                  <span className="w-20 shrink-0">Incident</span>
-                  <span className="w-14 shrink-0">Type</span>
-                  <span className="w-28 shrink-0 text-right">Status</span>
+                <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b theme-card-header">
+                  <SortableHeader label="Date" sortKey="date" currentKey={srchSortKey} currentDir={srchSortDir} onToggle={srchToggleSort} className="w-20 shrink-0" />
+                  <SortableHeader label="Patient" sortKey="patient" currentKey={srchSortKey} currentDir={srchSortDir} onToggle={srchToggleSort} className="w-20 shrink-0" />
+                  <SortableHeader label="Medication" sortKey="item_name" currentKey={srchSortKey} currentDir={srchSortDir} onToggle={srchToggleSort} className="flex-1 min-w-[120px]" />
+                  <span className="w-14 shrink-0 text-gray-500">Route</span>
+                  <span className="w-20 shrink-0 text-gray-500">Qty</span>
+                  <span className="w-20 shrink-0 text-gray-500">Unit</span>
+                  <span className="w-20 shrink-0 text-gray-500">Incident</span>
+                  <span className="w-14 shrink-0 text-gray-500">Type</span>
+                  <span className="w-28 shrink-0 text-right text-gray-500">Status</span>
                 </div>
-                {results.map(entry => (
+                {srchSortFn(results, (e, key) => {
+                  if (key === 'date') return e.date ?? ''
+                  if (key === 'patient') return e.patient_name ?? ''
+                  if (key === 'item_name') return e.item_name ?? ''
+                  return ''
+                }).map(entry => (
                   <div
                     key={entry.id}
                     onClick={() => navigate(`/mar/${entry.id}`)}

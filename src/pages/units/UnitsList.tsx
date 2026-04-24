@@ -19,7 +19,8 @@ const ROLE_COLORS: Record<string, string> = {
   'EMT': 'bg-orange-900 text-orange-300',
   'Tech': 'bg-gray-700 text-gray-300',
 }
-import { PageHeader, LoadingSkeleton, EmptyState, ConfirmDialog } from '@/components/ui'
+import { PageHeader, LoadingSkeleton, EmptyState, ConfirmDialog, SortableHeader } from '@/components/ui'
+import { useSortable } from '@/hooks/useSortable'
 
 type Unit = {
   id: string
@@ -73,6 +74,8 @@ function UnitsPageInner() {
   const [loading, setLoading] = useState(true)
   const [isOffline, setIsOffline] = useState(false)
   const [statusFilter, setStatusFilter] = useState<'all' | 'in_service' | 'out_of_service' | 'archived'>('all')
+  type UnitSortKey = 'name' | 'type' | 'status'
+  const { sortKey: unitSortKey, sortDir: unitSortDir, toggleSort: unitToggleSort, sortFn: unitSortFn } = useSortable<UnitSortKey>('name', 'asc')
   const [cyclingStatus, setCyclingStatus] = useState<string | null>(null)
   const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; confirmLabel?: string; icon?: string; confirmColor?: string } | null>(null)
 
@@ -180,7 +183,15 @@ function UnitsPageInner() {
     await load()
   }
 
-  const filteredUnits = statusFilter === 'all' ? units : units.filter(u => (u.unit_status || 'in_service') === statusFilter)
+  const filteredUnits = unitSortFn(
+    statusFilter === 'all' ? units : units.filter(u => (u.unit_status || 'in_service') === statusFilter),
+    (u, key) => {
+      if (key === 'name') return u.name
+      if (key === 'type') return (u.unit_type as any)?.name ?? ''
+      if (key === 'status') return u.unit_status ?? ''
+      return ''
+    }
+  )
 
   return (
     <div className="p-4 md:p-6 mt-8 md:mt-0">
@@ -234,15 +245,15 @@ function UnitsPageInner() {
       ) : (
         <div className="theme-card rounded-xl border overflow-x-auto">
           {/* Header */}
-          <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header min-w-[760px]">
+          <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b theme-card-header min-w-[760px]">
             <span className="w-8 shrink-0" />{/* photo */}
-            <span className="w-32 shrink-0">Unit</span>
-            <span className="w-24 shrink-0 hidden sm:block">Type</span>
-            <span className="w-20 shrink-0 hidden lg:block font-mono">VIN</span>
-            <span className="w-28 shrink-0 hidden lg:block">Plate</span>
-            <span className="w-32 shrink-0 hidden md:block">Incident</span>
-            <span className="w-48 shrink-0">Crew</span>
-            <span className="w-24 shrink-0 text-right">Status</span>
+            <SortableHeader label="Unit" sortKey="name" currentKey={unitSortKey} currentDir={unitSortDir} onToggle={unitToggleSort} className="w-32 shrink-0" />
+            <SortableHeader label="Type" sortKey="type" currentKey={unitSortKey} currentDir={unitSortDir} onToggle={unitToggleSort} className="w-24 shrink-0 hidden sm:flex" />
+            <span className="w-20 shrink-0 hidden lg:block font-mono text-gray-500">VIN</span>
+            <span className="w-28 shrink-0 hidden lg:block text-gray-500">Plate</span>
+            <span className="w-32 shrink-0 hidden md:block text-gray-500">Incident</span>
+            <span className="w-48 shrink-0 text-gray-500">Crew</span>
+            <SortableHeader label="Status" sortKey="status" currentKey={unitSortKey} currentDir={unitSortDir} onToggle={unitToggleSort} className="w-24 shrink-0 justify-end" />
           </div>
 
           {filteredUnits.map(unit => {

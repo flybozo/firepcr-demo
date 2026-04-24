@@ -5,7 +5,9 @@ import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { queryActiveIncidentsForEncounters } from '@/lib/services/encounters'
 import { useUserAssignment } from '@/lib/useUserAssignment'
-import { PageHeader, LoadingSkeleton, EmptyState } from '@/components/ui'
+import { PageHeader, LoadingSkeleton, EmptyState, UnitFilterPills, SortableHeader } from '@/components/ui'
+import { useSortable } from '@/hooks/useSortable'
+import { getUnitTypeName } from '@/lib/unitColors'
 
 type ICS214Row = {
   id: string
@@ -27,7 +29,9 @@ export default function ICS214ListPage() {
 
   const [rows, setRows] = useState<ICS214Row[]>([])
   const [loading, setLoading] = useState(true)
-  const [unitFilter, setUnitFilter] = useState<string>('')
+  type ICS214SortKey = 'op_date' | 'unit_name' | 'incident_name'
+  const { sortKey: icsSortKey, sortDir: icsSortDir, toggleSort: icsToggleSort, sortFn: icsSortFn } = useSortable<ICS214SortKey>('op_date', 'desc')
+  const [unitFilter, setUnitFilter] = useState<string>('All')
   const [incidentFilter, setIncidentFilter] = useState<string>('All')
   const [statusFilter, setStatusFilter] = useState<string>('All')
   const [dateRange, setDateRange] = useState('7d')
@@ -64,7 +68,7 @@ export default function ICS214ListPage() {
         .order('created_at', { ascending: false })
 
       const effectiveUnit = !isAdmin && assignment.unit?.name ? assignment.unit.name : unitFilter
-      if (effectiveUnit) q = q.eq('unit_name', effectiveUnit)
+      if (effectiveUnit && effectiveUnit !== 'All') q = q.eq('unit_name', effectiveUnit)
       if (isAdmin && incidentFilter !== 'All') q = (q as any).eq('incident_id', incidentFilter)
       if (statusFilter !== 'All') q = q.eq('status', statusFilter)
       if (dateFilter) q = q.gte('created_at', dateFilter)
@@ -87,6 +91,13 @@ export default function ICS214ListPage() {
     }
     setLoading(false)
   }
+
+  const sortedRows = icsSortFn(rows, (r, key) => {
+    if (key === 'op_date') return r.op_date ?? ''
+    if (key === 'unit_name') return r.unit_name ?? ''
+    if (key === 'incident_name') return r.incident_name ?? ''
+    return ''
+  })
 
   return (
     <div className="bg-gray-950 text-white pb-8">
@@ -166,46 +177,12 @@ export default function ICS214ListPage() {
           )}
           {/* Unit filter */}
           {isAdmin ? (
-            <>
-              {/* Desktop: unit pills */}
-              <div className="hidden md:flex gap-1.5 flex-wrap">
-                <button onClick={() => setUnitFilter('')}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${unitFilter === '' ? 'bg-gray-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
-                  All Units
-                </button>
-                {[...units].sort((a,b) => {
-                  const order: Record<string,number> = {'Aid':1,'Medic':2,'Rescue':3}
-                  const aK = Object.keys(order).find(k => a.startsWith(k)) || 'z'
-                  const bK = Object.keys(order).find(k => b.startsWith(k)) || 'z'
-                  return (order[aK]||9) - (order[bK]||9) || a.localeCompare(b)
-                }).map(u => {
-                  const type = u.startsWith('Medic') ? 'Ambulance' : u.startsWith('MSU') || u === 'Command 1' ? 'Med Unit' : 'REMS'
-                  const activeClass = type === 'Ambulance' ? 'bg-red-700 text-white' : type === 'Med Unit' ? 'bg-blue-700 text-white' : 'bg-green-700 text-white'
-                  return (
-                    <button key={u} onClick={() => setUnitFilter(u)}
-                      className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${unitFilter === u ? activeClass : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
-                      {u}
-                    </button>
-                  )
-                })}
-              </div>
-              {/* Mobile: unit dropdown */}
-              <select
-                value={unitFilter}
-                onChange={e => setUnitFilter(e.target.value)}
-                className="md:hidden w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
-              >
-                <option value="">All Units</option>
-                {[...units].sort((a,b) => {
-                  const order: Record<string,number> = {'Aid':1,'Medic':2,'Rescue':3}
-                  const aK = Object.keys(order).find(k => a.startsWith(k)) || 'z'
-                  const bK = Object.keys(order).find(k => b.startsWith(k)) || 'z'
-                  return (order[aK]||9) - (order[bK]||9) || a.localeCompare(b)
-                }).map(u => (
-                  <option key={u} value={u}>{u}</option>
-                ))}
-              </select>
-            </>
+            <UnitFilterPills
+              units={units}
+              selected={unitFilter}
+              onSelect={setUnitFilter}
+              unitTypeMap={Object.fromEntries(units.map(u => [u, getUnitTypeName(u)]))}
+            />
           ) : (
             <span className="px-2.5 py-1 rounded text-xs font-medium bg-blue-900 text-blue-300">{assignment.unit?.name || '—'}</span>
           )}
@@ -246,9 +223,9 @@ export default function ICS214ListPage() {
                 <thead>
                   <tr className="border-b theme-card-header">
                     <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">214 ID</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">Date</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">Unit</th>
-                    <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">Incident</th>
+                    <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider"><SortableHeader label="Date" sortKey="op_date" currentKey={icsSortKey} currentDir={icsSortDir} onToggle={icsToggleSort} /></th>
+                    <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider"><SortableHeader label="Unit" sortKey="unit_name" currentKey={icsSortKey} currentDir={icsSortDir} onToggle={icsToggleSort} /></th>
+                    <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider"><SortableHeader label="Incident" sortKey="incident_name" currentKey={icsSortKey} currentDir={icsSortDir} onToggle={icsToggleSort} /></th>
                     <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">Op Period</th>
                     <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">Leader</th>
                     <th className="text-left px-4 py-3 text-xs font-bold uppercase tracking-wider text-gray-400">Status</th>
@@ -256,7 +233,7 @@ export default function ICS214ListPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-800/60">
-                  {rows.map(row => (
+                  {sortedRows.map(row => (
                     <tr key={row.id} className="hover:bg-gray-800/30 transition-colors">
                       <td className="px-4 py-3 font-mono text-xs text-gray-300">{row.ics214_id}</td>
                       <td className="px-4 py-3 text-gray-300 text-xs">{row.op_date || '—'}</td>
@@ -299,7 +276,7 @@ export default function ICS214ListPage() {
 
             {/* Mobile cards */}
             <div className="md:hidden divide-y divide-gray-800/60">
-              {rows.map(row => (
+              {sortedRows.map(row => (
                 <div key={row.id} className="p-4 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div>

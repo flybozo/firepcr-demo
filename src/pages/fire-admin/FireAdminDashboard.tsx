@@ -1,6 +1,8 @@
 
 
 import React, { useEffect, useState, useMemo, useRef, useCallback } from 'react'
+import { UnitFilterPills } from '@/components/ui'
+import { getUnitTypeName } from '@/lib/unitColors'
 import { AgencyBarChart } from '@/components/charts/AgencyBarChart'
 import { AgencyLogo } from '@/components/AgencyLogo'
 import { Avatar } from '@/components/chat/Avatar'
@@ -342,6 +344,12 @@ function PatientLogTab({ data, code, logEvent, isPreview }: { data: DashboardDat
 
   return (
     <div className="space-y-4">
+      <UnitFilterPills
+        units={units}
+        selected={unitFilter}
+        onSelect={setUnitFilter}
+        unitTypeMap={Object.fromEntries(assignedUnits.map(u => [u, getUnitTypeName(u)]))}
+      />
       <div className="flex flex-wrap items-center gap-2">
         <p className="text-xs text-gray-500 flex-1">{filtered.length} encounters · de-identified · tap to view</p>
         <button
@@ -350,14 +358,6 @@ function PatientLogTab({ data, code, logEvent, isPreview }: { data: DashboardDat
         >
           📥 Export CSV
         </button>
-        <div className="flex gap-1.5 flex-wrap">
-          {units.map(u => (
-            <button key={u} onClick={() => setUnitFilter(u)}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${unitFilter === u ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
-              {u}
-            </button>
-          ))}
-        </div>
       </div>
 
       {Object.entries(byUnit).map(([unitName, encs]) => (

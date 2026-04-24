@@ -6,7 +6,8 @@ import { loadList } from '@/lib/offlineFirst'
 import { useNavigate, useSearchParams, useMatch } from 'react-router-dom'
 import { Suspense } from 'react'
 import { queryIncidentsList } from '@/lib/services/incidents'
-import { PageHeader, EmptyState } from '@/components/ui'
+import { PageHeader, EmptyState, SortableHeader } from '@/components/ui'
+import { useSortable } from '@/hooks/useSortable'
 
 type Incident = {
   id: string
@@ -28,6 +29,8 @@ function IncidentsPageInner() {
   const statusParam = searchParams.get('status')
   const [tab, setTab] = useState<'Active' | 'Closed'>(statusParam === 'Closed' ? 'Closed' : 'Active')
   const [search, setSearch] = useState('')
+  type IncSortKey = 'start_date' | 'name' | 'location'
+  const { sortKey: incSortKey, sortDir: incSortDir, toggleSort: incToggleSort, sortFn: incSortFn } = useSortable<IncSortKey>('start_date', 'desc')
 
   const [isOfflineData, setIsOfflineData] = useState(false)
 
@@ -69,13 +72,18 @@ function IncidentsPageInner() {
     load()
   }, [])
 
-  const filtered = incidents.filter(i => {
+  const filtered = incSortFn(incidents.filter(i => {
     if (i.status !== tab) return false
     if (search) {
       const s = search.toLowerCase()
       return i.name?.toLowerCase().includes(s) || i.location?.toLowerCase().includes(s) || i.incident_number?.toLowerCase().includes(s)
     }
     return true
+  }), (i, key) => {
+    if (key === 'start_date') return i.start_date ?? ''
+    if (key === 'name') return i.name ?? ''
+    if (key === 'location') return i.location ?? ''
+    return ''
   })
 
   return (
@@ -124,12 +132,12 @@ function IncidentsPageInner() {
           />
         ) : (
           <div className="theme-card rounded-xl border overflow-x-auto">
-            <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header min-w-[480px]">
-              <span className="flex-1 min-w-[120px]">Incident Name</span>
-              <span className="w-24 shrink-0 hidden sm:block">Start Date</span>
-              <span className="w-40 shrink-0 hidden md:block">Location</span>
-              <span className="w-28 shrink-0 hidden md:block">Number</span>
-              <span className="w-16 shrink-0 text-center">Units</span>
+            <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b theme-card-header min-w-[480px]">
+              <SortableHeader label="Incident Name" sortKey="name" currentKey={incSortKey} currentDir={incSortDir} onToggle={incToggleSort} className="flex-1 min-w-[120px]" />
+              <SortableHeader label="Start Date" sortKey="start_date" currentKey={incSortKey} currentDir={incSortDir} onToggle={incToggleSort} className="w-24 shrink-0 hidden sm:flex" />
+              <SortableHeader label="Location" sortKey="location" currentKey={incSortKey} currentDir={incSortDir} onToggle={incToggleSort} className="w-40 shrink-0 hidden md:flex" />
+              <span className="w-28 shrink-0 hidden md:block text-gray-500">Number</span>
+              <span className="w-16 shrink-0 text-center text-gray-500">Units</span>
             </div>
             {filtered.map(incident => (
               <div

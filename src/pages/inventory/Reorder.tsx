@@ -3,7 +3,8 @@
 import { useEffect, useState, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
-import { LoadingSkeleton } from '@/components/ui'
+import { LoadingSkeleton, UnitFilterPills } from '@/components/ui'
+import { getUnitTypeName } from '@/lib/unitColors'
 import { useSearchParams } from 'react-router-dom'
 
 type ReorderItem = {
@@ -80,6 +81,7 @@ function ReorderPageInner() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const allUnits = Array.from(new Set(items.map(i => i.unit_name))).sort()
+  const unitTypeMap = Object.fromEntries(allUnits.map(u => [u, getUnitTypeName(u)]))
   const allCats = Array.from(new Set(items.map(i => i.category ?? 'Other'))).sort()
 
   const filtered = items.filter(item => {
@@ -136,16 +138,14 @@ function ReorderPageInner() {
         {/* Filters */}
         <div className="theme-card rounded-xl border p-4">
           <div className="flex flex-wrap gap-3 items-end">
-            <div className="space-y-1">
+            <div className="space-y-1 flex-1 min-w-0">
               <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Unit</label>
-              <select
-                value={unitFilter}
-                onChange={e => setUnitFilter(e.target.value)}
-                className="bg-gray-800 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-              >
-                <option value="All">All Units</option>
-                {allUnits.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
+              <UnitFilterPills
+                units={allUnits}
+                selected={unitFilter}
+                onSelect={setUnitFilter}
+                unitTypeMap={unitTypeMap}
+              />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Category</label>

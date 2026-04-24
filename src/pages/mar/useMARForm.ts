@@ -85,9 +85,9 @@ export function useMARForm() {
       assignment.employee?.name &&
       form.prescribing_provider === assignment.employee.name)
   const isSelfOrder = !!(form.dispensed_by && form.prescribing_provider && form.dispensed_by === form.prescribing_provider)
-  // Med units (Med/REMS) require provider authorization for Rx and CS meds
-  // Ambulances (Unit) allow autonomous dispensing by paramedics/EMTs
-  const isAmbulance = form.med_unit?.toLowerCase().startsWith('unit') || false
+  // Med units (MSU/REMS) require provider authorization for Rx and CS meds
+  // Ambulances (RAMBO) allow autonomous dispensing by paramedics/EMTs
+  const isAmbulance = form.med_unit?.toLowerCase().startsWith('rambo') || false
   const isMedUnit = !isAmbulance && form.med_unit?.length > 0
   const isCS = form.category === 'CS'
   const isRx = form.category === 'Rx'
@@ -96,8 +96,8 @@ export function useMARForm() {
   const hasUnitInventory = unitInventory.length > 0
 
   // Provider roles who can authorize Rx/CS on med units
-  // On ambulances (Unit), crew dispenses autonomously — no provider signature needed
-  // On med units (Med/REMS), Rx and CS require an authorized provider
+  // On ambulances (RAMBO), crew dispenses autonomously — no provider signature needed
+  // On med units (MSU/REMS), Rx and CS require an authorized provider
   const providerRoles = ['MD', 'DO', 'NP', 'PA']
   const providerEmployees = employees.filter(e => providerRoles.includes(e.role))
   const witnessOptions = unitCrew.length > 0 ? unitCrew : employees
@@ -177,7 +177,7 @@ export function useMARForm() {
       try {
         const { data } = await supabase
           .from('unit_inventory')
-          .select('id, item_name, category, quantity, unit_id, cs_lot_number, cs_expiration_date, catalog_item_id')
+          .select('id, item_name, category, quantity, unit_id, lot_number, expiration_date, catalog_item_id')
           .eq('unit_id', unitId)
           .gt('quantity', 0)
           .in('category', ['Rx', 'CS'])
@@ -201,8 +201,8 @@ export function useMARForm() {
         category: item.category,
         quantity: item.quantity,
         unit_id: item.unit_id,
-        cs_lot_number: item.cs_lot_number ?? null,
-        cs_expiration_date: item.cs_expiration_date ?? null,
+        lot_number: item.lot_number ?? null,
+        expiration_date: item.expiration_date ?? null,
       })))
     } catch (e) {
       console.error('loadUnitInventory error', e)
@@ -292,8 +292,8 @@ export function useMARForm() {
 
     if (invItem) {
       baseUpdates.category = invItem.category || ''
-      if (invItem.cs_lot_number) baseUpdates.lot_number = invItem.cs_lot_number
-      if (invItem.cs_expiration_date) baseUpdates.exp_date = invItem.cs_expiration_date
+      if (invItem.lot_number) baseUpdates.lot_number = invItem.lot_number
+      if (invItem.expiration_date) baseUpdates.exp_date = invItem.expiration_date
     } else {
       const item = formulary.find(f => f.item_name === itemName)
       baseUpdates.category = item?.category || ''

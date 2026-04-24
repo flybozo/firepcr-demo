@@ -4,7 +4,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useSearchParams } from 'react-router-dom'
 import { FieldGuard } from '@/components/FieldGuard'
-import { PageHeader, LoadingSkeleton, EmptyState } from '@/components/ui'
+import { PageHeader, LoadingSkeleton, EmptyState, SortBar } from '@/components/ui'
+import { useSortable } from '@/hooks/useSortable'
 
 type Claim = { id: string; patient_name: string | null; incident: string | null; date_of_injury: string | null; status: string | null; pdf_url: string | null; unit: string | null }
 
@@ -15,6 +16,8 @@ function CompClaimsInner() {
   const [claims, setClaims] = useState<Claim[]>([])
   const [loading, setLoading] = useState(true)
   const [dateRange, setDateRange] = useState('7d')
+  type ClaimSortKey = 'date_of_injury' | 'patient_name'
+  const { sortKey: claimSortKey, sortDir: claimSortDir, toggleSort: claimToggleSort, sortFn: claimSortFn } = useSortable<ClaimSortKey>('date_of_injury', 'desc')
 
   useEffect(() => {
     const load = async () => {
@@ -74,9 +77,21 @@ function CompClaimsInner() {
       {loading ? <LoadingSkeleton rows={4} header /> : claims.length === 0 ? (
         <EmptyState icon="🪢" message={`No comp claims${incidentId ? ' for this incident' : ''}.`} />
       ) : (
+        <>
+          <SortBar
+            options={[{ label: 'Date of Injury', key: 'date_of_injury' }, { label: 'Patient', key: 'patient_name' }]}
+            currentKey={claimSortKey}
+            currentDir={claimSortDir}
+            onToggle={claimToggleSort}
+            className="mb-3"
+          />
         <div className="theme-card rounded-xl border overflow-hidden">
           <div className="divide-y divide-gray-800">
-            {claims.map(c => (
+            {claimSortFn(claims, (c, key) => {
+              if (key === 'date_of_injury') return c.date_of_injury ?? ''
+              if (key === 'patient_name') return c.patient_name ?? ''
+              return ''
+            }).map(c => (
               <div key={c.id} className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-gray-800/50">
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-medium truncate">{c.patient_name || '—'}</p>
@@ -92,6 +107,7 @@ function CompClaimsInner() {
             ))}
           </div>
         </div>
+        </>
       )}
     </div>
   )

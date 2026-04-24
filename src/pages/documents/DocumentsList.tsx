@@ -7,7 +7,8 @@ import { Link, useNavigate, useMatch } from 'react-router-dom'
 const DocThumbnail = React.lazy(() => import('@/components/DocThumbnail'))
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { usePermission } from '@/hooks/usePermission'
-import { PageHeader, LoadingSkeleton, EmptyState, ConfirmDialog } from '@/components/ui'
+import { PageHeader, LoadingSkeleton, EmptyState, ConfirmDialog, SortBar } from '@/components/ui'
+import { useSortable } from '@/hooks/useSortable'
 
 type Doc = {
   id: string
@@ -65,12 +66,20 @@ export default function DocumentsPage() {
     load()
   }, [])
 
+  type DocSortKey = 'title' | 'category' | 'uploaded_at'
+  const { sortKey: docSortKey, sortDir: docSortDir, toggleSort: docToggleSort, sortFn: docSortFn } = useSortable<DocSortKey>('title', 'asc')
+
   const categories = ['All', ...Array.from(new Set(docs.map(d => d.category))).sort()]
-  const filtered = docs.filter(d => {
+  const filtered = docSortFn(docs.filter(d => {
     if (catFilter !== 'All' && d.category !== catFilter) return false
     if (search && !d.title.toLowerCase().includes(search.toLowerCase()) &&
         !d.description?.toLowerCase().includes(search.toLowerCase())) return false
     return true
+  }), (d, key) => {
+    if (key === 'title') return d.title
+    if (key === 'category') return d.category
+    if (key === 'uploaded_at') return d.uploaded_at
+    return ''
   })
 
   const handleDelete = (doc: Doc) => {
@@ -120,6 +129,12 @@ export default function DocumentsPage() {
             </button>
           ))}
         </div>
+        <SortBar
+          options={[{ label: 'Name', key: 'title' }, { label: 'Category', key: 'category' }, { label: 'Date', key: 'uploaded_at' }]}
+          currentKey={docSortKey}
+          currentDir={docSortDir}
+          onToggle={docToggleSort}
+        />
       </div>
 
       {loading ? (
@@ -161,7 +176,7 @@ export default function DocumentsPage() {
                 {!doc.file_url && (
                   <span className="px-3 py-1.5 bg-gray-800 rounded-lg text-xs text-gray-500">No file</span>
                 )}
-                {doc.file_name === 'Employee-Handbook-2026.pdf' && (
+                {doc.file_name === 'RAM-Employee-Handbook-2026-CA.pdf' && (
                   <Link to="/documents/handbook"
                     className="px-3 py-1.5 bg-red-700 hover:bg-red-600 text-white rounded-lg text-xs font-semibold transition-colors whitespace-nowrap">
                     ✍️ Sign

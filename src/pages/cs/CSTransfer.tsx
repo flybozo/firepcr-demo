@@ -127,15 +127,15 @@ export default function CSTransferPage() {
 
         const { data } = await supabase
           .from('unit_inventory')
-          .select('id, cs_lot_number, cs_expiration_date, quantity')
+          .select('id, lot_number, expiration_date, quantity')
           .eq('incident_unit_id', iuData.id)
           .eq('item_name', form.drug_name)
           .eq('category', 'CS')
           .gt('quantity', 0)
-          .order('cs_expiration_date')
+          .order('expiration_date')
         const lotOpts: LotOption[] = (data || []).map((r: any) => ({
-          lot_number: r.cs_lot_number,
-          expiration_date: r.cs_expiration_date,
+          lot_number: r.lot_number,
+          expiration_date: r.expiration_date,
           quantity: r.quantity,
           inventory_id: r.id,
           from_warehouse: false,
@@ -223,14 +223,14 @@ export default function CSTransferPage() {
         if (existing) {
           await supabase.from('unit_inventory').update({
             quantity: existing.quantity + qty,
-            cs_lot_number: form.lot_number,
-            cs_expiration_date: selectedLot.expiration_date,
+            lot_number: form.lot_number,
+            expiration_date: selectedLot.expiration_date,
           }).eq('id', existing.id)
         } else {
           await supabase.from('unit_inventory').insert({
             incident_unit_id: destIU.id, item_name: form.drug_name, category: 'CS',
-            quantity: qty, par_qty: 0, cs_lot_number: form.lot_number,
-            cs_expiration_date: selectedLot.expiration_date,
+            quantity: qty, par_qty: 0, lot_number: form.lot_number,
+            expiration_date: selectedLot.expiration_date,
           })
         }
       }

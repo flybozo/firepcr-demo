@@ -6,7 +6,8 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { useNavigate, useMatch, Link } from 'react-router-dom'
-import { PageHeader, EmptyState, LoadingSkeleton } from '@/components/ui'
+import { PageHeader, EmptyState, LoadingSkeleton, SortableHeader, SortBar } from '@/components/ui'
+import { useSortable } from '@/hooks/useSortable'
 import { ContactIcons } from '@/components/ContactCards'
 
 type Employee = {
@@ -70,6 +71,8 @@ export default function RosterPage() {
   const [isOfflineData, setIsOfflineData] = useState(false)
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('All')
+  type RosterSortKey = 'name' | 'role'
+  const { sortKey: rosterSortKey, sortDir: rosterSortDir, toggleSort: rosterToggleSort, sortFn: rosterSortFn } = useSortable<RosterSortKey>('name', 'asc')
 
   useEffect(() => {
     const load = async () => {
@@ -113,8 +116,13 @@ export default function RosterPage() {
     if (search && !e.name.toLowerCase().includes(search.toLowerCase())) return false
     return true
   }
-  const activeEmployees = employees.filter(e => e.status === 'Active' && applyFilters(e))
-  const inactiveEmployees = employees.filter(e => e.status !== 'Active' && applyFilters(e))
+  const rosterSortAccessor = (e: Employee, key: RosterSortKey) => {
+    if (key === 'name') return e.name
+    if (key === 'role') return e.role
+    return ''
+  }
+  const activeEmployees = rosterSortFn(employees.filter(e => e.status === 'Active' && applyFilters(e)), rosterSortAccessor)
+  const inactiveEmployees = rosterSortFn(employees.filter(e => e.status !== 'Active' && applyFilters(e)), rosterSortAccessor)
   const filtered = [...activeEmployees, ...inactiveEmployees]
 
   return (
@@ -150,6 +158,12 @@ export default function RosterPage() {
               </button>
             ))}
           </div>
+          <SortBar
+            options={[{ label: 'Name', key: 'name' }, { label: 'Role', key: 'role' }]}
+            currentKey={rosterSortKey}
+            currentDir={rosterSortDir}
+            onToggle={rosterToggleSort}
+          />
         </div>
 
         {loading ? (
@@ -162,10 +176,10 @@ export default function RosterPage() {
           ) : (
           <div className="theme-card rounded-xl border overflow-x-auto">
             {/* Header row — use CSS grid matching the data rows */}
-            <div className="hidden md:grid grid-cols-[2.5rem_1fr_7rem] items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700 gap-x-4 min-w-[400px]">
+            <div className="hidden md:grid grid-cols-[2.5rem_1fr_7rem] items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b border-gray-700 gap-x-4 min-w-[400px]">
               <span />{/* avatar */}
-              <span>Name</span>
-              <span className="text-right">Contact</span>
+              <SortableHeader label="Name" sortKey="name" currentKey={rosterSortKey} currentDir={rosterSortDir} onToggle={rosterToggleSort} />
+              <span className="text-right text-gray-500">Contact</span>
             </div>
             {activeEmployees.map(emp => {
               return (

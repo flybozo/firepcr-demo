@@ -3,6 +3,12 @@ import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { usePermission } from '@/hooks/usePermission'
+import { UnitFilterPills, SortableHeader } from '@/components/ui'
+import { useSortable } from '@/hooks/useSortable'
+import { getUnitTypeName } from '@/lib/unitColors'
+
+const ALL_UNIT_NAMES = ['RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
+const UNIT_TYPE_MAP = Object.fromEntries(ALL_UNIT_NAMES.map(u => [u, getUnitTypeName(u)]))
 
 type SearchResult = {
   id: string
@@ -32,11 +38,13 @@ export default function PatientSearchPage() {
   const assignment = useUserAssignment()
 
   const [query, setQuery] = useState('')
-  const [unitFilter, setUnitFilter] = useState('')
+  const [unitFilter, setUnitFilter] = useState('All')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [results, setResults] = useState<SearchResult[]>([])
   const [loading, setLoading] = useState(false)
+  type PSSortKey = 'date' | 'patient' | 'unit'
+  const { sortKey: psSortKey, sortDir: psSortDir, toggleSort: psToggleSort, sortFn: psSortFn } = useSortable<PSSortKey>('date', 'desc')
   const [searched, setSearched] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -45,7 +53,7 @@ export default function PatientSearchPage() {
 
   const runSearch = async () => {
     const q = query.trim()
-    if (!q && !unitFilter && !dateFrom && !dateTo) return
+    if (!q && unitFilter === 'All' && !dateFrom && !dateTo) return
     setLoading(true)
     setSearched(true)
     try {
@@ -69,7 +77,7 @@ export default function PatientSearchPage() {
       }
 
       // Optional filters
-      if (unitFilter) dbQuery = (dbQuery as any).eq('unit', unitFilter)
+      if (unitFilter !== 'All') dbQuery = (dbQuery as any).eq('unit', unitFilter)
       if (dateFrom) dbQuery = dbQuery.gte('date', dateFrom)
       if (dateTo) dbQuery = dbQuery.lte('date', dateTo)
 
@@ -91,7 +99,7 @@ export default function PatientSearchPage() {
 
   const clear = () => {
     setQuery('')
-    setUnitFilter('')
+    setUnitFilter('All')
     setDateFrom('')
     setDateTo('')
     setResults([])
@@ -122,16 +130,15 @@ export default function PatientSearchPage() {
           />
 
           {/* Optional filters */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {!isField && (
-              <input
-                type="text"
-                value={unitFilter}
-                onChange={e => setUnitFilter(e.target.value)}
-                placeholder="Unit (e.g. Medic 1)"
-                className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-xs focus:outline-none focus:ring-1 focus:ring-red-500 placeholder-gray-600"
-              />
-            )}
+          {!isField && (
+            <UnitFilterPills
+              units={ALL_UNIT_NAMES}
+              selected={unitFilter}
+              onSelect={setUnitFilter}
+              unitTypeMap={UNIT_TYPE_MAP}
+            />
+          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <input
               type="date"
               value={dateFrom}
@@ -149,7 +156,7 @@ export default function PatientSearchPage() {
           <div className="flex gap-2">
             <button
               onClick={runSearch}
-              disabled={loading || (!query.trim() && !unitFilter && !dateFrom && !dateTo)}
+              disabled={loading || (!query.trim() && unitFilter === 'All' && !dateFrom && !dateTo)}
               className="flex-1 py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 disabled:text-gray-500 text-white text-sm font-bold rounded-xl transition-colors"
             >
               {loading ? 'Searching…' : 'Search All Records'}
@@ -181,15 +188,20 @@ export default function PatientSearchPage() {
             <p className="text-xs text-gray-500 px-1">{results.length} record{results.length !== 1 ? 's' : ''} found</p>
             <div className="theme-card rounded-xl border overflow-hidden">
               {/* Header */}
-              <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 theme-card-header border-b">
-                <span className="w-24 shrink-0">Date</span>
-                <span className="flex-1 min-w-0">Patient</span>
-                <span className="w-24 shrink-0 hidden sm:block">Unit</span>
-                <span className="w-24 shrink-0 hidden sm:block">Acuity</span>
-                <span className="w-20 shrink-0 text-right">Status</span>
+              <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide theme-card-header border-b">
+                <SortableHeader label="Date" sortKey="date" currentKey={psSortKey} currentDir={psSortDir} onToggle={psToggleSort} className="w-24 shrink-0" />
+                <SortableHeader label="Patient" sortKey="patient" currentKey={psSortKey} currentDir={psSortDir} onToggle={psToggleSort} className="flex-1 min-w-0" />
+                <SortableHeader label="Unit" sortKey="unit" currentKey={psSortKey} currentDir={psSortDir} onToggle={psToggleSort} className="w-24 shrink-0 hidden sm:flex" />
+                <span className="w-24 shrink-0 hidden sm:block text-gray-500">Acuity</span>
+                <span className="w-20 shrink-0 text-right text-gray-500">Status</span>
               </div>
               <div className="divide-y divide-gray-800/50">
-                {results.map(r => (
+                {psSortFn(results, (r, key) => {
+                  if (key === 'date') return r.date ?? ''
+                  if (key === 'patient') return `${r.patient_last_name ?? ''}${r.patient_first_name ?? ''}`
+                  if (key === 'unit') return r.unit ?? ''
+                  return ''
+                }).map(r => (
                   <Link
                     key={r.id}
                     to={`/encounters/${r.id}`}

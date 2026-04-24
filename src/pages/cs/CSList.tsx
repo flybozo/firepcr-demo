@@ -8,8 +8,9 @@ import { useNavigate, useMatch, Link } from 'react-router-dom'
 import { createClient } from '@/lib/supabase/client'
 import { usePermission } from '@/hooks/usePermission'
 import { useUserAssignment } from '@/lib/useUserAssignment'
-import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
-import { PageHeader, LoadingSkeleton, EmptyState } from '@/components/ui'
+import { UNIT_TYPE_ORDER } from '@/lib/unitColors'
+import { PageHeader, LoadingSkeleton, EmptyState, UnitFilterPills, SortableHeader } from '@/components/ui'
+import { useSortable } from '@/hooks/useSortable'
 import { getCachedData } from '@/lib/offlineStore'
 import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
 
@@ -18,17 +19,17 @@ type CSItem = {
   item_name: string
   quantity: number
   par_qty: number
-  cs_lot_number: string | null
-  cs_expiration_date: string | null
+  lot_number: string | null
+  expiration_date: string | null
   unit_id: string | null
   unitName: string
 }
 
-const ALL_UNITS = ['Unit 1', 'Unit 2', 'Unit 3', 'Unit 4', 'Med 1', 'Med 2', 'REMS 1', 'REMS 2', 'Cache', 'Warehouse']
+const ALL_UNITS = ['RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2', 'Warehouse']
 
 function unitType(name: string) {
-  if (name.startsWith('Unit')) return 'Ambulance'
-  if (name.startsWith('Med') || name === 'Cache') return 'Med Unit'
+  if (name.startsWith('RAMBO')) return 'Ambulance'
+  if (name.startsWith('MSU') || name === 'The Beast') return 'Med Unit'
   if (name.startsWith('REMS')) return 'REMS'
   if (name === 'Warehouse') return 'Warehouse'
   return ''
@@ -58,6 +59,8 @@ export default function CSList() {
   const [unitFilter, setUnitFilter] = useState('All')
   const [search, setSearch] = useState('')
   const [isOfflineData, setIsOfflineData] = useState(false)
+  type CSSortKey = 'item_name' | 'quantity' | 'expiration_date' | 'unit'
+  const { sortKey: csSortKey, sortDir: csSortDir, toggleSort: csToggleSort, sortFn: csSortFn } = useSortable<CSSortKey>('item_name', 'asc')
 
   // Field users locked to their unit
   useEffect(() => {
@@ -90,7 +93,7 @@ export default function CSList() {
       try {
         const { data } = await supabase
           .from('unit_inventory')
-          .select('id, item_name, quantity, par_qty, cs_lot_number, cs_expiration_date, unit_id, catalog_item_id, unit:units(name)')
+          .select('id, item_name, quantity, par_qty, lot_number, expiration_date, unit_id, catalog_item_id, unit:units(name)')
           .eq('category', 'CS')
           .order('item_name')
         const mapped: CSItem[] = (data || []).map((r: any) => ({
@@ -118,10 +121,16 @@ export default function CSList() {
       return aO !== bO ? aO - bO : a.localeCompare(b)
     })
 
-  const filtered = items.filter(i => {
+  const filtered = csSortFn(items.filter(i => {
     if (unitFilter !== 'All' && i.unitName !== unitFilter) return false
     if (search && !i.item_name.toLowerCase().includes(search.toLowerCase())) return false
     return true
+  }), (i, key) => {
+    if (key === 'item_name') return i.item_name
+    if (key === 'quantity') return i.quantity
+    if (key === 'expiration_date') return i.expiration_date ?? ''
+    if (key === 'unit') return i.unitName ?? ''
+    return ''
   })
 
   return (
@@ -162,18 +171,12 @@ export default function CSList() {
             </div>
           )
         ) : (
-          <div className="flex flex-wrap gap-1.5">
-            <button onClick={() => setUnitFilter('All')}
-              className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${unitFilterButtonClass('', unitFilter === 'All')}`}>
-              All
-            </button>
-            {availableUnits.map(u => (
-              <button key={u} onClick={() => setUnitFilter(u)}
-                className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${unitFilterButtonClass(unitType(u), unitFilter === u)}`}>
-                {u}
-              </button>
-            ))}
-          </div>
+          <UnitFilterPills
+            units={['All', ...availableUnits]}
+            selected={unitFilter}
+            onSelect={setUnitFilter}
+            unitTypeMap={Object.fromEntries(availableUnits.map(u => [u, unitType(u)]))}
+          />
         )}
       </div>
 
@@ -185,15 +188,15 @@ export default function CSList() {
       ) : (
         <div className="flex-1">
           {/* Column header */}
-          <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600 border-b border-gray-800 bg-gray-900/40">
-            <span className="flex-1 min-w-0">Medication</span>
-            <span className="w-16 text-center shrink-0">Qty</span>
-            <span className="w-20 shrink-0 hidden sm:block">Expiry</span>
-            {unitFilter === 'All' && <span className="w-20 shrink-0 text-right hidden md:block">Unit</span>}
+          <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b border-gray-800 bg-gray-900/40">
+            <SortableHeader label="Medication" sortKey="item_name" currentKey={csSortKey} currentDir={csSortDir} onToggle={csToggleSort} className="flex-1 min-w-0" />
+            <SortableHeader label="Qty" sortKey="quantity" currentKey={csSortKey} currentDir={csSortDir} onToggle={csToggleSort} className="w-16 justify-center shrink-0" />
+            <SortableHeader label="Expiry" sortKey="expiration_date" currentKey={csSortKey} currentDir={csSortDir} onToggle={csToggleSort} className="w-20 shrink-0 hidden sm:flex" />
+            {unitFilter === 'All' && <SortableHeader label="Unit" sortKey="unit" currentKey={csSortKey} currentDir={csSortDir} onToggle={csToggleSort} className="w-20 shrink-0 justify-end hidden md:flex" />}
           </div>
           {filtered.map(item => {
-            const expired = isExpired(item.cs_expiration_date)
-            const expiring = isExpiringSoon(item.cs_expiration_date)
+            const expired = isExpired(item.expiration_date)
+            const expiring = isExpiringSoon(item.expiration_date)
             const low = item.quantity <= item.par_qty
             const selected = detailMatch?.params?.id === item.id
             return (
@@ -208,8 +211,8 @@ export default function CSList() {
                   <span className={`text-sm ${expired ? 'text-red-300' : expiring ? 'text-yellow-300' : 'text-white'}`}>
                     {item.item_name}
                   </span>
-                  {item.cs_lot_number && (
-                    <span className="ml-2 text-xs text-gray-600 font-mono">{item.cs_lot_number}</span>
+                  {item.lot_number && (
+                    <span className="ml-2 text-xs text-gray-600 font-mono">{item.lot_number}</span>
                   )}
                   {expired && <span className="ml-2 text-xs bg-red-900 text-red-300 px-1 rounded">EXPIRED</span>}
                   {expiring && !expired && <span className="ml-2 text-xs bg-yellow-900 text-yellow-300 px-1 rounded">⚠</span>}
@@ -219,7 +222,7 @@ export default function CSList() {
                   {low && <span className="text-xs text-red-600 ml-0.5">↓</span>}
                 </span>
                 <span className={`w-20 text-xs shrink-0 hidden sm:block font-mono ${expired ? 'text-red-400' : expiring ? 'text-yellow-400' : 'text-gray-500'}`}>
-                  {item.cs_expiration_date || '—'}
+                  {item.expiration_date || '—'}
                 </span>
                 {unitFilter === 'All' && (
                   <span className="w-20 text-xs text-gray-500 text-right shrink-0 hidden md:block truncate">{item.unitName}</span>

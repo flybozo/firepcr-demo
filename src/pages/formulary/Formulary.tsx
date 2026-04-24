@@ -7,9 +7,8 @@ import { createClient } from '@/lib/supabase/client'
 import { LoadingSkeleton, ConfirmDialog } from '@/components/ui'
 import { loadList } from '@/lib/offlineFirst'
 
-type FormulaItem = {
-  id: string
-  item_name: string
+type CatalogSnap = {
+  sku: string | null
   category: string
   unit_of_measure: string | null
   supplier: string | null
@@ -21,16 +20,27 @@ type FormulaItem = {
   ndc: string | null
   concentration: string | null
   route: string | null
-  catalog_item_id: string | null
-  catalog_item: { sku: string }[] | { sku: string } | null
+  is_als: boolean | null
 }
 
-// PostgREST may return FK joins as array or object depending on cardinality detection
-function skuOf(item: FormulaItem): string | null {
+type FormulaItem = {
+  id: string
+  item_name: string
+  default_par_qty: number | null
+  notes: string | null
+  catalog_item_id: string | null
+  catalog_item: CatalogSnap | CatalogSnap[] | null
+}
+
+function catalogOf(item: FormulaItem): CatalogSnap | null {
   const ci = item.catalog_item
   if (!ci) return null
-  if (Array.isArray(ci)) return ci[0]?.sku || null
-  return ci.sku || null
+  if (Array.isArray(ci)) return ci[0] || null
+  return ci
+}
+
+function skuOf(item: FormulaItem): string | null {
+  return catalogOf(item)?.sku || null
 }
 
 const CAT_COLORS: Record<string, string> = {
@@ -43,7 +53,7 @@ const CAT_COLORS: Record<string, string> = {
 
 const TABS = ['Ambulance', 'Med Unit', 'REMS', 'Truck', 'Warehouse']
 
-const SELECT_FIELDS = 'id, item_name, category, unit_of_measure, supplier, units_per_case, case_cost, unit_cost, image_url, barcode, ndc, concentration, route, catalog_item_id, catalog_item:item_catalog(sku)'
+const SELECT_FIELDS = 'id, item_name, default_par_qty, notes, catalog_item_id, catalog_item:item_catalog(sku, category, unit_of_measure, supplier, units_per_case, case_cost, unit_cost, image_url, barcode, ndc, concentration, route, is_als)'
 
 function FormularyPageInner() {
   const supabase = createClient()
@@ -60,8 +70,8 @@ function FormularyPageInner() {
   const [search, setSearch] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
-  const [newItem, setNewItem] = useState({ item_name: '', category: 'OTC', unit_of_measure: '', supplier: '', units_per_case: '', case_cost: '' })
-  const [editItem, setEditItem] = useState<Partial<FormulaItem>>({})
+  const [newItem, setNewItem] = useState({ item_name: '', default_par_qty: '' })
+  const [editItem, setEditItem] = useState<Partial<Record<string, any>>>({})
 
   // Inline unit_cost editing state
   const [editingUnitCostId, setEditingUnitCostId] = useState<string | null>(null)
@@ -105,7 +115,6 @@ function FormularyPageInner() {
           .from('formulary_templates')
           .select(SELECT_FIELDS)
           .eq('unit_type_id', unitTypes[activeTab])
-          .order('category')
           .order('item_name'),
         'formulary'
       )
@@ -117,23 +126,27 @@ function FormularyPageInner() {
   }, [activeTab, unitTypes])
 
   const filtered = items.filter(i => {
-    if (catFilter !== 'All' && i.category !== catFilter) return false
-    if (alsFilter && !(i as any).is_als) return false
+    const ci = catalogOf(i)
+    if (catFilter !== 'All' && ci?.category !== catFilter) return false
+    if (alsFilter && !ci?.is_als) return false
     if (search && !i.item_name.toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
 
   const handleExportCSV = () => {
     const header = 'item_name,category,unit_of_measure,supplier,units_per_case,case_cost,unit_cost'
-    const rows = items.map(i => [
-      `"${i.item_name}"`,
-      i.category,
-      i.unit_of_measure || '',
-      `"${i.supplier || ''}"`,
-      i.units_per_case ?? '',
-      i.case_cost ?? '',
-      getUnitCost(i) ?? '',
-    ].join(','))
+    const rows = items.map(i => {
+      const ci = catalogOf(i)
+      return [
+        `"${i.item_name}"`,
+        ci?.category || '',
+        ci?.unit_of_measure || '',
+        `"${ci?.supplier || ''}"`,
+        ci?.units_per_case ?? '',
+        ci?.case_cost ?? '',
+        getUnitCost(i) ?? '',
+      ].join(',')
+    })
     const csv = [header, ...rows].join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
@@ -149,21 +162,14 @@ function FormularyPageInner() {
     const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, '').toLowerCase())
     const nameIdx = headers.indexOf('item_name')
     const catIdx = headers.indexOf('category')
-    const uomIdx = headers.indexOf('unit_of_measure')
-    const supIdx = headers.indexOf('supplier')
-    const upcIdx = headers.indexOf('units_per_case')
-    const ccIdx = headers.indexOf('case_cost')
-    if (nameIdx === -1 || catIdx === -1) { toast.warning('CSV must have item_name and category columns'); return }
+    if (nameIdx === -1) { toast.warning('CSV must have an item_name column'); return }
     const rows = lines.slice(1).map(line => {
       const cols = line.split(',').map(c => c.trim().replace(/^"|"$/g, ''))
       return {
         unit_type_id: unitTypes[activeTab],
         item_name: cols[nameIdx],
-        category: cols[catIdx] || 'OTC',
-        unit_of_measure: uomIdx >= 0 ? cols[uomIdx] || null : null,
-        supplier: supIdx >= 0 ? cols[supIdx] || null : null,
-        units_per_case: upcIdx >= 0 && cols[upcIdx] ? parseFloat(cols[upcIdx]) : null,
-        case_cost: ccIdx >= 0 && cols[ccIdx] ? parseFloat(cols[ccIdx]) : null,
+        // category is not on formulary_templates; set via item_catalog
+        ...(catIdx >= 0 && cols[catIdx] ? {} : {}),
       }
     }).filter(r => r.item_name)
     setConfirmAction({
@@ -174,7 +180,7 @@ function FormularyPageInner() {
         setLoading(true)
         const { data } = await supabase.from('formulary_templates')
           .select(SELECT_FIELDS)
-          .eq('unit_type_id', unitTypes[activeTab]).order('category').order('item_name')
+          .eq('unit_type_id', unitTypes[activeTab]).order('item_name')
         setItems(data || []); setLoading(false)
         e.target.value = ''
       },
@@ -184,11 +190,12 @@ function FormularyPageInner() {
     })
   }
 
-  /** Returns the effective unit cost: explicit unit_cost if set, otherwise calculated */
   const getUnitCost = (item: FormulaItem): string | null => {
-    if (item.unit_cost != null) return Number(item.unit_cost).toFixed(4)
-    if (item.case_cost && item.units_per_case && item.units_per_case > 0)
-      return (item.case_cost / item.units_per_case).toFixed(4)
+    const ci = catalogOf(item)
+    if (!ci) return null
+    if (ci.unit_cost != null) return Number(ci.unit_cost).toFixed(4)
+    if (ci.case_cost && ci.units_per_case && ci.units_per_case > 0)
+      return (ci.case_cost / ci.units_per_case).toFixed(4)
     return null
   }
 
@@ -197,18 +204,14 @@ function FormularyPageInner() {
     await supabase.from('formulary_templates').insert({
       unit_type_id: unitTypes[activeTab],
       item_name: newItem.item_name,
-      category: newItem.category,
-      unit_of_measure: newItem.unit_of_measure || null,
-      supplier: newItem.supplier || null,
-      units_per_case: newItem.units_per_case ? parseFloat(newItem.units_per_case) : null,
-      case_cost: newItem.case_cost ? parseFloat(newItem.case_cost) : null,
+      default_par_qty: newItem.default_par_qty ? parseFloat(newItem.default_par_qty) : null,
     })
-    setNewItem({ item_name: '', category: 'OTC', unit_of_measure: '', supplier: '', units_per_case: '', case_cost: '' })
+    setNewItem({ item_name: '', default_par_qty: '' })
     setShowAdd(false)
     setLoading(true)
     const { data } = await supabase.from('formulary_templates')
       .select(SELECT_FIELDS)
-      .eq('unit_type_id', unitTypes[activeTab]).order('category').order('item_name')
+      .eq('unit_type_id', unitTypes[activeTab]).order('item_name')
     setItems(data || [])
     setLoading(false)
   }
@@ -227,8 +230,29 @@ function FormularyPageInner() {
   }
 
   const handleEditSave = async (id: string) => {
-    await supabase.from('formulary_templates').update(editItem).eq('id', id)
-    setItems(prev => prev.map(i => i.id === id ? { ...i, ...editItem } : i))
+    const item = items.find(i => i.id === id)
+    const { item_name, ...catalogFields } = editItem as any
+    const catalogUpdates = Object.fromEntries(
+      Object.entries(catalogFields).filter(([, v]) => v !== undefined)
+    )
+
+    if (item_name !== undefined) {
+      await supabase.from('formulary_templates').update({ item_name }).eq('id', id)
+    }
+    if (Object.keys(catalogUpdates).length > 0 && item?.catalog_item_id) {
+      await supabase.from('item_catalog').update(catalogUpdates).eq('id', item.catalog_item_id)
+    }
+
+    setItems(prev => prev.map(i => {
+      if (i.id !== id) return i
+      const ci = catalogOf(i)
+      const updatedCi = ci ? { ...ci, ...catalogUpdates } : null
+      return {
+        ...i,
+        item_name: item_name !== undefined ? item_name : i.item_name,
+        catalog_item: updatedCi,
+      }
+    }))
     setEditingId(null)
     setEditItem({})
   }
@@ -236,8 +260,14 @@ function FormularyPageInner() {
   const handleUnitCostSave = async (item: FormulaItem) => {
     const value = unitCostInput.trim() === '' ? null : parseFloat(unitCostInput)
     if (value !== null && isNaN(value)) { setEditingUnitCostId(null); return }
-    await supabase.from('formulary_templates').update({ unit_cost: value }).eq('id', item.id)
-    setItems(prev => prev.map(i => i.id === item.id ? { ...i, unit_cost: value } : i))
+    if (item.catalog_item_id) {
+      await supabase.from('item_catalog').update({ unit_cost: value }).eq('id', item.catalog_item_id)
+    }
+    setItems(prev => prev.map(i => {
+      if (i.id !== item.id) return i
+      const ci = catalogOf(i)
+      return { ...i, catalog_item: ci ? { ...ci, unit_cost: value } : i.catalog_item }
+    }))
     setEditingUnitCostId(null)
   }
 
@@ -274,7 +304,7 @@ function FormularyPageInner() {
         {['All', 'CS', 'Rx', 'OTC', 'DE', 'RE'].map(c => (
           <button key={c} onClick={() => setCatFilter(c)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${catFilter === c ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'}`}>
-            {c} {c !== 'All' && !loading ? `(${items.filter(i => i.category === c).length})` : ''}
+            {c} {c !== 'All' && !loading ? `(${items.filter(i => catalogOf(i)?.category === c).length})` : ''}
           </button>
         ))}
         <button onClick={() => setAlsFilter(v => !v)}
@@ -304,32 +334,14 @@ function FormularyPageInner() {
 
       {/* Add Item Form */}
       {showAdd && (
-        <div className="bg-gray-900 rounded-xl p-4 border border-gray-700 mb-4 grid grid-cols-2 md:grid-cols-3 gap-3">
-          <div className="col-span-2 md:col-span-3">
+        <div className="bg-gray-900 rounded-xl p-4 border border-gray-700 mb-4 grid grid-cols-2 gap-3">
+          <div className="col-span-2">
             <label className="text-xs text-gray-400">Item Name *</label>
             <input value={newItem.item_name} onChange={e => setNewItem(p => ({ ...p, item_name: e.target.value }))} className={inputCls + ' text-sm mt-1'} />
           </div>
           <div>
-            <label className="text-xs text-gray-400">Category</label>
-            <select value={newItem.category} onChange={e => setNewItem(p => ({ ...p, category: e.target.value }))} className={inputCls + ' mt-1'}>
-              <option>OTC</option><option>Rx</option><option>CS</option><option>DE</option><option>RE</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-gray-400">Unit of Measure</label>
-            <input value={newItem.unit_of_measure} onChange={e => setNewItem(p => ({ ...p, unit_of_measure: e.target.value }))} placeholder="e.g. mg, mL, each" className={inputCls + ' mt-1'} />
-          </div>
-          <div>
-            <label className="text-xs text-gray-400">Supplier</label>
-            <input value={newItem.supplier} onChange={e => setNewItem(p => ({ ...p, supplier: e.target.value }))} className={inputCls + ' mt-1'} />
-          </div>
-          <div>
-            <label className="text-xs text-gray-400">Units/Case</label>
-            <input type="number" value={newItem.units_per_case} onChange={e => setNewItem(p => ({ ...p, units_per_case: e.target.value }))} className={inputCls + ' mt-1'} />
-          </div>
-          <div>
-            <label className="text-xs text-gray-400">Cost/Case ($)</label>
-            <input type="number" step="0.01" value={newItem.case_cost} onChange={e => setNewItem(p => ({ ...p, case_cost: e.target.value }))} className={inputCls + ' mt-1'} />
+            <label className="text-xs text-gray-400">Default Par Qty</label>
+            <input type="number" value={newItem.default_par_qty} onChange={e => setNewItem(p => ({ ...p, default_par_qty: e.target.value }))} className={inputCls + ' mt-1'} />
           </div>
           <div className="flex items-end">
             <button onClick={handleAdd} className="w-full py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold text-white transition-colors">Add</button>
@@ -356,138 +368,149 @@ function FormularyPageInner() {
 
           {/* Rows */}
           <div className="divide-y divide-gray-800">
-            {filtered.map(item => (
-              <div key={item.id}>
-                {editingId === item.id ? (
-                  <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-gray-800 items-center">
-                    <div className="col-span-4">
-                      <input defaultValue={item.item_name}
-                        onChange={e => setEditItem(p => ({ ...p, item_name: e.target.value }))}
-                        className={inputCls} />
-                    </div>
-                    <div className="col-span-1">
-                      <select defaultValue={item.category}
-                        onChange={e => setEditItem(p => ({ ...p, category: e.target.value }))}
-                        className={inputCls}>
-                        <option>OTC</option><option>Rx</option><option>CS</option><option>DE</option><option>RE</option>
-                      </select>
-                    </div>
-                    <div className="col-span-2 hidden md:block">
-                      <input defaultValue={item.supplier || ''}
-                        onChange={e => setEditItem(p => ({ ...p, supplier: e.target.value }))}
-                        className={inputCls} placeholder="Supplier" />
-                    </div>
-                    <div className="col-span-1 hidden md:block">
-                      <input type="number" defaultValue={item.units_per_case || ''}
-                        onChange={e => setEditItem(p => ({ ...p, units_per_case: e.target.value ? parseFloat(e.target.value) : null }))}
-                        className={inputCls} />
-                    </div>
-                    <div className="col-span-1 hidden md:block">
-                      <input type="number" step="0.01" defaultValue={item.case_cost || ''}
-                        onChange={e => setEditItem(p => ({ ...p, case_cost: e.target.value ? parseFloat(e.target.value) : null }))}
-                        className={inputCls} />
-                    </div>
-                    <div className="col-span-1 hidden md:block">
-                      <input type="number" step="0.0001" defaultValue={item.unit_cost ?? ''}
-                        placeholder="auto"
-                        onChange={e => setEditItem(p => ({ ...p, unit_cost: e.target.value ? parseFloat(e.target.value) : null }))}
-                        className={inputCls} title="Unit Cost (leave blank to auto-calculate)" />
-                    </div>
-                    {/* Barcode field — shown as extra row below main grid in edit mode */}
-                    <div className="col-span-12 hidden md:grid grid-cols-2 gap-2 mt-1">
-                      <div>
-                        <label className="text-xs text-gray-500">Barcode</label>
-                        <input defaultValue={item.barcode || ''}
-                          onChange={e => setEditItem(p => ({ ...p, barcode: e.target.value || null }))}
-                          className={inputCls + ' mt-0.5'} placeholder="Barcode" />
+            {filtered.map(item => {
+              const ci = catalogOf(item)
+              return (
+                <div key={item.id}>
+                  {editingId === item.id ? (
+                    <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-gray-800 items-center">
+                      <div className="col-span-4">
+                        <input defaultValue={item.item_name}
+                          onChange={e => setEditItem(p => ({ ...p, item_name: e.target.value }))}
+                          className={inputCls} />
+                      </div>
+                      <div className="col-span-1">
+                        <select defaultValue={ci?.category || 'OTC'}
+                          onChange={e => setEditItem(p => ({ ...p, category: e.target.value }))}
+                          className={inputCls}>
+                          <option>OTC</option><option>Rx</option><option>CS</option><option>DE</option><option>RE</option>
+                        </select>
+                      </div>
+                      <div className="col-span-2 hidden md:block">
+                        <input defaultValue={ci?.supplier || ''}
+                          onChange={e => setEditItem(p => ({ ...p, supplier: e.target.value }))}
+                          className={inputCls} placeholder="Supplier" />
+                      </div>
+                      <div className="col-span-1 hidden md:block">
+                        <input type="number" defaultValue={ci?.units_per_case || ''}
+                          onChange={e => setEditItem(p => ({ ...p, units_per_case: e.target.value ? parseFloat(e.target.value) : null }))}
+                          className={inputCls} />
+                      </div>
+                      <div className="col-span-1 hidden md:block">
+                        <input type="number" step="0.01" defaultValue={ci?.case_cost || ''}
+                          onChange={e => setEditItem(p => ({ ...p, case_cost: e.target.value ? parseFloat(e.target.value) : null }))}
+                          className={inputCls} />
+                      </div>
+                      <div className="col-span-1 hidden md:block">
+                        <input type="number" step="0.0001" defaultValue={ci?.unit_cost ?? ''}
+                          placeholder="auto"
+                          onChange={e => setEditItem(p => ({ ...p, unit_cost: e.target.value ? parseFloat(e.target.value) : null }))}
+                          className={inputCls} title="Unit Cost (leave blank to auto-calculate)" />
+                      </div>
+                      {/* Barcode field — shown as extra row below main grid in edit mode */}
+                      <div className="col-span-12 hidden md:grid grid-cols-2 gap-2 mt-1">
+                        <div>
+                          <label className="text-xs text-gray-500">Barcode</label>
+                          <input defaultValue={ci?.barcode || ''}
+                            onChange={e => setEditItem(p => ({ ...p, barcode: e.target.value || null }))}
+                            className={inputCls + ' mt-0.5'} placeholder="Barcode" />
+                        </div>
+                      </div>
+                      <div className="col-span-12 flex gap-1 justify-end mt-1">
+                        <button onClick={() => handleEditSave(item.id)} className="px-2 py-1 bg-green-700 hover:bg-green-600 rounded text-xs text-white">Save</button>
+                        <button onClick={() => { setEditingId(null); setEditItem({}) }} className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-gray-300">Cancel</button>
                       </div>
                     </div>
-                    <div className="col-span-12 flex gap-1 justify-end mt-1">
-                      <button onClick={() => handleEditSave(item.id)} className="px-2 py-1 bg-green-700 hover:bg-green-600 rounded text-xs text-white">Save</button>
-                      <button onClick={() => { setEditingId(null); setEditItem({}) }} className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-gray-300">Cancel</button>
-                    </div>
-                  </div>
-                ) : (
-                  <div
-                    onClick={() => navigate(`/formulary/${item.id}`)}
-                    className={`grid grid-cols-12 px-4 py-2.5 items-center text-sm cursor-pointer transition-colors ${
-                      detailMatch?.params?.id === item.id ? 'bg-gray-700' : 'hover:bg-gray-800/50'
-                    }`}>
-                    <div className="col-span-4 flex items-center gap-2">
-                      {item.image_url ? (
-                        <img src={item.image_url} alt="" className="w-8 h-8 rounded object-cover shrink-0 bg-gray-800" />
-                      ) : (
-                        <div className="w-8 h-8 rounded bg-gray-800 shrink-0 flex items-center justify-center text-gray-600 text-xs">📷</div>
-                      )}
-                      <div className="min-w-0">
-                        <button onClick={() => navigate(`/formulary/${item.id}`)} className="text-white hover:text-red-400 text-left transition-colors truncate block">{item.item_name}</button>
-                        {item.unit_of_measure && <span className="text-gray-500 text-xs">({item.unit_of_measure})</span>}
+                  ) : (
+                    <div
+                      onClick={() => navigate(`/formulary/${item.id}`)}
+                      className={`grid grid-cols-12 px-4 py-2.5 items-center text-sm cursor-pointer transition-colors ${
+                        detailMatch?.params?.id === item.id ? 'bg-gray-700' : 'hover:bg-gray-800/50'
+                      }`}>
+                      <div className="col-span-4 flex items-center gap-2">
+                        {ci?.image_url ? (
+                          <img src={ci.image_url} alt="" className="w-8 h-8 rounded object-cover shrink-0 bg-gray-800" />
+                        ) : (
+                          <div className="w-8 h-8 rounded bg-gray-800 shrink-0 flex items-center justify-center text-gray-600 text-xs">📷</div>
+                        )}
+                        <div className="min-w-0">
+                          <button onClick={() => navigate(`/formulary/${item.id}`)} className="text-white hover:text-red-400 text-left transition-colors truncate block">{item.item_name}</button>
+                          {ci?.unit_of_measure && <span className="text-gray-500 text-xs">({ci.unit_of_measure})</span>}
+                        </div>
                       </div>
-                    </div>
-                    <div className="col-span-1">
-                      <select
-                        value={item.category}
-                        onChange={async (e) => {
-                          const newCat = e.target.value
-                          await supabase.from('formulary_templates').update({ category: newCat }).eq('id', item.id)
-                          setItems(prev => prev.map(i => i.id === item.id ? { ...i, category: newCat } : i))
-                        }}
-                        className={`text-xs px-1.5 py-0.5 rounded-full border-0 cursor-pointer ${CAT_COLORS[item.category] || CAT_COLORS.OTC} bg-transparent`}
-                        style={{ appearance: 'none', WebkitAppearance: 'none' }}
-                        title="Click to change category"
-                      >
-                        {['CS', 'Rx', 'OTC', 'DE', 'RE'].map(c => (
-                          <option key={c} value={c} className="bg-gray-900 text-white">{c}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="col-span-1 hidden lg:block text-xs text-gray-600 font-mono truncate">{skuOf(item) || '—'}</div>
-                    <div className="col-span-2 hidden md:block text-xs text-gray-400 truncate">{item.supplier || '—'}</div>
-                    <div className="col-span-1 hidden md:block text-right text-xs text-gray-400">{item.units_per_case ?? '—'}</div>
-                    <div className="col-span-1 hidden md:block text-right text-xs text-gray-400">{item.case_cost ? `$${item.case_cost.toFixed(2)}` : '—'}</div>
-                    {/* $/Unit — inline editable */}
-                    <div className="col-span-1 hidden md:block text-right">
-                      {editingUnitCostId === item.id ? (
-                        <input
-                          type="number"
-                          step="0.0001"
-                          autoFocus
-                          value={unitCostInput}
-                          onChange={e => setUnitCostInput(e.target.value)}
-                          onBlur={() => handleUnitCostSave(item)}
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') handleUnitCostSave(item)
-                            if (e.key === 'Escape') setEditingUnitCostId(null)
+                      <div className="col-span-1">
+                        <select
+                          value={ci?.category || ''}
+                          onChange={async (e) => {
+                            e.stopPropagation()
+                            const newCat = e.target.value
+                            if (item.catalog_item_id) {
+                              await supabase.from('item_catalog').update({ category: newCat }).eq('id', item.catalog_item_id)
+                            }
+                            setItems(prev => prev.map(i => {
+                              if (i.id !== item.id) return i
+                              const c = catalogOf(i)
+                              return { ...i, catalog_item: c ? { ...c, category: newCat } : i.catalog_item }
+                            }))
                           }}
-                          className="bg-gray-700 rounded px-1 py-0.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-red-500 w-20 text-right"
-                          placeholder="0.0000"
-                        />
-                      ) : (
-                        <span
-                          className="text-xs text-gray-300 font-mono cursor-pointer hover:text-white hover:underline"
-                          title="Click to set unit cost"
-                          onClick={() => {
-                            setEditingUnitCostId(item.id)
-                            setUnitCostInput(item.unit_cost != null ? String(item.unit_cost) : '')
-                          }}
+                          className={`text-xs px-1.5 py-0.5 rounded-full border-0 cursor-pointer ${CAT_COLORS[ci?.category || ''] || CAT_COLORS.OTC} bg-transparent`}
+                          style={{ appearance: 'none', WebkitAppearance: 'none' }}
+                          title="Click to change category"
                         >
-                          {getUnitCost(item) ? `$${getUnitCost(item)}` : <span className="text-gray-600">—</span>}
-                          {item.unit_cost != null && <span className="ml-0.5 text-blue-500 text-xs" title="Custom unit cost set">●</span>}
-                        </span>
-                      )}
+                          {['CS', 'Rx', 'OTC', 'DE', 'RE'].map(c => (
+                            <option key={c} value={c} className="bg-gray-900 text-white">{c}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="col-span-1 hidden lg:block text-xs text-gray-600 font-mono truncate">{skuOf(item) || '—'}</div>
+                      <div className="col-span-2 hidden md:block text-xs text-gray-400 truncate">{ci?.supplier || '—'}</div>
+                      <div className="col-span-1 hidden md:block text-right text-xs text-gray-400">{ci?.units_per_case ?? '—'}</div>
+                      <div className="col-span-1 hidden md:block text-right text-xs text-gray-400">{ci?.case_cost ? `$${ci.case_cost.toFixed(2)}` : '—'}</div>
+                      {/* $/Unit — inline editable */}
+                      <div className="col-span-1 hidden md:block text-right">
+                        {editingUnitCostId === item.id ? (
+                          <input
+                            type="number"
+                            step="0.0001"
+                            autoFocus
+                            value={unitCostInput}
+                            onChange={e => setUnitCostInput(e.target.value)}
+                            onBlur={() => handleUnitCostSave(item)}
+                            onKeyDown={e => {
+                              if (e.key === 'Enter') handleUnitCostSave(item)
+                              if (e.key === 'Escape') setEditingUnitCostId(null)
+                            }}
+                            className="bg-gray-700 rounded px-1 py-0.5 text-white text-xs focus:outline-none focus:ring-1 focus:ring-red-500 w-20 text-right"
+                            placeholder="0.0000"
+                          />
+                        ) : (
+                          <span
+                            className="text-xs text-gray-300 font-mono cursor-pointer hover:text-white hover:underline"
+                            title="Click to set unit cost"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEditingUnitCostId(item.id)
+                              setUnitCostInput(ci?.unit_cost != null ? String(ci.unit_cost) : '')
+                            }}
+                          >
+                            {getUnitCost(item) ? `$${getUnitCost(item)}` : <span className="text-gray-600">—</span>}
+                            {ci?.unit_cost != null && <span className="ml-0.5 text-blue-500 text-xs" title="Custom unit cost set">●</span>}
+                          </span>
+                        )}
+                      </div>
+                      <div className="col-span-1 flex gap-1 justify-end">
+                        {isAdmin && activeTab !== 'Warehouse' && (
+                          <>
+                            <button onClick={(e) => { e.stopPropagation(); setEditingId(item.id); setEditItem({}) }} className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-gray-300">Edit</button>
+                            <button onClick={(e) => { e.stopPropagation(); handleDelete(item.id) }} className="px-2 py-1 bg-red-900/50 hover:bg-red-900 rounded text-xs text-red-300">Del</button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <div className="col-span-1 flex gap-1 justify-end">
-                      {isAdmin && activeTab !== 'Warehouse' && (
-                        <>
-                          <button onClick={() => { setEditingId(item.id); setEditItem({}) }} className="px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded text-xs text-gray-300">Edit</button>
-                          <button onClick={() => handleDelete(item.id)} className="px-2 py-1 bg-red-900/50 hover:bg-red-900 rounded text-xs text-red-300">Del</button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                  )}
+                </div>
+              )
+            })}
             {filtered.length === 0 && (
               <p className="text-center text-gray-600 py-8 text-sm">No items found.</p>
             )}
@@ -497,12 +520,13 @@ function FormularyPageInner() {
           {filtered.length > 0 && (
             <div className="px-4 py-2 border-t border-gray-700 flex justify-between text-xs text-gray-500">
               <span>{filtered.length} items shown</span>
-              {filtered.some(i => i.case_cost || i.unit_cost) && (
+              {filtered.some(i => catalogOf(i)?.case_cost || catalogOf(i)?.unit_cost) && (
                 <span>Total catalog cost: $
                   {filtered.reduce((sum, i) => {
-                    const uc = i.unit_cost != null
-                      ? Number(i.unit_cost)
-                      : (i.case_cost && i.units_per_case ? i.case_cost / i.units_per_case : 0)
+                    const ci = catalogOf(i)
+                    const uc = ci?.unit_cost != null
+                      ? Number(ci.unit_cost)
+                      : (ci?.case_cost && ci?.units_per_case ? ci.case_cost / ci.units_per_case : 0)
                     return sum + uc
                   }, 0).toFixed(2)} / unit avg
                 </span>

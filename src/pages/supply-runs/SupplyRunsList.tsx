@@ -4,7 +4,9 @@ import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 
 import { useEffect, useState, useMemo } from 'react'
-import { PageHeader, EmptyState, LoadingSkeleton } from '@/components/ui'
+import { PageHeader, EmptyState, LoadingSkeleton, UnitFilterPills, SortableHeader } from '@/components/ui'
+import { useSortable } from '@/hooks/useSortable'
+import { getUnitTypeName } from '@/lib/unitColors'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
 import { getCachedData } from '@/lib/offlineStore'
@@ -38,6 +40,8 @@ function SupplyRunsPageInner() {
   const [isOfflineData, setIsOfflineData] = useState(false)
   const [unitFilter, setUnitFilter] = useState('All')
   const [dateRange, setDateRange] = useState('7d')
+  type SRSortKey = 'run_date' | 'unit' | 'incident'
+  const { sortKey: srSortKey, sortDir: srSortDir, toggleSort: srToggleSort, sortFn: srSortFn } = useSortable<SRSortKey>('run_date', 'desc')
   const DATE_RANGES = ['2d', '7d', '14d', '30d'] as const
   const dateRangeDays: Record<string, number> = { '2d': 2, '7d': 7, '14d': 14, '30d': 30 }
 
@@ -117,11 +121,16 @@ function SupplyRunsPageInner() {
     runs.map(r => (r.incident_unit as any)?.unit?.name).filter(Boolean)
   )).sort()]
 
-  const filtered = runs.filter(r => {
+  const filtered = srSortFn(runs.filter(r => {
     const unitName = (r.incident_unit as any)?.unit?.name
     if (isField && assignment.unit?.name && unitName !== assignment.unit.name) return false
     if (!isField && unitFilter !== 'All' && unitName !== unitFilter) return false
     return true
+  }), (r, key) => {
+    if (key === 'run_date') return r.run_date ?? ''
+    if (key === 'unit') return (r.incident_unit as any)?.unit?.name ?? ''
+    if (key === 'incident') return (r.incident as any)?.name ?? ''
+    return ''
   })
 
   return (
@@ -190,27 +199,12 @@ function SupplyRunsPageInner() {
           </>
         )}
         {!isField && (
-          <>
-            {/* Desktop: unit pills */}
-            <div className="hidden md:flex gap-1.5 overflow-x-auto pb-1">
-              {units.map(u => (
-                <button key={u} onClick={() => setUnitFilter(u)}
-                  className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${
-                    unitFilter === u ? 'bg-red-600 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                  }`}>{u}</button>
-              ))}
-            </div>
-            {/* Mobile: unit dropdown */}
-            <select
-              value={unitFilter}
-              onChange={e => setUnitFilter(e.target.value)}
-              className="md:hidden w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
-            >
-              {units.map(u => (
-                <option key={u} value={u}>{u}</option>
-              ))}
-            </select>
-          </>
+          <UnitFilterPills
+            units={units}
+            selected={unitFilter}
+            onSelect={setUnitFilter}
+            unitTypeMap={Object.fromEntries(units.filter(u => u !== 'All').map(u => [u, getUnitTypeName(u)]))}
+          />
         )}
       </div>
 
@@ -221,12 +215,12 @@ function SupplyRunsPageInner() {
       ) : (
         <div className="theme-card rounded-xl border overflow-x-auto">
           {/* Header */}
-          <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b theme-card-header min-w-[540px]">
-            <span className="w-24 shrink-0">Date</span>
-            <span className="w-28 shrink-0">Unit</span>
-            <span className="flex-1 min-w-[100px]">Incident</span>
-            <span className="w-28 shrink-0">Resource #</span>
-            <span className="w-28 shrink-0">Dispensed By</span>
+          <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b theme-card-header min-w-[540px]">
+            <SortableHeader label="Date" sortKey="run_date" currentKey={srSortKey} currentDir={srSortDir} onToggle={srToggleSort} className="w-24 shrink-0" />
+            <SortableHeader label="Unit" sortKey="unit" currentKey={srSortKey} currentDir={srSortDir} onToggle={srToggleSort} className="w-28 shrink-0" />
+            <SortableHeader label="Incident" sortKey="incident" currentKey={srSortKey} currentDir={srSortDir} onToggle={srToggleSort} className="flex-1 min-w-[100px]" />
+            <span className="w-28 shrink-0 text-gray-500">Resource #</span>
+            <span className="w-28 shrink-0 text-gray-500">Dispensed By</span>
           </div>
           <div className="divide-y divide-gray-800/60">
             {filtered.map(run => {

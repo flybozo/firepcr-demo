@@ -7,7 +7,7 @@ import { queryActiveUnits } from '@/lib/services/cs'
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
-import { unitFilterButtonClass, UNIT_TYPE_ORDER } from '@/lib/unitColors'
+import { UnitFilterPills } from '@/components/ui'
 import { loadList } from '@/lib/offlineFirst'
 import { getCachedData } from '@/lib/offlineStore'
 
@@ -15,8 +15,8 @@ type UnitInventoryItem = {
   id: string
   item_name: string
   quantity: number
-  cs_lot_number: string | null
-  cs_expiration_date: string | null
+  lot_number: string | null
+  expiration_date: string | null
 }
 
 type CSTransaction = {
@@ -39,12 +39,13 @@ type UnitData = {
 
 const CS_UNIT_TYPE: Record<string, string> = {
   'Warehouse': 'Warehouse',
-  'Unit 1': 'Ambulance', 'Unit 2': 'Ambulance', 'Unit 3': 'Ambulance', 'Unit 4': 'Ambulance',
-  'Med 1': 'Med Unit', 'Med 2': 'Med Unit', 'Cache': 'Med Unit',
-  'REMS 1': 'REMS', 'REMS 2': 'REMS',
+  'RAMBO 1': 'Ambulance', 'RAMBO 2': 'Ambulance', 'RAMBO 3': 'Ambulance', 'RAMBO 4': 'Ambulance',
+  'MSU 1': 'Med Unit', 'MSU 2': 'Med Unit', 'The Beast': 'Med Unit',
+  'REMS 1': 'REMS', 'REMS 1 Trailer': 'REMS', 'REMS 2': 'REMS',
+  'Truck 1': 'REMS', 'Truck 2': 'REMS', 'Truck 3': 'REMS', 'UTV 1': 'REMS', 'UTV 2': 'REMS',
 }
 
-const UNITS = ['Warehouse', 'Unit 1', 'Unit 2', 'Unit 3', 'Unit 4', 'Med 1', 'Med 2', 'REMS 1', 'REMS 2']
+const UNITS = ['Warehouse', 'RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
 
 const TYPE_COLORS: Record<string, string> = {
   Receive: 'text-green-400',
@@ -137,7 +138,7 @@ function CSOverviewPageInner() {
       const { data: inventory } = await loadList(
         () => supabase
           .from('unit_inventory')
-          .select('id, item_name, quantity, cs_lot_number, cs_expiration_date, unit_id, catalog_item_id')
+          .select('id, item_name, quantity, lot_number, expiration_date, unit_id, catalog_item_id')
           .eq('category', 'CS')
           .gt('quantity', 0),
         'inventory',
@@ -149,7 +150,7 @@ function CSOverviewPageInner() {
       try {
         const { data } = await supabase
           .from('warehouse_inventory')
-          .select('id, item_name, quantity, cs_lot_number, cs_expiration_date')
+          .select('id, item_name, quantity, lot_number, expiration_date')
           .eq('category', 'CS')
           .gt('quantity', 0)
         warehouseInventory = data || []
@@ -240,6 +241,7 @@ function CSOverviewPageInner() {
           <Link to="/cs/receive" className="px-3 py-2 bg-green-700 hover:bg-green-600 text-white text-sm rounded-lg font-medium">+ Receive</Link>
           <Link to="/cs/transfer" className="px-3 py-2 bg-blue-700 hover:bg-blue-600 text-white text-sm rounded-lg font-medium">⇄ Transfer</Link>
           <Link to="/cs/count" className="px-3 py-2 bg-orange-700 hover:bg-orange-600 text-white text-sm rounded-lg font-medium">📋 Count</Link>
+          <Link to="/inventory/expiring?cat=CS" className="px-3 py-2 bg-red-800 hover:bg-red-700 text-white text-sm rounded-lg font-medium">🗑 Waste / Dispose</Link>
         </div>
       </div>
 
@@ -260,41 +262,12 @@ function CSOverviewPageInner() {
               </div>
             )
           ) : (
-            <>
-              {/* Desktop: unit pills */}
-              <div className="hidden md:flex items-center gap-2 flex-wrap">
-                <span className="text-xs text-gray-500">Filter:</span>
-                <button onClick={() => setSelectedUnit('All')}
-                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${unitFilterButtonClass('All', selectedUnit === 'All')}`}>
-                  All Units
-                </button>
-                {[...fieldUnits].sort((a,b) => {
-                  const aO = UNIT_TYPE_ORDER[CS_UNIT_TYPE[a.unitName] || ''] ?? 99
-                  const bO = UNIT_TYPE_ORDER[CS_UNIT_TYPE[b.unitName] || ''] ?? 99
-                  return aO !== bO ? aO - bO : a.unitName.localeCompare(b.unitName)
-                }).map(u => (
-                  <button key={u.unitName} onClick={() => setSelectedUnit(u.unitName)}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition-colors ${unitFilterButtonClass(CS_UNIT_TYPE[u.unitName] || '', selectedUnit === u.unitName)}`}>
-                    {u.unitName}
-                  </button>
-                ))}
-              </div>
-              {/* Mobile: unit dropdown */}
-              <select
-                value={selectedUnit}
-                onChange={e => setSelectedUnit(e.target.value)}
-                className="md:hidden w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-red-500"
-              >
-                <option value="All">All Units</option>
-                {[...fieldUnits].sort((a,b) => {
-                  const aO = UNIT_TYPE_ORDER[CS_UNIT_TYPE[a.unitName] || ''] ?? 99
-                  const bO = UNIT_TYPE_ORDER[CS_UNIT_TYPE[b.unitName] || ''] ?? 99
-                  return aO !== bO ? aO - bO : a.unitName.localeCompare(b.unitName)
-                }).map(u => (
-                  <option key={u.unitName} value={u.unitName}>{u.unitName}</option>
-                ))}
-              </select>
-            </>
+            <UnitFilterPills
+              units={fieldUnits.map(u => u.unitName)}
+              selected={selectedUnit}
+              onSelect={setSelectedUnit}
+              unitTypeMap={CS_UNIT_TYPE}
+            />
           )}
         </div>
       )}
@@ -313,12 +286,12 @@ function CSOverviewPageInner() {
               {warehouse && warehouse.items.length > 0 ? (
                 <div className="space-y-2">
                   {warehouse.items.map(item => (
-                    <div key={item.id} className={`flex flex-wrap items-center justify-between gap-2 p-2 rounded-lg ${isExpiringSoon(item.cs_expiration_date) ? 'bg-red-900/30 border border-red-700' : 'bg-gray-800/60'}`}>
+                    <div key={item.id} className={`flex flex-wrap items-center justify-between gap-2 p-2 rounded-lg ${isExpiringSoon(item.expiration_date) ? 'bg-red-900/30 border border-red-700' : 'bg-gray-800/60'}`}>
                       <div>
                         <span className="text-white text-sm font-medium">{item.item_name}</span>
-                        <span className="text-gray-400 text-xs ml-2">Lot: {item.cs_lot_number || '—'}</span>
-                        <span className="text-gray-400 text-xs ml-2">Exp: {item.cs_expiration_date || '—'}</span>
-                        {isExpiringSoon(item.cs_expiration_date) && <span className="text-red-400 text-xs ml-2">⚠ Expiring</span>}
+                        <span className="text-gray-400 text-xs ml-2">Lot: {item.lot_number || '—'}</span>
+                        <span className="text-gray-400 text-xs ml-2">Exp: {item.expiration_date || '—'}</span>
+                        {isExpiringSoon(item.expiration_date) && <span className="text-red-400 text-xs ml-2">⚠ Expiring</span>}
                       </div>
                       <span className="text-orange-300 font-bold text-sm">{item.quantity} units</span>
                     </div>
@@ -344,10 +317,10 @@ function CSOverviewPageInner() {
                 {unit.items.length > 0 ? (
                   <div className="space-y-1">
                     {unit.items.map(item => (
-                      <div key={item.id} className={`text-xs flex justify-between items-center gap-2 p-1.5 rounded ${isExpiringSoon(item.cs_expiration_date) ? 'bg-red-900/30' : 'bg-gray-800/50'}`}>
+                      <div key={item.id} className={`text-xs flex justify-between items-center gap-2 p-1.5 rounded ${isExpiringSoon(item.expiration_date) ? 'bg-red-900/30' : 'bg-gray-800/50'}`}>
                         <div>
                           <span className="text-white">{item.item_name}</span>
-                          <span className="text-gray-500 ml-2">Lot: {item.cs_lot_number || '—'}</span>
+                          <span className="text-gray-500 ml-2">Lot: {item.lot_number || '—'}</span>
                         </div>
                         <span className="text-orange-300 font-bold">{item.quantity}</span>
                       </div>
