@@ -520,4 +520,5 @@ export const DEFAULT_THEME: Theme = {
   backgroundOpacity: 0.05,
   cardTransparency: 1.0,
   borderRadius: '0.75rem',
+  listStyle: 'card',
 }

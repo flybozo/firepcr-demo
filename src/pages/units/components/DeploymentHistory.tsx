@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom'
 import type { DeploymentRow } from './types'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type Props = {
   deployments: DeploymentRow[]
@@ -23,6 +25,8 @@ function fmtDate(iso: string) {
 }
 
 export default function DeploymentHistory({ deployments, defaultContractRate, incidentFilter, onFilterChange }: Props) {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const uniqueIncidents = Array.from(
     new Set(deployments.map(d => d.incident?.name).filter(Boolean) as string[])
   )
@@ -32,7 +36,7 @@ export default function DeploymentHistory({ deployments, defaultContractRate, in
   const totalRevenue = filtered.reduce((sum, dep) => sum + calcRow(dep, defaultContractRate).revenue, 0)
 
   return (
-    <div className="theme-card rounded-xl border overflow-hidden">
+    <div className={lc.container}>
       <div className="flex items-center justify-between px-4 py-3 bg-gray-800">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">📊 Deployment History</h2>
         <span className="text-sm font-semibold text-green-400">{currencyFmt.format(totalRevenue)}</span>

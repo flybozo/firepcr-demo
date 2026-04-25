@@ -3,6 +3,8 @@ import { FieldGuard } from '@/components/FieldGuard'
 
 import { useEffect, useState, useMemo, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 import { LoadingSkeleton } from '@/components/ui'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 
@@ -26,7 +28,7 @@ type CSTransaction = {
 
 const CS_DRUGS = ['Morphine Sulfate', 'Fentanyl', 'Midazolam (Versed)', 'Ketamine']
 const TRANSFER_TYPES = ['Receive', 'Transfer', 'Administer', 'Waste', 'Return', 'Audit']
-const ALL_UNITS = ['Warehouse', 'Medic 1', 'Medic 2', 'Medic 3', 'Medic 4', 'Aid 1', 'Aid 2', 'Command 1', 'Rescue 1', 'Rescue 2']
+const ALL_UNITS = ['Warehouse', 'RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
 
 const TYPE_COLORS: Record<string, string> = {
   Receive: 'bg-green-900/40 text-green-300 border border-green-700',
@@ -55,6 +57,8 @@ function AuditLogInner() {
   const [transactions, setTransactions] = useState<CSTransaction[]>([])
   const [loading, setLoading] = useState(true)
   const [total, setTotal] = useState(0)
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
 
   const [dateRange, setDateRange] = useState('7d')
   const [filters, setFilters] = useState({
@@ -247,7 +251,7 @@ function AuditLogInner() {
             <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="text-gray-500 border-b border-gray-700">
+                  <tr className={`text-gray-500 ${lc.header}`}>
                     <th className="text-left py-2 pr-3 font-medium">Date/Time</th>
                     <th className="text-left py-2 pr-3 font-medium">Type</th>
                     <th className="text-left py-2 pr-3 font-medium">Drug</th>
@@ -266,7 +270,7 @@ function AuditLogInner() {
                       : <span>{t.to_unit || '—'}</span>
                     return (
                       <tr key={t.id}
-                        className={`border-b border-gray-800/50 hover:bg-gray-800/40 transition-colors ${isAdmin && t.encounter_id ? 'cursor-pointer' : ''}`}
+                        className={`${lc.row} ${isAdmin && t.encounter_id ? 'cursor-pointer' : ''}`}
                         title={t.notes || undefined}
                         onClick={isAdmin && t.encounter_id ? () => navigate(`/mar/${t.encounter_id}`) : undefined}
                       >

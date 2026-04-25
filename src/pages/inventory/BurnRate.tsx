@@ -1,12 +1,13 @@
-
-
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
-import { EmptyState, UnitFilterPills } from '@/components/ui'
+import { EmptyState, LoadingSkeleton, UnitFilterPills } from '@/components/ui'
 import { getUnitTypeName } from '@/lib/unitColors'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type BurnItem = {
+  id: string
   item_name: string
   category: string
   unit_name: string
@@ -16,13 +17,217 @@ type BurnItem = {
   days_remaining: number | null
   reorder_date: string | null
   status: 'critical' | 'warning' | 'ok'
+  catalog_item_id: string | null
 }
 
+type CatalogItem = {
+  id: string
+  sku: string
+  item_name: string
+  category: string
+  is_als: boolean
+  ndc: string | null
+  barcode: string | null
+  upc: string | null
+  concentration: string | null
+  route: string | null
+  unit_of_measure: string | null
+  supplier: string | null
+  units_per_case: number | null
+  case_cost: number | null
+  unit_cost: number | null
+  image_url: string | null
+  notes: string | null
+}
+
+const CAT_COLORS: Record<string, string> = {
+  CS: 'bg-orange-900 text-orange-300',
+  Rx: 'bg-blue-900 text-blue-300',
+  OTC: 'bg-gray-700 text-gray-300',
+  Supply: 'bg-gray-700 text-gray-300',
+  DE: 'bg-amber-900 text-amber-300',
+  RE: 'bg-green-900 text-green-300',
+}
+
+const STATUS_COLORS = {
+  critical: 'text-red-400',
+  warning: 'text-yellow-400',
+  ok: 'text-green-400',
+}
+
+/* ── Right panel: catalog detail + burn context ── */
+function BurnDetailPanel({ item }: { item: BurnItem }) {
+  const supabase = createClient()
+  const [catalogItem, setCatalogItem] = useState<CatalogItem | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      setLoading(true)
+      if (!item.catalog_item_id) {
+        setCatalogItem(null)
+        setLoading(false)
+        return
+      }
+      const { data, error } = await supabase
+        .from('item_catalog')
+        .select('*')
+        .eq('id', item.catalog_item_id)
+        .single()
+      if (cancelled) return
+      if (error || !data) {
+        setCatalogItem(null)
+      } else {
+        setCatalogItem(data as CatalogItem)
+      }
+      setLoading(false)
+    }
+    load()
+    return () => { cancelled = true }
+  }, [item.catalog_item_id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pct = item.par_qty > 0 ? Math.round((item.current_qty / item.par_qty) * 100) : 0
+
+  if (loading) return <div className="p-6"><LoadingSkeleton rows={6} /></div>
+
+  return (
+    <div className="p-4 md:p-6 overflow-y-auto h-full">
+      {/* Burn rate context — always shown */}
+      <div className="theme-card rounded-xl border p-4 mb-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs font-bold uppercase tracking-wide text-gray-400">Burn Rate Analysis</h3>
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+            item.status === 'critical' ? 'bg-red-900 text-red-300' :
+            item.status === 'warning' ? 'bg-yellow-900 text-yellow-300' :
+            'bg-green-900 text-green-300'
+          }`}>
+            {item.status === 'critical' ? '🔴 Critical' : item.status === 'warning' ? '🟡 Warning' : '🟢 OK'}
+          </span>
+        </div>
+
+        {/* Stock level bar */}
+        <div className="mb-4">
+          <div className="flex justify-between text-xs mb-1">
+            <span className="text-gray-400">Stock Level</span>
+            <span className="text-white font-medium">{item.current_qty} / {item.par_qty} ({pct}%)</span>
+          </div>
+          <div className="w-full bg-gray-800 rounded-full h-3 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${
+                pct <= 25 ? 'bg-red-500' : pct <= 50 ? 'bg-orange-500' : pct <= 75 ? 'bg-yellow-500' : 'bg-green-500'
+              }`}
+              style={{ width: `${Math.min(pct, 100)}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <span className="text-xs text-gray-500">Burn Rate</span>
+            <p className="text-lg font-bold text-white">{item.burn_per_day}<span className="text-xs text-gray-400 ml-1">/day</span></p>
+          </div>
+          <div>
+            <span className="text-xs text-gray-500">Days Until Depletion</span>
+            <p className={`text-lg font-bold ${STATUS_COLORS[item.status]}`}>
+              {item.days_remaining !== null ? `${item.days_remaining}d` : '∞'}
+            </p>
+          </div>
+          <div>
+            <span className="text-xs text-gray-500">Projected Reorder Date</span>
+            <p className="text-sm font-medium text-white">{item.reorder_date || '—'}</p>
+          </div>
+          <div>
+            <span className="text-xs text-gray-500">Unit</span>
+            <p className="text-sm font-medium text-white">{item.unit_name}</p>
+          </div>
+        </div>
+
+        {catalogItem && catalogItem.unit_cost != null && item.days_remaining !== null && item.par_qty > item.current_qty && (
+          <div className="mt-3 pt-3 border-t border-gray-800 flex justify-between items-center">
+            <span className="text-xs text-gray-500">Restock to par cost</span>
+            <span className="text-sm font-semibold text-yellow-400">
+              ${((item.par_qty - item.current_qty) * Number(catalogItem.unit_cost)).toFixed(2)}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Catalog detail — only if linked */}
+      {catalogItem ? (
+        <>
+          {/* Header with photo */}
+          <div className="flex items-start gap-4 mb-5">
+            <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-800 flex-shrink-0 flex items-center justify-center">
+              {catalogItem.image_url ? (
+                <img src={catalogItem.image_url} alt={catalogItem.item_name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-2xl">📦</span>
+              )}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className={`text-xs px-1.5 py-0.5 rounded ${CAT_COLORS[catalogItem.category] || CAT_COLORS.OTC}`}>{catalogItem.category}</span>
+                {catalogItem.is_als && <span className="text-xs px-1.5 py-0.5 rounded bg-blue-900 text-blue-300">ALS</span>}
+                <span className="text-xs font-mono text-gray-500">{catalogItem.sku}</span>
+              </div>
+              <h2 className="text-lg font-bold text-white truncate">{catalogItem.item_name}</h2>
+              {catalogItem.concentration && <p className="text-xs text-gray-400">{catalogItem.concentration}</p>}
+            </div>
+            <Link
+              to={`/catalog/${catalogItem.id}`}
+              className="text-xs text-gray-500 hover:text-white px-2 py-1 rounded hover:bg-gray-800 transition-colors flex-shrink-0"
+            >
+              Open in Catalog →
+            </Link>
+          </div>
+
+          {/* Item details grid */}
+          <div>
+            <h3 className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">Item Details</h3>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+              {([
+                ['NDC', catalogItem.ndc],
+                ['Barcode', catalogItem.barcode],
+                ['UPC', catalogItem.upc],
+                ['Route', catalogItem.route],
+                ['Unit of Measure', catalogItem.unit_of_measure],
+                ['Supplier', catalogItem.supplier],
+                ['Units/Case', catalogItem.units_per_case],
+                ['$/Case', catalogItem.case_cost != null ? `$${Number(catalogItem.case_cost).toFixed(2)}` : null],
+                ['$/Unit', catalogItem.unit_cost != null ? `$${Number(catalogItem.unit_cost).toFixed(2)}` : null],
+              ] as [string, any][]).map(([label, value]) => (
+                <div key={label}>
+                  <span className="text-xs text-gray-500">{label}</span>
+                  <p className="text-sm text-white">{value || '—'}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {catalogItem.notes && (
+            <div className="mt-4">
+              <h3 className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-1">Notes</h3>
+              <p className="text-sm text-gray-300 whitespace-pre-wrap">{catalogItem.notes}</p>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="text-center py-6 text-gray-600">
+          <p className="text-sm">No linked catalog entry.</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ── Main page ── */
 export default function BurnRatePage() {
   const supabase = createClient()
   const [items, setItems] = useState<BurnItem[]>([])
   const [loading, setLoading] = useState(true)
   const [unitFilter, setUnitFilter] = useState('All')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   useEffect(() => {
     const load = async () => {
@@ -43,15 +248,14 @@ export default function BurnRatePage() {
         .select('item_name, qty_used, med_unit, date')
         .gte('date', sevenDaysAgo.toISOString().split('T')[0])
 
-      // Get supply runs from last 7 days  
+      // Get supply runs from last 7 days
       const { data: supplyItems } = await supabase
         .from('supply_run_items')
         .select('item_name, quantity, supply_run:supply_runs(run_date, incident_unit:incident_units(unit:units(name)))')
         .gte('created_at', sevenDaysAgo.toISOString())
 
       // Calculate burn per day per item per unit
-      const burnMap: Record<string, number> = {}  // "unit:item" -> total used in 7 days
-
+      const burnMap: Record<string, number> = {}
       for (const entry of mar || []) {
         const key = `${entry.med_unit}:${entry.item_name}`
         burnMap[key] = (burnMap[key] || 0) + (entry.qty_used || 0)
@@ -73,7 +277,7 @@ export default function BurnRatePage() {
         const totalUsed7d = burnMap[key] || 0
         const burnPerDay = totalUsed7d / 7
 
-        if (burnPerDay <= 0) continue  // Skip items with no usage
+        if (burnPerDay <= 0) continue
 
         const daysRemaining = burnPerDay > 0 ? Math.floor(item.quantity / burnPerDay) : null
         const reorderDate = daysRemaining !== null
@@ -85,6 +289,7 @@ export default function BurnRatePage() {
         else if (daysRemaining !== null && daysRemaining <= 7) status = 'warning'
 
         burnItems.push({
+          id: item.id,
           item_name: item.item_name,
           category: item.category,
           unit_name: unitName,
@@ -94,10 +299,10 @@ export default function BurnRatePage() {
           days_remaining: daysRemaining,
           reorder_date: reorderDate,
           status,
+          catalog_item_id: item.catalog_item_id ?? null,
         })
       }
 
-      // Sort by days remaining (critical first)
       burnItems.sort((a, b) => {
         if (a.days_remaining === null) return 1
         if (b.days_remaining === null) return -1
@@ -108,92 +313,133 @@ export default function BurnRatePage() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const units = ['All', ...Array.from(new Set(items.map(i => i.unit_name))).sort()]
-  const unitTypeMap = Object.fromEntries(units.filter(u => u !== 'All').map(u => [u, getUnitTypeName(u)]))
+  const allUnits = Array.from(new Set(items.map(i => i.unit_name))).sort()
+  const unitTypeMap = Object.fromEntries(allUnits.map(u => [u, getUnitTypeName(u)]))
   const filtered = items.filter(i => unitFilter === 'All' || i.unit_name === unitFilter)
   const critical = filtered.filter(i => i.status === 'critical').length
   const warning = filtered.filter(i => i.status === 'warning').length
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
+  const selectedItem = selectedId ? items.find(i => i.id === selectedId) ?? null : null
 
   return (
-    <div className="p-4 md:p-6 max-w-4xl mt-8 md:mt-0 pb-16">
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-xl font-bold">Inventory Burn Rate</h1>
-          <p className="text-gray-400 text-xs mt-0.5">Based on last 7 days usage · items with active consumption only</p>
+    <div className="bg-gray-950 text-white h-full flex flex-col">
+      {/* Header + filters */}
+      <div className="flex-shrink-0 p-4 md:px-6 md:pt-6 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold">Inventory Burn Rate</h1>
+            <p className="text-gray-400 text-xs mt-0.5">Based on last 7 days usage · items with active consumption only</p>
+          </div>
+          <Link to="/inventory/reorder" className="text-xs text-red-400 hover:text-red-300">Reorder Report →</Link>
         </div>
-        <Link to="/inventory/reorder" className="text-xs text-red-400 hover:text-red-300">Reorder Report →</Link>
-      </div>
 
-      {/* Summary */}
-      <div className="grid grid-cols-3 gap-3 mb-4">
-        <div className="bg-red-950/40 border border-red-800 rounded-xl p-3 text-center">
-          <p className="text-2xl font-bold text-red-400">{critical}</p>
-          <p className="text-xs text-red-500">≤3 days</p>
+        {/* Summary */}
+        <div className="flex gap-3">
+          <div className="bg-red-950/40 border border-red-800 rounded-xl px-4 py-2 flex items-center gap-2">
+            <span className="text-xl font-bold text-red-400">{critical}</span>
+            <span className="text-xs text-red-500">≤3 days</span>
+          </div>
+          <div className="bg-yellow-950/40 border border-yellow-800 rounded-xl px-4 py-2 flex items-center gap-2">
+            <span className="text-xl font-bold text-yellow-400">{warning}</span>
+            <span className="text-xs text-yellow-500">4–7 days</span>
+          </div>
+          <div className="bg-gray-900 border border-gray-800 rounded-xl px-4 py-2 flex items-center gap-2">
+            <span className="text-xl font-bold text-gray-300">{filtered.length}</span>
+            <span className="text-xs text-gray-500">tracked</span>
+          </div>
         </div>
-        <div className="bg-yellow-950/40 border border-yellow-800 rounded-xl p-3 text-center">
-          <p className="text-2xl font-bold text-yellow-400">{warning}</p>
-          <p className="text-xs text-yellow-500">4–7 days</p>
-        </div>
-        <div className="bg-gray-900 border border-gray-800 rounded-xl p-3 text-center">
-          <p className="text-2xl font-bold text-gray-300">{filtered.length}</p>
-          <p className="text-xs text-gray-500">total tracked</p>
-        </div>
-      </div>
 
-      {/* Unit filter */}
-      <div className="mb-4">
+        {/* Unit filter */}
         <UnitFilterPills
-          units={units}
+          units={allUnits}
           selected={unitFilter}
           onSelect={setUnitFilter}
           unitTypeMap={unitTypeMap}
         />
       </div>
 
-      {loading ? (
-        <p className="text-gray-500 text-sm">Calculating burn rates...</p>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-3xl mb-3">📊</p>
-          <EmptyState icon="📉" message="No items with active burn rate found." subtitle="Burn rate requires MAR or supply run activity in the last 7 days." />
+      {/* Split panel */}
+      <div className="flex-1 flex min-h-0 border-t border-gray-800">
+        {/* Left: list (40%) */}
+        <div className="w-full md:w-[40%] md:border-r border-gray-800 overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="p-8">
+              <EmptyState icon="📊" message="No items with active burn rate found." subtitle="Burn rate requires MAR or supply run activity in the last 7 days." />
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-800/50">
+              {filtered.map(item => {
+                const isSelected = item.id === selectedId
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setSelectedId(item.id)}
+                    className={`w-full text-left px-3 py-2.5 flex items-center gap-2 ${lc.rowCls(isSelected)}${!isSelected && item.status === 'critical' ? ' bg-red-950/10' : !isSelected && item.status === 'warning' ? ' bg-yellow-950/5' : ''}`}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm truncate ${isSelected ? 'text-white font-medium' : 'text-gray-300'}`}>
+                        {item.item_name}
+                      </p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className={`text-[10px] px-1.5 py-0.5 rounded ${CAT_COLORS[item.category] ?? CAT_COLORS.OTC}`}>
+                          {item.category}
+                        </span>
+                        <span className="text-[10px] text-gray-600">{item.unit_name}</span>
+                      </div>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      <p className={`text-sm font-mono font-bold ${STATUS_COLORS[item.status]}`}>
+                        {item.days_remaining !== null ? `${item.days_remaining}d` : '∞'}
+                      </p>
+                      <p className="text-[10px] text-gray-500">{item.burn_per_day}/day</p>
+                    </div>
+                    <div className="text-right flex-shrink-0 w-10">
+                      <p className="text-xs font-mono text-gray-400">{item.current_qty}</p>
+                      <p className="text-[10px] text-gray-600">/{item.par_qty}</p>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
-      ) : (
-        <div className="theme-card rounded-xl border overflow-hidden">
-          <div className="flex items-center px-4 py-2 theme-card-header border-b text-xs font-semibold uppercase tracking-wide text-gray-500">
-            <span className="flex-1 min-w-0">Item</span>
-            <span className="w-20 shrink-0 hidden sm:block">Unit</span>
-            <span className="w-16 shrink-0 text-right">In Stock</span>
-            <span className="w-20 shrink-0 text-right">Per Day</span>
-            <span className="w-20 shrink-0 text-right">Days Left</span>
-            <span className="w-28 shrink-0 text-right hidden md:block">Reorder By</span>
-          </div>
-          <div className="divide-y divide-gray-800/60">
-            {filtered.map((item, i) => (
-              <div key={i} className={`flex items-center px-4 py-2.5 text-sm ${
-                item.status === 'critical' ? 'bg-red-950/20' : item.status === 'warning' ? 'bg-yellow-950/10' : ''
-              }`}>
-                <div className="flex-1 min-w-0 pr-2">
-                  <p className="text-xs text-white truncate">{item.item_name}</p>
-                  <span className={`text-xs px-1 rounded ${
-                    item.category === 'CS' ? 'text-orange-400' : item.category === 'Rx' ? 'text-blue-400' : 'text-gray-500'
-                  }`}>{item.category}</span>
-                </div>
-                <span className="w-20 text-xs text-gray-500 hidden sm:block truncate">{item.unit_name}</span>
-                <span className="w-16 text-right text-xs font-mono text-white">{item.current_qty}</span>
-                <span className="w-20 text-right text-xs text-gray-400">{item.burn_per_day}/day</span>
-                <span className={`w-20 text-right text-xs font-bold ${
-                  item.status === 'critical' ? 'text-red-400' :
-                  item.status === 'warning' ? 'text-yellow-400' : 'text-green-400'
-                }`}>
-                  {item.days_remaining !== null ? `${item.days_remaining}d` : '∞'}
-                </span>
-                <span className="w-28 text-right text-xs text-gray-500 hidden md:block">
-                  {item.reorder_date || '—'}
-                </span>
+
+        {/* Right: detail (60%) */}
+        <div className="hidden md:block md:w-[60%] overflow-y-auto">
+          {selectedItem ? (
+            <BurnDetailPanel item={selectedItem} />
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-600">
+              <div className="text-center">
+                <p className="text-3xl mb-2">📊</p>
+                <p className="text-sm">Select an item to view burn rate details</p>
               </div>
-            ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile detail overlay */}
+      {selectedItem && (
+        <div className="md:hidden fixed inset-0 z-50 bg-gray-950 flex flex-col">
+          <div className="sticky top-0 z-10 bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-white truncate">{selectedItem.item_name}</h3>
+            <button
+              onClick={() => setSelectedId(null)}
+              className="text-gray-400 hover:text-white text-sm px-2 py-1"
+            >
+              ✕ Close
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <BurnDetailPanel item={selectedItem} />
           </div>
         </div>
       )}

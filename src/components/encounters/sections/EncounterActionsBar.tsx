@@ -54,7 +54,7 @@ export function EncounterActionsBar({
             <span>✏️</span> Edit
           </Link>
         )}
-        {!isLocked && enc.unit?.toUpperCase().startsWith('Medic') && (
+        {!isLocked && enc.unit?.toUpperCase().startsWith('RAMBO') && (
           <>
             <button
               onClick={async () => {

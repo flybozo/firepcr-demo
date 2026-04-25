@@ -12,6 +12,8 @@ import QRCodeCard from '@/components/QRCodeCard'
 import { brand } from '@/lib/branding.config'
 import { queryEmployee, queryCredentials, updateEmployee } from '@/lib/services/employees'
 import { LoadingSkeleton, EmptyState, ConfirmDialog } from '@/components/ui'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 
 type Employee = {
@@ -133,6 +135,8 @@ function EditField({ label, value, onChange, type = 'text' }: { label: string; v
 }
 
 export default function RosterDetailPage() {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const supabase = createClient()
   const params = useParams()
   const isAdmin = usePermission('roster.manage')
@@ -506,7 +510,7 @@ export default function RosterDetailPage() {
             <div className="flex items-center justify-between py-1.5 border-b border-gray-800">
               <div>
                 <p className="text-sm font-medium text-white">🔴 Red Card</p>
-                <p className="text-xs text-gray-500">Annual wildfire qualification (S-130/190/L-180 + 4hr class + fire shelter)</p>
+                <p className="text-xs text-gray-500">Annual RAM wildfire qualification (S-130/190/L-180 + 4hr class + fire shelter)</p>
               </div>
               <div className="flex items-center gap-2">
                 <input
@@ -520,9 +524,9 @@ export default function RosterDetailPage() {
                     const yr = e.target.value ? parseInt(e.target.value) : null
                     await updateEmployee(emp.id, {
                       red_card_year: yr,
-                      red_card: yr ? `${yr} Red Card` : null
+                      red_card: yr ? `${yr} RAM Red Card` : null
                     })
-                    setEmp((prev: any) => prev ? { ...prev, red_card_year: yr, red_card: yr ? `${yr} Red Card` : null } : prev)
+                    setEmp((prev: any) => prev ? { ...prev, red_card_year: yr, red_card: yr ? `${yr} RAM Red Card` : null } : prev)
                   }}
                 />
                 {emp.red_card_year && (
@@ -638,7 +642,7 @@ export default function RosterDetailPage() {
 
         {/* Payroll / Deployment History — admin only */}
         {isAdmin && deployments.length > 0 && (
-          <div className="theme-card rounded-xl border overflow-hidden">
+          <div className={lc.container}>
             <div className="flex items-center gap-2 px-4 py-3 border-b theme-card-header">
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">💰 Payroll Summary</h3>
               <span className="text-sm font-bold text-green-400">
@@ -756,7 +760,7 @@ export default function RosterDetailPage() {
 
         {/* Roles & Permissions — admin only */}
         {isAdmin && (
-          <div className="theme-card rounded-xl border overflow-hidden">
+          <div className={lc.container}>
             <div className="flex items-center gap-2 px-4 py-3 border-b theme-card-header">
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">🛡️ Roles & Permissions</h3>
             </div>
@@ -859,7 +863,7 @@ export default function RosterDetailPage() {
 
         {/* Admin Notes — admin only */}
         {isAdmin && (
-          <div className="theme-card rounded-xl border overflow-hidden">
+          <div className={lc.container}>
             <div className="flex items-center gap-2 px-4 py-3 border-b theme-card-header">
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300 flex-1">📝 Admin Notes</h3>
               {!adminNotesEditing && (

@@ -45,10 +45,8 @@ const NAV: NavItem[] = [
     sub: [
       { label: 'New Encounter', href: '/encounters/new' },
       { label: 'Unsigned Items', href: '/unsigned-items' },
-      { label: 'Patient Search', href: '/patient-search' },
       { label: 'MAR', href: '/mar' },
       { label: 'New MAR Entry', href: '/mar/new' },
-      { label: 'MAR Search', href: '/mar/search' },
     ],
   },
   {
@@ -58,6 +56,7 @@ const NAV: NavItem[] = [
     directLink: true,
     sub: [
       { label: 'Add New Unit', href: '/units/new' },
+      { label: 'Daily Checklist', href: '/cs/checklist' },
     ],
     adminOnly: false,
   },
@@ -87,7 +86,6 @@ const NAV: NavItem[] = [
       { label: 'Transfer CS', href: '/cs/transfer' },
       { label: 'Daily Count', href: '/cs/count' },
       { label: 'Audit Log', href: '/cs/audit' },
-      { label: 'Daily Checklist', href: '/cs/checklist' },
     ],
   },
   {

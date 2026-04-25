@@ -10,8 +10,12 @@ import CrewPanel from './components/CrewPanel'
 import DeploymentHistory from './components/DeploymentHistory'
 import InventorySummary from './components/InventorySummary'
 import VehicleDocuments from './components/VehicleDocuments'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 export default function UnitDetailPage() {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const { id } = useParams<{ id: string }>()
   const {
     unit, childUnits, inventory, allEmployees, loading, isOfflineData,
@@ -91,7 +95,7 @@ export default function UnitDetailPage() {
             Not currently deployed to an active incident.
           </div>
         )}
-        <div className="theme-card rounded-xl border overflow-hidden">
+        <div className={lc.container}>
           <div className="px-4 py-3 bg-gray-800">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Vehicle QR Code</h2>
             <p className="text-xs text-gray-500 mt-0.5">Print and affix as a sticker — links to this vehicle's details, documents, and credentials.</p>

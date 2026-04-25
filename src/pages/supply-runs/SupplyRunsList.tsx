@@ -12,6 +12,8 @@ import { loadList } from '@/lib/offlineFirst'
 import { getCachedData } from '@/lib/offlineStore'
 import { Link } from 'react-router-dom'
 import { useNavigate, useMatch } from 'react-router-dom'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type SupplyRun = {
   id: string
@@ -42,6 +44,8 @@ function SupplyRunsPageInner() {
   const [dateRange, setDateRange] = useState('7d')
   type SRSortKey = 'run_date' | 'unit' | 'incident'
   const { sortKey: srSortKey, sortDir: srSortDir, toggleSort: srToggleSort, sortFn: srSortFn } = useSortable<SRSortKey>('run_date', 'desc')
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const DATE_RANGES = ['2d', '7d', '14d', '30d'] as const
   const dateRangeDays: Record<string, number> = { '2d': 2, '7d': 7, '14d': 14, '30d': 30 }
 
@@ -213,23 +217,23 @@ function SupplyRunsPageInner() {
       ) : filtered.length === 0 ? (
         <EmptyState icon="🚚" message={unitFilter !== 'All' ? 'No matching supply runs.' : 'No supply runs yet.'} />
       ) : (
-        <div className="theme-card rounded-xl border overflow-x-auto">
+        <div className={`${lc.container} overflow-x-auto`}>
           {/* Header */}
-          <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b theme-card-header min-w-[540px]">
+          <div className={`flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide ${lc.header} min-w-[540px]`}>
             <SortableHeader label="Date" sortKey="run_date" currentKey={srSortKey} currentDir={srSortDir} onToggle={srToggleSort} className="w-24 shrink-0" />
             <SortableHeader label="Unit" sortKey="unit" currentKey={srSortKey} currentDir={srSortDir} onToggle={srToggleSort} className="w-28 shrink-0" />
             <SortableHeader label="Incident" sortKey="incident" currentKey={srSortKey} currentDir={srSortDir} onToggle={srToggleSort} className="flex-1 min-w-[100px]" />
             <span className="w-28 shrink-0 text-gray-500">Resource #</span>
             <span className="w-28 shrink-0 text-gray-500">Dispensed By</span>
           </div>
-          <div className="divide-y divide-gray-800/60">
+          <div>
             {filtered.map(run => {
               const unitName = (run.incident_unit as any)?.unit?.name
               const incName = (run.incident as any)?.name
               return (
                 <div key={run.id}
                   onClick={() => navigate(`/supply-runs/${run.id}`)}
-                  className={`flex items-center px-4 py-2 cursor-pointer transition-colors text-sm min-w-[540px] ${detailMatch?.params?.id === run.id ? 'bg-gray-700' : 'hover:bg-gray-800'}`}>
+                  className={`flex items-center px-4 py-2 cursor-pointer text-sm min-w-[540px] ${lc.rowCls(detailMatch?.params?.id === run.id)}`}>
                   <span className="w-24 shrink-0 text-xs text-gray-300 font-mono">{run.run_date}</span>
                   <span className="w-28 shrink-0 text-xs text-gray-400 truncate pr-2">{unitName || '—'}</span>
                   <span className="flex-1 min-w-[100px] text-xs text-white truncate pr-2">{incName || '—'}</span>

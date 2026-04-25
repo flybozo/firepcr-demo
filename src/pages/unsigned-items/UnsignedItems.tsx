@@ -1,9 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { usePermission } from '@/hooks/usePermission'
 import { LoadingSkeleton, ConfirmDialog } from '@/components/ui'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
+
+const EncounterDetail = lazy(() => import('@/pages/encounters/EncounterDetail'))
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -19,7 +23,6 @@ type UnsignedChart = {
   provider_of_record: string | null
   pcr_status: string | null
   signed_at: string | null
-  // Flag: has unsigned progress notes
   unsignedNoteCount?: number
 }
 
@@ -65,66 +68,140 @@ function statusBadge(status: string | null) {
   )
 }
 
-// ── Section components ───────────────────────────────────────────────────────
+// ── Detail Panels ────────────────────────────────────────────────────────────
 
-function ChartsSection({ charts }: { charts: UnsignedChart[] }) {
-  if (charts.length === 0) return (
-    <div className="theme-card rounded-xl border p-8 text-center">
-      <p className="text-3xl mb-2">✅</p>
-      <p className="text-gray-500 text-sm">All charts signed.</p>
-    </div>
+function ChartDetailPanel({ chart }: { chart: UnsignedChart }) {
+  return (
+    <Suspense fallback={<div className="p-6"><LoadingSkeleton rows={8} /></div>}>
+      <EncounterDetail encounterId={chart.id} embedded />
+    </Suspense>
   )
+}
+
+function MARDetailPanel({ entry }: { entry: UnsignedMAR }) {
+  const marLink = entry.encounter_id ? `/mar/${entry.encounter_id}/${entry.id}` : null
 
   return (
-    <div className="theme-card rounded-xl border overflow-hidden">
-      <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 bg-slate-800/90">
-        <span className="w-24 shrink-0">Date</span>
-        <span className="flex-1 min-w-0">Patient</span>
-        <span className="w-36 shrink-0 hidden sm:block">Unit / Incident</span>
-        <span className="w-24 shrink-0 text-right">Status</span>
+    <div className="p-4 md:p-6 overflow-y-auto h-full">
+      <div className="mb-5">
+        <h2 className="text-lg font-bold text-white">{entry.item_name || '—'}</h2>
+        <p className="text-xs text-gray-500 mt-0.5">{entry.patient_name || 'Unknown Patient'}</p>
       </div>
-      <div className="divide-y divide-gray-800/50">
-        {charts.map(c => (
-          <Link key={c.id} to={`/encounters/${c.id}`}
-            className="flex items-center px-4 py-3 hover:bg-gray-800 transition-colors text-sm">
-            <span className="w-24 shrink-0 text-gray-400 text-xs">{c.date || '—'}</span>
-            <span className="flex-1 min-w-0 font-medium truncate pr-2">
-              {patientName(c.patient_first_name, c.patient_last_name)}
-              {(c.unsignedNoteCount ?? 0) > 0 && (
-                <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded bg-amber-900/60 text-amber-300">
-                  +{c.unsignedNoteCount} note{c.unsignedNoteCount !== 1 ? 's' : ''}
-                </span>
-              )}
-            </span>
-            <span className="w-36 shrink-0 text-gray-500 text-xs truncate hidden sm:block pr-2">
-              {c.unit || '—'}{c.incident ? ` · ${c.incident}` : ''}
-            </span>
-            <span className="w-24 shrink-0 text-right">{statusBadge(c.pcr_status)}</span>
-          </Link>
-        ))}
+
+      <div className="theme-card rounded-xl border p-4 mb-5">
+        <h3 className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">MAR Entry</h3>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+          {([
+            ['Patient', entry.patient_name],
+            ['Medication', entry.item_name],
+            ['Qty Used', entry.qty_used != null ? String(entry.qty_used) : null],
+            ['Date', entry.date],
+            ['Time', entry.time],
+            ['Dispensed By', entry.dispensed_by],
+            ['Unit', entry.unit],
+            ['Incident', entry.incident],
+            ['Category', entry.category],
+          ] as [string, string | null][]).map(([label, value]) => (
+            <div key={label}>
+              <span className="text-xs text-gray-500">{label}</span>
+              <p className="text-sm text-white">{value || '—'}</p>
+            </div>
+          ))}
+        </div>
       </div>
+
+      {marLink ? (
+        <Link
+          to={marLink}
+          className="block w-full text-center py-2.5 bg-orange-600 hover:bg-orange-700 rounded-lg text-sm font-semibold transition-colors"
+        >
+          Open MAR →
+        </Link>
+      ) : (
+        <p className="text-xs text-gray-500 text-center">No encounter linked to this MAR entry.</p>
+      )}
     </div>
   )
 }
 
-function OrphanNotesSection({ notes, onDelete }: { notes: UnsignedNote[]; onDelete: (id: string) => void }) {
-  // Notes on encounters that ARE signed but the note itself isn't
+// ── List Sections ─────────────────────────────────────────────────────────────
+
+function ChartList({
+  charts,
+  selectedId,
+  onSelect,
+}: {
+  charts: UnsignedChart[]
+  selectedId: string | null
+  onSelect: (id: string) => void
+}) {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
+  if (charts.length === 0) return (
+    <div className="p-6 text-center">
+      <p className="text-2xl mb-2">✅</p>
+      <p className="text-gray-500 text-sm">All charts signed.</p>
+    </div>
+  )
+  return (
+    <div className="divide-y divide-gray-800/50">
+      {charts.map(c => {
+        const isSelected = c.id === selectedId
+        return (
+          <button
+            key={c.id}
+            onClick={() => onSelect(c.id)}
+            className={`w-full text-left px-3 py-3 flex items-start gap-2 ${lc.rowCls(isSelected)}`}
+          >
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm truncate ${isSelected ? 'text-white font-medium' : 'text-gray-300'}`}>
+                {patientName(c.patient_first_name, c.patient_last_name)}
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5 truncate">
+                {c.date || '—'} · {c.unit || '—'}{c.incident ? ` · ${c.incident}` : ''}
+              </p>
+            </div>
+            <div className="flex-shrink-0 flex flex-col items-end gap-1 mt-0.5">
+              {statusBadge(c.pcr_status)}
+              {(c.unsignedNoteCount ?? 0) > 0 && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-900/60 text-amber-300">
+                  +{c.unsignedNoteCount} note{c.unsignedNoteCount !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function OrphanNotesList({
+  notes,
+  onDelete,
+}: {
+  notes: UnsignedNote[]
+  onDelete: (id: string) => void
+}) {
   const [confirmId, setConfirmId] = useState<string | null>(null)
   if (notes.length === 0) return null
 
   return (
-    <div className="theme-card rounded-xl border overflow-hidden">
+    <>
+      <div className="px-3 py-2 bg-gray-800/40 border-b border-t border-gray-800">
+        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wide">
+          Unsigned Notes on Signed Charts ({notes.length})
+        </h3>
+      </div>
       <div className="divide-y divide-gray-800/50">
         {notes.map(n => (
-          <div key={n.id} className="flex items-start gap-3 px-4 py-3 hover:bg-gray-800 transition-colors">
+          <div key={n.id} className="flex items-start gap-2 px-3 py-2.5">
             <Link to={`/encounters/${n.encounter_uuid || n.encounter_id}#notes`} className="flex-1 min-w-0">
-              <p className="text-gray-400 text-xs">
-                {new Date(n.note_datetime).toLocaleString()} · {n.encounter_id}
-              </p>
-              <p className="text-white text-sm mt-0.5 line-clamp-2">{n.note_text}</p>
+              <p className="text-xs text-gray-400">{new Date(n.note_datetime).toLocaleString()} · {n.encounter_id}</p>
+              <p className="text-sm text-white mt-0.5 line-clamp-2">{n.note_text}</p>
             </Link>
-            <div className="flex items-center gap-2 shrink-0 mt-0.5">
-              <span className="text-xs px-2 py-0.5 rounded-full bg-amber-900 text-amber-300">Unsigned</span>
+            <div className="flex items-center gap-1 shrink-0 mt-0.5">
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-900 text-amber-300">Unsigned</span>
               <button
                 onClick={() => setConfirmId(n.id)}
                 className="text-xs text-gray-500 hover:text-red-400 transition-colors p-1"
@@ -144,42 +221,53 @@ function OrphanNotesSection({ notes, onDelete }: { notes: UnsignedNote[]; onDele
         onConfirm={() => { if (confirmId) onDelete(confirmId); setConfirmId(null) }}
         onCancel={() => setConfirmId(null)}
       />
-    </div>
+    </>
   )
 }
 
-function MARSection({ entries }: { entries: UnsignedMAR[] }) {
+function MARList({
+  entries,
+  selectedId,
+  onSelect,
+}: {
+  entries: UnsignedMAR[]
+  selectedId: string | null
+  onSelect: (id: string) => void
+}) {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   if (entries.length === 0) return (
-    <div className="theme-card rounded-xl border p-8 text-center">
-      <p className="text-3xl mb-2">✅</p>
+    <div className="p-6 text-center">
+      <p className="text-2xl mb-2">✅</p>
       <p className="text-gray-500 text-sm">All medication orders co-signed.</p>
     </div>
   )
-
   return (
-    <div className="theme-card rounded-xl border overflow-hidden">
-      <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 bg-slate-800/90">
-        <span className="w-24 shrink-0">Date</span>
-        <span className="w-28 shrink-0">Patient</span>
-        <span className="flex-1 min-w-0">Medication</span>
-        <span className="w-24 shrink-0 hidden sm:block">Administered By</span>
-        <span className="w-20 shrink-0 text-right">Qty</span>
-      </div>
-      <div className="divide-y divide-gray-800/50">
-        {entries.map(m => (
-          <Link key={m.id} to={m.encounter_id ? `/mar/${m.encounter_id}/${m.id}` : '#'}
-            className="flex items-center px-4 py-3 hover:bg-gray-800 transition-colors text-sm">
-            <span className="w-24 shrink-0 text-gray-400 text-xs">{m.date || '—'}</span>
-            <span className="w-28 shrink-0 text-gray-300 text-xs truncate pr-2">{m.patient_name || '—'}</span>
-            <span className="flex-1 min-w-0 font-medium truncate pr-2 text-white">
-              {m.item_name || '—'}
-              {m.category && <span className="text-gray-500 text-xs ml-1">({m.category})</span>}
-            </span>
-            <span className="w-24 shrink-0 text-gray-500 text-xs truncate hidden sm:block pr-2">{m.dispensed_by || '—'}</span>
-            <span className="w-20 shrink-0 text-right text-orange-300 text-xs font-medium">{m.qty_used ?? '—'}</span>
-          </Link>
-        ))}
-      </div>
+    <div className="divide-y divide-gray-800/50">
+      {entries.map(m => {
+        const isSelected = m.id === selectedId
+        return (
+          <button
+            key={m.id}
+            onClick={() => onSelect(m.id)}
+            className={`w-full text-left px-3 py-3 flex items-start gap-2 ${lc.rowCls(isSelected)}`}
+          >
+            <div className="flex-1 min-w-0">
+              <p className={`text-sm truncate ${isSelected ? 'text-white font-medium' : 'text-gray-300'}`}>
+                {m.item_name || '—'}
+                {m.category && <span className="text-gray-500 text-xs ml-1">({m.category})</span>}
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5 truncate">
+                {m.patient_name || 'Unknown'} · {m.date || '—'}{m.time ? ` ${m.time}` : ''}
+              </p>
+            </div>
+            <div className="flex-shrink-0 text-right mt-0.5">
+              <p className="text-xs font-medium text-orange-300">{m.qty_used ?? '—'}</p>
+              <p className="text-[10px] text-gray-600 mt-0.5">{m.dispensed_by || '—'}</p>
+            </div>
+          </button>
+        )
+      })}
     </div>
   )
 }
@@ -195,6 +283,8 @@ export default function UnsignedItemsPage() {
   const [marEntries, setMarEntries] = useState<UnsignedMAR[]>([])
   const [loading, setLoading] = useState(true)
   const [tab, setTab] = useState<'charts' | 'mar'>('charts')
+  const [selectedChartId, setSelectedChartId] = useState<string | null>(null)
+  const [selectedMarId, setSelectedMarId] = useState<string | null>(null)
 
   const myName = assignment.employee?.name || ''
   const myRole = assignment.employee?.role || ''
@@ -211,7 +301,6 @@ export default function UnsignedItemsPage() {
     if (assignment.loading || !myName) { if (!assignment.loading) setLoading(false); return }
 
     const load = async () => {
-      // 1. Unsigned charts — created by me or I'm provider of record
       const [{ data: created }, { data: provider }] = await Promise.all([
         supabase.from('patient_encounters')
           .select('id, encounter_id, date, unit, incident, patient_first_name, patient_last_name, created_by, provider_of_record, pcr_status, signed_at')
@@ -231,15 +320,12 @@ export default function UnsignedItemsPage() {
       })
       allCharts.sort((a, b) => (b.date || '').localeCompare(a.date || ''))
 
-      // 2. Unsigned progress notes — authored by me
       const { data: noteData } = await supabase.from('progress_notes')
         .select('id, encounter_id, encounter_uuid, note_datetime, author_name, note_text')
         .eq('author_name', myName).is('signed_at', null).is('deleted_at', null)
         .order('note_datetime', { ascending: false }).limit(100)
       const allNotes = noteData || []
 
-      // Group notes by encounter — attach count to charts that already appear,
-      // and collect "orphan" notes (on encounters that are already signed / not in the chart list)
       const chartEncounterIds = new Set(allCharts.map(c => c.encounter_id))
       const noteCountByEncId: Record<string, number> = {}
       const orphans: UnsignedNote[] = []
@@ -252,7 +338,6 @@ export default function UnsignedItemsPage() {
         }
       }
 
-      // Attach note counts to charts
       for (const chart of allCharts) {
         chart.unsignedNoteCount = noteCountByEncId[chart.encounter_id] || 0
       }
@@ -260,7 +345,6 @@ export default function UnsignedItemsPage() {
       setCharts(allCharts)
       setOrphanNotes(orphans)
 
-      // 3. MAR entries needing co-sign (only for providers, but load for admins too)
       if (isProvider || isAdmin) {
         const { data: marData } = await supabase.from('dispense_admin_log')
           .select('id, date, time, patient_name, item_name, qty_used, dispensed_by, encounter_id, unit, incident, category')
@@ -276,7 +360,7 @@ export default function UnsignedItemsPage() {
     }
 
     load()
-  }, [assignment.loading, myName, myRole])
+  }, [assignment.loading, myName, myRole]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <LoadingSkeleton fullPage />
 
@@ -284,11 +368,20 @@ export default function UnsignedItemsPage() {
   const marTotal = marEntries.length
   const grandTotal = chartTotal + marTotal
 
-  return (
-    <div className="bg-gray-950 text-white pb-8">
-      <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-5 mt-8 md:mt-0">
+  const selectedChart = selectedChartId ? charts.find(c => c.id === selectedChartId) ?? null : null
+  const selectedMar = selectedMarId ? marEntries.find(m => m.id === selectedMarId) ?? null : null
 
-        {/* Header */}
+  const activeMobileDetail = tab === 'charts' ? selectedChart : selectedMar
+  const clearMobileDetail = () => {
+    if (tab === 'charts') setSelectedChartId(null)
+    else setSelectedMarId(null)
+  }
+
+  return (
+    <div className="bg-gray-950 text-white h-full flex flex-col">
+
+      {/* Header — full width, flex-shrink-0 */}
+      <div className="flex-shrink-0 p-4 md:px-6 md:pt-6 space-y-3">
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2">
@@ -311,84 +404,141 @@ export default function UnsignedItemsPage() {
           </Link>
         </div>
 
-        {/* All clear */}
-        {grandTotal === 0 ? (
-          <div className="theme-card rounded-xl border p-12 text-center">
+        {/* Tab pills */}
+        {(isProvider || isAdmin) && grandTotal > 0 && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => setTab('charts')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                tab === 'charts'
+                  ? 'bg-orange-600 text-white'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              }`}
+            >
+              📋 Charts & Notes
+              {chartTotal > 0 && (
+                <span className="ml-1.5 text-xs bg-black/30 px-1.5 py-0.5 rounded-full">{chartTotal}</span>
+              )}
+            </button>
+            <button
+              onClick={() => setTab('mar')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                tab === 'mar'
+                  ? 'bg-orange-600 text-white'
+                  : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+              }`}
+            >
+              💊 MAR Orders
+              {marTotal > 0 && (
+                <span className="ml-1.5 text-xs bg-black/30 px-1.5 py-0.5 rounded-full">{marTotal}</span>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* All clear */}
+      {grandTotal === 0 ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center p-12">
             <p className="text-5xl mb-4">✅</p>
             <p className="text-white font-medium">All caught up!</p>
             <p className="text-gray-500 text-sm mt-1">Nothing needs your signature right now.</p>
           </div>
-        ) : (
-          <>
-            {/* Tab pills — only show if provider has both sections */}
-            {(isProvider || isAdmin) && (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setTab('charts')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    tab === 'charts'
-                      ? 'bg-orange-600 text-white'
-                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                  }`}
-                >
-                  📋 Charts & Notes
-                  {chartTotal > 0 && (
-                    <span className="ml-1.5 text-xs bg-black/30 px-1.5 py-0.5 rounded-full">{chartTotal}</span>
-                  )}
-                </button>
-                <button
-                  onClick={() => setTab('mar')}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                    tab === 'mar'
-                      ? 'bg-orange-600 text-white'
-                      : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                  }`}
-                >
-                  💊 MAR Orders
-                  {marTotal > 0 && (
-                    <span className="ml-1.5 text-xs bg-black/30 px-1.5 py-0.5 rounded-full">{marTotal}</span>
-                  )}
-                </button>
-              </div>
-            )}
+        </div>
+      ) : (
+        /* Split panel */
+        <div className="flex-1 flex min-h-0 border-t border-gray-800">
 
-            {/* Charts & Notes tab */}
-            {tab === 'charts' && (
-              <div className="space-y-5">
-                <div>
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">
-                    Unsigned Encounters ({charts.length})
-                  </h2>
-                  <ChartsSection charts={charts} />
-                </div>
-
-                {orphanNotes.length > 0 && (
-                  <div>
-                    <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">
-                      Unsigned Progress Notes on Signed Charts ({orphanNotes.length})
-                    </h2>
-                    <OrphanNotesSection notes={orphanNotes} onDelete={deleteOrphanNote} />
+          {/* Left: list (40%) */}
+          <div className="w-full md:w-[40%] md:border-r border-gray-800 overflow-y-auto">
+            {tab === 'charts' ? (
+              <>
+                {charts.length === 0 && orphanNotes.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <p className="text-2xl mb-2">✅</p>
+                    <p className="text-gray-500 text-sm">All charts signed.</p>
                   </div>
+                ) : (
+                  <>
+                    {charts.length > 0 && (
+                      <>
+                        <div className="px-3 py-2 bg-gray-800/40 border-b border-gray-800">
+                          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wide">
+                            Unsigned Encounters ({charts.length})
+                          </h3>
+                        </div>
+                        <ChartList
+                          charts={charts}
+                          selectedId={selectedChartId}
+                          onSelect={setSelectedChartId}
+                        />
+                      </>
+                    )}
+                    <OrphanNotesList notes={orphanNotes} onDelete={deleteOrphanNote} />
+                  </>
                 )}
-              </div>
+              </>
+            ) : (
+              <MARList
+                entries={marEntries}
+                selectedId={selectedMarId}
+                onSelect={setSelectedMarId}
+              />
             )}
+          </div>
 
-            {/* MAR tab */}
-            {tab === 'mar' && (
-              <div>
-                <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-3">
-                  MAR Entries Awaiting Co-Sign ({marEntries.length})
-                </h2>
-                <MARSection entries={marEntries} />
-              </div>
+          {/* Right: detail (60%) — desktop only */}
+          <div className="hidden md:flex md:w-[60%] overflow-y-auto">
+            {tab === 'charts' ? (
+              selectedChart ? (
+                <ChartDetailPanel chart={selectedChart} />
+              ) : (
+                <div className="flex items-center justify-center w-full text-gray-600">
+                  <div className="text-center">
+                    <p className="text-3xl mb-2">📋</p>
+                    <p className="text-sm">Select an item to view details</p>
+                  </div>
+                </div>
+              )
+            ) : (
+              selectedMar ? (
+                <MARDetailPanel entry={selectedMar} />
+              ) : (
+                <div className="flex items-center justify-center w-full text-gray-600">
+                  <div className="text-center">
+                    <p className="text-3xl mb-2">💊</p>
+                    <p className="text-sm">Select an item to view details</p>
+                  </div>
+                </div>
+              )
             )}
-          </>
-        )}
+          </div>
 
-        <p className="text-xs text-gray-600 text-center">
-          Tap any item to open and sign
-        </p>
-      </div>
+        </div>
+      )}
+
+      {/* Mobile overlay */}
+      {activeMobileDetail && (
+        <div className="md:hidden fixed inset-0 z-50 bg-gray-950 overflow-y-auto flex flex-col">
+          <div className="sticky top-0 z-10 bg-gray-900 border-b border-gray-800 px-4 py-3 flex items-center justify-between flex-shrink-0">
+            <h3 className="text-sm font-bold text-white">
+              {tab === 'charts' ? 'Chart Detail' : 'MAR Detail'}
+            </h3>
+            <button
+              onClick={clearMobileDetail}
+              className="text-gray-400 hover:text-white text-sm px-2 py-1"
+            >
+              ✕ Close
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {tab === 'charts' && selectedChart && <ChartDetailPanel chart={selectedChart} />}
+            {tab === 'mar' && selectedMar && <MARDetailPanel entry={selectedMar} />}
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

@@ -1,4 +1,6 @@
 import type { IncidentUnit, Employee } from './types'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type Props = {
   activeIU: IncidentUnit
@@ -18,10 +20,12 @@ export default function CrewPanel({
   activeIU, isAdmin, allEmployees, addingTo, selectedEmployee, saving,
   onAddStart, onAddCancel, onEmployeeSelect, onAddCrew, onRemoveCrew,
 }: Props) {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const activeCrew = activeIU.unit_assignments.filter((ua: any) => !ua.released_at)
 
   return (
-    <div className="theme-card rounded-xl border overflow-hidden">
+    <div className={lc.container}>
       <div className="flex items-center justify-between px-4 py-3 bg-gray-800">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Crew</h2>
         {isAdmin && activeCrew.length < 4 ? (

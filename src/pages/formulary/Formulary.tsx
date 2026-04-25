@@ -6,6 +6,8 @@ import { toast } from '@/lib/toast'
 import { createClient } from '@/lib/supabase/client'
 import { LoadingSkeleton, ConfirmDialog } from '@/components/ui'
 import { loadList } from '@/lib/offlineFirst'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type CatalogSnap = {
   sku: string | null
@@ -77,6 +79,8 @@ function FormularyPageInner() {
   const [editingUnitCostId, setEditingUnitCostId] = useState<string | null>(null)
   const [unitCostInput, setUnitCostInput] = useState('')
   const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; confirmLabel?: string; icon?: string; confirmColor?: string } | null>(null)
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
 
   useEffect(() => {
     const load = async () => {
@@ -353,9 +357,9 @@ function FormularyPageInner() {
       {loading ? (
         <LoadingSkeleton rows={8} header />
       ) : (
-        <div className="theme-card rounded-xl border overflow-hidden">
+        <div className={lc.container}>
           {/* Header */}
-          <div className="grid grid-cols-12 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 border-b border-gray-700">
+          <div className={`grid grid-cols-12 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 ${lc.header}`}>
             <span className="col-span-4">Item</span>
             <span className="col-span-1">Cat</span>
             <span className="col-span-1 hidden lg:block text-gray-600">SKU</span>
@@ -367,7 +371,7 @@ function FormularyPageInner() {
           </div>
 
           {/* Rows */}
-          <div className="divide-y divide-gray-800">
+          <div>
             {filtered.map(item => {
               const ci = catalogOf(item)
               return (
@@ -424,9 +428,7 @@ function FormularyPageInner() {
                   ) : (
                     <div
                       onClick={() => navigate(`/formulary/${item.id}`)}
-                      className={`grid grid-cols-12 px-4 py-2.5 items-center text-sm cursor-pointer transition-colors ${
-                        detailMatch?.params?.id === item.id ? 'bg-gray-700' : 'hover:bg-gray-800/50'
-                      }`}>
+                      className={`grid grid-cols-12 px-4 py-2.5 items-center text-sm cursor-pointer ${lc.rowCls(detailMatch?.params?.id === item.id)}`}>
                       <div className="col-span-4 flex items-center gap-2">
                         {ci?.image_url ? (
                           <img src={ci.image_url} alt="" className="w-8 h-8 rounded object-cover shrink-0 bg-gray-800" />

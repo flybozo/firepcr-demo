@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { LoadingSkeleton } from '@/components/ui'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type UnsignedEncounter = {
   id: string
@@ -19,6 +21,8 @@ type UnsignedEncounter = {
 }
 
 export default function UnsignedPCRsPage() {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const supabase = createClient()
   const assignment = useUserAssignment()
   const [encounters, setEncounters] = useState<UnsignedEncounter[]>([])
@@ -110,7 +114,7 @@ export default function UnsignedPCRsPage() {
             <p className="text-gray-500 text-sm mt-1">You have no unsigned patient encounters.</p>
           </div>
         ) : (
-          <div className="theme-card rounded-xl border overflow-hidden">
+          <div className={lc.container}>
             {/* Column headers */}
             <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 bg-slate-800/90">
               <span className="w-24 shrink-0">Date</span>

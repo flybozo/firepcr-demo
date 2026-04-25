@@ -42,7 +42,6 @@ const TABS: Tab[] = [
     subItems: [
       { label: 'New Encounter', href: '/encounters/new' },
       { label: 'Unsigned Items', href: '/unsigned-items' },
-      { label: 'Patient Search', href: '/patient-search' },
       { label: 'MAR', href: '/mar' },
     ],
   },

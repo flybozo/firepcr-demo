@@ -1,11 +1,15 @@
 import { Link } from 'react-router-dom'
 import type { ChildUnit } from './types'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 export default function ClusterComponents({ childUnits }: { childUnits: ChildUnit[] }) {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   if (childUnits.length === 0) return null
 
   return (
-    <div className="theme-card rounded-xl border overflow-hidden">
+    <div className={lc.container}>
       <div className="px-4 py-3 bg-gray-800">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Cluster Components</h2>
       </div>

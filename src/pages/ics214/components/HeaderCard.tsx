@@ -1,6 +1,8 @@
 import type { ICS214Header } from './types'
 import { EditField } from './EditField'
 import { formatDateTime } from './utils'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 interface Props {
   header: ICS214Header
@@ -8,8 +10,10 @@ interface Props {
 }
 
 export function HeaderCard({ header, onSave }: Props) {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   return (
-    <div className="theme-card rounded-xl border overflow-hidden">
+    <div className={lc.container}>
       <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
         <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">ICS 214 Header</h2>
         <span className="text-xs text-gray-600 italic">Click to edit</span>

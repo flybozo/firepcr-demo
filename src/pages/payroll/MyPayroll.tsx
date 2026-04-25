@@ -3,6 +3,8 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import OfflineGate from '@/components/OfflineGate'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -45,6 +47,8 @@ function fmtCurrency(n: number) {
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function MyPayrollPage() {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const supabase = createClient()
   const assignment = useUserAssignment()
 
@@ -273,7 +277,7 @@ export default function MyPayrollPage() {
         )}
 
         {/* Assignment History */}
-        <div className="theme-card rounded-xl border overflow-hidden">
+        <div className={lc.container}>
           <div className="px-4 py-3 border-b theme-card-header flex items-center justify-between">
             <h2 className="text-xs font-bold uppercase tracking-wider text-gray-300">Assignment History</h2>
             <span className="text-xs text-gray-500">{filtered.length} total</span>

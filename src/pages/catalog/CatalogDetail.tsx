@@ -14,6 +14,7 @@ type CatalogItem = {
   ndc: string | null
   barcode: string | null
   upc: string | null
+  manufacturer_sku: string | null
   concentration: string | null
   route: string | null
   unit_of_measure: string | null
@@ -100,7 +101,7 @@ export default function CatalogDetail() {
     setSaving(true)
     const updates: Record<string, any> = {}
     const editableFields = [
-      'item_name', 'category', 'is_als', 'ndc', 'barcode', 'upc',
+      'item_name', 'category', 'is_als', 'ndc', 'barcode', 'upc', 'manufacturer_sku',
       'concentration', 'route', 'unit_of_measure', 'supplier',
       'units_per_case', 'case_cost', 'unit_cost', 'notes',
     ]
@@ -268,6 +269,7 @@ export default function CatalogDetail() {
               { label: 'NDC', value: item.ndc },
               { label: 'Barcode', value: item.barcode },
               { label: 'UPC', value: item.upc },
+              { label: 'Mfr SKU', value: item.manufacturer_sku },
               { label: 'Concentration', value: item.concentration },
               { label: 'Route', value: item.route },
               { label: 'Unit of Measure', value: item.unit_of_measure },
@@ -379,6 +381,10 @@ export default function CatalogDetail() {
             <div>
               <label className={labelCls}>UPC</label>
               <input className={inputCls} value={form.upc || ''} onChange={e => set('upc', e.target.value || null)} />
+            </div>
+            <div>
+              <label className={labelCls}>Manufacturer SKU</label>
+              <input className={inputCls} value={form.manufacturer_sku || ''} onChange={e => set('manufacturer_sku', e.target.value || null)} placeholder="Mfr product/catalog #" />
             </div>
           </div>
           <div className="grid grid-cols-3 gap-3">

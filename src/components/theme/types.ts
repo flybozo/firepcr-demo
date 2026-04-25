@@ -15,6 +15,8 @@ export type ThemeColors = {
   danger: string
 }
 
+export type ListStyle = 'card' | 'list'
+
 export type Theme = {
   preset: string
   colors: ThemeColors
@@ -23,6 +25,7 @@ export type Theme = {
   cardTransparency: number
   borderRadius: string
   font?: string
+  listStyle?: ListStyle
 }
 
 export type ThemeContextValue = {

@@ -21,6 +21,8 @@ const ROLE_COLORS: Record<string, string> = {
 }
 import { PageHeader, LoadingSkeleton, EmptyState, ConfirmDialog, SortableHeader } from '@/components/ui'
 import { useSortable } from '@/hooks/useSortable'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type Unit = {
   id: string
@@ -76,6 +78,8 @@ function UnitsPageInner() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'in_service' | 'out_of_service' | 'archived'>('all')
   type UnitSortKey = 'name' | 'type' | 'status'
   const { sortKey: unitSortKey, sortDir: unitSortDir, toggleSort: unitToggleSort, sortFn: unitSortFn } = useSortable<UnitSortKey>('name', 'asc')
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const [cyclingStatus, setCyclingStatus] = useState<string | null>(null)
   const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; confirmLabel?: string; icon?: string; confirmColor?: string } | null>(null)
 
@@ -243,9 +247,9 @@ function UnitsPageInner() {
       ) : filteredUnits.length === 0 ? (
         <EmptyState icon="🚑" message="No units found." actionHref="/units/new" actionLabel="Add a unit" />
       ) : (
-        <div className="theme-card rounded-xl border overflow-x-auto">
+        <div className={`${lc.container} overflow-x-auto`}>
           {/* Header */}
-          <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b theme-card-header min-w-[760px]">
+          <div className={`flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide ${lc.header} min-w-[760px]`}>
             <span className="w-8 shrink-0" />{/* photo */}
             <SortableHeader label="Unit" sortKey="name" currentKey={unitSortKey} currentDir={unitSortDir} onToggle={unitToggleSort} className="w-32 shrink-0" />
             <SortableHeader label="Type" sortKey="type" currentKey={unitSortKey} currentDir={unitSortDir} onToggle={unitToggleSort} className="w-24 shrink-0 hidden sm:flex" />
@@ -265,7 +269,7 @@ function UnitsPageInner() {
 
             return (
               <div key={unit.id} onClick={() => navigate(`/units/${unit.id}`)}
-                className={`flex items-center px-4 py-2 cursor-pointer border-b border-gray-800/50 text-sm min-w-[760px] ${detailMatch?.params?.id === unit.id ? 'bg-gray-700' : 'hover:bg-gray-800'}`}>
+                className={`flex items-center px-4 py-2 cursor-pointer text-sm min-w-[760px] ${lc.rowCls(detailMatch?.params?.id === unit.id)}`}>
 
                 {/* Unit photo */}
                 <div className="w-8 h-8 rounded overflow-hidden shrink-0 bg-gray-700 flex items-center justify-center mr-3">

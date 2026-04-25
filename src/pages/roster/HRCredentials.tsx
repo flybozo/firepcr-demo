@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import OfflineGate from '@/components/OfflineGate'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 const ROLE_COLORS: Record<string, string> = {
   'MD': 'bg-purple-900 text-purple-300',
@@ -149,6 +151,8 @@ function calcCompliance(emp: Employee, uploadedCerts: string[] = []): EmployeeCo
 type ComplianceFilter = 'All' | 'Complete' | 'Incomplete' | 'Expired'
 
 export default function HRCredentialsPage() {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const supabase = createClient()
   const assignment = useUserAssignment()
 
@@ -275,7 +279,7 @@ export default function HRCredentialsPage() {
         ) : filtered.length === 0 ? (
           <div className="text-center py-12 text-gray-500">No employees match this filter.</div>
         ) : (
-          <div className="theme-card rounded-xl border overflow-hidden">
+          <div className={lc.container}>
             {/* Scrollable table wrapper for mobile */}
             <div className="overflow-x-auto">
             {/* Table header */}
@@ -301,7 +305,7 @@ export default function HRCredentialsPage() {
               ]
 
               return (
-                <div key={emp.id} className="flex items-center px-3 py-2 border-b border-gray-800/50 hover:bg-gray-800/30 transition-colors" style={{ minWidth: '700px' }}>
+                <div key={emp.id} className={`flex items-center px-3 py-2 ${lc.row}`} style={{ minWidth: '700px' }}>
                   {/* Name */}
                   <div className="w-36 shrink-0 pr-2">
                     <p className="text-sm font-medium text-white truncate">{emp.name || '—'}</p>

@@ -1,16 +1,16 @@
-# Ridgeline EMS Field Ops — Architecture Document
+# RAM Field Ops — Architecture Document
 
 **App:** https://ram-field-ops.vercel.app (staging)  
 **Repo:** https://github.com/flybozo/ram-field-ops  
-**Last updated:** 2026-04-24 09:40 PDT  
-**Current version:** v1.29.0  
-**App version:** v1.8.0
+**Last updated:** 2026-04-24 20:24 PDT  
+**Current version:** v1.30.0  
+**App version:** v1.9.0
 
 ---
 
 ## 1. Overview
 
-Ridgeline EMS Field Ops (branded **FirePCR**) is a Progressive Web App for Ridgeline EMS's wildfire medical operations. It runs on phones, tablets, and desktops in austere field environments — often with no cell service. Everything is designed for **offline-first** reliability.
+RAM Field Ops (branded **FirePCR**) is a Progressive Web App for Remote Area Medicine's wildfire medical operations. It runs on phones, tablets, and desktops in austere field environments — often with no cell service. Everything is designed for **offline-first** reliability.
 
 **What it does:**
 - Patient encounter charting (PCR — Patient Care Reports)
@@ -29,7 +29,7 @@ Ridgeline EMS Field Ops (branded **FirePCR**) is a Progressive Web App for Ridge
 - CSV export of de-identified patient log
 - Agency logo badges on patient records (Cal Fire, USFS, BLM, NPS, ODF, etc.)
 - Fire admin dashboard (external access via access codes)
-- External chat (fire agency liaisons ↔ Ridgeline EMS units via access codes)
+- External chat (fire agency liaisons ↔ RAM units via access codes)
 - Granular RBAC with role-based permissions
 - Channel archiving with auto-archive on access code deactivation
 - Photo sharing in external chat
@@ -42,7 +42,7 @@ Ridgeline EMS Field Ops (branded **FirePCR**) is a Progressive Web App for Ridge
 - 24-hour Medical Ops Report PDF (client-side, external fire admin dashboard)
 - Employee onboarding flow at `/onboard` (self-service, creates auth + employee row, sends welcome email)
 - Admin employee provisioning endpoint (`POST /api/admin/provision-user`)
-- PWA home screen icon: blue teardrop flame (`/public/firepcr-logo.png`); login/sidebar use Ridgeline EMS logo (`/public/ram-company-logo.png`)
+- PWA home screen icon: blue teardrop flame (`/public/firepcr-logo.png`); login/sidebar use RAM skull logo (`/public/ram-company-logo.png`)
 
 ---
 
@@ -188,7 +188,7 @@ ram-field-ops/
 │   │   └── chatHelpers.ts        # Time formatters, normalizers, channel icons
 │   ├── lib/
 │   │   ├── branding.ts           # BrandConfig type (25+ fields)
-│   │   ├── branding.config.ts    # Per-deployment brand values (Ridgeline EMS)
+│   │   ├── branding.config.ts    # Per-deployment brand values (RAM)
 │   │   ├── branding.demo.ts      # Demo brand values (Ridgeline EMS)
 │   │   ├── services/             # Data access layer (no supabase in pages)
 │   │   │   ├── incidents.ts      # 30+ incident query/mutation functions
@@ -417,7 +417,7 @@ Field users see only their unit's encounters, inventory, supply runs, and their 
 
 ## 7. External Chat (Fire Admin Dashboard)
 
-Fire agency liaisons can communicate with Ridgeline EMS units via the external dashboard without any app account.
+Fire agency liaisons can communicate with RAM units via the external dashboard without any app account.
 
 ### How It Works
 1. Admin generates an **access code** for an incident (e.g., label: "Cal Fire IC")
@@ -747,7 +747,7 @@ See `REFACTORING-PLAN.md` for the full plan. Summary:
 src/
   lib/
     branding.ts              ← Brand config types
-    branding.config.ts       ← Per-deployment config (Ridgeline EMS vs demo)
+    branding.config.ts       ← Per-deployment config (RAM vs demo)
     services/                ← All data access (no supabase in pages)
       incidents.ts
       encounters.ts
@@ -1208,7 +1208,7 @@ Built 2026-04-21.
 ### Self-Service Path (existing): `/onboard`
 Full multi-step form at `src/pages/onboard/Onboard.tsx`. Public route (no auth).
 - Collects: name, role, personal email, phone, DOB, address, emergency contact, headshot, credentials
-- Backend: `POST /api/onboard` — creates employee row + auth user via `supabase.auth.admin.createUser()`, generates `@ridgelineems.com` email, sends welcome email with temp password
+- Backend: `POST /api/onboard` — creates employee row + auth user via `supabase.auth.admin.createUser()`, generates `@wildfiremedical.com` email, sends welcome email with temp password
 - Credential uploads: `POST /api/onboard/upload` — uploads to Supabase Storage `credentials/` bucket
 - Linked from login page: "New employee? Complete your onboarding form →"
 
@@ -1630,7 +1630,7 @@ rig_check_items (
 - Where in app — unit detail page tab, dedicated `/rig-check` route, or prompted at check-in?
 - Should narc count here cross-reference the CS inventory table?
 
-## 44. Inventory Waste/Disposal (v1.29.0)
+## 44. Inventory Waste/Disposal (v1.30.0)
 
 **Table:** `inventory_disposals` — full audit trail for disposed inventory.
 
@@ -1660,7 +1660,7 @@ rig_check_items (
 - Decrements `unit_inventory.quantity` on submit
 - Zero-qty items filtered out of Expiration Dashboard
 
-## 45. Lot/Expiry Column Consolidation (v1.29.0)
+## 45. Lot/Expiry Column Consolidation (v1.30.0)
 
 Unified `cs_lot_number`/`cs_expiration_date` → `lot_number`/`expiration_date` across all code.
 - 66 DB rows backfilled from cs_ columns to standard columns
@@ -1669,7 +1669,7 @@ Unified `cs_lot_number`/`cs_expiration_date` → `lot_number`/`expiration_date` 
 - Per-lot inventory upsert: different lot numbers create separate `unit_inventory` rows
 - Old cs_ columns retained for rollback safety (drop in future cleanup)
 
-## 46. Catalog → Formulary Propagation Fix (v1.29.0)
+## 46. Catalog → Formulary Propagation Fix (v1.30.0)
 
 **Problem:** `formulary_templates` had 13 duplicate columns copied from `item_catalog` (supplier, costs, NDC, concentration, etc.). Editing the catalog didn't propagate to formulary views.
 
@@ -1690,7 +1690,7 @@ formulary_templates (WHAT each unit type CARRIES — thin join + par qty)
 unit_inventory (WHAT'S PHYSICALLY ON the truck — qty, lot, expiry)
 ```
 
-## 47. UnitFilterPills Shared Component (v1.29.0)
+## 47. UnitFilterPills Shared Component (v1.30.0)
 
 Extracted unit filter UI from 15 pages into `src/components/ui/UnitFilterPills.tsx`.
 - Desktop: horizontal scrollable pill buttons with unit-type color coding
@@ -1700,7 +1700,7 @@ Extracted unit filter UI from 15 pages into `src/components/ui/UnitFilterPills.t
 - Adding a new unit to the DB auto-propagates to all filtered views
 - Net reduction: ~75 lines of duplicated code removed
 
-## 48. Sortable Column Headers (v1.29.0)
+## 48. Sortable Column Headers (v1.30.0)
 
 Shared sorting infrastructure applied to 15 list views.
 
@@ -1715,7 +1715,7 @@ Shared sorting infrastructure applied to 15 list views.
 
 All sorting is client-side on already-loaded data — zero offline impact.
 
-## 49. Admin Dashboard Financial Summary (v1.29.0)
+## 49. Admin Dashboard Financial Summary (v1.30.0)
 
 - My Unit assignment card: entire gradient card is clickable `<Link>` with hover effect
 - Each active incident shows: start date, "Day X" deployment counter
@@ -1723,6 +1723,63 @@ All sorting is client-side on already-loaded data — zero offline impact.
 - Uses same calculation logic as Financial page: `deployment_records` fallback, all assignments (including released), `calcDays` utility
 - Compact currency format ($12.5k) for dashboard readability
 
-## 50. Mobile Nav — HR Credentials (v1.29.0)
+## 50. Mobile Nav — HR Credentials (v1.30.0)
 
 Moved "HR Credentials" from top-level "More" tab to Admin sub-sheet in `BottomTabBar.tsx`. Accessible via More → Admin → HR Credentials on mobile.
+
+## 51. 40/60 Split-Panel Layout (v1.30.0)
+
+Four list pages converted to master-detail split layout:
+
+| Page | Left (40%) | Right (60%) |
+|------|-----------|-------------|
+| Reorder Report | Compact list grouped by unit | Catalog detail + shortage bars + restock cost |
+| Unsigned Items | Charts/MAR tabs with clickable rows | Full EncounterDetail component (embedded) |
+| ICS 214 Logs | Compact log list (ID, unit, date, status) | Read-only 214 summary + personnel/activity counts |
+| Burn Rate | Items sorted by urgency | Catalog detail + burn analysis (stock bar, depletion) |
+
+**Pattern:**
+- Desktop: `md:w-[40%]` left, `md:w-[60%]` right, `md:border-r border-gray-800` divider
+- Mobile: list is full-width, detail opens as `fixed inset-0 z-50` overlay with close button
+- Selected item: highlight via `lc.rowCls(isSelected)` from shared list style system
+- Outer layout: `h-full flex flex-col` with `flex-1 flex min-h-0` split panel
+
+**Unsigned Items special case:** Right panel lazy-loads `EncounterDetail` with `encounterId` + `embedded` props. Embedded mode: tighter padding, no back link, no max-width constraint.
+
+## 52. List/Card Style Preference (v1.30.0)
+
+User-selectable list rendering style, toggled in Profile → Appearance.
+
+**Two styles:**
+- **Card:** `theme-card rounded-xl border overflow-hidden` container, rows with `border-b border-gray-800/50 hover:bg-gray-800`
+- **List:** No container border/rounding, rows with left + bottom borders: `border-l-2 border-l-transparent border-b border-b-gray-800/30`
+
+**Selected row (list mode):** `border-l-red-500 border-b-red-500/40 bg-red-950/40`
+
+**Infrastructure:**
+- `ListStyle` type added to `Theme`: `'card' | 'list'`
+- `src/lib/listStyles.ts` — `getListClasses(style)` returns `container`, `header`, `row`, `rowSelected`, `rowCls(boolean)`, `groupHeader`, `divider`
+- `src/hooks/useListStyle.ts` — reads from theme context, defaults to `'card'`
+- Side-specific Tailwind border classes (`border-l-*`, `border-b-*`) to avoid `border-transparent` overriding bottom border color
+- **42 files** import and use the system
+
+**Toggle:** Profile → Appearance section, visual preview tiles, persisted per-user.
+
+## 53. Nav Cleanup (v1.30.0)
+
+- Patient Search → embedded search bar on Encounters list (type to filter, Enter for server-side all-history search)
+- MAR Search → same pattern on MAR list
+- Daily Checklist moved from CS System → Units submenu
+- Removed Patient Search, MAR Search from sidebar + mobile bottom tabs
+- Standalone routes `/patient-search` and `/mar/search` preserved for direct URL access
+
+## 54. Billing Report Fix (v1.30.0)
+
+- `supply_runs.date` → `supply_runs.run_date` (column was always `run_date`, query was wrong)
+- Removed `total_cost` from `supply_run_items` select (column doesn't exist; computed client-side)
+- MAR cost lookup: `formulary_templates` no longer has `case_cost`/`units_per_case` → now queries `item_catalog` by `item_name`
+- Added `deleted_at`/`voided_at` filters to exclude soft-deleted records
+
+## 55. Manufacturer SKU (v1.30.0)
+
+New `item_catalog.manufacturer_sku` column (text). Displayed and editable in CatalogDetail alongside existing UPC and Barcode fields.

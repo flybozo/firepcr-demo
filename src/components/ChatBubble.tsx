@@ -95,7 +95,7 @@ export default function ChatBubble() {
           m.id === pendingMessageId && m.status === 'pending'
             ? {
                 ...m,
-                content: '⏱️ Request timed out, but Scout may still be working on it. Check back in a moment.',
+                content: '⏱️ Request timed out, but Codsworth may still be working on it. Check back in a moment.',
                 status: 'error' as MessageStatus,
               }
             : m
@@ -262,7 +262,7 @@ export default function ChatBubble() {
       <div key={msg.id || i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
         {msg.role === 'assistant' && (
           <div className="w-7 h-7 rounded-full bg-gray-800 flex items-center justify-center text-sm mr-2 mt-1 shrink-0">
-            🔥
+            🏴‍☠️
           </div>
         )}
         <div className="flex flex-col gap-1 max-w-[80%]">
@@ -289,7 +289,7 @@ export default function ChatBubble() {
 
           {/* Pending sub-label */}
           {isPending && (
-            <p className="text-xs text-gray-500 pl-1">Scout is working on this…</p>
+            <p className="text-xs text-gray-500 pl-1">Codsworth is working on this…</p>
           )}
 
           {/* Error retry button */}
@@ -314,7 +314,7 @@ export default function ChatBubble() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        aria-label="Open Scout chat"
+        aria-label="Open Codsworth chat"
         style={{
           position: 'fixed',
           right: bubblePos.right,
@@ -357,10 +357,10 @@ export default function ChatBubble() {
           <div className="flex items-center justify-between pb-3">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full bg-gray-800 flex items-center justify-center text-lg shrink-0">
-                🔥
+                🏴‍☠️
               </div>
               <div>
-                <h1 className="text-sm font-semibold text-white">Scout</h1>
+                <h1 className="text-sm font-semibold text-white">Codsworth</h1>
                 <p className="text-xs text-gray-500">RAM AI Assistant · always on</p>
               </div>
             </div>
@@ -408,12 +408,12 @@ export default function ChatBubble() {
           {/* Empty state */}
           {!assignment.loading && !initialLoading && assignment.employee && messages.length === 0 && !loading && (
             <div className="flex flex-col items-center justify-center h-full text-center py-16">
-              <div className="text-4xl mb-3">🔥</div>
+              <div className="text-4xl mb-3">🏴‍☠️</div>
               <p className="text-white font-semibold">
                 Hey {assignment.employee.name?.split(' ')[0]}!
               </p>
               <p className="text-gray-400 text-sm mt-1 max-w-xs">
-                I&apos;m Scout, your RAM assistant. Ask me about protocols, credentials, the app, or anything else I can help with.
+                I&apos;m Codsworth, your RAM assistant. Ask me about protocols, credentials, the app, or anything else I can help with.
               </p>
             </div>
           )}
@@ -425,7 +425,7 @@ export default function ChatBubble() {
           {loading && (
             <div className="flex justify-start">
               <div className="w-7 h-7 rounded-full bg-gray-800 flex items-center justify-center text-sm mr-2 mt-1 shrink-0">
-                🔥
+                🏴‍☠️
               </div>
               <div className="bg-gray-800 rounded-2xl rounded-bl-sm px-4 py-3">
                 <div className="flex gap-1 items-center h-4">
@@ -469,7 +469,7 @@ export default function ChatBubble() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Message Scout…"
+              placeholder="Message Codsworth…"
               rows={1}
               disabled={loading || !assignment.employee}
               className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 resize-none focus:outline-none focus:border-gray-500 disabled:opacity-50 max-h-32 overflow-y-auto"

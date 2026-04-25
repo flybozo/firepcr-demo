@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { usePermission } from '@/hooks/usePermission'
 import { Link } from 'react-router-dom'
 import { LoadingSkeleton, ConfirmDialog } from '@/components/ui'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type Employee = {
   id: string
@@ -27,6 +29,8 @@ const ROLE_DEFAULTS: Record<string, number> = {
 }
 
 export default function PayRatesPage() {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const supabase = createClient()
   const isAdmin = usePermission('payroll.manage')
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -146,7 +150,7 @@ export default function PayRatesPage() {
             <span className="text-xs text-gray-600">{byRole[role].length} employees</span>
             <span className="text-xs text-gray-600 ml-auto">Default: {ROLE_DEFAULTS[role] ? `$${ROLE_DEFAULTS[role]}/day` : '—'}</span>
           </div>
-          <div className="theme-card rounded-xl border overflow-hidden">
+          <div className={lc.container}>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b theme-card-header">
@@ -201,7 +205,7 @@ export default function PayRatesPage() {
                   }
 
                   return (
-                    <tr key={emp.id} className="hover:bg-gray-800/30 transition-colors">
+                    <tr key={emp.id} className={lc.row}>
                       <td className="px-4 py-2 text-white">{emp.name}</td>
                       <td className="px-4 py-2 text-right font-medium text-green-400">
                         {rate > 0 ? `$${rate.toLocaleString()}` : <span className="text-gray-600">Not set</span>}

@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useNavigate, Link } from 'react-router-dom'
 import { SortableHeader } from '@/components/ui'
 import { useSortable } from '@/hooks/useSortable'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type SupplyRun = {
   id: string
@@ -17,6 +19,8 @@ type SupplyRun = {
 }
 
 export default function SupplyRunSearch() {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const supabase = createClient()
   const navigate = useNavigate()
   const [searchInput, setSearchInput] = useState('')
@@ -96,7 +100,7 @@ export default function SupplyRunSearch() {
       )}
 
       {results !== null && results.length > 0 && (
-        <div className="theme-card rounded-xl border overflow-hidden">
+        <div className={lc.container}>
           {/* Header */}
           <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b theme-card-header">
             <SortableHeader label="Date" sortKey="run_date" currentKey={srsSortKey} currentDir={srsSortDir} onToggle={srsToggleSort} className="w-24 shrink-0" />

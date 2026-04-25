@@ -17,7 +17,7 @@ function generatePassword(name: string): string {
   const parts = name.trim().split(/\s+/)
   const first = (parts[0]?.[0] ?? 'X').toUpperCase()
   const last = (parts[parts.length - 1]?.[0] ?? 'X').toUpperCase()
-  return `${first}${last}EMS2026!`
+  return `${first}${last}RAM2026!`
 }
 
 function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
@@ -213,7 +213,7 @@ export default function NewEmployeePage() {
                 className={inputCls}
                 value={form.name}
                 onChange={e => set('name', e.target.value)}
-                placeholder="e.g. Jane Smith"
+                placeholder="e.g. Aaron Stutz"
                 autoFocus
               />
             </FormField>

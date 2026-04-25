@@ -70,6 +70,40 @@ export function AppearanceSection() {
         })}
       </div>
 
+      {/* List Style */}
+      <div className="mb-6">
+        <h3 className="text-sm font-bold text-gray-300 mb-2">List Style</h3>
+        <div className="grid grid-cols-2 gap-3">
+          {([['card', 'Card', 'Rounded cards with spacing between rows'], ['list', 'List', 'Compact rows with colored selection border']] as const).map(([key, label, desc]) => {
+            const isActive = (theme.listStyle || 'card') === key
+            return (
+              <button
+                key={key}
+                onClick={() => applyTheme({ ...theme, listStyle: key })}
+                className={`p-3 rounded-xl border-2 text-left transition-all ${
+                  isActive ? 'border-white/50 ring-1 ring-white/20 bg-gray-800' : 'border-gray-800 hover:border-gray-600 bg-gray-900'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-sm font-semibold text-white">{label}</span>
+                  {isActive && <span className="text-xs">✓</span>}
+                </div>
+                {/* Preview */}
+                <div className={`space-y-1 mb-2 ${key === 'card' ? '' : ''}`}>
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className={key === 'card'
+                      ? 'bg-gray-700/50 rounded-lg h-3'
+                      : `h-3 border-l-2 ${i === 1 ? 'border-red-500 bg-red-950/30' : 'border-transparent bg-gray-700/30'}`
+                    } />
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500">{desc}</p>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
       <div className="flex gap-2">
         <button onClick={handleSave} disabled={saving}
           className="flex-1 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-700 text-white font-semibold rounded-xl text-sm transition-colors">

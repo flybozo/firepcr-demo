@@ -5,6 +5,8 @@ import { PageHeader, LoadingSkeleton, EmptyState, UnitFilterPills } from '@/comp
 import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
 import { getUnitTypeName } from '@/lib/unitColors'
 import DisposeModal, { type DisposeItem } from '@/components/inventory/DisposeModal'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type ExpiringItem = {
   id: string
@@ -62,6 +64,8 @@ function isHighPriority(cat: string) {
 }
 
 export default function ExpirationDashboard() {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const supabase = createClient()
   const canView = usePermission('inventory')
   const permLoading = usePermissionLoading()
@@ -300,7 +304,7 @@ export default function ExpirationDashboard() {
                   const unitUrgent = unitItems.filter(i => i.days_until_expiry >= 0 && i.days_until_expiry < 30).length
 
                   return (
-                    <div key={unitName} className="theme-card rounded-xl border overflow-hidden">
+                    <div key={unitName} className={lc.container}>
                       {/* Unit section header */}
                       <button
                         onClick={() => toggleUnit(unitName)}
@@ -343,7 +347,7 @@ export default function ExpirationDashboard() {
                             <span className="w-16 shrink-0 text-right">Action</span>
                           </div>
 
-                          <div className="divide-y divide-gray-800/60">
+                          <div>
                             {unitItems.map(item => {
                               const days = item.days_until_expiry
                               const daysLabel = days < 0
@@ -358,7 +362,7 @@ export default function ExpirationDashboard() {
                               return (
                                 <div
                                   key={item.id}
-                                  className={`px-4 py-2.5 transition-colors ${rowUrgency(days)}`}
+                                  className={`px-4 py-2.5 transition-colors ${lc.row} ${rowUrgency(days)}`}
                                 >
                                   {/* Mobile layout */}
                                   <div className="md:hidden">

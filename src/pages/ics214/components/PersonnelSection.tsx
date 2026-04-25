@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { Personnel } from './types'
 import { brand } from '@/lib/branding.config'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 interface Props {
   personnel: Personnel[]
@@ -8,6 +10,8 @@ interface Props {
 }
 
 export function PersonnelSection({ personnel, onAdd }: Props) {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const [showForm, setShowForm] = useState(false)
   const [name, setName] = useState('')
   const [position, setPosition] = useState('')
@@ -24,7 +28,7 @@ export function PersonnelSection({ personnel, onAdd }: Props) {
   }
 
   return (
-    <div className="theme-card rounded-xl border overflow-hidden">
+    <div className={lc.container}>
       <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
         <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">
           Personnel ({personnel.length})

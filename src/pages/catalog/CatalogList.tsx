@@ -5,6 +5,8 @@ import { useMatch, useNavigate } from 'react-router-dom'
 import { toast } from '@/lib/toast'
 import { PageHeader, LoadingSkeleton, EmptyState, SortableHeader } from '@/components/ui'
 import { useSortable } from '@/hooks/useSortable'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 export type CatalogItem = {
   id: string
@@ -153,6 +155,8 @@ export default function CatalogList() {
   const navigate = useNavigate()
   const isAdmin = usePermission('inventory.manage')
   const detailMatch = useMatch('/catalog/:id')
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const [items, setItems] = useState<CatalogItem[]>([])
   const [loading, setLoading] = useState(true)
   const [catFilter, setCatFilter] = useState('All')
@@ -424,7 +428,7 @@ export default function CatalogList() {
       ) : filtered.length === 0 ? (
         <EmptyState icon="📦" message="No catalog items found." />
       ) : (
-        <div className="theme-card rounded-xl border overflow-hidden">
+        <div className={lc.container}>
           {/* Header */}
           <div className="flex items-center px-3 py-1.5 text-xs font-semibold uppercase tracking-wide border-b theme-card-header">
             <SortableHeader label="SKU" sortKey="sku" currentKey={catSortKey} currentDir={catSortDir} onToggle={catToggleSort} className="w-20 font-mono" />
@@ -443,9 +447,7 @@ export default function CatalogList() {
               <div
                 key={item.id}
                 onClick={() => navigate(`/catalog/${item.id}`)}
-                className={`flex items-center px-3 py-1.5 transition-colors cursor-pointer ${
-                  detailMatch?.params?.id === item.id ? 'bg-gray-700' : 'hover:bg-gray-800'
-                }`}
+                className={`flex items-center px-3 py-1.5 cursor-pointer ${lc.rowCls(detailMatch?.params?.id === item.id)}`}
               >
                 <span className="w-20 text-xs font-mono text-gray-400 truncate">{item.sku}</span>
                 <span className="flex-1 min-w-0 flex items-center gap-2">

@@ -10,6 +10,8 @@ import { getIsOnline } from '@/lib/syncManager'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
 import { inputCls, labelCls } from '@/components/ui/FormField'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type DeploymentRecord = {
   id: string
@@ -32,6 +34,8 @@ function CalendarGrid({ deployments, units }: {
   deployments: DeploymentRecord[]
   units: { id: string; name: string }[]
 }) {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const [viewMonth, setViewMonth] = useState(() => {
     const now = new Date()
     return new Date(now.getFullYear(), now.getMonth(), 1)
@@ -72,7 +76,7 @@ function CalendarGrid({ deployments, units }: {
       </div>
 
       {/* Grid */}
-      <div className="theme-card rounded-xl border overflow-hidden">
+      <div className={lc.container}>
         {/* Day headers */}
         <div className="grid grid-cols-7 border-b border-gray-700">
           {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d => (

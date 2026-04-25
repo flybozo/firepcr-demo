@@ -24,12 +24,13 @@ export function queryMARByIncident(incidentId: string) {
 }
 
 /** Get formulary items for a unit type */
-export function queryFormularyForUnit(unitType: string, categories?: string[]) {
+/** @deprecated — not currently used; retained for potential future use */
+export function queryFormularyForUnit(unitTypeId: string, categories?: string[]) {
   let q = createClient()
     .from('formulary_templates')
-    .select('*')
-    .eq('unit_type', unitType)
-  if (categories?.length) q = q.in('category', categories)
+    .select('*, catalog_item:item_catalog(category, is_als, sku)')
+    .eq('unit_type_id', unitTypeId)
+  // category lives on item_catalog now — filter client-side if needed
   return q.order('item_name')
 }
 

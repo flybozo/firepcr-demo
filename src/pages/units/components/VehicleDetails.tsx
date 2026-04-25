@@ -1,4 +1,6 @@
 import type { Unit, VehicleForm } from './types'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type Props = {
   unit: Unit
@@ -19,10 +21,12 @@ export default function VehicleDetails({
   unit, isAdmin, editingVehicle, vehicleForm, savingVehicle, uploadingPhoto,
   photoInputRef, onEditStart, onEditCancel, onFormChange, onSave, onPhotoUpload,
 }: Props) {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const vehicleLabel = [unit.year, unit.make, unit.model].filter(Boolean).join(' ') || null
 
   return (
-    <div className="theme-card rounded-xl border overflow-hidden">
+    <div className={lc.container}>
       <div className="flex items-center justify-between px-4 py-3 bg-gray-800">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Vehicle Details</h2>
         {!editingVehicle && isAdmin && (

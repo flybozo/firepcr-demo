@@ -1,7 +1,7 @@
 export const PROVIDERS = [
-  'Dr. Alex Morgan',
-  'Dr. Sam Rivera',
-  'Dr. Casey Chen',
+  'Aaron Stutz, MD',
+  'Rodney Look, MD',
+  'Robert K. Evans, MD',
   'Paul Bailey, NP',
   'Matt Butler, PA',
   'Stephanie Casteele, NP',
@@ -13,4 +13,4 @@ export const PROVIDERS = [
   'Jenn Shealy, NP',
 ]
 
-export const UNITS = ['Medic 1', 'Medic 2', 'Medic 3', 'Medic 4', 'Command 1', 'Aid 1', 'Aid 2', 'Rescue 1', 'Rescue 2']
+export const UNITS = ['RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'The Beast', 'MSU 1', 'MSU 2', 'REMS 1', 'REMS 2']

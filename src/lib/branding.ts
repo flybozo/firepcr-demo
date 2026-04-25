@@ -5,21 +5,21 @@
  */
 export type BrandConfig = {
   // ── Company Identity ────────────────────────────────────────────────────
-  /** DBA / trade name: "Ridgeline EMS" */
+  /** DBA / trade name: "Remote Area Medicine" */
   companyName: string
-  /** Legal entity name: "Ridgeline Emergency Medical Services LLC" */
+  /** Legal entity name: "Mossbrae Medical Group P.C." */
   companyLegal: string
-  /** Short app title shown in headers: "Ridgeline Field Ops" */
+  /** Short app title shown in headers: "RAM Field Ops" */
   appName: string
   /** Marketing / white-label app name: "FirePCR" */
   appBrand: string
-  /** Primary email domain: "firepcr.com" */
+  /** Primary email domain: "wildfiremedical.com" */
   domain: string
-  /** System/support email: "support@firepcr.com" */
+  /** System/support email: "codsworth@wildfiremedical.com" */
   supportEmail: string
-  /** Notification sender: "FirePCR <notifications@firepcr.com>" */
+  /** Notification sender: "FirePCR <notifications@wildfiremedical.com>" */
   notificationsEmail: string
-  /** Public app URL: "https://app.firepcr.com" */
+  /** Public app URL: "https://app.wildfiremedical.com" */
   appUrl: string
 
   // ── Logo & Assets ───────────────────────────────────────────────────────
@@ -29,7 +29,7 @@ export type BrandConfig = {
   faviconUrl: string
 
   // ── NEMSIS / EMS Identifiers ────────────────────────────────────────────
-  /** CEMSIS agency number: "DEMO-00001" */
+  /** CEMSIS agency number: "S65-52014" */
   nemsisAgencyId: string
   /** CEMSIS state agency ID (often same as agencyId) */
   nemsisStateAgencyId: string
@@ -44,16 +44,17 @@ export type BrandConfig = {
 
   // ── Unit Naming Conventions ─────────────────────────────────────────────
   unitPrefixes: {
-    ambulance: string   // "Medic"
-    medUnit: string     // "Med"
+    ambulance: string   // "RAMBO"
+    medUnit: string     // "MSU"
     rems: string        // "REMS"
-    warehouse: string   // "Command 1"
+    warehouse: string   // "The Beast"
+    truck?: string      // "Truck"
   }
 
   // ── AI Assistant ────────────────────────────────────────────────────────
-  /** AI assistant display name: "Scout" */
+  /** AI assistant display name: "Codsworth" */
   assistantName: string
-  /** Assistant emoji: "🔥" */
+  /** Assistant emoji: "🏴‍☠️" */
   assistantEmoji: string
   /** System prompt context for in-app AI chat */
   assistantContext: string

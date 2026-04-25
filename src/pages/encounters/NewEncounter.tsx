@@ -147,7 +147,7 @@ function NewEncounterInner() {
   const handleContinue = (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.unit_id) return
-    const isAmbulance = form.unit_type === 'Ambulance' || form.unit_name.startsWith('Medic')
+    const isAmbulance = form.unit_type === 'Ambulance' || form.unit_name.startsWith('RAMBO')
     const path = isAmbulance ? 'pcr' : 'simple'
     const params = new URLSearchParams({
       unitId: form.unit_id,
@@ -167,7 +167,7 @@ function NewEncounterInner() {
   if (loading || assignment.loading) return <LoadingSkeleton fullPage />
 
   const selectedUnit = units.find(u => u.id === form.unit_id)
-  const isAmbulance = form.unit_type === 'Ambulance' || form.unit_name.startsWith('Medic')
+  const isAmbulance = form.unit_type === 'Ambulance' || form.unit_name.startsWith('RAMBO')
 
   return (
     <div className="p-4 md:p-8 max-w-lg mx-auto mt-8 md:mt-0 pb-16">

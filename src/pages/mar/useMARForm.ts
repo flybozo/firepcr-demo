@@ -239,10 +239,13 @@ export function useMARForm() {
         const cachedEmps = await getCachedData('employees') as any[]
         if (cachedEmps.length > 0) setEmployees(cachedEmps.map((e: any) => ({ ...e, name: e.name || e.full_name })) as Employee[])
         const cachedFormulary = await getCachedData('formulary') as any[]
-        if (cachedFormulary.length > 0) setFormulary(cachedFormulary.filter((i: any) => ['Rx', 'CS'].includes(i.category)) as FormularyItem[])
+        if (cachedFormulary.length > 0) setFormulary(cachedFormulary.map((i: any) => ({ ...i, category: (i.catalog_item as any)?.category || i.category || '', unit_type: (i.unit_type as any)?.name || i.unit_type || '' })).filter((i: any) => ['Rx', 'CS'].includes(i.category)) as FormularyItem[])
       } catch {}
       if (unitParam) await loadUnitInventory(unitParam)
-      const rxCsFilter = (items: any[]) => items.filter((i: any) => ['Rx', 'CS'].includes(i.category))
+      // Flatten joined catalog_item/unit_type into top-level fields for downstream code
+      const flattenAndFilter = (items: any[]) => items
+        .map((i: any) => ({ ...i, category: (i.catalog_item as any)?.category || i.category || '', unit_type: (i.unit_type as any)?.name || i.unit_type || '' }))
+        .filter((i: any) => ['Rx', 'CS'].includes(i.category))
       const [empResult, formularyResult] = await Promise.all([
         loadList(
           () => supabase.from('employees').select('id, name, role').eq('status', 'Active').order('name'),
@@ -250,16 +253,16 @@ export function useMARForm() {
         ),
         loadList(
           () => supabase.from('formulary_templates')
-            .select('id, item_name, category, unit_type, catalog_item_id')
-            .in('category', ['Rx', 'CS'])
-            .order('category')
+            .select('id, item_name, unit_type_id, catalog_item_id, catalog_item:item_catalog(category, is_als), unit_type:unit_types(name)')
             .order('item_name'),
           'formulary',
-          rxCsFilter
+          flattenAndFilter
         ),
       ])
       setEmployees(empResult.data.map((e: any) => ({ ...e, name: e.name || e.full_name })))
-      setFormulary(formularyResult.data as any[])
+      // loadList only applies filter to cached data, not live results — flatten live data too
+      const flatData = flattenAndFilter(formularyResult.data as any[])
+      setFormulary(flatData as any[])
     }
     load()
   }, [])

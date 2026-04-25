@@ -37,11 +37,11 @@ import { acuityColor, acuityLabel, statusColor, formatDateTime } from '@/utils/e
 
 const ENC_DEFAULT_SPANS: Record<string, number> = { narrative: 1, vitals: 1 }
 
-export default function EncounterDetailPage() {
+export default function EncounterDetailPage({ encounterId, embedded }: { encounterId?: string; embedded?: boolean } = {}) {
   const supabase = createClient()
   const params = useParams()
   const navigate = useNavigate()
-  const id = params.id as string
+  const id = encounterId || params.id as string
   const canEdit = usePermission('encounters.edit')
   const currentUser = useUserAssignment()
 
@@ -106,7 +106,7 @@ export default function EncounterDetailPage() {
 
   useEffect(() => {
     if (enc && !savedPrefRef.current) {
-      setCardOrder(enc.unit?.toUpperCase().startsWith('Medic') ? AMBULANCE_DEFAULT_ORDER : MEDUNIT_DEFAULT_ORDER)
+      setCardOrder(enc.unit?.toUpperCase().startsWith('RAMBO') ? AMBULANCE_DEFAULT_ORDER : MEDUNIT_DEFAULT_ORDER)
     }
   }, [enc?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -132,7 +132,7 @@ export default function EncounterDetailPage() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const allNemsisWarnings = useNEMSISWarnings(enc ?? {} as Record<string, any>)
-  const isAmbulance = enc?.unit?.toUpperCase().startsWith('Medic') ?? false
+  const isAmbulance = enc?.unit?.toUpperCase().startsWith('RAMBO') ?? false
   const nemsisWarnings = isAmbulance ? allNemsisWarnings : []
   const nemsisErrors = nemsisWarnings.filter((w: any) => w.severity === 'error')
   const nemsisWarningCount = nemsisWarnings.filter((w: any) => w.severity === 'warning').length
@@ -167,9 +167,9 @@ export default function EncounterDetailPage() {
   }
 
   return (
-    <div className="bg-gray-950 text-white pb-8">
-      <div className="p-6 md:p-8 max-w-3xl mx-auto space-y-4">
-        <Link to="/encounters" className="text-gray-500 hover:text-gray-300 text-sm">← Encounters</Link>
+    <div className={`bg-gray-950 text-white ${embedded ? 'pb-4' : 'pb-8'}`}>
+      <div className={`${embedded ? 'p-4 space-y-3' : 'p-6 md:p-8 max-w-3xl mx-auto space-y-4'}`}>
+        {!embedded && <Link to="/encounters" className="text-gray-500 hover:text-gray-300 text-sm">← Encounters</Link>}
 
         {/* Status Bar */}
         <div className={`rounded-xl px-4 py-3 border flex items-center justify-between ${statusColor(enc.pcr_status)}`}>

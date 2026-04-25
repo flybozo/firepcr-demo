@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { InventoryItem } from './types'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type Props = { inventory: InventoryItem[]; unitName: string }
 
@@ -21,6 +23,8 @@ const CATEGORY_COLORS: Record<string, string> = {
 }
 
 export default function InventorySummary({ inventory, unitName }: Props) {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const [showAll, setShowAll] = useState(false)
 
   if (inventory.length === 0) return null
@@ -75,7 +79,7 @@ export default function InventorySummary({ inventory, unitName }: Props) {
       )}
 
       {/* Full Inventory by Category */}
-      <div className="theme-card rounded-xl border overflow-hidden">
+      <div className={lc.container}>
         <div className="flex items-center justify-between px-4 py-3 bg-gray-800">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
             Inventory ({totalItems} items)

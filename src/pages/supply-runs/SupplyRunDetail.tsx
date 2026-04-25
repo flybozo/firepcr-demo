@@ -12,6 +12,8 @@ import { inputCls, labelCls } from '@/components/ui/FormField'
 import { useBarcodeScan } from '@/hooks/useBarcodeScan'
 import { getIsOnline } from '@/lib/syncManager'
 import { queueOfflineWrite, getCachedData } from '@/lib/offlineStore'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type SupplyRun = {
   id: string
@@ -63,6 +65,8 @@ const CAT_COLORS: Record<string, string> = {
 }
 
 export default function SupplyRunDetailPage() {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const supabase = createClient()
   const assignment = useUserAssignment()
   const isAdmin = ['MD', 'DO', 'Admin'].includes(assignment.employee?.role || '')
@@ -456,7 +460,7 @@ export default function SupplyRunDetailPage() {
         </div>
 
         {/* ── Barcode Scan Section ── */}
-        <div className="theme-card rounded-xl border overflow-hidden">
+        <div className={lc.container}>
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
             <div className="flex items-center gap-2">
               <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Barcode Scanner</h2>
@@ -539,7 +543,7 @@ export default function SupplyRunDetailPage() {
         </div>
 
         {/* ── Items ── */}
-        <div className="theme-card rounded-xl border overflow-hidden">
+        <div className={lc.container}>
           <div className="flex items-center justify-between p-4 border-b border-gray-800">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
               Items ({items.length})

@@ -202,7 +202,7 @@ export function generateOpsReportPdf(data: DashboardData) {
   doc.setFontSize(7.5)
   doc.setTextColor('#9ca3af')
   doc.text(
-    `Ridgeline EMS  ·  Confidential Medical Operations Report  ·  ${fmt(now)}`,
+    `Remote Area Medicine  ·  Confidential Medical Operations Report  ·  ${fmt(now)}`,
     pageW / 2, pageH - 5.5, { align: 'center' }
   )
 

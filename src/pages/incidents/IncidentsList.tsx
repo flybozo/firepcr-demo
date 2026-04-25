@@ -8,6 +8,8 @@ import { Suspense } from 'react'
 import { queryIncidentsList } from '@/lib/services/incidents'
 import { PageHeader, EmptyState, SortableHeader } from '@/components/ui'
 import { useSortable } from '@/hooks/useSortable'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type Incident = {
   id: string
@@ -31,6 +33,8 @@ function IncidentsPageInner() {
   const [search, setSearch] = useState('')
   type IncSortKey = 'start_date' | 'name' | 'location'
   const { sortKey: incSortKey, sortDir: incSortDir, toggleSort: incToggleSort, sortFn: incSortFn } = useSortable<IncSortKey>('start_date', 'desc')
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
 
   const [isOfflineData, setIsOfflineData] = useState(false)
 
@@ -131,8 +135,8 @@ function IncidentsPageInner() {
             actionLabel="Create one"
           />
         ) : (
-          <div className="theme-card rounded-xl border overflow-x-auto">
-            <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b theme-card-header min-w-[480px]">
+          <div className={`${lc.container} overflow-x-auto`}>
+            <div className={`flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide ${lc.header} min-w-[480px]`}>
               <SortableHeader label="Incident Name" sortKey="name" currentKey={incSortKey} currentDir={incSortDir} onToggle={incToggleSort} className="flex-1 min-w-[120px]" />
               <SortableHeader label="Start Date" sortKey="start_date" currentKey={incSortKey} currentDir={incSortDir} onToggle={incToggleSort} className="w-24 shrink-0 hidden sm:flex" />
               <SortableHeader label="Location" sortKey="location" currentKey={incSortKey} currentDir={incSortDir} onToggle={incToggleSort} className="w-40 shrink-0 hidden md:flex" />
@@ -143,7 +147,7 @@ function IncidentsPageInner() {
               <div
                 key={incident.id}
                 onClick={() => navigate(`/incidents/${incident.id}`)}
-                className={`flex items-center px-4 py-2 cursor-pointer border-b border-gray-800/50 text-sm min-w-[480px] ${detailMatch?.params?.id === incident.id ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
+                className={`flex items-center px-4 py-2 cursor-pointer text-sm min-w-[480px] ${lc.rowCls(detailMatch?.params?.id === incident.id)}`}
               >
                 <span className="flex-1 min-w-[120px] font-medium truncate pr-2">{incident.name}</span>
                 <span className="w-24 shrink-0 text-gray-400 text-xs pr-2 hidden sm:block">

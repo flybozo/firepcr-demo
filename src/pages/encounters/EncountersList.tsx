@@ -13,6 +13,8 @@ import { useNavigate, useSearchParams, useMatch, useLocation } from 'react-route
 import { UNIT_TYPE_ORDER } from '@/lib/unitColors'
 import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
 import { getCachedData, cacheData } from '@/lib/offlineStore'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 const PAGE_SIZE = 50
 
@@ -98,8 +100,14 @@ function EncountersInner() {
   const [page, setPage] = useState(1)
   const [dateRange, setDateRange] = useState('7d')
   const [isOffline, setIsOffline] = useState(false)
+  // Full-history search
+  const [historySearch, setHistorySearch] = useState('')
+  const [historyResults, setHistoryResults] = useState<Encounter[] | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
   type EncSortKey = 'date' | 'patient' | 'unit' | 'incident' | 'acuity'
   const { sortKey: encSortKey, sortDir: encSortDir, toggleSort: encToggleSort, sortFn: encSortFn } = useSortable<EncSortKey>('date', 'desc')
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
 
   const DATE_RANGES = ['2d', '7d', '14d', '30d'] as const
   const dateRangeDays: Record<string, number> = { '2d': 2, '7d': 7, '14d': 14, '30d': 30 }
@@ -194,7 +202,10 @@ function EncountersInner() {
     )
   })
 
-  const sorted = encSortFn(filtered, (e, key) => {
+  // When full-history search is active, use those results instead of filtered local data
+  const displayList = historyResults ?? filtered
+
+  const sorted = encSortFn(displayList, (e, key) => {
     if (key === 'date') return e.date ?? ''
     if (key === 'patient') return `${e.patient_last_name ?? ''}${e.patient_first_name ?? ''}`
     if (key === 'unit') return e.unit ?? ''
@@ -281,9 +292,6 @@ function EncountersInner() {
               {range === '2d' ? '2 Days' : range === '7d' ? '7 Days' : range === '14d' ? '14 Days' : '30 Days'}
             </button>
           ))}
-          <Link to="/patient-search" className="ml-auto text-xs text-blue-400 hover:text-blue-300 transition-colors">
-            🔍 Search all history →
-          </Link>
         </div>
         <select
           value={dateRange}
@@ -296,26 +304,59 @@ function EncountersInner() {
           <option value="30d">30 Days</option>
         </select>
 
-        {/* Quick filter on current window */}
-        <input
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1) }}
-          placeholder="Filter by name, unit, complaint…"
-          className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 placeholder-gray-600"
-        />
+        {/* Search bar — filters loaded data or searches all history */}
+        <div className="relative">
+          <input
+            value={historySearch || search}
+            onChange={e => {
+              const v = e.target.value
+              setSearch(v); setPage(1)
+              // Clear history results when input changes
+              if (historyResults) { setHistoryResults(null); setHistorySearch('') }
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && search.trim()) {
+                // Server-side search across all history
+                setHistorySearch(search.trim())
+                setHistoryLoading(true)
+                const q = search.trim()
+                supabase
+                  .from('patient_encounters')
+                  .select('id, encounter_id, date, unit, patient_first_name, patient_last_name, primary_symptom_text, initial_acuity, pcr_status, provider_of_record, incident:incidents(name)')
+                  .is('deleted_at', null)
+                  .or(`patient_last_name.ilike.%${q}%,patient_first_name.ilike.%${q}%,primary_symptom_text.ilike.%${q}%,encounter_id.ilike.%${q}%,provider_of_record.ilike.%${q}%`)
+                  .order('date', { ascending: false })
+                  .limit(200)
+                  .then(({ data }) => {
+                    setHistoryResults((data || []).map((r: any) => ({ ...r, incident_name: r.incident?.name || null })) as any)
+                    setHistoryLoading(false)
+                  })
+              }
+            }}
+            placeholder="Filter current view — or press Enter to search all history…"
+            className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 placeholder-gray-600 pr-20"
+          />
+          {(search || historySearch) && (
+            <button onClick={() => { setSearch(''); setHistorySearch(''); setHistoryResults(null); setPage(1) }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 text-sm">✕</button>
+          )}
+          {historyResults && (
+            <span className="absolute right-10 top-1/2 -translate-y-1/2 text-xs text-blue-400">🔍 {historyResults.length} across all time</span>
+          )}
+        </div>
 
-        {loading ? (
+        {(loading || historyLoading) ? (
           <LoadingSkeleton rows={5} header />
-        ) : filtered.length === 0 ? (
+        ) : displayList.length === 0 ? (
           <EmptyState
             icon="📋"
-            message={search || unitFilter !== 'All' ? 'No matches found.' : 'No encounters yet.'}
+            message={historyResults ? 'No records found across all history.' : search || unitFilter !== 'All' ? 'No matches found.' : 'No encounters yet.'}
           />
         ) : (
           <>
-            <div className="theme-card rounded-xl overflow-hidden border">
+            <div className={lc.container}>
               {/* Header */}
-              <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b border-gray-700">
+              <div className={`flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide ${lc.header}`}>
                 <SortableHeader label="Date" sortKey="date" currentKey={encSortKey} currentDir={encSortDir} onToggle={encToggleSort} className="w-24 shrink-0" />
                 <SortableHeader label="Patient" sortKey="patient" currentKey={encSortKey} currentDir={encSortDir} onToggle={encToggleSort} className="w-20 shrink-0" />
                 <span className="w-20 hidden sm:block shrink-0 text-gray-500">DOB</span>
@@ -329,7 +370,7 @@ function EncountersInner() {
                 <div
                   key={enc.id}
                   onClick={() => navigate(`/encounters/${enc.id}`)}
-                  className={`flex items-center px-4 py-2.5 cursor-pointer border-b border-gray-800/50 text-sm ${detailMatch?.params?.id === enc.id ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
+                  className={`flex items-center px-4 py-2.5 cursor-pointer text-sm ${lc.rowCls(detailMatch?.params?.id === enc.id)}`}
                 >
                   <span className="w-24 shrink-0 text-gray-400 text-xs">
                     {enc.date || '—'}

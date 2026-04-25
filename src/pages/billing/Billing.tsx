@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useSearchParams } from 'react-router-dom'
 import { fmtCurrencyFull as fmt } from '@/utils/incidentFormatters'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type Incident = {
   id: string
@@ -33,6 +35,8 @@ type MARLineItem = {
 }
 
 function BillingPageInner() {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const [searchParams] = useSearchParams()
   const preselectedId = searchParams.get('incidentId') ?? ''
 
@@ -74,25 +78,25 @@ function BillingPageInner() {
         item_name,
         quantity,
         unit_cost,
-        total_cost,
         supply_run:supply_runs!inner(
-          date,
+          run_date,
           incident_id,
           incident_unit:incident_units!inner(
             unit:units(name)
           )
         )
       `)
+      .is('deleted_at', null)
       .eq('supply_run.incident_id', incidentId)
-      .gte('supply_run.date', startDate || '1900-01-01')
-      .lte('supply_run.date', endDate || '9999-12-31')
+      .gte('supply_run.run_date', startDate || '1900-01-01')
+      .lte('supply_run.run_date', endDate || '9999-12-31')
 
     const mappedSupply: SupplyLineItem[] = ((srData as any[]) || []).map((row: any) => ({
       item_name: row.item_name,
       quantity: row.quantity,
       unit_cost: row.unit_cost,
-      total_cost: row.total_cost,
-      date: row.supply_run?.date ?? '',
+      total_cost: row.unit_cost != null ? row.unit_cost * (row.quantity || 0) : null,
+      date: row.supply_run?.run_date ?? '',
       unit_name: row.supply_run?.incident_unit?.unit?.name ?? '—',
     }))
 
@@ -114,22 +118,38 @@ function BillingPageInner() {
           qty_used,
           med_unit,
           date,
-          category,
-          formulary:formulary_templates(case_cost, units_per_case)
+          category
         `)
         .in('encounter_id', encIds)
+        .is('voided_at', null)
         .gte('date', startDate || '1900-01-01')
         .lte('date', endDate || '9999-12-31')
 
-      mappedMAR = ((marData as any[]) || []).map((row: any) => ({
-        item_name: row.item_name,
-        qty_used: row.qty_used ?? 1,
-        med_unit: row.med_unit,
-        date: row.date ?? '',
-        case_cost: row.formulary?.case_cost ?? null,
-        units_per_case: row.formulary?.units_per_case ?? null,
-        category: row.category ?? null,
-      }))
+      // Look up costs from item_catalog by item_name
+      const marItemNames = Array.from(new Set(((marData as any[]) || []).map((r: any) => r.item_name).filter(Boolean)))
+      const costMap: Record<string, { case_cost: number | null; units_per_case: number | null; unit_cost: number | null }> = {}
+      if (marItemNames.length > 0) {
+        const { data: catalogData } = await supabase
+          .from('item_catalog')
+          .select('item_name, case_cost, units_per_case, unit_cost')
+          .in('item_name', marItemNames)
+        for (const c of (catalogData || []) as any[]) {
+          costMap[c.item_name] = { case_cost: c.case_cost, units_per_case: c.units_per_case, unit_cost: c.unit_cost }
+        }
+      }
+
+      mappedMAR = ((marData as any[]) || []).map((row: any) => {
+        const costs = costMap[row.item_name]
+        return {
+          item_name: row.item_name,
+          qty_used: row.qty_used ?? 1,
+          med_unit: row.med_unit,
+          date: row.date ?? '',
+          case_cost: costs?.case_cost ?? null,
+          units_per_case: costs?.units_per_case ?? null,
+          category: row.category ?? null,
+        }
+      })
     }
 
     setSupplyItems(mappedSupply.sort((a, b) => a.date.localeCompare(b.date)))
@@ -287,7 +307,7 @@ function BillingPageInner() {
             </div>
 
             {/* Supply Runs */}
-            <div className="theme-card rounded-xl border overflow-hidden">
+            <div className={lc.container}>
               <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Supply Runs</h3>
                 <span className="text-sm font-semibold text-white">{fmt(supplySubtotal)}</span>
@@ -329,7 +349,7 @@ function BillingPageInner() {
             </div>
 
             {/* MAR */}
-            <div className="theme-card rounded-xl border overflow-hidden">
+            <div className={lc.container}>
               <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-gray-400">Medication Administrations (MAR)</h3>
                 <span className="text-sm font-semibold text-white">{fmt(marSubtotal)}</span>

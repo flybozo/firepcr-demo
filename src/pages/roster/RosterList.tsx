@@ -8,6 +8,8 @@ import { loadList } from '@/lib/offlineFirst'
 import { useNavigate, useMatch, Link } from 'react-router-dom'
 import { PageHeader, EmptyState, LoadingSkeleton, SortableHeader, SortBar } from '@/components/ui'
 import { useSortable } from '@/hooks/useSortable'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 import { ContactIcons } from '@/components/ContactCards'
 
 type Employee = {
@@ -73,6 +75,8 @@ export default function RosterPage() {
   const [roleFilter, setRoleFilter] = useState('All')
   type RosterSortKey = 'name' | 'role'
   const { sortKey: rosterSortKey, sortDir: rosterSortDir, toggleSort: rosterToggleSort, sortFn: rosterSortFn } = useSortable<RosterSortKey>('name', 'asc')
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
 
   useEffect(() => {
     const load = async () => {
@@ -174,9 +178,9 @@ export default function RosterPage() {
           {activeEmployees.length === 0 ? (
             <EmptyState icon="👥" message="No active employees found." className="py-8" />
           ) : (
-          <div className="theme-card rounded-xl border overflow-x-auto">
+          <div className={`${lc.container} overflow-x-auto`}>
             {/* Header row — use CSS grid matching the data rows */}
-            <div className="hidden md:grid grid-cols-[2.5rem_1fr_7rem] items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b border-gray-700 gap-x-4 min-w-[400px]">
+            <div className={`hidden md:grid grid-cols-[2.5rem_1fr_7rem] items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide ${lc.header} gap-x-4 min-w-[400px]`}>
               <span />{/* avatar */}
               <SortableHeader label="Name" sortKey="name" currentKey={rosterSortKey} currentDir={rosterSortDir} onToggle={rosterToggleSort} />
               <span className="text-right text-gray-500">Contact</span>
@@ -186,9 +190,7 @@ export default function RosterPage() {
                 <div
                   key={emp.id}
                   onClick={() => navigate(`/roster/${emp.id}`)}
-                  className={`cursor-pointer border-b border-gray-800/50 text-sm transition-colors ${
-                    detailMatch?.params?.id === emp.id ? 'bg-gray-700' : 'hover:bg-gray-800'
-                  }`}
+                  className={`cursor-pointer text-sm ${lc.rowCls(detailMatch?.params?.id === emp.id)}`}
                 >
                   {/* Desktop row (md+) */}
                   <div className="hidden md:grid grid-cols-[2.5rem_1fr_7rem] items-center px-4 py-2.5 gap-x-4 min-w-[400px]">

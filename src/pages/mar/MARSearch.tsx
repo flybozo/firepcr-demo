@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useNavigate, Link } from 'react-router-dom'
 import { PageHeader, EmptyState, SortableHeader } from '@/components/ui'
 import { useSortable } from '@/hooks/useSortable'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type MAREntry = {
   id: string
@@ -76,6 +78,8 @@ function getStatusBadge(entry: MAREntry) {
 }
 
 export default function MARSearch() {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const supabase = createClient()
   const navigate = useNavigate()
   const [searchInput, setSearchInput] = useState('')
@@ -145,7 +149,7 @@ export default function MARSearch() {
         )}
 
         {results !== null && results.length > 0 && (
-          <div className="theme-card rounded-xl border overflow-hidden">
+          <div className={lc.container}>
             <div className="overflow-x-auto">
               <div className="min-w-[720px]">
                 {/* Header */}

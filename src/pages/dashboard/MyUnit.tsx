@@ -7,6 +7,8 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import { ConfirmDialog } from '@/components/ui'
 import { useLocationPing } from '@/hooks/useLocationPing'
 import { getCachedData } from '@/lib/offlineStore'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type CrewMember = {
   id: string
@@ -45,6 +47,8 @@ type DeploymentRecord = {
 }
 
 export default function MyUnitDashboard() {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const supabase = createClient()
   const assignment = useUserAssignment()
   const { permState, sharing, requestPermission } = useLocationPing(
@@ -447,7 +451,7 @@ export default function MyUnitDashboard() {
         {/* Row 2 — Recent Encounters + CS On Hand + MAR + Supply Runs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Recent Encounters */}
-          <div className="theme-card rounded-xl border overflow-hidden">
+          <div className={lc.container}>
             <div className="flex items-center justify-between px-4 py-3 border-b theme-card-header">
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300">Recent Encounters</h3>
               <Link to={`/encounters?unit=${encodeURIComponent(unitName)}`} className="text-xs text-gray-400 hover:text-white">
@@ -485,7 +489,7 @@ export default function MyUnitDashboard() {
           </div>
 
           {/* CS On Hand */}
-          <div className="theme-card rounded-xl border overflow-hidden">
+          <div className={lc.container}>
             <div className="flex items-center justify-between px-4 py-3 border-b theme-card-header">
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300">CS On Hand</h3>
               <Link to="/cs" className="text-xs text-gray-400 hover:text-white">View all →</Link>
@@ -503,7 +507,7 @@ export default function MyUnitDashboard() {
           </div>
 
           {/* MAR — Recent Medications */}
-          <div className="theme-card rounded-xl border overflow-hidden">
+          <div className={lc.container}>
             <div className="flex items-center justify-between px-4 py-3 border-b theme-card-header">
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300">Medications Administered</h3>
               <Link to="/mar" className="text-xs text-gray-400 hover:text-white">View all →</Link>
@@ -525,7 +529,7 @@ export default function MyUnitDashboard() {
           </div>
 
           {/* Supply Runs */}
-          <div className="theme-card rounded-xl border overflow-hidden">
+          <div className={lc.container}>
             <div className="flex items-center justify-between px-4 py-3 border-b theme-card-header">
               <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300">Supply Runs</h3>
               <Link to="/supply-runs" className="text-xs text-gray-400 hover:text-white">View all →</Link>

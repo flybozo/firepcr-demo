@@ -5,6 +5,8 @@ import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { PageHeader } from '@/components/ui'
 import OfflineGate from '@/components/OfflineGate'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -64,6 +66,8 @@ function SortIcon({ k, sortKey, sortDir }: { k: SortKey; sortKey: SortKey; sortD
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function AdminPayrollPage() {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const supabase = createClient()
   const assignment = useUserAssignment()
   const navigate = useNavigate()
@@ -383,13 +387,15 @@ export default function AdminPayrollPage() {
 // ─── Table Row ───────────────────────────────────────────────────────────────
 
 function PayrollTableRow({ row: r, showIncident, navigate }: { row: PayrollRow; showIncident: boolean; navigate: (path: string) => void }) {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const startDate = r.travel_date || r.assigned_at
   const days = calcDays(startDate, r.released_at)
   const pay = days * r.daily_rate
   const isActive = !r.released_at
 
   return (
-    <div className="px-4 py-2 hover:bg-gray-800/30 transition-colors cursor-pointer min-w-[800px]"
+    <div className={`px-4 py-2 cursor-pointer min-w-[800px] ${lc.row}`}
       onClick={() => navigate(`/roster/${r.employee_id}`)}>
       {/* Mobile */}
       <div className="lg:hidden space-y-1">

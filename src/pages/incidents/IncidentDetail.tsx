@@ -33,6 +33,7 @@ import { SupplyRunsStatCard } from '@/components/incidents/cards/SupplyRunsStatC
 import { BillingSummaryStatCard } from '@/components/incidents/cards/BillingSummaryStatCard'
 import { ReorderStatCard } from '@/components/incidents/cards/ReorderStatCard'
 import { ICS214StatCard } from '@/components/incidents/cards/ICS214StatCard'
+import { UnitFilterPills } from '@/components/ui'
 
 const LazyUnitMap = lazy(() => import('@/components/maps/UnitMap'))
 
@@ -502,23 +503,20 @@ export default function IncidentDetailPage() {
           {/* Filters */}
           {(() => {
             const unitTypeOrderMap: Record<string, number> = { 'Warehouse': 0, 'Med Unit': 1, 'Ambulance': 2, 'REMS': 3, 'Truck': 4 }
-            const unitTypeColorMap: Record<string, string> = { 'Warehouse': 'bg-purple-700 text-white', 'Med Unit': 'bg-blue-700 text-white', 'Ambulance': 'bg-red-700 text-white', 'REMS': 'bg-green-700 text-white', 'Truck': 'bg-stone-700 text-white' }
             const unitsFromData = new Set<string>()
             encounters.forEach(enc => { if (enc.unit) unitsFromData.add(enc.unit) })
             marEntries.forEach(mar => { if ((mar as any).med_unit) unitsFromData.add((mar as any).med_unit) })
             supplyRuns.forEach(sr => { if ((sr as any).unit) unitsFromData.add((sr as any).unit) })
-            const sortedUnits = Array.from(unitsFromData)
-              .map(unitName => {
-                const currentAssignment = incidentUnits.find(iu => (iu.unit as any)?.name === unitName)?.unit
-                const typeName = (currentAssignment as any)?.unit_type?.name || ''
-                return { name: unitName, typeName }
-              })
-              .sort((a, b) => {
-                const aOrder = unitTypeOrderMap[a.typeName] ?? 99
-                const bOrder = unitTypeOrderMap[b.typeName] ?? 99
-                return aOrder !== bOrder ? aOrder - bOrder : a.name.localeCompare(b.name)
-              })
-            const unitOptions = ['All', ...sortedUnits.map(u => u.name)]
+            const unitTypeMap: Record<string, string> = {}
+            Array.from(unitsFromData).forEach(unitName => {
+              const currentAssignment = incidentUnits.find(iu => (iu.unit as any)?.name === unitName)?.unit
+              unitTypeMap[unitName] = (currentAssignment as any)?.unit_type?.name || ''
+            })
+            const sortedUnitNames = Array.from(unitsFromData).sort((a, b) => {
+              const aOrder = unitTypeOrderMap[unitTypeMap[a] ?? ''] ?? 99
+              const bOrder = unitTypeOrderMap[unitTypeMap[b] ?? ''] ?? 99
+              return aOrder !== bOrder ? aOrder - bOrder : a.localeCompare(b)
+            })
             const dateOptions = [
               { key: '7d', label: 'Last 7 Days' },
               { key: '30d', label: 'Last 30 Days' },
@@ -527,44 +525,17 @@ export default function IncidentDetailPage() {
 
             return (
               <>
-                {/* Mobile: dropdowns */}
-                <div className="flex md:hidden gap-2 mb-3">
-                  <select
-                    value={unitFilter}
-                    onChange={e => setUnitFilter(e.target.value)}
-                    className="flex-1 bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-                  >
-                    {unitOptions.map(u => (
-                      <option key={u} value={u}>{u === 'All' ? 'All Units' : u}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={dateFilter}
-                    onChange={e => setDateFilter(e.target.value)}
-                    className="flex-1 bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  >
-                    <option value="all">All Dates</option>
-                    {dateOptions.map(f => (
-                      <option key={f.key} value={f.key}>{f.label}</option>
-                    ))}
-                  </select>
+                {/* Unit filter */}
+                <div className="mb-2">
+                  <UnitFilterPills
+                    units={['All', ...sortedUnitNames]}
+                    selected={unitFilter}
+                    onSelect={setUnitFilter}
+                    unitTypeMap={unitTypeMap}
+                  />
                 </div>
-
-                {/* Desktop: pills */}
-                <div className="hidden md:flex gap-1.5 overflow-x-auto pb-2 mb-3 items-center">
-                  {unitOptions.map(u => {
-                    const typeName = u === 'All' ? 'All' : sortedUnits.find(su => su.name === u)?.typeName || ''
-                    const activeClass = u === 'All' ? 'bg-gray-600 text-white' : (unitTypeColorMap[typeName] || 'bg-gray-600 text-white')
-                    return (
-                      <button key={u} onClick={() => setUnitFilter(u)}
-                        className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${
-                          unitFilter === u ? activeClass : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
-                        }`}>{u}</button>
-                    )
-                  })}
-
-                  <span className="w-px h-5 bg-gray-700 mx-1 shrink-0" />
-
+                {/* Date filter */}
+                <div className="hidden md:flex gap-1.5 overflow-x-auto pb-2 mb-3">
                   {dateOptions.map(f => (
                     <button key={f.key} onClick={() => setDateFilter(f.key)}
                       className={`px-2.5 py-1 rounded text-xs font-medium whitespace-nowrap flex-shrink-0 transition-colors ${
@@ -572,6 +543,16 @@ export default function IncidentDetailPage() {
                       }`}>{f.label}</button>
                   ))}
                 </div>
+                <select
+                  value={dateFilter}
+                  onChange={e => setDateFilter(e.target.value)}
+                  className="md:hidden w-full mb-3 bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value="all">All Dates</option>
+                  {dateOptions.map(f => (
+                    <option key={f.key} value={f.key}>{f.label}</option>
+                  ))}
+                </select>
               </>
             )
           })()}

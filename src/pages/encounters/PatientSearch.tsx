@@ -6,6 +6,8 @@ import { usePermission } from '@/hooks/usePermission'
 import { UnitFilterPills, SortableHeader } from '@/components/ui'
 import { useSortable } from '@/hooks/useSortable'
 import { getUnitTypeName } from '@/lib/unitColors'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 const ALL_UNIT_NAMES = ['RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
 const UNIT_TYPE_MAP = Object.fromEntries(ALL_UNIT_NAMES.map(u => [u, getUnitTypeName(u)]))
@@ -33,6 +35,8 @@ const ACUITY_COLORS: Record<string, string> = {
 }
 
 export default function PatientSearchPage() {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const supabase = createClient()
   const isField = !usePermission('incidents.manage')
   const assignment = useUserAssignment()
@@ -186,7 +190,7 @@ export default function PatientSearchPage() {
         {!loading && results.length > 0 && (
           <div className="space-y-1">
             <p className="text-xs text-gray-500 px-1">{results.length} record{results.length !== 1 ? 's' : ''} found</p>
-            <div className="theme-card rounded-xl border overflow-hidden">
+            <div className={lc.container}>
               {/* Header */}
               <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide theme-card-header border-b">
                 <SortableHeader label="Date" sortKey="date" currentKey={psSortKey} currentDir={psSortDir} onToggle={psToggleSort} className="w-24 shrink-0" />

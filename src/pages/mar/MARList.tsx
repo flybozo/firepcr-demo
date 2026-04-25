@@ -13,6 +13,8 @@ import { UNIT_TYPE_ORDER } from '@/lib/unitColors'
 import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
 import { getCachedData, cacheData } from '@/lib/offlineStore'
 import { loadList } from '@/lib/offlineFirst'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type MAREntry = {
   id: string
@@ -112,8 +114,14 @@ function MARListInner() {
   const [incidentFilter, setIncidentFilter] = useState('All')
   const [activeIncidents, setActiveIncidents] = useState<{id: string; name: string}[]>([])
   const [dateRange, setDateRange] = useState('7d')
+  // Full-history search
+  const [searchInput, setSearchInput] = useState('')
+  const [historyResults, setHistoryResults] = useState<MAREntry[] | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
   type MARSortKey = 'date' | 'patient' | 'item_name' | 'med_unit'
   const { sortKey: marSortKey, sortDir: marSortDir, toggleSort: marToggleSort, sortFn: marSortFn } = useSortable<MARSortKey>('date', 'desc')
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
 
   const DATE_RANGES = ['2d', '7d', '14d', '30d'] as const
   const dateRangeDays: Record<string, number> = { '2d': 2, '7d': 7, '14d': 14, '30d': 30 }
@@ -200,6 +208,15 @@ function MARListInner() {
 
   const filtered = marSortFn(entries.filter(e => {
     if (unitFilter !== 'All' && e.med_unit !== unitFilter) return false
+    if (searchInput && !historyResults) {
+      const s = searchInput.toLowerCase()
+      return (
+        e.patient_name?.toLowerCase().includes(s) ||
+        e.item_name?.toLowerCase().includes(s) ||
+        e.med_unit?.toLowerCase().includes(s) ||
+        e.dispensed_by?.toLowerCase().includes(s)
+      )
+    }
     return true
   }), (e, key) => {
     if (key === 'date') return e.date ?? ''
@@ -302,12 +319,48 @@ function MARListInner() {
           </div>
         )}
 
-        {loading ? (
+        {/* Search bar — filter loaded data or Enter to search all history */}
+        <div className="relative">
+          <input
+            value={searchInput}
+            onChange={e => {
+              setSearchInput(e.target.value)
+              if (historyResults) { setHistoryResults(null) }
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && searchInput.trim()) {
+                setHistoryLoading(true)
+                const q = searchInput.trim()
+                supabase
+                  .from('dispense_admin_log')
+                  .select('id, date, time, patient_name, item_name, qty_used, medication_route, dosage_units, med_unit, dispensed_by, item_type, entry_type, requires_cosign, provider_signature_url, incident')
+                  .or(`patient_name.ilike.%${q}%,item_name.ilike.%${q}%,med_unit.ilike.%${q}%,dispensed_by.ilike.%${q}%`)
+                  .order('date', { ascending: false })
+                  .limit(200)
+                  .then(({ data }) => {
+                    setHistoryResults((data || []) as MAREntry[])
+                    setHistoryLoading(false)
+                  })
+              }
+            }}
+            placeholder="Filter current view — or press Enter to search all history…"
+            className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 placeholder-gray-600 pr-20"
+          />
+          {searchInput && (
+            <button onClick={() => { setSearchInput(''); setHistoryResults(null) }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 text-sm">✕</button>
+          )}
+          {historyResults && (
+            <span className="absolute right-10 top-1/2 -translate-y-1/2 text-xs text-blue-400">🔍 {historyResults.length} across all time</span>
+          )}
+        </div>
+
+        {(loading || historyLoading) ? (
           <LoadingSkeleton rows={5} header />
-        ) : filtered.length === 0 ? (
-          <EmptyState icon="💊" message="No entries recorded yet." />
+        ) : (historyResults ?? filtered).length === 0 ? (
+          <EmptyState icon="💊" message={historyResults ? 'No records found across all history.' : 'No entries recorded yet.'} />
         ) : (
-          <div className="theme-card rounded-xl border overflow-hidden">
+          <div className={lc.container}>
             {/* Horizontally scrollable on mobile - each row stays single-line */}
             <div className="overflow-x-auto">
               <div className="min-w-[740px]">
@@ -323,11 +376,11 @@ function MARListInner() {
                   <span className="w-14 shrink-0 text-gray-500">Type</span>
                   <span className="w-28 shrink-0 text-right text-gray-500">Status</span>
                 </div>
-                {filtered.map(entry => (
+                {(historyResults ?? filtered).map(entry => (
                   <div
                     key={entry.id}
                     onClick={() => navigate(`/mar/${entry.id}`)}
-                    className={`flex items-center px-4 py-2.5 cursor-pointer border-b border-gray-800/50 ${detailMatch?.params?.id === entry.id ? 'bg-gray-700' : 'hover:bg-gray-800'}`}
+                    className={`flex items-center px-4 py-2.5 cursor-pointer ${lc.rowCls(detailMatch?.params?.id === entry.id)}`}
                   >
                     <span className="w-20 shrink-0 text-gray-400 text-xs">{entry.date || '-'}</span>
                     <span className="w-20 shrink-0 text-white text-xs font-medium truncate pr-1">
@@ -365,7 +418,7 @@ function MARListInner() {
           </div>
         )}
 
-        {!loading && filtered.length > 0 && filtered.length < entries.length && (
+        {!loading && !historyResults && filtered.length > 0 && filtered.length < entries.length && (
           <p className="text-center text-gray-600 text-xs">Showing {filtered.length} of {entries.length}</p>
         )}
 

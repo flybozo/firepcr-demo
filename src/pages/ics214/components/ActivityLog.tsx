@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import type { Activity, ICS214Header } from './types'
 import { formatTime } from './utils'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 interface Props {
   activities: Activity[]
@@ -11,6 +13,8 @@ interface Props {
 }
 
 export function ActivityLog({ activities, header, ics214IdParam, onAddActivity }: Props) {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const [showForm, setShowForm] = useState(false)
   const [datetime, setDatetime] = useState('')
   const [description, setDescription] = useState('')
@@ -35,7 +39,7 @@ export function ActivityLog({ activities, header, ics214IdParam, onAddActivity }
   }
 
   return (
-    <div className="theme-card rounded-xl border overflow-hidden">
+    <div className={lc.container}>
       <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
         <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">
           Activity Log ({activities.filter(a => a.activity_type !== 'system').length} entries)

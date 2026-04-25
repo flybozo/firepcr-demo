@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { PageHeader, LoadingSkeleton, EmptyState } from '@/components/ui'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type UnsignedChart = {
   id: string

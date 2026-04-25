@@ -1,4 +1,6 @@
 import type { VehicleDoc } from './types'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 const DOC_TYPES = ['Registration', 'Title', 'Insurance', 'Inspection', 'Smog Certificate', 'Photo', 'VIN Sticker', 'Other']
 
@@ -12,8 +14,10 @@ type Props = {
 }
 
 export default function VehicleDocuments({ vehicleDocs, vehicleDocUrls, docType, uploadingDoc, onDocTypeChange, onDocUpload }: Props) {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   return (
-    <div className="theme-card rounded-xl border overflow-hidden">
+    <div className={lc.container}>
       <div className="px-4 py-3 bg-gray-800 flex items-center justify-between">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Vehicle Documents</h2>
         <span className="text-xs text-gray-600">{vehicleDocs.length} files</span>

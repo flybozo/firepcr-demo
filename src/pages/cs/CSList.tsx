@@ -11,6 +11,8 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import { UNIT_TYPE_ORDER } from '@/lib/unitColors'
 import { PageHeader, LoadingSkeleton, EmptyState, UnitFilterPills, SortableHeader } from '@/components/ui'
 import { useSortable } from '@/hooks/useSortable'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 import { getCachedData } from '@/lib/offlineStore'
 import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
 
@@ -61,6 +63,8 @@ export default function CSList() {
   const [isOfflineData, setIsOfflineData] = useState(false)
   type CSSortKey = 'item_name' | 'quantity' | 'expiration_date' | 'unit'
   const { sortKey: csSortKey, sortDir: csSortDir, toggleSort: csToggleSort, sortFn: csSortFn } = useSortable<CSSortKey>('item_name', 'asc')
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
 
   // Field users locked to their unit
   useEffect(() => {
@@ -188,7 +192,7 @@ export default function CSList() {
       ) : (
         <div className="flex-1">
           {/* Column header */}
-          <div className="flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b border-gray-800 bg-gray-900/40">
+          <div className={`flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide bg-gray-900/40 ${lc.header}`}>
             <SortableHeader label="Medication" sortKey="item_name" currentKey={csSortKey} currentDir={csSortDir} onToggle={csToggleSort} className="flex-1 min-w-0" />
             <SortableHeader label="Qty" sortKey="quantity" currentKey={csSortKey} currentDir={csSortDir} onToggle={csToggleSort} className="w-16 justify-center shrink-0" />
             <SortableHeader label="Expiry" sortKey="expiration_date" currentKey={csSortKey} currentDir={csSortDir} onToggle={csToggleSort} className="w-20 shrink-0 hidden sm:flex" />
@@ -203,9 +207,7 @@ export default function CSList() {
               <div
                 key={item.id}
                 onClick={() => navigate(`/cs/item/${item.id}`)}
-                className={`flex items-center px-4 py-2.5 cursor-pointer border-b border-gray-800/50 text-sm transition-colors ${
-                  selected ? 'bg-gray-700' : expired ? 'bg-red-950/10 hover:bg-gray-800' : 'hover:bg-gray-800'
-                }`}
+                className={`flex items-center px-4 py-2.5 cursor-pointer text-sm ${lc.rowCls(selected)}${!selected && expired ? ' bg-red-950/10' : ''}`}
               >
                 <div className="flex-1 min-w-0">
                   <span className={`text-sm ${expired ? 'text-red-300' : expiring ? 'text-yellow-300' : 'text-white'}`}>

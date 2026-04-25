@@ -6,10 +6,14 @@ import { useSearchParams } from 'react-router-dom'
 import { FieldGuard } from '@/components/FieldGuard'
 import { PageHeader, LoadingSkeleton, EmptyState, SortBar } from '@/components/ui'
 import { useSortable } from '@/hooks/useSortable'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type Claim = { id: string; patient_name: string | null; incident: string | null; date_of_injury: string | null; status: string | null; pdf_url: string | null; unit: string | null }
 
 function CompClaimsInner() {
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const supabase = createClient()
   const [searchParams] = useSearchParams()
   const incidentId = searchParams.get('incidentId')
@@ -85,14 +89,14 @@ function CompClaimsInner() {
             onToggle={claimToggleSort}
             className="mb-3"
           />
-        <div className="theme-card rounded-xl border overflow-hidden">
+        <div className={lc.container}>
           <div className="divide-y divide-gray-800">
             {claimSortFn(claims, (c, key) => {
               if (key === 'date_of_injury') return c.date_of_injury ?? ''
               if (key === 'patient_name') return c.patient_name ?? ''
               return ''
             }).map(c => (
-              <div key={c.id} className="flex items-center gap-3 px-4 py-3 text-sm hover:bg-gray-800/50">
+              <div key={c.id} className={`flex items-center gap-3 px-4 py-3 text-sm ${lc.row}`}>
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-medium truncate">{c.patient_name || '—'}</p>
                   <p className="text-xs text-gray-500 truncate">{c.incident} · {c.unit} · {c.date_of_injury}</p>

@@ -12,6 +12,8 @@ import { getCachedData } from '@/lib/offlineStore'
 import { Link, useMatch, useSearchParams } from 'react-router-dom'
 import { PageHeader, LoadingSkeleton, EmptyState, UnitFilterPills } from '@/components/ui'
 import { UNIT_TYPE_ORDER } from '@/lib/unitColors'
+import { useListStyle } from '@/hooks/useListStyle'
+import { getListClasses } from '@/lib/listStyles'
 
 type InventoryItem = {
   id: string
@@ -45,6 +47,8 @@ function InventoryPageInner() {
   const isField = !usePermission('inventory.view')
   const assignment = useUserAssignment()
   const detailMatch = useMatch('/inventory/:id')
+  const listStyle = useListStyle()
+  const lc = getListClasses(listStyle)
   const [items, setItems] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchParams] = useSearchParams()
@@ -112,15 +116,17 @@ function InventoryPageInner() {
           templateItems.forEach((tmpl: any) => {
             const key = tmpl.catalog_item_id || tmpl.item_name
             const invRows = unitInv[key] || []
-            if ((tmpl.category === 'CS' || tmpl.category === 'Rx') && invRows.length > 0) {
+            const cat = tmpl.catalog_item?.category || tmpl.category || ''
+            const als = tmpl.catalog_item?.is_als || tmpl.is_als || false
+            if ((cat === 'CS' || cat === 'Rx') && invRows.length > 0) {
               invRows.forEach((inv: any) => {
-                mergedItems.push({ id: inv.id, item_name: tmpl.item_name, category: tmpl.category, quantity: inv.quantity ?? 0, par_qty: inv.par_qty ?? tmpl.default_par_qty ?? 0, lot_number: inv.lot_number || null, expiration_date: inv.expiration_date || null, unit_id: unit.id, unit: unit, is_als: tmpl.is_als || false, catalog_item_id: tmpl.catalog_item_id || null, sku: tmpl.catalog_item?.sku || null })
+                mergedItems.push({ id: inv.id, item_name: tmpl.item_name, category: cat, quantity: inv.quantity ?? 0, par_qty: inv.par_qty ?? tmpl.default_par_qty ?? 0, lot_number: inv.lot_number || null, expiration_date: inv.expiration_date || null, unit_id: unit.id, unit: unit, is_als: als, catalog_item_id: tmpl.catalog_item_id || null, sku: tmpl.catalog_item?.sku || null })
               })
-            } else if (tmpl.category === 'CS' || tmpl.category === 'Rx') {
-              mergedItems.push({ id: `tmpl-${unit.id}-${tmpl.id}`, item_name: tmpl.item_name, category: tmpl.category, quantity: 0, par_qty: tmpl.default_par_qty ?? 0, lot_number: null, expiration_date: null, unit_id: unit.id, unit: unit, is_als: tmpl.is_als || false, catalog_item_id: tmpl.catalog_item_id || null, sku: tmpl.catalog_item?.sku || null })
+            } else if (cat === 'CS' || cat === 'Rx') {
+              mergedItems.push({ id: `tmpl-${unit.id}-${tmpl.id}`, item_name: tmpl.item_name, category: cat, quantity: 0, par_qty: tmpl.default_par_qty ?? 0, lot_number: null, expiration_date: null, unit_id: unit.id, unit: unit, is_als: als, catalog_item_id: tmpl.catalog_item_id || null, sku: tmpl.catalog_item?.sku || null })
             } else {
               const inv = invRows[0] || null
-              mergedItems.push({ id: inv?.id || `tmpl-${unit.id}-${tmpl.id}`, item_name: tmpl.item_name, category: tmpl.category, quantity: inv?.quantity ?? 0, par_qty: inv?.par_qty ?? tmpl.default_par_qty ?? 0, lot_number: inv?.lot_number || null, expiration_date: inv?.expiration_date || null, unit_id: unit.id, unit: unit, is_als: tmpl.is_als || false, catalog_item_id: tmpl.catalog_item_id || null, sku: tmpl.catalog_item?.sku || null })
+              mergedItems.push({ id: inv?.id || `tmpl-${unit.id}-${tmpl.id}`, item_name: tmpl.item_name, category: cat, quantity: inv?.quantity ?? 0, par_qty: inv?.par_qty ?? tmpl.default_par_qty ?? 0, lot_number: inv?.lot_number || null, expiration_date: inv?.expiration_date || null, unit_id: unit.id, unit: unit, is_als: als, catalog_item_id: tmpl.catalog_item_id || null, sku: tmpl.catalog_item?.sku || null })
             }
           })
         })
@@ -151,7 +157,7 @@ function InventoryPageInner() {
       const [formularyData, invData, unitsResult] = await Promise.all([
         paginate((from, to) => supabase
           .from('formulary_templates')
-          .select('id, item_name, category, default_par_qty, unit_type_id, is_als, catalog_item_id, catalog_item:item_catalog(sku)')
+          .select('id, item_name, default_par_qty, unit_type_id, catalog_item_id, catalog_item:item_catalog(sku, category, is_als)')
           .order('id')
           .range(from, to)),
         paginate((from, to) => supabase
@@ -208,37 +214,39 @@ function InventoryPageInner() {
           const key = tmpl.catalog_item_id || tmpl.item_name
           const invRows = unitInv[key] || []
 
-          if ((tmpl.category === 'CS' || tmpl.category === 'Rx') && invRows.length > 0) {
+          const cat = (tmpl.catalog_item as any)?.category || ''
+          const als = (tmpl.catalog_item as any)?.is_als || false
+          if ((cat === 'CS' || cat === 'Rx') && invRows.length > 0) {
             // CS and Rx items: one row per lot number in inventory
             invRows.forEach((inv: any) => {
               mergedItems.push({
                 id: inv.id,
                 item_name: tmpl.item_name,
-                category: tmpl.category,
+                category: cat,
                 quantity: inv.quantity ?? 0,
                 par_qty: inv.par_qty ?? tmpl.default_par_qty ?? 0,
                 lot_number: inv.lot_number || null,
                 expiration_date: inv.expiration_date || null,
                 unit_id: unit.id,
                 unit: unit,
-                is_als: tmpl.is_als || false,
+                is_als: als,
                 catalog_item_id: tmpl.catalog_item_id || null,
                 sku: (tmpl.catalog_item as any)?.sku || null,
               })
             })
-          } else if ((tmpl.category === 'CS' || tmpl.category === 'Rx') && invRows.length === 0) {
+          } else if ((cat === 'CS' || cat === 'Rx') && invRows.length === 0) {
             // CS/Rx item with no inventory yet — show one row at qty 0
             mergedItems.push({
               id: `tmpl-${unit.id}-${tmpl.id}`,
               item_name: tmpl.item_name,
-              category: tmpl.category,
+              category: cat,
               quantity: 0,
               par_qty: tmpl.default_par_qty ?? 0,
               lot_number: null,
               expiration_date: null,
               unit_id: unit.id,
               unit: unit,
-              is_als: tmpl.is_als || false,
+              is_als: als,
               catalog_item_id: tmpl.catalog_item_id || null,
               sku: (tmpl.catalog_item as any)?.sku || null,
             })
@@ -248,14 +256,14 @@ function InventoryPageInner() {
             mergedItems.push({
               id: inv?.id || `tmpl-${unit.id}-${tmpl.id}`,
               item_name: tmpl.item_name,
-              category: tmpl.category,
+              category: cat,
               quantity: inv?.quantity ?? 0,
               par_qty: inv?.par_qty ?? tmpl.default_par_qty ?? 0,
               lot_number: inv?.lot_number || null,
               expiration_date: inv?.expiration_date || null,
               unit_id: unit.id,
               unit: unit,
-              is_als: tmpl.is_als || false,
+              is_als: als,
               catalog_item_id: tmpl.catalog_item_id || null,
               sku: (tmpl.catalog_item as any)?.sku || null,
             })
@@ -415,7 +423,7 @@ function InventoryPageInner() {
       ) : (
         <>
           {/* Table */}
-          <div className="theme-card rounded-xl border overflow-hidden">
+          <div className={lc.container}>
             {/* Header */}
             <div className="flex items-center px-3 py-1.5 text-xs font-semibold uppercase tracking-wide border-b theme-card-header">
               <SortableHeader label="Item" sortKey="item_name" currentKey={sortKey} currentDir={sortDir} onToggle={toggleSort} className="flex-1 min-w-0" />
@@ -433,7 +441,7 @@ function InventoryPageInner() {
                 const unitName = (item as any)?.unit?.name
                 return (
                   <Link key={item.id} to={`/inventory/${item.id}`}
-                    className={`flex items-center px-3 py-1.5 transition-colors cursor-pointer ${detailMatch?.params?.id === item.id ? 'bg-gray-700' : low ? 'bg-red-950/10 hover:bg-gray-800' : 'hover:bg-gray-800'}`}>
+                    className={`flex items-center px-3 py-1.5 cursor-pointer ${lc.rowCls(detailMatch?.params?.id === item.id)}${detailMatch?.params?.id !== item.id && low ? ' bg-red-950/10' : ''}`}>
                     <span className={`flex-1 min-w-0 text-xs truncate ${low ? 'text-red-300' : 'text-white'}`}>
                       {item.item_name}
                       {low && <span className="ml-1 text-red-500 text-xs">↓</span>}
