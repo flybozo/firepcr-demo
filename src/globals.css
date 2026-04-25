@@ -247,6 +247,19 @@ input[type="datetime-local"] {
 .text-cyan-400 { color: #22d3ee !important; }
 .text-pink-400 { color: #f472b6 !important; }
 
+/* ── List row selection (uses theme primary color) ── */
+.list-row-selected-card {
+  background-color: color-mix(in srgb, var(--theme-primary, #dc2626) 15%, var(--theme-card-bg, #111827)) !important;
+}
+.list-row-selected-list {
+  background-color: color-mix(in srgb, var(--theme-primary, #dc2626) 12%, var(--theme-card-bg, #111827)) !important;
+  border-left: 2px solid var(--theme-primary, #dc2626) !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--theme-primary, #dc2626) 40%, transparent) !important;
+}
+.list-row-hover-card:hover {
+  background-color: color-mix(in srgb, var(--theme-primary, #dc2626) 6%, var(--theme-card-bg, #111827)) !important;
+}
+
 /* Gray backgrounds that need contrast adjustment for light themes */
 .bg-gray-700 { background-color: color-mix(in srgb, var(--theme-card-bg, #111827) 80%, var(--theme-border, #1f2937) 40%) !important; }
 .hover\:bg-gray-700:hover { background-color: color-mix(in srgb, var(--theme-card-bg, #111827) 70%, var(--theme-border, #1f2937) 50%) !important; }

@@ -95,7 +95,6 @@ const NAV: NavItem[] = [
     directLink: true,
     sub: [
       { label: 'New Supply Run', href: '/supply-runs/new' },
-      { label: 'Search All', href: '/supply-runs/search' },
     ],
   },
   {

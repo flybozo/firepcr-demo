@@ -190,7 +190,7 @@ export default function CSList() {
       ) : filtered.length === 0 ? (
         <EmptyState icon="🔐" message="No CS items found." />
       ) : (
-        <div className="flex-1">
+        <div className={`flex-1 ${lc.container}`}>
           {/* Column header */}
           <div className={`flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide bg-gray-900/40 ${lc.header}`}>
             <SortableHeader label="Medication" sortKey="item_name" currentKey={csSortKey} currentDir={csSortDir} onToggle={csToggleSort} className="flex-1 min-w-0" />

@@ -3,6 +3,9 @@ import type { ListStyle } from '@/components/ThemeProvider'
 /**
  * Returns CSS class names for list containers and rows based on the user's
  * list style preference ('card' or 'list').
+ *
+ * Selection colors use CSS custom properties (--theme-primary) so they
+ * automatically match the sidebar / color scheme chosen in profile settings.
  */
 export function getListClasses(style: ListStyle) {
   const isCard = style === 'card'
@@ -17,12 +20,12 @@ export function getListClasses(style: ListStyle) {
       : 'border-b border-gray-800',
     /** Individual row (non-selected) */
     row: isCard
-      ? 'border-b border-gray-800/50 hover:bg-gray-800 transition-colors'
+      ? 'border-b border-gray-800/50 list-row-hover-card transition-colors'
       : 'border-l-2 border-l-transparent border-b border-b-gray-800/30 hover:bg-gray-800/40 transition-colors',
     /** Selected row (for split-panel views) */
     rowSelected: isCard
-      ? 'border-b border-gray-800/50 bg-gray-700 transition-colors'
-      : 'bg-red-950/40 border-l-2 border-l-red-500 border-b border-b-red-500/40 transition-colors',
+      ? 'border-b border-gray-800/50 list-row-selected-card transition-colors'
+      : 'list-row-selected-list transition-colors',
     /** Row divider wrapper */
     divider: isCard
       ? ''
@@ -34,10 +37,10 @@ export function getListClasses(style: ListStyle) {
     /** Helper to pick row class based on selection state */
     rowCls: (selected: boolean) => selected
       ? (isCard
-        ? 'border-b border-gray-800/50 bg-gray-700 transition-colors'
-        : 'bg-red-950/40 border-l-2 border-l-red-500 border-b border-b-red-500/40 transition-colors')
+        ? 'border-b border-gray-800/50 list-row-selected-card transition-colors'
+        : 'list-row-selected-list transition-colors')
       : (isCard
-        ? 'border-b border-gray-800/50 hover:bg-gray-800 transition-colors'
+        ? 'border-b border-gray-800/50 list-row-hover-card transition-colors'
         : 'border-l-2 border-l-transparent border-b border-b-gray-800/30 hover:bg-gray-800/40 transition-colors'),
   }
 }

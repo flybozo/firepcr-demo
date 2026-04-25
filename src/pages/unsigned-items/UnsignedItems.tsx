@@ -144,7 +144,13 @@ function ChartList({
     </div>
   )
   return (
-    <div className="divide-y divide-gray-800/50">
+    <div className={lc.container}>
+      <div className="px-4 py-2.5 bg-gray-800 border-b border-gray-700">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+          Unsigned Encounters ({charts.length})
+        </h3>
+      </div>
+      <div>
       {charts.map(c => {
         const isSelected = c.id === selectedId
         return (
@@ -172,6 +178,7 @@ function ChartList({
           </button>
         )
       })}
+      </div>
     </div>
   )
 }
@@ -188,14 +195,15 @@ function OrphanNotesList({
 
   return (
     <>
-      <div className="px-3 py-2 bg-gray-800/40 border-b border-t border-gray-800">
-        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wide">
-          Unsigned Notes on Signed Charts ({notes.length})
-        </h3>
-      </div>
-      <div className="divide-y divide-gray-800/50">
-        {notes.map(n => (
-          <div key={n.id} className="flex items-start gap-2 px-3 py-2.5">
+      <div className="theme-card rounded-xl border overflow-hidden">
+        <div className="px-4 py-2.5 bg-gray-800 border-b border-gray-700">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+            Unsigned Notes on Signed Charts ({notes.length})
+          </h3>
+        </div>
+        <div>
+          {notes.map(n => (
+            <div key={n.id} className="flex items-start gap-2 px-3 py-2.5 border-b border-gray-800/50 last:border-b-0">
             <Link to={`/encounters/${n.encounter_uuid || n.encounter_id}#notes`} className="flex-1 min-w-0">
               <p className="text-xs text-gray-400">{new Date(n.note_datetime).toLocaleString()} · {n.encounter_id}</p>
               <p className="text-sm text-white mt-0.5 line-clamp-2">{n.note_text}</p>
@@ -212,6 +220,7 @@ function OrphanNotesList({
             </div>
           </div>
         ))}
+        </div>
       </div>
       <ConfirmDialog
         open={!!confirmId}
@@ -243,7 +252,13 @@ function MARList({
     </div>
   )
   return (
-    <div className="divide-y divide-gray-800/50">
+    <div className={lc.container}>
+      <div className="px-4 py-2.5 bg-gray-800 border-b border-gray-700">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+          MAR Orders Awaiting Co-Sign ({entries.length})
+        </h3>
+      </div>
+      <div>
       {entries.map(m => {
         const isSelected = m.id === selectedId
         return (
@@ -268,6 +283,7 @@ function MARList({
           </button>
         )
       })}
+      </div>
     </div>
   )
 }
@@ -462,29 +478,30 @@ export default function UnsignedItemsPage() {
                 ) : (
                   <>
                     {charts.length > 0 && (
-                      <>
-                        <div className="px-3 py-2 bg-gray-800/40 border-b border-gray-800">
-                          <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wide">
-                            Unsigned Encounters ({charts.length})
-                          </h3>
-                        </div>
+                      <div className="p-3">
                         <ChartList
                           charts={charts}
                           selectedId={selectedChartId}
                           onSelect={setSelectedChartId}
                         />
-                      </>
+                      </div>
                     )}
-                    <OrphanNotesList notes={orphanNotes} onDelete={deleteOrphanNote} />
+                    {orphanNotes.length > 0 && (
+                      <div className="p-3 pt-0">
+                        <OrphanNotesList notes={orphanNotes} onDelete={deleteOrphanNote} />
+                      </div>
+                    )}
                   </>
                 )}
               </>
             ) : (
-              <MARList
-                entries={marEntries}
-                selectedId={selectedMarId}
-                onSelect={setSelectedMarId}
-              />
+              <div className="p-3">
+                <MARList
+                  entries={marEntries}
+                  selectedId={selectedMarId}
+                  onSelect={setSelectedMarId}
+                />
+              </div>
             )}
           </div>
 

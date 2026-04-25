@@ -1,12 +1,15 @@
 /**
  * CSItemDetail — right-panel detail for a controlled substance inventory item.
  * Shows item info, lot/expiry, quantity vs par, and transaction history.
+ * If the item has a catalog_item_id, uses CatalogItemPanel with a contextCard.
  */
 
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
+import { CatalogItemPanel } from '@/components/inventory/CatalogItemPanel'
+import type { CatalogItem } from '@/components/inventory/CatalogItemPanel'
 
 type CSItem = {
   id: string
@@ -19,6 +22,7 @@ type CSItem = {
   unit_of_measure: string | null
   unit_id: string | null
   incident_unit_id: string | null
+  catalog_item_id: string | null
   unit: { name: string } | null
 }
 
@@ -59,16 +63,11 @@ export default function CSItemDetail() {
   useEffect(() => {
     if (!id) return
     const load = async () => {
-      const [{ data: itemData }, { data: txData }] = await Promise.all([
-        supabase.from('unit_inventory')
-          .select('*, unit:units(name)')
-          .eq('id', id)
-          .single(),
-        supabase.from('dispense_admin_log')
-          .select('id, date, time, patient_name, item_name, qty_used, qty_wasted, dispensed_by, lot_number, indication, witness_name, entry_type')
-          .eq('lot_number', '') // will be replaced below after we have item
-          .limit(0), // placeholder
-      ])
+      const { data: itemData } = await supabase
+        .from('unit_inventory')
+        .select('*, unit:units(name)')
+        .eq('id', id)
+        .single()
       setItem(itemData as CSItem)
 
       // Fetch transactions matching this item name + lot
@@ -98,6 +97,100 @@ export default function CSItemDetail() {
   const expiring = !expired && isExpiringSoon(exp)
   const low = item.quantity <= item.par_qty
 
+  // CS-specific context card — rendered above the catalog detail inside CatalogItemPanel
+  const csContextCard = (_catalogItem: CatalogItem) => (
+    <div className="theme-card rounded-xl border mb-5 p-4 space-y-4">
+      {/* Quantity */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="theme-card rounded-xl p-4 border">
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">On Hand</p>
+          <p className={`text-3xl font-bold ${low ? 'text-red-400' : 'text-white'}`}>{item.quantity}</p>
+          {item.unit_of_measure && <p className="text-xs text-gray-600 mt-0.5">{item.unit_of_measure}</p>}
+        </div>
+        <div className="theme-card rounded-xl p-4 border">
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Par Level</p>
+          <p className="text-3xl font-bold text-gray-400">{item.par_qty}</p>
+          {low && <p className="text-xs text-red-400 mt-0.5">↓ Below par</p>}
+        </div>
+      </div>
+
+      {/* Lot / Expiry */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Lot #</p>
+          <p className="text-sm text-white font-mono">{lot || '—'}</p>
+        </div>
+        <div>
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Expiration</p>
+          <p className={`text-sm font-mono ${expired ? 'text-red-400' : expiring ? 'text-yellow-400' : 'text-white'}`}>
+            {exp || '—'}
+          </p>
+        </div>
+      </div>
+
+      {/* Quick actions */}
+      <div className="flex gap-2 flex-wrap">
+        <Link
+          to={`/cs/count?unit=${encodeURIComponent(item.unit?.name || '')}`}
+          className="px-3 py-1.5 bg-orange-700 hover:bg-orange-600 text-white text-xs rounded-lg font-medium transition-colors"
+        >
+          📋 Count
+        </Link>
+        <Link
+          to={`/cs/transfer?from=${encodeURIComponent(item.unit?.name || '')}`}
+          className="px-3 py-1.5 bg-blue-700 hover:bg-blue-600 text-white text-xs rounded-lg font-medium transition-colors"
+        >
+          ⇄ Transfer
+        </Link>
+      </div>
+
+      {/* Transaction history */}
+      <div>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+          Transaction History {lot && <span className="normal-case text-gray-600">· Lot {lot}</span>}
+        </h3>
+        {transactions.length === 0 ? (
+          <p className="text-xs text-gray-600">No transactions found for this lot.</p>
+        ) : (
+          <div className="space-y-2">
+            {transactions.map(tx => (
+              <div key={tx.id} className="theme-card rounded-lg border px-3 py-2 text-xs">
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="text-gray-400">{tx.date} {tx.time}</span>
+                  <div className="flex gap-1">
+                    {tx.qty_used != null && tx.qty_used > 0 && (
+                      <span className="text-orange-300 font-bold">−{tx.qty_used} used</span>
+                    )}
+                    {tx.qty_wasted != null && tx.qty_wasted > 0 && (
+                      <span className="text-red-400 font-bold ml-1">−{tx.qty_wasted} wasted</span>
+                    )}
+                  </div>
+                </div>
+                <div className="text-gray-300">{tx.patient_name || 'No patient'}</div>
+                {tx.indication && <div className="text-gray-500 truncate">{tx.indication}</div>}
+                <div className="flex justify-between text-gray-600 mt-1">
+                  <span>By: {tx.dispensed_by || '—'}</span>
+                  {tx.witness_name && <span>Witness: {tx.witness_name}</span>}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
+  // If linked to catalog, use CatalogItemPanel (header + badges come from panel)
+  if (item.catalog_item_id) {
+    return (
+      <CatalogItemPanel
+        catalogItemId={item.catalog_item_id}
+        contextCard={csContextCard}
+      />
+    )
+  }
+
+  // Fallback: no catalog link — render original layout
   return (
     <div className="flex flex-col h-full overflow-y-auto">
       {/* Header */}

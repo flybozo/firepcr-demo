@@ -41,6 +41,11 @@ function SupplyRunsPageInner() {
   const [loading, setLoading] = useState(true)
   const [isOfflineData, setIsOfflineData] = useState(false)
   const [unitFilter, setUnitFilter] = useState('All')
+  const [search, setSearch] = useState('')
+  // Full-history search
+  const [historySearch, setHistorySearch] = useState('')
+  const [historyResults, setHistoryResults] = useState<SupplyRun[] | null>(null)
+  const [historyLoading, setHistoryLoading] = useState(false)
   const [dateRange, setDateRange] = useState('7d')
   type SRSortKey = 'run_date' | 'unit' | 'incident'
   const { sortKey: srSortKey, sortDir: srSortDir, toggleSort: srToggleSort, sortFn: srSortFn } = useSortable<SRSortKey>('run_date', 'desc')
@@ -125,12 +130,24 @@ function SupplyRunsPageInner() {
     runs.map(r => (r.incident_unit as any)?.unit?.name).filter(Boolean)
   )).sort()]
 
-  const filtered = srSortFn(runs.filter(r => {
+  const baseFiltered = runs.filter(r => {
     const unitName = (r.incident_unit as any)?.unit?.name
     if (isField && assignment.unit?.name && unitName !== assignment.unit.name) return false
     if (!isField && unitFilter !== 'All' && unitName !== unitFilter) return false
+    if (search && !historyResults) {
+      const q = search.toLowerCase()
+      const matchUnit = unitName?.toLowerCase().includes(q)
+      const matchInc = (r.incident as any)?.name?.toLowerCase().includes(q)
+      const matchRes = r.resource_number?.toLowerCase().includes(q)
+      const matchBy = r.dispensed_by?.toLowerCase().includes(q)
+      if (!matchUnit && !matchInc && !matchRes && !matchBy) return false
+    }
     return true
-  }), (r, key) => {
+  })
+
+  const displayList = historyResults ?? baseFiltered
+
+  const filtered = srSortFn(displayList, (r, key) => {
     if (key === 'run_date') return r.run_date ?? ''
     if (key === 'unit') return (r.incident_unit as any)?.unit?.name ?? ''
     if (key === 'incident') return (r.incident as any)?.name ?? ''
@@ -146,12 +163,57 @@ function SupplyRunsPageInner() {
       )}
       <PageHeader
         title="Supply Runs"
-        subtitle={`${filtered.length} of ${runs.length} runs`}
+        subtitle={historyResults ? `🔍 ${historyResults.length} across all time` : `${filtered.length} of ${runs.length} runs`}
         actions={
           <Link to="/supply-runs/new" className="px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-lg text-sm font-semibold transition-colors">+ New Run</Link>
         }
         className="mb-4 mt-8 md:mt-0"
       />
+
+      {/* Inline search bar */}
+      <div className="relative mb-3">
+        <input
+          value={historySearch || search}
+          onChange={e => {
+            const v = e.target.value
+            setSearch(v)
+            if (historyResults) { setHistoryResults(null); setHistorySearch('') }
+          }}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && search.trim()) {
+              setHistorySearch(search.trim())
+              setHistoryLoading(true)
+              const q = search.trim()
+              supabase
+                .from('supply_runs')
+                .select(`
+                  id, run_date, time, resource_number, dispensed_by, notes, incident_id,
+                  incident_unit:incident_units(unit:units(name)),
+                  incident:incidents(name)
+                `)
+                .or(`resource_number.ilike.%${q}%,dispensed_by.ilike.%${q}%`)
+                .order('run_date', { ascending: false })
+                .limit(200)
+                .then(({ data }) => {
+                  setHistoryResults((data || []) as unknown as SupplyRun[])
+                  setHistoryLoading(false)
+                })
+            }
+          }}
+          placeholder="Filter current view — or press Enter to search all history…"
+          className="w-full bg-gray-900 border border-gray-800 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-500 placeholder-gray-600 pr-20"
+        />
+        {(search || historySearch) && (
+          <button onClick={() => { setSearch(''); setHistorySearch(''); setHistoryResults(null) }}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 text-sm">✕</button>
+        )}
+        {historyLoading && (
+          <span className="absolute right-10 top-1/2 -translate-y-1/2 text-xs text-gray-500">Searching…</span>
+        )}
+        {historyResults && !historyLoading && (
+          <span className="absolute right-10 top-1/2 -translate-y-1/2 text-xs text-blue-400">🔍 {historyResults.length} results</span>
+        )}
+      </div>
 
       {/* Filters */}
       <div className="space-y-2 mb-4">
@@ -212,10 +274,10 @@ function SupplyRunsPageInner() {
         )}
       </div>
 
-      {loading ? (
+      {(loading || historyLoading) ? (
         <LoadingSkeleton rows={5} header />
       ) : filtered.length === 0 ? (
-        <EmptyState icon="🚚" message={unitFilter !== 'All' ? 'No matching supply runs.' : 'No supply runs yet.'} />
+        <EmptyState icon="🚚" message={historyResults ? 'No supply runs found across all history.' : search || unitFilter !== 'All' ? 'No matching supply runs.' : 'No supply runs yet.'} />
       ) : (
         <div className={`${lc.container} overflow-x-auto`}>
           {/* Header */}

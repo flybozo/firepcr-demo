@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
@@ -9,6 +8,15 @@ import { useSortable } from '@/hooks/useSortable'
 import { getUnitTypeName } from '@/lib/unitColors'
 import { useListStyle } from '@/hooks/useListStyle'
 import { getListClasses } from '@/lib/listStyles'
+import { generate214PDF } from '@/lib/generate214pdf'
+import { uploadSignatureDataUrl } from '@/lib/signatureUtils'
+import type { Activity, PatientEncounter } from './components/types'
+import { useICS214Data } from './components/useICS214Data'
+import { HeaderCard } from './components/HeaderCard'
+import { PersonnelSection } from './components/PersonnelSection'
+import { ActivityLog } from './components/ActivityLog'
+import { CloseoutModal } from './components/CloseoutModal'
+import { PDFSection } from './components/PDFSection'
 
 type ICS214Row = {
   id: string
@@ -23,106 +31,141 @@ type ICS214Row = {
   created_at: string
 }
 
-// ── Detail Panel ──────────────────────────────────────────────────────────────
+// ── Embedded Detail ───────────────────────────────────────────────────────────
 
-function ICS214DetailPanel({ row }: { row: ICS214Row }) {
+function ICS214EmbeddedDetail({ ics214Id }: { ics214Id: string }) {
   const supabase = createClient()
-  const [activityCount, setActivityCount] = useState<number | null>(null)
-  const [personnelCount, setPersonnelCount] = useState<number | null>(null)
-  const [loading, setLoading] = useState(true)
+  const assignment = useUserAssignment()
 
-  useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      setLoading(true)
-      const [actResult, persResult] = await Promise.all([
-        supabase
-          .from('ics214_activities')
-          .select('id', { count: 'exact', head: true })
-          .eq('ics214_id', row.ics214_id),
-        supabase
-          .from('ics214_personnel')
-          .select('id', { count: 'exact', head: true })
-          .eq('ics214_id', row.ics214_id),
-      ])
-      if (cancelled) return
-      setActivityCount(actResult.count ?? 0)
-      setPersonnelCount(persResult.count ?? 0)
-      setLoading(false)
+  const { header, setHeader, activities, setActivities, personnel, loading, load, saveField, addActivity, addPersonnel } =
+    useICS214Data(ics214Id, assignment)
+
+  const [showCloseout, setShowCloseout] = useState(false)
+  const [closingOut, setClosingOut] = useState(false)
+  const [encounters, setEncounters] = useState<PatientEncounter[]>([])
+  const [generatingPDF, setGeneratingPDF] = useState(false)
+  const [signedPdfUrl, setSignedPdfUrl] = useState<string | null>(null)
+
+  const openCloseout = async () => {
+    if (!header) return
+    const { data } = await supabase
+      .from('patient_encounters')
+      .select('id, patient_last_name, patient_first_name, chief_complaint, disposition, encounter_id')
+      .eq('incident_id', header.incident_id)
+      .eq('unit', header.unit_name)
+      .gte('date', header.op_date)
+      .lte('date', header.op_date)
+    setEncounters((data as PatientEncounter[]) || [])
+    setShowCloseout(true)
+  }
+
+  const confirmCloseout = async (sigDataUrl: string | null) => {
+    if (!header) return
+    setClosingOut(true)
+    const loggedBy = assignment.employee?.name || assignment.user?.email || 'Unknown'
+
+    const patientActivities = encounters.map(enc => ({
+      ics214_id: ics214Id,
+      log_datetime: new Date().toISOString(),
+      description: `PATIENT CONTACT — ${enc.patient_first_name?.[0] ?? '?'}${enc.patient_last_name?.[0] ?? '?'} | CC: ${enc.chief_complaint || 'Unknown'} | Disposition: ${enc.disposition || 'Unknown'} | PCR: ${enc.encounter_id || enc.id}`,
+      logged_by: loggedBy,
+      activity_type: 'patient_contact' as const,
+    }))
+
+    if (patientActivities.length > 0) {
+      await supabase.from('ics214_activities').insert(patientActivities)
     }
-    load()
-    return () => { cancelled = true }
-  }, [row.ics214_id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+    const sigStoragePath = sigDataUrl
+      ? await uploadSignatureDataUrl(supabase, sigDataUrl, `ics214/${ics214Id}-leader-sig.png`, { upsert: true })
+      : null
+
+    await supabase.from('ics214_headers').update({
+      status: 'Closed',
+      closed_at: new Date().toISOString(),
+      closed_by: loggedBy,
+      leader_signature_url: sigStoragePath,
+    } as any).eq('ics214_id', ics214Id)
+
+    setShowCloseout(false)
+    setClosingOut(false)
+    await load()
+    setTimeout(() => generateAndUploadPDF(null), 500)
+  }
+
+  const generateAndUploadPDF = async (directSigDataUrl?: string | null) => {
+    if (!header) return
+    setGeneratingPDF(true)
+    try {
+      const { data: freshActivities } = await supabase
+        .from('ics214_activities').select('*').eq('ics214_id', ics214Id).order('log_datetime')
+
+      let leaderSigDataUrl: string | null = directSigDataUrl || null
+      if (!leaderSigDataUrl && (header as any).leader_signature_url) {
+        try {
+          const { data: sigSigned } = await supabase.storage.from('signatures')
+            .createSignedUrl((header as any).leader_signature_url, 300)
+          if (sigSigned?.signedUrl) {
+            const resp = await fetch(sigSigned.signedUrl)
+            const blob = await resp.blob()
+            leaderSigDataUrl = await new Promise((res) => {
+              const reader = new FileReader()
+              reader.onloadend = () => res(reader.result as string)
+              reader.readAsDataURL(blob)
+            })
+          }
+        } catch {}
+      }
+
+      const doc = await generate214PDF(
+        { ics214_id: header.ics214_id, incident_name: header.incident_name, unit_name: header.unit_name,
+          op_date: header.op_date, op_start: header.op_start, op_end: header.op_end,
+          leader_name: header.leader_name, leader_position: header.leader_position, leader_signature_url: leaderSigDataUrl },
+        personnel,
+        (freshActivities as Activity[]) || activities
+      )
+
+      doc.save(`${header.ics214_id}.pdf`)
+      const path = `ics214/${header.ics214_id}.pdf`
+      await supabase.storage.from('documents').upload(path, doc.output('blob'), { contentType: 'application/pdf', upsert: true })
+      await supabase.from('ics214_headers').update({ pdf_url: path, pdf_file_name: `${header.ics214_id}.pdf` }).eq('ics214_id', ics214Id)
+      setHeader(prev => prev ? { ...prev, pdf_url: path, pdf_file_name: `${header.ics214_id}.pdf` } : prev)
+      const { data: signed } = await supabase.storage.from('documents').createSignedUrl(path, 3600)
+      if (signed?.signedUrl) setSignedPdfUrl(signed.signedUrl)
+    } catch (err) {
+      console.error('PDF generation failed:', err)
+    }
+    setGeneratingPDF(false)
+  }
+
+  if (loading) return <div className="p-6"><LoadingSkeleton rows={6} /></div>
+
+  if (!header) {
+    return (
+      <div className="flex items-center justify-center h-full text-gray-500">
+        <p className="text-sm">ICS 214 not found.</p>
+      </div>
+    )
+  }
 
   return (
-    <div className="p-4 md:p-6 overflow-y-auto h-full">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-5">
-        <div>
-          <p className="text-xs font-mono text-gray-500 mb-1">{row.ics214_id}</p>
-          <h2 className="text-lg font-bold text-white">{row.unit_name}</h2>
-          <p className="text-sm text-gray-400 mt-0.5">{row.incident_name || '—'}</p>
-        </div>
-        <span className={`text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${
-          row.status === 'Open' ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-400'
-        }`}>
-          {row.status}
-        </span>
-      </div>
-
-      {/* Summary card */}
-      <div className="theme-card rounded-xl border p-4 mb-5">
-        <h3 className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">214 Summary</h3>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-          {([
-            ['Incident', row.incident_name],
-            ['Unit', row.unit_name],
-            ['Op Date', row.op_date],
-            ['Op Period', `${row.op_start || '—'}–${row.op_end || '—'}`],
-            ['Leader', row.leader_name],
-            ['Status', row.status],
-          ] as [string, string][]).map(([label, value]) => (
-            <div key={label}>
-              <span className="text-xs text-gray-500">{label}</span>
-              <p className="text-sm text-white">{value || '—'}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Counts */}
-      {loading ? (
-        <div className="mb-5"><LoadingSkeleton rows={2} /></div>
-      ) : (
-        <div className="grid grid-cols-2 gap-3 mb-5">
-          <div className="theme-card rounded-xl border p-3 text-center">
-            <p className="text-2xl font-bold text-white">{activityCount ?? '—'}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Activities</p>
-          </div>
-          <div className="theme-card rounded-xl border p-3 text-center">
-            <p className="text-2xl font-bold text-white">{personnelCount ?? '—'}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Personnel</p>
-          </div>
-        </div>
-      )}
-
-      {/* Action links */}
-      <div className="space-y-2">
-        <Link
-          to={`/ics214/${row.ics214_id}`}
-          className="block w-full text-center py-2.5 bg-blue-700 hover:bg-blue-600 rounded-lg text-sm font-semibold transition-colors"
-        >
-          View Full 214 →
-        </Link>
-        {row.status === 'Open' && (
-          <Link
-            to={`/ics214/${row.ics214_id}/activity`}
-            className="block w-full text-center py-2.5 bg-red-700 hover:bg-red-600 rounded-lg text-sm font-semibold transition-colors"
-          >
-            + Activity
-          </Link>
+    <div className="max-w-3xl mx-auto p-4 md:p-6 pb-24">
+      <div className="space-y-4">
+        <HeaderCard header={header} onSave={saveField} />
+        <PersonnelSection personnel={personnel} onAdd={addPersonnel} />
+        <ActivityLog activities={activities} header={header} ics214IdParam={ics214Id} onAddActivity={addActivity} />
+        {header.status === 'Open' && (
+          <button onClick={openCloseout} className="w-full py-3 bg-red-700 hover:bg-red-600 rounded-xl text-sm font-bold transition-colors border border-red-600">
+            🔒 Close Out ICS 214
+          </button>
+        )}
+        {header.status === 'Closed' && (
+          <PDFSection header={header} signedPdfUrl={signedPdfUrl} generatingPDF={generatingPDF} onRegenerate={() => generateAndUploadPDF()} />
         )}
       </div>
+      {showCloseout && (
+        <CloseoutModal header={header} encounters={encounters} closingOut={closingOut} onConfirm={confirmCloseout} onCancel={() => setShowCloseout(false)} />
+      )}
     </div>
   )
 }
@@ -312,7 +355,7 @@ export default function ICS214ListPage() {
       <div className="flex-1 flex min-h-0 border-t border-gray-800">
 
         {/* Left: compact list (40%) */}
-        <div className="w-full md:w-[40%] md:border-r border-gray-800 overflow-y-auto">
+        <div className="w-full md:w-[40%] md:border-r border-gray-800 overflow-y-auto flex flex-col">
           {loading ? (
             <div className="p-4"><LoadingSkeleton rows={6} /></div>
           ) : sortedRows.length === 0 ? (
@@ -325,38 +368,59 @@ export default function ICS214ListPage() {
               />
             </div>
           ) : (
-            <div className="divide-y divide-gray-800/60">
-              {sortedRows.map(row => {
-                const isSelected = row.id === selectedId
-                return (
-                  <button
-                    key={row.id}
-                    onClick={() => setSelectedId(row.id)}
-                    className={`w-full text-left px-3 py-3 flex items-start gap-2 ${lc.rowCls(isSelected)}`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[10px] font-mono text-gray-500 mb-0.5">{row.ics214_id}</p>
-                      <p className={`text-sm truncate ${isSelected ? 'text-white font-medium' : 'text-gray-300'}`}>
+            <>
+              {/* Column header */}
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-800 bg-gray-900 flex-shrink-0">
+                <div className="w-24">
+                  <SortableHeader label="Date" sortKey="op_date" currentKey={icsSortKey} currentDir={icsSortDir} onToggle={icsToggleSort} />
+                </div>
+                <div className="w-24">
+                  <SortableHeader label="Unit" sortKey="unit_name" currentKey={icsSortKey} currentDir={icsSortDir} onToggle={icsToggleSort} />
+                </div>
+                <div className="flex-1">
+                  <SortableHeader label="Incident" sortKey="incident_name" currentKey={icsSortKey} currentDir={icsSortDir} onToggle={icsToggleSort} />
+                </div>
+                <div className="w-16 text-right">
+                  <span className="text-xs text-gray-500 font-medium">Status</span>
+                </div>
+              </div>
+
+              {/* Rows */}
+              <div className={`${lc.container} mx-3 my-2 flex-1`}>
+                {sortedRows.map(row => {
+                  const isSelected = row.id === selectedId
+                  return (
+                    <button
+                      key={row.id}
+                      onClick={() => setSelectedId(row.id)}
+                      className={`w-full text-left px-3 py-2.5 flex items-center gap-2 ${lc.rowCls(isSelected)}`}
+                    >
+                      <span className="w-24 text-xs font-mono text-gray-400 flex-shrink-0 truncate">
+                        {row.op_date || '—'}
+                      </span>
+                      <span className={`w-24 text-xs flex-shrink-0 truncate ${isSelected ? 'text-white font-medium' : 'text-gray-300'}`}>
                         {row.unit_name || '—'}
-                      </p>
-                      <p className="text-xs text-gray-500 truncate mt-0.5">{row.op_date || '—'}</p>
-                    </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0 mt-1 ${
-                      row.status === 'Open' ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-400'
-                    }`}>
-                      {row.status}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
+                      </span>
+                      <span className="flex-1 text-xs text-gray-400 truncate min-w-0">
+                        {row.incident_name || '—'}
+                      </span>
+                      <span className={`w-16 text-right text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${
+                        row.status === 'Open' ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-400'
+                      }`}>
+                        {row.status}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </>
           )}
         </div>
 
-        {/* Right: detail (60%) — desktop only */}
+        {/* Right: full detail (60%) — desktop only */}
         <div className="hidden md:flex md:w-[60%] overflow-y-auto">
           {selectedRow ? (
-            <ICS214DetailPanel row={selectedRow} />
+            <ICS214EmbeddedDetail ics214Id={selectedRow.ics214_id} />
           ) : (
             <div className="flex items-center justify-center w-full text-gray-600">
               <div className="text-center">
@@ -382,7 +446,7 @@ export default function ICS214ListPage() {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto">
-            <ICS214DetailPanel row={selectedRow} />
+            <ICS214EmbeddedDetail ics214Id={selectedRow.ics214_id} />
           </div>
         </div>
       )}

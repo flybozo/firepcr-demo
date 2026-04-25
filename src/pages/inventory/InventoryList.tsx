@@ -435,7 +435,7 @@ function InventoryPageInner() {
             </div>
 
             {/* Rows */}
-            <div className="divide-y divide-gray-800/60">
+            <div>
               {paginated.map(item => {
                 const low = item.quantity <= item.par_qty
                 const unitName = (item as any)?.unit?.name

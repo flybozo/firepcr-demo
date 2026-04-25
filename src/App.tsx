@@ -68,7 +68,6 @@ const ExpirationDashboard = lazy(() => import('@/pages/inventory/ExpirationDashb
 const SupplyRunsList = lazy(() => import('@/pages/supply-runs/SupplyRunsList'))
 const NewSupplyRun = lazy(() => import('@/pages/supply-runs/NewSupplyRun'))
 const SupplyRunDetail = lazy(() => import('@/pages/supply-runs/SupplyRunDetail'))
-const SupplyRunSearch = lazy(() => import('@/pages/supply-runs/SupplyRunSearch'))
 
 // Roster
 const RosterList = lazy(() => import('@/pages/roster/RosterList'))
@@ -208,7 +207,6 @@ function App() {
               <Route path="cs-inventory/count" element={<CSInventoryCount />} />
               {/* Supply Runs */}
               <Route path="supply-runs/new" element={<NewSupplyRun />} />
-              <Route path="supply-runs/search" element={<SupplyRunSearch />} />
               <Route path="supply-runs" element={<SplitShell basePath="/supply-runs"><SupplyRunsList /></SplitShell>}>
                 <Route path=":id" element={<SupplyRunDetail />} />
               </Route>
@@ -276,7 +274,6 @@ function App() {
               <Route path="documents" element={<SplitShell basePath="/documents"><DocumentsList /></SplitShell>}>
                 <Route path=":id" element={<DocumentDetail />} />
               </Route>
-              <Route path="supply-runs/search" element={<SupplyRunSearch />} />
               {/* Admin section */}
               <Route path="admin" element={<Admin />} />
               <Route path="admin/announcements" element={<Announcements />} />

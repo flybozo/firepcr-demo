@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 80" width="300" height="80">
+  <!-- Red background badge -->
+  <rect x="0" y="0" width="80" height="80" rx="8" fill="#dc2626"/>
+  <!-- RAM cross/medical symbol -->
+  <rect x="33" y="10" width="14" height="60" rx="3" fill="white"/>
+  <rect x="10" y="33" width="60" height="14" rx="3" fill="white"/>
+  <!-- Text area -->
+  <text x="96" y="32" font-family="Arial, sans-serif" font-weight="900" font-size="26" fill="#111827">Remote Area</text>
+  <text x="96" y="62" font-family="Arial, sans-serif" font-weight="900" font-size="26" fill="#dc2626">Medicine</text>
+  <!-- Tagline -->
+  <text x="97" y="76" font-family="Arial, sans-serif" font-size="11" fill="#6b7280">Mossbrae Medical Group P.C.</text>
+</svg>

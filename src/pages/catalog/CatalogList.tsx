@@ -26,6 +26,7 @@ export type CatalogItem = {
   unit_cost: number | null
   image_url: string | null
   notes: string | null
+  reimbursable: boolean
   unit_types?: string[]
 }
 
@@ -162,6 +163,7 @@ export default function CatalogList() {
   const [catFilter, setCatFilter] = useState('All')
   const [search, setSearch] = useState('')
   const [alsOnly, setAlsOnly] = useState(false)
+  const [reimbursableOnly, setReimbursableOnly] = useState(false)
   const [showAdd, setShowAdd] = useState(false)
   const [addForm, setAddForm] = useState({ item_name: '', category: 'OTC', is_als: false })
   const [adding, setAdding] = useState(false)
@@ -294,6 +296,7 @@ export default function CatalogList() {
     const base = items.filter(item => {
       if (catFilter !== 'All' && item.category !== catFilter) return false
       if (alsOnly && !item.is_als) return false
+      if (reimbursableOnly && !item.reimbursable) return false
       if (search) {
         const q = search.toLowerCase()
         return item.item_name.toLowerCase().includes(q)
@@ -310,7 +313,7 @@ export default function CatalogList() {
       if (key === 'case_cost') return item.case_cost ?? 0
       return ''
     })
-  }, [items, catFilter, search, alsOnly, catSortFn])
+  }, [items, catFilter, search, alsOnly, reimbursableOnly, catSortFn])
 
   return (
     <div className="p-4 md:p-6">
@@ -421,6 +424,14 @@ export default function CatalogList() {
         >
           ALS Only
         </button>
+        <button
+          onClick={() => setReimbursableOnly(!reimbursableOnly)}
+          className={`px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${
+            reimbursableOnly ? 'bg-green-700 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700'
+          }`}
+        >
+          💲 Reimb Only
+        </button>
       </div>
 
       {loading ? (
@@ -442,7 +453,7 @@ export default function CatalogList() {
           </div>
 
           {/* Rows */}
-          <div className="divide-y divide-gray-800/60">
+          <div>
             {filtered.map(item => (
               <div
                 key={item.id}
@@ -463,6 +474,7 @@ export default function CatalogList() {
                 </span>
                 <span className="w-8 text-center hidden sm:block">
                   {item.is_als && <span className="text-xs px-1 py-0.5 rounded bg-blue-900 text-blue-300">ALS</span>}
+                  {item.reimbursable && <span className="text-xs px-1 py-0.5 rounded bg-green-900 text-green-300 ml-1">💲</span>}
                 </span>
                 <EditableCell
                   item={item} field="supplier"

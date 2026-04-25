@@ -5,6 +5,8 @@ import { EmptyState, LoadingSkeleton, UnitFilterPills } from '@/components/ui'
 import { getUnitTypeName } from '@/lib/unitColors'
 import { useListStyle } from '@/hooks/useListStyle'
 import { getListClasses } from '@/lib/listStyles'
+import { CatalogItemPanel, CAT_COLORS } from '@/components/inventory/CatalogItemPanel'
+import type { CatalogItem } from '@/components/inventory/CatalogItemPanel'
 
 type BurnItem = {
   id: string
@@ -20,205 +22,10 @@ type BurnItem = {
   catalog_item_id: string | null
 }
 
-type CatalogItem = {
-  id: string
-  sku: string
-  item_name: string
-  category: string
-  is_als: boolean
-  ndc: string | null
-  barcode: string | null
-  upc: string | null
-  concentration: string | null
-  route: string | null
-  unit_of_measure: string | null
-  supplier: string | null
-  units_per_case: number | null
-  case_cost: number | null
-  unit_cost: number | null
-  image_url: string | null
-  notes: string | null
-}
-
-const CAT_COLORS: Record<string, string> = {
-  CS: 'bg-orange-900 text-orange-300',
-  Rx: 'bg-blue-900 text-blue-300',
-  OTC: 'bg-gray-700 text-gray-300',
-  Supply: 'bg-gray-700 text-gray-300',
-  DE: 'bg-amber-900 text-amber-300',
-  RE: 'bg-green-900 text-green-300',
-}
-
 const STATUS_COLORS = {
   critical: 'text-red-400',
   warning: 'text-yellow-400',
   ok: 'text-green-400',
-}
-
-/* ── Right panel: catalog detail + burn context ── */
-function BurnDetailPanel({ item }: { item: BurnItem }) {
-  const supabase = createClient()
-  const [catalogItem, setCatalogItem] = useState<CatalogItem | null>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    let cancelled = false
-    const load = async () => {
-      setLoading(true)
-      if (!item.catalog_item_id) {
-        setCatalogItem(null)
-        setLoading(false)
-        return
-      }
-      const { data, error } = await supabase
-        .from('item_catalog')
-        .select('*')
-        .eq('id', item.catalog_item_id)
-        .single()
-      if (cancelled) return
-      if (error || !data) {
-        setCatalogItem(null)
-      } else {
-        setCatalogItem(data as CatalogItem)
-      }
-      setLoading(false)
-    }
-    load()
-    return () => { cancelled = true }
-  }, [item.catalog_item_id]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const pct = item.par_qty > 0 ? Math.round((item.current_qty / item.par_qty) * 100) : 0
-
-  if (loading) return <div className="p-6"><LoadingSkeleton rows={6} /></div>
-
-  return (
-    <div className="p-4 md:p-6 overflow-y-auto h-full">
-      {/* Burn rate context — always shown */}
-      <div className="theme-card rounded-xl border p-4 mb-5">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-xs font-bold uppercase tracking-wide text-gray-400">Burn Rate Analysis</h3>
-          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-            item.status === 'critical' ? 'bg-red-900 text-red-300' :
-            item.status === 'warning' ? 'bg-yellow-900 text-yellow-300' :
-            'bg-green-900 text-green-300'
-          }`}>
-            {item.status === 'critical' ? '🔴 Critical' : item.status === 'warning' ? '🟡 Warning' : '🟢 OK'}
-          </span>
-        </div>
-
-        {/* Stock level bar */}
-        <div className="mb-4">
-          <div className="flex justify-between text-xs mb-1">
-            <span className="text-gray-400">Stock Level</span>
-            <span className="text-white font-medium">{item.current_qty} / {item.par_qty} ({pct}%)</span>
-          </div>
-          <div className="w-full bg-gray-800 rounded-full h-3 overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all ${
-                pct <= 25 ? 'bg-red-500' : pct <= 50 ? 'bg-orange-500' : pct <= 75 ? 'bg-yellow-500' : 'bg-green-500'
-              }`}
-              style={{ width: `${Math.min(pct, 100)}%` }}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <span className="text-xs text-gray-500">Burn Rate</span>
-            <p className="text-lg font-bold text-white">{item.burn_per_day}<span className="text-xs text-gray-400 ml-1">/day</span></p>
-          </div>
-          <div>
-            <span className="text-xs text-gray-500">Days Until Depletion</span>
-            <p className={`text-lg font-bold ${STATUS_COLORS[item.status]}`}>
-              {item.days_remaining !== null ? `${item.days_remaining}d` : '∞'}
-            </p>
-          </div>
-          <div>
-            <span className="text-xs text-gray-500">Projected Reorder Date</span>
-            <p className="text-sm font-medium text-white">{item.reorder_date || '—'}</p>
-          </div>
-          <div>
-            <span className="text-xs text-gray-500">Unit</span>
-            <p className="text-sm font-medium text-white">{item.unit_name}</p>
-          </div>
-        </div>
-
-        {catalogItem && catalogItem.unit_cost != null && item.days_remaining !== null && item.par_qty > item.current_qty && (
-          <div className="mt-3 pt-3 border-t border-gray-800 flex justify-between items-center">
-            <span className="text-xs text-gray-500">Restock to par cost</span>
-            <span className="text-sm font-semibold text-yellow-400">
-              ${((item.par_qty - item.current_qty) * Number(catalogItem.unit_cost)).toFixed(2)}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Catalog detail — only if linked */}
-      {catalogItem ? (
-        <>
-          {/* Header with photo */}
-          <div className="flex items-start gap-4 mb-5">
-            <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-800 flex-shrink-0 flex items-center justify-center">
-              {catalogItem.image_url ? (
-                <img src={catalogItem.image_url} alt={catalogItem.item_name} className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-2xl">📦</span>
-              )}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className={`text-xs px-1.5 py-0.5 rounded ${CAT_COLORS[catalogItem.category] || CAT_COLORS.OTC}`}>{catalogItem.category}</span>
-                {catalogItem.is_als && <span className="text-xs px-1.5 py-0.5 rounded bg-blue-900 text-blue-300">ALS</span>}
-                <span className="text-xs font-mono text-gray-500">{catalogItem.sku}</span>
-              </div>
-              <h2 className="text-lg font-bold text-white truncate">{catalogItem.item_name}</h2>
-              {catalogItem.concentration && <p className="text-xs text-gray-400">{catalogItem.concentration}</p>}
-            </div>
-            <Link
-              to={`/catalog/${catalogItem.id}`}
-              className="text-xs text-gray-500 hover:text-white px-2 py-1 rounded hover:bg-gray-800 transition-colors flex-shrink-0"
-            >
-              Open in Catalog →
-            </Link>
-          </div>
-
-          {/* Item details grid */}
-          <div>
-            <h3 className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-3">Item Details</h3>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-              {([
-                ['NDC', catalogItem.ndc],
-                ['Barcode', catalogItem.barcode],
-                ['UPC', catalogItem.upc],
-                ['Route', catalogItem.route],
-                ['Unit of Measure', catalogItem.unit_of_measure],
-                ['Supplier', catalogItem.supplier],
-                ['Units/Case', catalogItem.units_per_case],
-                ['$/Case', catalogItem.case_cost != null ? `$${Number(catalogItem.case_cost).toFixed(2)}` : null],
-                ['$/Unit', catalogItem.unit_cost != null ? `$${Number(catalogItem.unit_cost).toFixed(2)}` : null],
-              ] as [string, any][]).map(([label, value]) => (
-                <div key={label}>
-                  <span className="text-xs text-gray-500">{label}</span>
-                  <p className="text-sm text-white">{value || '—'}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {catalogItem.notes && (
-            <div className="mt-4">
-              <h3 className="text-xs font-bold uppercase tracking-wide text-gray-400 mb-1">Notes</h3>
-              <p className="text-sm text-gray-300 whitespace-pre-wrap">{catalogItem.notes}</p>
-            </div>
-          )}
-        </>
-      ) : (
-        <div className="text-center py-6 text-gray-600">
-          <p className="text-sm">No linked catalog entry.</p>
-        </div>
-      )}
-    </div>
-  )
 }
 
 /* ── Main page ── */
@@ -324,6 +131,71 @@ export default function BurnRatePage() {
   const lc = getListClasses(listStyle)
   const selectedItem = selectedId ? items.find(i => i.id === selectedId) ?? null : null
 
+  // Build burn analysis context card — receives catalog item via render prop for cost calc
+  const burnContextCard = (burnItem: BurnItem) => (catalogItem: CatalogItem) => {
+    const pct = burnItem.par_qty > 0 ? Math.round((burnItem.current_qty / burnItem.par_qty) * 100) : 0
+    return (
+      <div className="theme-card rounded-xl border p-4 mb-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-xs font-bold uppercase tracking-wide text-gray-400">Burn Rate Analysis</h3>
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+            burnItem.status === 'critical' ? 'bg-red-900 text-red-300' :
+            burnItem.status === 'warning' ? 'bg-yellow-900 text-yellow-300' :
+            'bg-green-900 text-green-300'
+          }`}>
+            {burnItem.status === 'critical' ? '🔴 Critical' : burnItem.status === 'warning' ? '🟡 Warning' : '🟢 OK'}
+          </span>
+        </div>
+
+        {/* Stock level bar */}
+        <div className="mb-4">
+          <div className="flex justify-between text-xs mb-1">
+            <span className="text-gray-400">Stock Level</span>
+            <span className="text-white font-medium">{burnItem.current_qty} / {burnItem.par_qty} ({pct}%)</span>
+          </div>
+          <div className="w-full bg-gray-800 rounded-full h-3 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all ${
+                pct <= 25 ? 'bg-red-500' : pct <= 50 ? 'bg-orange-500' : pct <= 75 ? 'bg-yellow-500' : 'bg-green-500'
+              }`}
+              style={{ width: `${Math.min(pct, 100)}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <span className="text-xs text-gray-500">Burn Rate</span>
+            <p className="text-lg font-bold text-white">{burnItem.burn_per_day}<span className="text-xs text-gray-400 ml-1">/day</span></p>
+          </div>
+          <div>
+            <span className="text-xs text-gray-500">Days Until Depletion</span>
+            <p className={`text-lg font-bold ${STATUS_COLORS[burnItem.status]}`}>
+              {burnItem.days_remaining !== null ? `${burnItem.days_remaining}d` : '∞'}
+            </p>
+          </div>
+          <div>
+            <span className="text-xs text-gray-500">Projected Reorder Date</span>
+            <p className="text-sm font-medium text-white">{burnItem.reorder_date || '—'}</p>
+          </div>
+          <div>
+            <span className="text-xs text-gray-500">Unit</span>
+            <p className="text-sm font-medium text-white">{burnItem.unit_name}</p>
+          </div>
+        </div>
+
+        {catalogItem.unit_cost != null && burnItem.days_remaining !== null && burnItem.par_qty > burnItem.current_qty && (
+          <div className="mt-3 pt-3 border-t border-gray-800 flex justify-between items-center">
+            <span className="text-xs text-gray-500">Restock to par cost</span>
+            <span className="text-sm font-semibold text-yellow-400">
+              ${((burnItem.par_qty - burnItem.current_qty) * Number(catalogItem.unit_cost)).toFixed(2)}
+            </span>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="bg-gray-950 text-white h-full flex flex-col">
       {/* Header + filters */}
@@ -374,7 +246,7 @@ export default function BurnRatePage() {
               <EmptyState icon="📊" message="No items with active burn rate found." subtitle="Burn rate requires MAR or supply run activity in the last 7 days." />
             </div>
           ) : (
-            <div className="divide-y divide-gray-800/50">
+            <div className={`${lc.container} m-3`}>
               {filtered.map(item => {
                 const isSelected = item.id === selectedId
                 return (
@@ -413,8 +285,15 @@ export default function BurnRatePage() {
 
         {/* Right: detail (60%) */}
         <div className="hidden md:block md:w-[60%] overflow-y-auto">
-          {selectedItem ? (
-            <BurnDetailPanel item={selectedItem} />
+          {selectedItem && selectedItem.catalog_item_id ? (
+            <CatalogItemPanel
+              catalogItemId={selectedItem.catalog_item_id}
+              contextCard={burnContextCard(selectedItem)}
+            />
+          ) : selectedItem && !selectedItem.catalog_item_id ? (
+            <div className="flex items-center justify-center h-full text-gray-600 text-sm">
+              <p>This item has no linked catalog entry.</p>
+            </div>
           ) : (
             <div className="flex items-center justify-center h-full text-gray-600">
               <div className="text-center">
@@ -439,7 +318,16 @@ export default function BurnRatePage() {
             </button>
           </div>
           <div className="flex-1 overflow-y-auto">
-            <BurnDetailPanel item={selectedItem} />
+            {selectedItem.catalog_item_id ? (
+              <CatalogItemPanel
+                catalogItemId={selectedItem.catalog_item_id}
+                contextCard={burnContextCard(selectedItem)}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-600 text-sm p-8 text-center">
+                <p>No linked catalog entry.</p>
+              </div>
+            )}
           </div>
         </div>
       )}
