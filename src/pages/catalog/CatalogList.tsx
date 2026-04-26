@@ -442,9 +442,9 @@ export default function CatalogList() {
         <div className={lc.container}>
           {/* Header */}
           <div className="flex items-center px-3 py-1.5 text-xs font-semibold uppercase tracking-wide border-b theme-card-header">
-            <SortableHeader label="SKU" sortKey="sku" currentKey={catSortKey} currentDir={catSortDir} onToggle={catToggleSort} className="w-20 font-mono" />
+            <SortableHeader label="SKU" sortKey="sku" currentKey={catSortKey} currentDir={catSortDir} onToggle={catToggleSort} className="w-20 font-mono hidden sm:flex" />
             <SortableHeader label="Item Name" sortKey="item_name" currentKey={catSortKey} currentDir={catSortDir} onToggle={catToggleSort} className="flex-1 min-w-0" />
-            <SortableHeader label="Cat" sortKey="category" currentKey={catSortKey} currentDir={catSortDir} onToggle={catToggleSort} className="w-10 justify-center" />
+            <SortableHeader label="Cat" sortKey="category" currentKey={catSortKey} currentDir={catSortDir} onToggle={catToggleSort} className="w-10 justify-center hidden sm:flex" />
             <span className="w-8 text-center hidden sm:block text-gray-500">ALS</span>
             <SortableHeader label="Supplier" sortKey="supplier" currentKey={catSortKey} currentDir={catSortDir} onToggle={catToggleSort} className="w-28 hidden lg:flex" />
             <SortableHeader label="$/Case" sortKey="case_cost" currentKey={catSortKey} currentDir={catSortDir} onToggle={catToggleSort} className="w-20 justify-end hidden lg:flex" />
@@ -460,14 +460,17 @@ export default function CatalogList() {
                 onClick={() => navigate(`/catalog/${item.id}`)}
                 className={`flex items-center px-3 py-1.5 cursor-pointer ${lc.rowCls(detailMatch?.params?.id === item.id)}`}
               >
-                <span className="w-20 text-xs font-mono text-gray-400 truncate">{item.sku}</span>
+                <span className="w-20 text-xs font-mono text-gray-400 truncate hidden sm:block">{item.sku}</span>
                 <span className="flex-1 min-w-0 flex items-center gap-2">
                   {item.image_url && (
                     <img src={item.image_url} alt="" className="w-6 h-6 rounded object-cover flex-shrink-0" />
                   )}
                   <span className="text-xs text-white truncate">{item.item_name}</span>
+                  <span className={`text-[10px] px-1 py-0.5 rounded shrink-0 sm:hidden ${CAT_COLORS[item.category] || CAT_COLORS.OTC}`}>
+                    {item.category}
+                  </span>
                 </span>
-                <span className="w-10 text-center">
+                <span className="w-10 text-center hidden sm:block">
                   <span className={`text-xs px-1 py-0.5 rounded ${CAT_COLORS[item.category] || CAT_COLORS.OTC}`}>
                     {item.category}
                   </span>

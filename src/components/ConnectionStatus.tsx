@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { initConnectionMonitor, onConnectionChange, getIsOnline, syncDataFromServer, getPendingWriteCount } from '@/lib/syncManager'
+import { initConnectionMonitor, onConnectionChange, getIsOnline, syncDataFromServer, syncHotData, getPendingWriteCount } from '@/lib/syncManager'
 import { getSyncMeta } from '@/lib/offlineStore'
 
 // Warn user if they try to close/background the app with unsynced data
@@ -68,6 +68,7 @@ export default function ConnectionStatus() {
   const [pendingCount, setPendingCount] = useState(0)
   const [lastSynced, setLastSynced] = useState<string | null>(null)
   const hasInited = useRef(false)
+  const wasOnline = useRef(true)
 
   const refresh = async () => {
     try {
@@ -86,19 +87,23 @@ export default function ConnectionStatus() {
     setOnline(getIsOnline())
     refresh()
 
-    // Initial sync (silent — no bar changes)
+    // Initial sync: cold (once per session) + hot (48h operational data)
     if (getIsOnline()) {
       syncDataFromServer().then(() => refresh()).catch(() => {})
     }
 
     const unsub = onConnectionChange(async (nowOnline, count) => {
+      const wasOff = !wasOnline.current
+      wasOnline.current = nowOnline
       setOnline(nowOnline)
       setPendingCount(count)
-      if (nowOnline) {
+      // Only sync on actual offline → online transition
+      if (nowOnline && wasOff) {
         try {
           const { flushPendingWrites } = await import('@/lib/syncManager')
           await flushPendingWrites()
-          await syncDataFromServer()
+          // Hot sync only on reconnect — cold data already cached
+          await syncHotData()
         } catch {}
         await refresh()
       }

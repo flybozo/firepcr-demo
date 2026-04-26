@@ -100,6 +100,7 @@ export default function MyUnitDashboard() {
     if (!assignment.incidentUnit) { setDataLoading(false); return }
 
     const incidentUnitId = assignment.incidentUnit.id
+    const unitId = assignment.incidentUnit.unit_id
     const unitName = assignment.unit?.name ?? null
     const incidentId = assignment.incidentUnit.incident_id
 
@@ -131,18 +132,21 @@ export default function MyUnitDashboard() {
             .order('date', { ascending: false })
             .limit(8),
 
-          // CS inventory on this unit
+          // CS inventory on this unit (all controlled substances, by unit_id)
           supabase
             .from('unit_inventory')
             .select('item_name, quantity')
-            .eq('incident_unit_id', incidentUnitId)
-            .in('item_name', ['Morphine', 'Fentanyl', 'Midazolam', 'Ketamine']),
+            .eq('unit_id', unitId)
+            .eq('category', 'CS')
+            .gt('quantity', 0)
+            .order('item_name'),
 
-          // All inventory for low stock
+          // Low stock from aggregated view (formulary par, summed across lots)
           supabase
-            .from('unit_inventory')
-            .select('id, item_name, quantity, par_qty, catalog_item_id')
-            .eq('incident_unit_id', incidentUnitId),
+            .from('unit_inventory_aggregated')
+            .select('unit_id, item_name, category, total_quantity, par_qty, catalog_item_id')
+            .eq('unit_id', unitId)
+            .gt('par_qty', 0),
 
           // Unsigned orders count
           supabase
@@ -174,9 +178,14 @@ export default function MyUnitDashboard() {
         setMarEntries((marData as any[]) ?? [])
         setSupplyRuns((srData as any[]) ?? [])
 
-        const inv = (invData as LowStockItem[]) ?? []
+        const inv = ((invData as any[]) ?? []).map((r: any) => ({
+          id: `${r.unit_id}-${r.catalog_item_id || r.item_name}`,
+          item_name: r.item_name,
+          quantity: r.total_quantity,
+          par_qty: r.par_qty,
+        }))
         const low = inv
-          .filter(i => i.quantity <= i.par_qty)
+          .filter(i => i.quantity < i.par_qty)
           .sort((a, b) => (a.quantity / Math.max(a.par_qty, 1)) - (b.quantity / Math.max(b.par_qty, 1)))
           .slice(0, 5)
         setLowStock(low)
@@ -204,9 +213,31 @@ export default function MyUnitDashboard() {
 
           setEncounters(cachedEncounters.filter((e: any) => e.incident_id === incidentId && e.unit === unitName && !e.deleted_at).sort((a: any, b: any) => (b.date ?? '').localeCompare(a.date ?? '')).slice(0, 8))
 
-          const unitInv = cachedInv.filter((i: any) => i.incident_unit_id === incidentUnitId)
-          setCsItems(unitInv.filter((i: any) => ['Morphine', 'Fentanyl', 'Midazolam', 'Ketamine'].includes(i.item_name)).map((i: any) => ({ item_name: i.item_name, quantity: i.quantity ?? 0 })))
-          const low = unitInv.filter((i: any) => i.quantity <= i.par_qty).sort((a: any, b: any) => (a.quantity / Math.max(a.par_qty, 1)) - (b.quantity / Math.max(b.par_qty, 1))).slice(0, 5)
+          const unitInv = cachedInv.filter((i: any) => i.unit_id === assignment.incidentUnit?.unit_id)
+          // CS items: aggregate by item_name across lots
+          const csAgg = new Map<string, number>()
+          unitInv.filter((i: any) => i.category === 'CS' && i.quantity > 0).forEach((i: any) => {
+            csAgg.set(i.item_name, (csAgg.get(i.item_name) || 0) + (i.quantity ?? 0))
+          })
+          setCsItems(Array.from(csAgg.entries()).map(([name, qty]) => ({ item_name: name, quantity: qty })).sort((a, b) => a.item_name.localeCompare(b.item_name)))
+          // Low stock: aggregate by item_name, compare to max par_qty across lot rows
+          // (best effort offline — formulary par not available in cache)
+          const aggMap = new Map<string, { item_name: string; quantity: number; par_qty: number }>()
+          for (const i of unitInv) {
+            const key = i.catalog_item_id || i.item_name
+            const existing = aggMap.get(key)
+            if (existing) {
+              existing.quantity += i.quantity
+              if (i.par_qty > existing.par_qty) existing.par_qty = i.par_qty
+            } else {
+              aggMap.set(key, { item_name: i.item_name, quantity: i.quantity, par_qty: i.par_qty ?? 0 })
+            }
+          }
+          const low = Array.from(aggMap.values())
+            .filter(a => a.par_qty > 0 && a.quantity < a.par_qty)
+            .map(a => ({ id: a.item_name, item_name: a.item_name, quantity: a.quantity, par_qty: a.par_qty }))
+            .sort((a, b) => (a.quantity / Math.max(a.par_qty, 1)) - (b.quantity / Math.max(b.par_qty, 1)))
+            .slice(0, 5)
           setLowStock(low)
 
           setMarEntries(cachedMar.filter((m: any) => m.med_unit === unitName).sort((a: any, b: any) => (b.date ?? '').localeCompare(a.date ?? '')).slice(0, 5))
@@ -296,8 +327,6 @@ export default function MyUnitDashboard() {
   const unitName = assignment.unit.name
   const incidentName = assignment.incident?.name ?? 'Unknown Incident'
   const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
-
-  const csMap = Object.fromEntries(csItems.map(i => [i.item_name, i.quantity]))
 
   return (
     <div className="bg-gray-950 text-white pb-8">
@@ -491,19 +520,21 @@ export default function MyUnitDashboard() {
           {/* CS On Hand */}
           <div className={lc.container}>
             <div className="flex items-center justify-between px-4 py-3 border-b theme-card-header">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300">CS On Hand</h3>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-orange-400">🔒 CS On Hand ({csItems.length})</h3>
               <Link to="/cs" className="text-xs text-gray-400 hover:text-white">View all →</Link>
             </div>
-            <div className="p-4 space-y-3">
-              {(['Morphine', 'Fentanyl', 'Midazolam', 'Ketamine'] as const).map(drug => (
-                <div key={drug} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-300">{drug}</span>
-                  <span className={`text-sm font-bold ${csMap[drug] != null ? 'text-white' : 'text-gray-600'}`}>
-                    {csMap[drug] != null ? csMap[drug] : '—'}
-                  </span>
-                </div>
-              ))}
-            </div>
+            {csItems.length > 0 ? (
+              <div className="divide-y divide-gray-800/60">
+                {csItems.map(item => (
+                  <div key={item.item_name} className="flex items-center justify-between px-4 py-2.5">
+                    <span className="text-sm text-gray-300">{item.item_name}</span>
+                    <span className="text-sm font-bold font-mono text-white">{item.quantity}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="px-4 py-6 text-sm text-gray-600 text-center">No controlled substances on this unit</p>
+            )}
           </div>
 
           {/* MAR — Recent Medications */}
@@ -560,6 +591,7 @@ export default function MyUnitDashboard() {
               { icon: '✍️', label: 'AMA / Refusal', href: '/consent/ama' },
               { icon: '💊', label: 'Log Medication', href: '/mar/new' },
               { icon: '🚚', label: 'Supply Run', href: '/supply-runs/new' },
+              ...(assignment.incidentUnit?.incident_id ? [{ icon: '🧾', label: 'Log Expense', href: `/incidents/${assignment.incidentUnit.incident_id}` }] : []),
             ].map(action => (
               <Link
                 key={action.href}

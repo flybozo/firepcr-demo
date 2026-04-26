@@ -1,9 +1,9 @@
 import { useEffect, useState, useRef } from 'react'
 import { getIsOnline, syncDataFromServer } from '@/lib/syncManager'
 
-// Session-scoped throttle: sync once per browser session (tab), not once per 4 hours.
-// sessionStorage clears when the tab closes, so every fresh login gets a sync.
-// This prevents hammering on SPA navigation while ensuring fresh data on login.
+// Shows a brief "Syncing..." / "Ready" banner on first login.
+// Actual sync is triggered here on first mount (once per tab via sessionStorage).
+// Cold data syncs once per session; hot data syncs every time.
 const SESSION_KEY = 'firepcr-synced-this-session'
 
 type Phase = 'idle' | 'syncing' | 'done'
@@ -17,13 +17,14 @@ export default function CacheStatusBar() {
     if (!getIsOnline()) return
     hasRun.current = true
 
-    // Skip if already synced in this browser session (tab)
+    // Skip banner if already synced this browser session (tab)
+    // Note: syncDataFromServer() has its own internal guards —
+    // cold data won't re-fetch, hot data is cheap (48h window)
     if (sessionStorage.getItem(SESSION_KEY)) return
 
     const run = async () => {
       setPhase('syncing')
       try { await syncDataFromServer() } catch {}
-
       sessionStorage.setItem(SESSION_KEY, '1')
       setPhase('done')
       setTimeout(() => setPhase('idle'), 3000)

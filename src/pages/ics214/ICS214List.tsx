@@ -355,7 +355,7 @@ export default function ICS214ListPage() {
       <div className="flex-1 flex min-h-0 border-t border-gray-800">
 
         {/* Left: compact list (40%) */}
-        <div className="w-full md:w-[40%] md:border-r border-gray-800 overflow-y-auto flex flex-col">
+        <div className="w-full md:w-[40%] md:border-r border-gray-800 overflow-y-auto">
           {loading ? (
             <div className="p-4"><LoadingSkeleton rows={6} /></div>
           ) : sortedRows.length === 0 ? (
@@ -368,9 +368,10 @@ export default function ICS214ListPage() {
               />
             </div>
           ) : (
-            <>
+            <div className="p-3">
+              <div className={lc.container}>
               {/* Column header */}
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-800 bg-gray-900 flex-shrink-0">
+              <div className={`flex items-center gap-2 px-3 py-2 ${lc.header}`}>
                 <div className="w-24">
                   <SortableHeader label="Date" sortKey="op_date" currentKey={icsSortKey} currentDir={icsSortDir} onToggle={icsToggleSort} />
                 </div>
@@ -386,7 +387,7 @@ export default function ICS214ListPage() {
               </div>
 
               {/* Rows */}
-              <div className={`${lc.container} mx-3 my-2 flex-1`}>
+              <div>
                 {sortedRows.map(row => {
                   const isSelected = row.id === selectedId
                   return (
@@ -413,7 +414,8 @@ export default function ICS214ListPage() {
                   )
                 })}
               </div>
-            </>
+              </div>
+            </div>
           )}
         </div>
 

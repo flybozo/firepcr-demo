@@ -144,5 +144,6 @@ export type ExpenseRow = {
   created_by: string | null
   receipt_url: string | null
   no_receipt_reason?: string | null
+  payment_method?: 'company_card' | 'out_of_pocket'
   employees?: { name: string } | null
 }

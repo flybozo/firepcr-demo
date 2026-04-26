@@ -4,6 +4,14 @@ import { StatCard } from '@/components/shared/StatCard'
 import { acuityPillClass, patientInitials } from '@/utils/incidentFormatters'
 import type { EncounterRow } from '@/types/incident'
 
+function statusPill(status: string | null | undefined) {
+  if (!status || status === 'Draft') return { label: 'Draft', cls: 'bg-gray-700 text-gray-400' }
+  if (status === 'Signed') return { label: 'Signed', cls: 'bg-blue-900 text-blue-300' }
+  if (status === 'Complete') return { label: 'Complete', cls: 'bg-green-900 text-green-300' }
+  if (status === 'In Progress') return { label: 'In Prog', cls: 'bg-yellow-900 text-yellow-300' }
+  return { label: status, cls: 'bg-gray-700 text-gray-400' }
+}
+
 export function EncountersStatCard({
   activeIncidentId,
   encounters,
@@ -64,6 +72,7 @@ export function EncountersStatCard({
             <span className="w-16 shrink-0">Date</span>
             <span className="w-10 shrink-0 text-center">Pt</span>
             <span className="flex-1 min-w-0 hidden sm:block">Unit</span>
+            <span className="w-16 shrink-0 text-center">Status</span>
             <span className="w-20 shrink-0 text-right">Acuity</span>
           </div>
           {(expanded ? filteredEncs : filteredEncs.slice(0, 5)).map(enc => {
@@ -80,6 +89,9 @@ export function EncountersStatCard({
                   {patientInitials(enc.patient_first_name, enc.patient_last_name)}
                 </span>
                 <span className="flex-1 min-w-0 text-gray-400 text-xs truncate hidden sm:block">{enc.unit || '—'}</span>
+                <span className="w-16 shrink-0 text-center">
+                  {(() => { const s = statusPill((enc as any).pcr_status); return <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${s.cls}`}>{s.label}</span> })()}
+                </span>
                 <span className="w-20 shrink-0 text-right">
                   <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${acuityPillClass(acuityRaw)}`}>
                     {acuityLabel}

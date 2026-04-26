@@ -39,7 +39,8 @@ export function SupplyRunsStatCard({
       {filtered.length > 0 ? (
         <>
           <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 theme-card-footer">
-            <span className="w-24 shrink-0">Date</span>
+            <span className="w-20 shrink-0">Date</span>
+            <span className="w-16 shrink-0">Resource</span>
             <span className="flex-1 min-w-0">Unit</span>
             <span className="w-16 shrink-0 text-right">Items</span>
           </div>
@@ -49,7 +50,8 @@ export function SupplyRunsStatCard({
               to={`/supply-runs/${sr.id}`}
               className="flex items-center px-4 py-2 hover:bg-gray-800/50 transition-colors text-sm"
             >
-              <span className="w-24 shrink-0 text-gray-400 text-xs">{sr.run_date || '—'}</span>
+              <span className="w-20 shrink-0 text-gray-400 text-xs">{sr.run_date || '—'}</span>
+              <span className="w-16 shrink-0 text-xs text-gray-500 truncate">{(sr as any).resource_number || '—'}</span>
               <span className="flex-1 min-w-0 truncate pr-1 text-xs">
                 {(sr.incident_unit as unknown as { unit?: { name?: string } } | null)?.unit?.name || '—'}
               </span>

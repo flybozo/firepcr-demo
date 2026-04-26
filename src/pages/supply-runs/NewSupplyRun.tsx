@@ -54,6 +54,8 @@ function SupplyRunNewInner() {
   const requestId = useRef(crypto.randomUUID())
   const [searchParams] = useSearchParams()
   const presetIncidentId = searchParams.get('incidentId') ?? ''
+  const presetEncounterId = searchParams.get('encounterId') ?? ''
+  const presetResourceNumber = searchParams.get('resourceNumber') ?? ''
 
   const now = new Date()
   const today = now.toISOString().split('T')[0]
@@ -79,9 +81,10 @@ function SupplyRunNewInner() {
     incident_unit_id: '',
     run_date: today,
     time: nowTime,
-    resource_number: '',
+    resource_number: presetResourceNumber,
     dispensed_by: '',
     notes: '',
+    encounter_id: presetEncounterId,
   })
 
   // Items state
@@ -477,6 +480,7 @@ function SupplyRunNewInner() {
     const runPayload = {
       incident_unit_id: form.incident_unit_id,
       incident_id: form.incident_id || null,
+      encounter_id: form.encounter_id || null,
       run_date: form.run_date,
       time: form.time || null,
       resource_number: form.resource_number || null,

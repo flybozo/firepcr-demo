@@ -38,7 +38,7 @@ export function ExpensesCard({
 
   const [confirmAction, setConfirmAction] = useState<{ action: () => void; title: string; message: string; confirmLabel?: string; icon?: string; confirmColor?: string } | null>(null)
   const [showAddExpense, setShowAddExpense] = useState(false)
-  const [expenseForm, setExpenseForm] = useState({ type: 'Gas', amount: '', description: '', date: new Date().toISOString().split('T')[0], unitId: '' })
+  const [expenseForm, setExpenseForm] = useState({ type: 'Gas', amount: '', description: '', date: new Date().toISOString().split('T')[0], unitId: '', paymentMethod: 'company_card' as 'company_card' | 'out_of_pocket' })
   const [expenseReceipt, setExpenseReceipt] = useState<File | null>(null)
   const [expenseNoReceiptReason, setExpenseNoReceiptReason] = useState('')
   const [expenseSubmitting, setExpenseSubmitting] = useState(false)
@@ -61,7 +61,7 @@ export function ExpensesCard({
       const { error: upErr } = await supabase.storage.from('documents').upload(storagePath, expenseReceipt, { upsert: false })
       if (!upErr) receiptPath = storagePath
     }
-    await write('incident_expenses', 'insert', {
+    const expenseData = {
       incident_id: activeIncidentId,
       expense_type: expenseForm.type,
       amount: parseFloat(expenseForm.amount) || 0,
@@ -72,9 +72,34 @@ export function ExpensesCard({
       created_by: assignmentEmployee?.name || 'Unknown',
       receipt_url: receiptPath,
       no_receipt_reason: receiptPath ? null : expenseNoReceiptReason || null,
-    })
+      payment_method: expenseForm.paymentMethod,
+    }
+    await write('incident_expenses', 'insert', expenseData)
+
+    // Send reimbursement email to bookkeeper for out-of-pocket expenses
+    if (expenseForm.paymentMethod === 'out_of_pocket') {
+      try {
+        const { authFetch } = await import('@/lib/authFetch')
+        const unitName = unitOptions.find(u => u.id === expenseForm.unitId)?.name || null
+        await authFetch('/api/push/expense-reimbursement', {
+          method: 'POST',
+          body: JSON.stringify({
+            expenseId: 'pending',
+            employeeName: assignmentEmployee?.name || 'Unknown',
+            expenseType: expenseForm.type,
+            amount: parseFloat(expenseForm.amount) || 0,
+            description: expenseForm.description || null,
+            date: expenseForm.date,
+            unitName,
+            incidentName: null,
+            receiptUrl: receiptPath,
+          }),
+        })
+      } catch { /* best-effort */ }
+    }
+
     setShowAddExpense(false)
-    setExpenseForm({ type: 'Gas', amount: '', description: '', date: new Date().toISOString().split('T')[0], unitId: '' })
+    setExpenseForm({ type: 'Gas', amount: '', description: '', date: new Date().toISOString().split('T')[0], unitId: '', paymentMethod: 'company_card' })
     setExpenseReceipt(null)
     setExpenseNoReceiptReason('')
     if (expenseReceiptRef.current) expenseReceiptRef.current.value = ''
@@ -116,6 +141,7 @@ export function ExpensesCard({
                 <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">Description</th>
                 <th className="text-left px-3 py-2 text-gray-500 font-semibold uppercase">By</th>
                 <th className="text-right px-3 py-2 text-gray-500 font-semibold uppercase">Amount</th>
+                <th className="px-2 py-2 text-gray-500 font-semibold uppercase text-center">💳</th>
                 <th className="px-2 py-2 text-gray-500 font-semibold uppercase text-center">🧃</th>
                 {isAdmin && <th className="px-2 py-2"></th>}
               </tr>
@@ -138,6 +164,12 @@ export function ExpensesCard({
                   <td className="px-3 py-2 text-gray-300 truncate max-w-[150px]">{exp.description || '—'}</td>
                   <td className="px-3 py-2 text-gray-400 truncate max-w-[100px]">{(exp.employees as any)?.name || exp.created_by || '—'}</td>
                   <td className="px-3 py-2 text-right font-medium text-red-400">{fmtCurrency(exp.amount)}</td>
+                  <td className="px-2 py-2 text-center">
+                    {exp.payment_method === 'out_of_pocket'
+                      ? <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-900/60 text-yellow-300 font-medium" title="Out of pocket — reimbursable">OOP</span>
+                      : <span className="text-xs text-gray-600" title="Company card">Co.</span>
+                    }
+                  </td>
                   <td className="px-2 py-2 text-center" onClick={e => e.stopPropagation()}>
                     {exp.receipt_url ? (
                       <button onClick={async () => {
@@ -207,6 +239,32 @@ export function ExpensesCard({
                 <option value="">None</option>
                 {unitOptions.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
               </select>
+            </div>
+            <div className="col-span-2">
+              <label className="text-xs text-gray-500 block mb-1.5">Payment Method</label>
+              <div className="flex gap-2">
+                <button type="button"
+                  onClick={() => setExpenseForm(f => ({ ...f, paymentMethod: 'company_card' }))}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    expenseForm.paymentMethod === 'company_card'
+                      ? 'bg-blue-900/40 border-blue-600 text-blue-300'
+                      : 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700'
+                  }`}>
+                  💳 Company Card
+                </button>
+                <button type="button"
+                  onClick={() => setExpenseForm(f => ({ ...f, paymentMethod: 'out_of_pocket' }))}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    expenseForm.paymentMethod === 'out_of_pocket'
+                      ? 'bg-yellow-900/40 border-yellow-600 text-yellow-300'
+                      : 'bg-gray-800 border-gray-700 text-gray-400 hover:bg-gray-700'
+                  }`}>
+                  💰 Out of Pocket
+                </button>
+              </div>
+              {expenseForm.paymentMethod === 'out_of_pocket' && (
+                <p className="text-xs text-yellow-500 mt-1">⚠️ This will be flagged for reimbursement and forwarded to the bookkeeper</p>
+              )}
             </div>
             <div className="col-span-2">
               <label className="text-xs text-gray-500 block mb-1">Description</label>

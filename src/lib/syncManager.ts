@@ -23,7 +23,7 @@ export function initConnectionMonitor() {
     isOnline = true
     notifyListeners()
     flushPendingWrites()
-    syncDataFromServer()
+    syncHotData()
   })
 
   window.addEventListener('offline', () => {
@@ -45,7 +45,6 @@ async function notifyListeners() {
 }
 
 export function getIsOnline(): boolean {
-  // Always check navigator directly — cached value can be stale on iOS
   if (typeof navigator !== 'undefined') return navigator.onLine
   return isOnline
 }
@@ -54,47 +53,69 @@ export async function getPendingWriteCount(): Promise<number> {
   return getPendingCount()
 }
 
-// ── Pull fresh data from Supabase ─────────────────────────────────────────────
+// ── Sync guards ───────────────────────────────────────────────────────────────
 
-let syncFromServerInProgress = false
+let coldSyncDone = false   // Once per session (tab)
+let hotSyncInProgress = false
+let coldSyncInProgress = false
 
-export async function syncDataFromServer(): Promise<void> {
-  if (!getIsOnline() || syncFromServerInProgress) return
-  syncFromServerInProgress = true
+// Session key — sessionStorage clears on tab close
+const COLD_SYNC_KEY = 'firepcr-cold-synced'
+
+function isColdSyncDone(): boolean {
+  if (coldSyncDone) return true
+  if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(COLD_SYNC_KEY)) {
+    coldSyncDone = true
+    return true
+  }
+  return false
+}
+
+function markColdSyncDone() {
+  coldSyncDone = true
+  try { sessionStorage.setItem(COLD_SYNC_KEY, '1') } catch {}
+}
+
+// ── Helper: 48-hour cutoff ISO string ─────────────────────────────────────────
+
+function cutoff48h(): string {
+  return new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+}
+
+// ── Helper: paginate large Supabase queries ───────────────────────────────────
+
+const paginate = async (fetch: (from: number, to: number) => any): Promise<any[]> => {
+  const rows: any[] = []
+  for (let from = 0; ; from += 1000) {
+    const { data } = await fetch(from, from + 999)
+    if (!data || data.length === 0) break
+    rows.push(...data)
+    if (data.length < 1000) break
+  }
+  return rows
+}
+
+// ── Cold sync: reference data (once per session) ──────────────────────────────
+
+export async function syncColdData(): Promise<void> {
+  if (!getIsOnline() || coldSyncInProgress || isColdSyncDone()) return
+  coldSyncInProgress = true
 
   const supabase = createClient()
 
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-    const user = session?.user
-    if (!user) return
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) return
 
     const { data: emp } = await supabase
       .from('employees')
-      .select('id, name, role, app_role, auth_user_id')
-      .eq('auth_user_id', user.id)
+      .select('id')
+      .eq('auth_user_id', session.user.id)
       .single()
     if (!emp) return
 
-    // AGGRESSIVE PRELOAD — cache ALL data for offline field operations
-    // No limits on critical tables — field crews need everything
-    console.log('[Sync] Starting aggressive data preload...')
+    console.log('[Sync] Cold sync — loading reference data (once per session)...')
 
-    // Paginate large tables — PostgREST caps single responses at 1000 rows server-side
-    const paginate = async (fetch: (from: number, to: number) => any): Promise<any[]> => {
-      const rows: any[] = []
-      for (let from = 0; ; from += 1000) {
-        const { data } = await fetch(from, from + 999)
-        if (!data || data.length === 0) break
-        rows.push(...data)
-        if (data.length < 1000) break
-      }
-      return rows
-    }
-
-    // Phase 1: Core reference data (small, fast) + paginated formulary + item_catalog in parallel
     const [[incidents, units, employees, incidentUnits], formularyRows, catalogRows] = await Promise.all([
       Promise.all([
         supabase.from('incidents').select('*, incident_units(id, released_at)'),
@@ -107,85 +128,138 @@ export async function syncDataFromServer(): Promise<void> {
     ])
     const formulary = { data: formularyRows }
 
-    console.log('[Sync] Phase 1:', { incidents: incidents.data?.length, units: units.data?.length, employees: employees.data?.length, formulary: formulary.data?.length, catalog: catalogRows.length, incidentUnits: incidentUnits.data?.length })
+    console.log('[Sync] Cold:', {
+      incidents: incidents.data?.length,
+      units: units.data?.length,
+      employees: employees.data?.length,
+      formulary: formulary.data?.length,
+      catalog: catalogRows.length,
+      incidentUnits: incidentUnits.data?.length,
+    })
+
     if (incidents.data) await cacheData('incidents', incidents.data)
     if (units.data) await cacheData('units', units.data)
     if (employees.data) await cacheData('employees', employees.data)
     if (formulary.data) await cacheData('formulary', formulary.data)
     if (catalogRows.length) await cacheData('item_catalog', catalogRows)
     if (incidentUnits.data) await cacheData('incident_units', incidentUnits.data)
-    console.log('[Sync] Phase 1 done — reference data cached')
 
-    // Phase 2: Patient data (larger, but critical)
-    const [encounters, mar, vitals] = await Promise.all([
-      supabase.from('patient_encounters').select('*').is('deleted_at', null).order('created_at', { ascending: false }).limit(500),
-      supabase.from('dispense_admin_log').select('*').order('created_at', { ascending: false }).limit(500),
-      supabase.from('encounter_vitals').select('*').order('recorded_at', { ascending: false }).limit(1000),
+    markColdSyncDone()
+    console.log('[Sync] Cold sync complete — reference data cached')
+  } catch (err) {
+    console.error('[Sync] Cold sync failed:', err)
+  } finally {
+    coldSyncInProgress = false
+  }
+}
+
+// ── Hot sync: operational data (every login + offline→online, 48h window) ─────
+
+export async function syncHotData(): Promise<void> {
+  if (!getIsOnline() || hotSyncInProgress) return
+  hotSyncInProgress = true
+
+  const supabase = createClient()
+
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session?.user) return
+
+    const since = cutoff48h()
+    console.log('[Sync] Hot sync — loading operational data (last 48h)...')
+
+    // Patient data — last 48 hours
+    const [encounters, mar, vitals, progressNotes, procedures] = await Promise.all([
+      supabase.from('patient_encounters').select('*')
+        .is('deleted_at', null)
+        .gte('created_at', since)
+        .order('created_at', { ascending: false }),
+      supabase.from('dispense_admin_log').select('*')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false }),
+      supabase.from('encounter_vitals').select('*')
+        .gte('recorded_at', since)
+        .order('recorded_at', { ascending: false }),
+      supabase.from('progress_notes').select('*')
+        .is('deleted_at', null)
+        .gte('note_datetime', since)
+        .order('note_datetime', { ascending: false }),
+      supabase.from('encounter_procedures').select('*')
+        .gte('performed_at', since)
+        .order('performed_at', { ascending: false }),
     ])
 
-    console.log('[Sync] Phase 2:', { encounters: encounters.data?.length, mar: mar.data?.length, vitals: vitals.data?.length })
+    console.log('[Sync] Hot (patient):', {
+      encounters: encounters.data?.length,
+      mar: mar.data?.length,
+      vitals: vitals.data?.length,
+      progressNotes: progressNotes.data?.length,
+      procedures: procedures.data?.length,
+    })
+
     if (encounters.data) await cacheData('encounters', encounters.data)
     if (mar.data) await cacheData('mar_entries', mar.data)
     if (vitals.data) await cacheData('vitals', vitals.data)
-    console.log('[Sync] Phase 2 done — patient data cached')
-
-    // Phase 3: Operations data — paginate inventory in parallel with supply runs
-    const [invRows, supplyRuns, supplyRunItems] = await Promise.all([
-      paginate((from, to) => supabase.from('unit_inventory').select('id, item_name, category, quantity, par_qty, lot_number, expiration_date, unit_id, incident_unit_id, barcode, upc, catalog_item_id').order('id').range(from, to)),
-      supabase.from('supply_runs').select('*, incident:incidents(name), supply_run_items(*)').order('run_date', { ascending: false }).limit(200),
-      supabase.from('supply_run_items').select('*').order('id', { ascending: false }).limit(200),
-    ])
-
-    console.log('[Sync] Phase 3:', { inventory: invRows.length, supplyRuns: supplyRuns.data?.length, supplyRunItems: supplyRunItems.data?.length })
-    if (invRows.length) await cacheData('inventory', invRows)
-    if (supplyRuns.data) await cacheData('supply_runs', supplyRuns.data)
-    if (supplyRunItems.data) await cacheData('supply_run_items', supplyRunItems.data)
-    console.log('[Sync] Phase 3 done — operations data cached')
-
-    // Phase 4: Progress notes + procedures (for encounter detail views)
-    const [progressNotes, procedures] = await Promise.all([
-      supabase.from('progress_notes').select('*').is('deleted_at', null).order('note_datetime', { ascending: false }).limit(500),
-      supabase.from('encounter_procedures').select('*').order('performed_at', { ascending: false }).limit(500),
-    ])
-
-    // Cache these into encounters store as sub-collections
-    // (detail pages will look them up by encounter_id)
     if (progressNotes.data) {
-      try { await cacheData('progress_notes' as any, progressNotes.data) } catch { /* store may not exist */ }
+      try { await cacheData('progress_notes' as any, progressNotes.data) } catch {}
     }
     if (procedures.data) {
-      try { await cacheData('procedures' as any, procedures.data) } catch { /* store may not exist */ }
+      try { await cacheData('procedures' as any, procedures.data) } catch {}
     }
 
-    await updateSyncMeta('global', new Date().toISOString())
-    await notifyListeners()
+    // Operations data — supply runs (48h) + current inventory snapshot
+    const [supplyRuns, supplyRunItems, invRows] = await Promise.all([
+      supabase.from('supply_runs').select('*, incident:incidents(name), supply_run_items(*)')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false }),
+      supabase.from('supply_run_items').select('*')
+        .gte('created_at', since)
+        .order('id', { ascending: false }),
+      paginate((from, to) => supabase.from('unit_inventory')
+        .select('id, item_name, category, quantity, par_qty, lot_number, expiration_date, unit_id, incident_unit_id, barcode, upc, catalog_item_id')
+        .order('id').range(from, to)),
+    ])
 
-    console.log('[Sync] Complete — all data preloaded for offline use')
+    console.log('[Sync] Hot (ops):', {
+      supplyRuns: supplyRuns.data?.length,
+      supplyRunItems: supplyRunItems.data?.length,
+      inventory: invRows.length,
+    })
+
+    if (supplyRuns.data) await cacheData('supply_runs', supplyRuns.data)
+    if (supplyRunItems.data) await cacheData('supply_run_items', supplyRunItems.data)
+    if (invRows.length) await cacheData('inventory', invRows)
+
+    await updateSyncMeta('global', new Date().toISOString())
+    console.log('[Sync] Hot sync complete — operational data cached (48h window)')
   } catch (err) {
-    console.error('[Sync] Sync from server failed:', err)
+    console.error('[Sync] Hot sync failed:', err)
   } finally {
-    syncFromServerInProgress = false
+    hotSyncInProgress = false
   }
+}
+
+// ── Full sync: cold + hot (called on initial login) ───────────────────────────
+
+export async function syncDataFromServer(): Promise<void> {
+  // Cold runs once per session, hot runs every time
+  await syncColdData()
+  await syncHotData()
 }
 
 // ── Flush pending offline writes to Supabase ──────────────────────────────────
 
 export async function flushPendingWrites(): Promise<void> {
-  // Use getIsOnline() (reads navigator.onLine directly) instead of the module-level
-  // isOnline flag, which can be stale if the browser 'online' event was missed.
   if (!getIsOnline() || syncInProgress) return
   syncInProgress = true
 
-  // Idempotent tables: a 23505 unique-violation means the row already exists — treat as success
   const idempotentTables = ['dispense_admin_log', 'patient_encounters', 'supply_runs', 'supply_run_items', 'encounter_procedures', 'mar_entries']
-  // Permanent errors: remove from queue immediately so they don't block future syncs
   const permanentErrorCodes = [
     '42703', // column does not exist
     '42P01', // table does not exist
-    '23502', // NOT NULL violation (payload missing a required column)
-    // 23503 (FK violation) removed — child rows may sync before parent; retry instead of dropping
+    '23502', // NOT NULL violation
     '22P02', // invalid input syntax
-    '42501', // insufficient privilege (RLS blocked the write)
+    '42501', // insufficient privilege (RLS)
   ]
 
   try {
@@ -196,8 +270,6 @@ export async function flushPendingWrites(): Promise<void> {
 
     console.log('[Sync] Flushing', pending.length, 'pending writes...')
 
-    // Process in chronological order (ensures supply_runs before supply_run_items)
-    // Fall back to auto-increment id for entries with identical timestamps
     pending.sort((a, b) => {
       const cmp = a.timestamp.localeCompare(b.timestamp)
       if (cmp !== 0) return cmp

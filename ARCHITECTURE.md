@@ -2,9 +2,9 @@
 
 **App:** https://ram-field-ops.vercel.app (staging)  
 **Repo:** https://github.com/flybozo/ram-field-ops  
-**Last updated:** 2026-04-24 20:24 PDT  
-**Current version:** v1.30.0  
-**App version:** v1.9.0
+**Last updated:** 2026-04-25 23:25 PDT  
+**Current version:** v1.34.0  
+**App version:** v1.10.0
 
 ---
 
@@ -86,7 +86,8 @@ ram-field-ops/
 │   ├── push/
 │   │   ├── send.ts               # Admin push notification send
 │   │   ├── cs-count-reminder.ts  # Cron: CS count overdue reminders
-│   │   └── cs-discrepancy-alert.ts # Auto: CS count discrepancy alerts
+│   │   ├── cs-discrepancy-alert.ts # Auto: CS count discrepancy alerts
+│   │   └── expense-reimbursement.ts # Auto: out-of-pocket expense → bookkeeper email
 │   ├── pin/set.ts, verify.ts     # PIN authentication
 │   ├── location/
 │   │   └── ping.ts               # POST unit GPS ping (5-min dedup by position)
@@ -1238,7 +1239,7 @@ Full multi-step form at `src/pages/onboard/Onboard.tsx`. Public route (no auth).
 ### Offline Stack
 - **Service Worker (`public/sw.js` v14):** CacheFirst for hashed assets, NetworkFirst+cache for Supabase GETs, SPA fallback for navigation. **Pre-caches ALL JS/CSS chunks** via `asset-manifest.json` generated at build time by Vite plugin.
 - **IndexedDB v7 (`offlineStore.ts`):** 14+ stores — encounters, mar_entries, vitals, inventory, supply_runs, supply_run_items, units, incidents, employees, formulary, incident_units, progress_notes, procedures, pending_sync
-- **Sync Manager (`syncManager.ts`):** Preloads all critical tables on login (no page visit required). Flushes pending writes on reconnect. Uses `navigator.onLine` directly (not cached flag — iOS event unreliability). `syncInProgress` wrapped in `try/finally`. Permanent errors (23505 unique, 42703 column missing, 23502 NOT NULL, 42501 RLS, 22P02 invalid input) are removed from queue instead of retrying forever. **FK violations (23503) are retried**, not permanent — child rows may sync before parents in offline batch.
+- **Sync Manager (`syncManager.ts`):** Two-tier sync architecture (see below). Flushes pending writes on reconnect. Uses `navigator.onLine` directly (not cached flag — iOS event unreliability). `syncInProgress` wrapped in `try/finally`. Permanent errors (23505 unique, 42703 column missing, 23502 NOT NULL, 42501 RLS, 22P02 invalid input) are removed from queue instead of retrying forever. **FK violations (23503) are retried**, not permanent — child rows may sync before parents in offline batch.
 - **`useOfflineWrite` hook:** Online → direct Supabase write. Offline or network error → queue to `pending_sync`. Always returns `success: true`.
 - **`offlineFirst.ts`:** `loadList()` / `loadSingle()` — cache-first reads with background network refresh.
 - **`OfflineGate` component:** Wraps 14+ online-only pages with full-page "You're Offline" message. Polls `navigator.onLine` every 3s (iOS events unreliable). Clears automatically when connection returns.
@@ -1263,12 +1264,61 @@ Full multi-step form at `src/pages/onboard/Onboard.tsx`. Public route (no auth).
 - Duplicate items bump quantity instead of creating new rows
 - After save, items also written to IndexedDB cache so they appear in list immediately
 
-### Preload Scope (what's cached on login)
-- Phase 1: incidents, units, employees, formulary, incident_units
-- Phase 2: patient_encounters (500), dispense_admin_log/MAR (500), encounter_vitals (1000)
-- Phase 3: unit_inventory (5000), supply_runs (200), supply_run_items (200)
-- Phase 4: progress_notes (500), encounter_procedures (500)
-- NOT preloaded (online-only): ICS 214s, payroll, roster details, analytics, schedules
+### Two-Tier Sync Architecture (v1.32.0)
+
+Sync is split into **cold** (reference data) and **hot** (operational data) tiers to minimize bandwidth and Supabase load.
+
+#### Cold Sync — `syncColdData()` — Once per browser session
+
+Runs exactly once per tab (guarded by `sessionStorage` key + in-memory flag). Reference data that rarely changes and isn't critical for minute-to-minute field ops.
+
+| Table | Join/Select | Notes |
+|---|---|---|
+| `incidents` | + `incident_units(id, released_at)` | All incidents |
+| `units` | + unit_types, incident_units, unit_assignments, employees | All units with crew |
+| `employees_sync` | `*` | PII-stripped roster (all) |
+| `formulary_templates` | + `item_catalog(category, sku, is_als)` | Paginated, all rows |
+| `item_catalog` | `*` | Paginated, all rows |
+| `incident_units` | + `units(id, name, unit_type)` | All |
+
+#### Hot Sync — `syncHotData()` — Every login + every offline→online
+
+Pulls the last **48 hours** of operational data. This is the data field crews actively create and need current.
+
+| Table | Filter | Column filtered |
+|---|---|---|
+| `patient_encounters` | `created_at ≥ 48h ago` | `created_at` |
+| `encounter_vitals` | `recorded_at ≥ 48h ago` | `recorded_at` |
+| `progress_notes` | `note_datetime ≥ 48h ago` | `note_datetime` |
+| `encounter_procedures` | `performed_at ≥ 48h ago` | `performed_at` |
+| `dispense_admin_log` (MAR) | `created_at ≥ 48h ago` | `created_at` |
+| `supply_runs` + items | `run_date ≥ 48h ago` | `run_date` (date only) |
+| `supply_run_items` | `created_at ≥ 48h ago` | `created_at` |
+| `unit_inventory` | **All** (paginated) | Full snapshot — needed for accurate field counts |
+
+#### Sync Triggers
+
+| Event | What runs |
+|---|---|
+| First login (ConnectionStatus mount) | `syncDataFromServer()` → cold (once) + hot |
+| CacheStatusBar (5s after mount) | `syncDataFromServer()` → cold skips (already done), hot re-runs if not in progress |
+| Browser `online` event | `syncHotData()` only |
+| `onConnectionChange` offline→online | `flushPendingWrites()` then `syncHotData()` only |
+| Tab close + reopen | Cold + hot (sessionStorage cleared) |
+
+#### Guards
+- `coldSyncInProgress` / `hotSyncInProgress` — prevent concurrent runs of the same tier
+- `coldSyncDone` + `sessionStorage('firepcr-cold-synced')` — cold runs exactly once per tab
+- `wasOnline` ref in ConnectionStatus — only triggers sync on actual offline→online transitions, not every listener notification
+
+#### Offline Write Queue (unchanged)
+Pending inserts/updates for critical tables queue in IndexedDB `pending_sync` store and flush on reconnect:
+- `patient_encounters`, `encounter_vitals`, `progress_notes`, `encounter_procedures`
+- `dispense_admin_log` (MAR), `supply_runs`, `supply_run_items`
+- Inventory decrements from supply runs
+
+#### NOT synced (online-only)
+ICS 214s, payroll, roster details, analytics, schedules, PDF generation, admin settings
 
 ### Inventory Data Model (critical — updated 2026-04-22)
 - **`unit_inventory` belongs to the TRUCK, not the fire deployment.** Always query by `unit_id`, never `incident_unit_id` for current stock lookups.
@@ -1783,3 +1833,241 @@ User-selectable list rendering style, toggled in Profile → Appearance.
 ## 55. Manufacturer SKU (v1.30.0)
 
 New `item_catalog.manufacturer_sku` column (text). Displayed and editable in CatalogDetail alongside existing UPC and Barcode fields.
+
+## 56. Reimbursable Flag (v1.31.0)
+
+New boolean column on `item_catalog` to track USDA contract reimbursable consumables.
+
+**Database:**
+- `item_catalog.reimbursable` — boolean, default `false`
+- 94 OTC consumables flagged per NWCG equipment list for potential USDA contract reimbursement
+
+**UI surfaces:**
+- `💲 Reimb` badge in CatalogDetail (read mode)
+- `💲 Reimb` badge in CatalogList rows + filter toggle to show only reimbursable items
+- `💲 Reimb` badge in Reorder panel and Expiration panel right-side catalog detail
+- Editable in Catalog Detail edit form as "Reimbursable (USDA Contract)" toggle
+
+## 57. Shared CatalogItemPanel Component (v1.31.0)
+
+Single reusable component for displaying catalog item detail across all inventory pages.
+
+**File:** `src/components/inventory/CatalogItemPanel.tsx`
+
+**Exports:**
+- `CatalogItemPanel` (default) — self-fetching component; accepts `catalogItemId` or pre-fetched `item`
+- `CatalogItem` type
+- `UnitTypeEntry` type
+- `CAT_COLORS` color map
+
+**Props:**
+- `contextCard?: (item: CatalogItem) => ReactNode` — render prop for page-specific content rendered above catalog detail (quantity/par, lot/expiry, actions, etc.)
+- `showPhotoActions`, `onPhotoUpload`, `onPhotoRemove` — photo upload support
+- `showCatalogLink` — shows "View in Catalog" link when true
+- `refreshKey` — increment to force re-fetch
+
+**Card-based layout** matching `FormularyDetailInner`:
+- Supply & Cost card
+- Identifiers & Details card (UPC, Barcode, Manufacturer SKU, Reimbursable badge)
+- Carried By card
+- Notes card
+
+**Styling:** `max-w-3xl mx-auto` contained width; photo `w-32 h-32`
+
+**Used by:**
+| Page | contextCard content |
+|------|---------------------|
+| Reorder Report | Shortage bars + restock cost |
+| Burn Rate | Burn analysis (stock bar, depletion date, cost) |
+| ExpirationDashboard | Lot/expiry info |
+| CSItemDetail | Quantity/par cards, lot/expiry, Count/Transfer actions, transaction history |
+| CatalogDetail (read mode) | Edit/Delete buttons |
+
+## 58. Supply Runs Inline Search (v1.31.0)
+
+Supply Runs list now matches the Encounters/MAR inline search pattern.
+
+- Search bar rendered above `SupplyRunsList`
+- Client-side filter as-you-type for current page results
+- Enter key triggers server-side all-history search
+- Removed `SupplyRunSearch` standalone page
+- Removed "Search All" sidebar submenu entry for Supply Runs
+
+## 59. CS Item Detail — CatalogItemPanel Integration (v1.31.0)
+
+`CSItemDetail` refactored to use the shared `CatalogItemPanel`.
+
+**contextCard renders:**
+- Quantity / par level cards
+- Lot number + expiration date
+- Count and Transfer quick-action buttons
+- Transaction history table
+
+**Fallback:** If a CS item has no `catalog_item_id`, the component falls back to its previous standalone layout so no data is lost.
+
+## 60. Expiration Dashboard Split Panel (v1.31.0)
+
+Expiration Dashboard converted from single-column list to 40/60 split panel matching Reorder/BurnRate.
+
+- **Left (40%):** Expiring items grouped by unit, with selection highlight
+- **Right (60%):** `CatalogItemPanel` for the selected item (lot/expiry context card)
+- Mobile: full-screen overlay on row tap, same as other split-panel pages
+
+## 61. List/Card Style Compliance (v1.31.0)
+
+Fixed several pages that were not correctly applying the card/list style preference.
+
+**`divide-y` removal:**
+- `CatalogList`, `InventoryList` — `divide-y` class was overriding selection border rendering; removed
+
+**`lc.container` wrapping added:**
+- `Reorder`, `BurnRate`, `CSList`, `ICS214List`, `UnsignedItems` — outer list container now wrapped in `lc.container` so card rounding/border renders correctly
+
+All list views now fully respect the Card/List preference set in Profile → Appearance.
+
+## 62. Theme-Aware Selection Colors (v1.31.0)
+
+List row selection highlighting now uses the user's chosen theme color instead of hardcoded red.
+
+**New CSS classes (global stylesheet):**
+- `list-row-selected-card` — card-mode selected row background
+- `list-row-selected-list` — list-mode selected row left + bottom border
+- `list-row-hover-card` — card-mode hover background
+
+All three classes use `--theme-primary` CSS variable via `color-mix()` for automatic theme-color adaptation.
+
+**`listStyles.ts` updated:** `getListClasses()` now returns these CSS class names instead of hardcoded Tailwind color utilities. All 42+ list views automatically gain theme-aware selection colors with no per-file changes.
+
+**Replaces:** `border-l-red-500 border-b-red-500/40 bg-red-950/40` hardcoded selection colors from v1.30.0.
+
+## 63. ICS 214 List Improvements (v1.31.0)
+
+ICS 214 split-panel upgraded from summary to full embedded detail.
+
+**Right panel:** Full embedded ICS 214 detail using existing section components:
+- `HeaderCard` — incident/unit/period
+- `PersonnelSection` — crew roster
+- `ActivityLog` — timestamped entries
+- `Closeout` — preparer/supervisor signatures
+- `PDFSection` — download button
+
+**Left panel:** Columnar layout with sortable column headers:
+- Date | Unit | Incident | Status
+- Click to sort ascending/descending
+
+**Mobile:** Overlay also renders full embedded detail (not summary).
+
+## 64. CatalogDetail Refactor (v1.31.0)
+
+`CatalogDetail` read mode unified with the shared `CatalogItemPanel`.
+
+**Read mode:** `CatalogItemPanel` renders the full detail. Edit/Delete buttons injected via `contextCard` render prop at the top of the panel.
+
+**Edit mode:** Full inline form renders as before (no change to edit UX).
+
+**Photo upload:** `onPhotoUpload` and `onPhotoRemove` callbacks wired through `CatalogItemPanel` props so photo management works in both catalog and shared-panel contexts.
+
+**SplitShell CSS:** Back-link hidden for `/catalog` routes (catalog uses its own in-panel navigation).
+
+## 65. Par Level Aggregation & Formulary as Source of Truth (v1.33.0)
+
+### Problem
+Each `unit_inventory` row had its own `par_qty`, evaluated per lot. Two lots of Fentanyl (qty 10 + qty 5) were compared independently instead of as 15 total. Par values on different lot rows were also inconsistent.
+
+### Solution: `unit_inventory_aggregated` DB View
+```sql
+CREATE VIEW unit_inventory_aggregated AS
+SELECT
+  u.id AS unit_id, u.name AS unit_name, u.unit_type_id,
+  COALESCE(ui.catalog_item_id, ft.catalog_item_id) AS catalog_item_id,
+  COALESCE(ui.item_name, ft.item_name) AS item_name,
+  COALESCE(ui.category, ic.category) AS category,
+  COALESCE(SUM(ui.quantity), 0)::int AS total_quantity,
+  COALESCE(ft.default_par_qty, 0)::int AS par_qty,
+  ft.id AS formulary_template_id
+FROM units u
+LEFT JOIN formulary_templates ft ON ft.unit_type_id = u.unit_type_id
+LEFT JOIN item_catalog ic ON ic.id = ft.catalog_item_id
+LEFT JOIN unit_inventory ui ON ui.unit_id = u.id
+  AND (ui.catalog_item_id = ft.catalog_item_id OR (ui.catalog_item_id IS NULL AND ui.item_name = ft.item_name))
+WHERE u.unit_status != 'archived'
+GROUP BY u.id, u.name, u.unit_type_id, ...
+```
+
+- One row per (unit, item) — aggregates all lot rows
+- Par from `formulary_templates.default_par_qty` (single source of truth)
+- Items with `par_qty = 0` excluded from reorder/low stock alerts
+
+### Consumers
+- **Reorder Report** — queries view directly with `par_qty > 0 AND total_quantity < par_qty`
+- **MyUnit Low Stock** — same aggregated view
+- **InventorySummary** (unit detail) — client-side aggregation for reorder alert
+- **Offline fallback** — client-side aggregation across cached lot rows
+
+### Par Levels Populated
+All 696 formulary template items across Ambulance (174), Med Unit (195), REMS (269), and Truck (58) have par levels set from spreadsheet data. Scripts at `scripts/populate-par-levels.sql` and `scripts/populate-par-levels-otc-de-re.sql`.
+
+## 66. Searchable Dropdowns for Formulary & Inventory Add (v1.33.0)
+
+### Formulary Add Item
+Replaced free-text `item_name` input with searchable dropdown pulling from `item_catalog`. Auto-sets `catalog_item_id`. Excludes items already on this unit type's template. Category badges in dropdown.
+
+### Inventory Add Item
+Replaced basic `<select>` with searchable dropdown. Constrained to `formulary_templates` for the selected unit's type (excluding CS items, which go through separate CS receive flow). Category badges, click-outside-to-close.
+
+### Inventory Data Integrity Rules
+- Inventory items are **locked to the formulary template** for the unit's type
+- Same item + same lot → **UPDATE** (increment quantity)
+- Same item + different lot → **INSERT** (new row for lot tracking)
+- Same item + no lot → matches existing no-lot row and increments
+- Rx/CS items **require** lot number + expiration date
+
+## 67. Supply Runs ↔ Patient Encounters (v1.34.0)
+
+### Data Model
+- `supply_runs.encounter_id` — nullable FK to `patient_encounters(id)`, indexed
+- Links a supply run (OTC consumables, supplies) to the patient encounter where they were used
+
+### UI
+- **Encounter Detail** — new draggable "📦 Supply Runs" section (between Procedures and Photos in default order)
+- Lists all linked supply runs with date, resource number, dispensed_by, item count
+- "+ New Supply Run" button auto-populates `encounter_id`, `resource_number` (from encounter's `crew_resource_number`), and `incident_id`
+- **Supply Run Detail** — shows linked encounter with clickable back-link (🩺 encounter ID + patient name)
+- **NewSupplyRun** — accepts `encounterId` + `resourceNumber` query params
+
+## 68. Expense Reimbursement (v1.34.0)
+
+### Data Model
+- `incident_expenses.payment_method` — text, NOT NULL, default `'company_card'`
+- Values: `company_card` (company credit card) or `out_of_pocket` (employee paid, needs reimbursement)
+
+### UI
+- Expense form: toggle buttons for 💳 Company Card vs 💰 Out of Pocket
+- Yellow warning when out-of-pocket selected
+- OOP badge in expense table (💳 column)
+
+### Bookkeeper Auto-Email
+- `POST /api/push/expense-reimbursement` — fires when out-of-pocket expense submitted
+- Emails Amanda Bragg (braggbusiness@gmail.com) with:
+  - Employee name, expense type, amount, description, date, unit, incident
+  - Signed receipt URL (7-day expiry)
+- Best-effort (doesn't block form submission)
+
+## 69. CS Daily Count Fix (v1.34.0)
+
+### Problem
+CS Count form queried `incident_units` (per-incident assignments) to map unit names to IDs. If no active incident existed, `unitIdMap` was empty → `unit_inventory` query returned nothing → no count input fields.
+
+### Fix
+- Switched to `units` table for unit ID mapping (matches CS Overview pattern)
+- Filter `unit_inventory` by `unit_id` instead of `incident_unit_id`
+- Unit dropdown now populated from actual `units` table with fallback to hardcoded array
+
+## 70. Multi-Base Architecture (v1.34.0 — planning only)
+
+Planning doc at `docs/MULTI-BASE-ARCHITECTURE.md`. When RAM expands to new states/contracts:
+- `bases` table — name, location, state, contract type, status
+- FK on units, employees, incidents
+- Phased: data model → base context UI → multi-state compliance
+- Base = contract/geographic operation, not legal entity
+- See planning doc for full details

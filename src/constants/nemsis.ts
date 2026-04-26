@@ -246,5 +246,5 @@ export const CLINICAL_OPTION_VALUES = [
   'Refusal of Care','Standby - No Patient Contact','Other',
 ]
 
-export const AMBULANCE_DEFAULT_ORDER = ['actions', 'narrative', 'response', 'scene', 'assessment', 'cardiac', 'vitals', 'mar', 'procedures', 'photos', 'transport', 'provider', 'forms', 'notes']
-export const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', 'mar', 'procedures', 'photos', 'transport', 'provider', 'forms', 'notes']
+export const AMBULANCE_DEFAULT_ORDER = ['actions', 'narrative', 'response', 'scene', 'assessment', 'cardiac', 'vitals', 'mar', 'procedures', 'supply_runs', 'photos', 'transport', 'provider', 'forms', 'notes']
+export const MEDUNIT_DEFAULT_ORDER = ['actions', 'narrative', 'assessment', 'vitals', 'mar', 'procedures', 'supply_runs', 'photos', 'transport', 'provider', 'forms', 'notes']

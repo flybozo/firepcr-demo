@@ -59,6 +59,7 @@ const TABS: Tab[] = [
       { label: 'Add Inventory', href: '/inventory/add', adminOnly: true },
       { label: 'Supply Runs', href: '/supply-runs' },
       { label: 'New Run', href: '/supply-runs/new' },
+      { label: 'Reorder Report', href: '/inventory/reorder' },
     ],
   },
   {

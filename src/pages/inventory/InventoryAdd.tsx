@@ -1,6 +1,6 @@
 
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, useRef, Suspense } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
@@ -40,6 +40,21 @@ function AddInventoryInner() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+
+  const [itemSearch, setItemSearch] = useState('')
+  const [showItemDropdown, setShowItemDropdown] = useState(false)
+  const itemDropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (itemDropdownRef.current && !itemDropdownRef.current.contains(e.target as Node)) {
+        setShowItemDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   const [form, setForm] = useState({
     unit_id: '',
@@ -323,25 +338,68 @@ function AddInventoryInner() {
             )}
           </div>
 
-          {/* Item */}
-          <div>
+          {/* Item — searchable dropdown */}
+          <div ref={itemDropdownRef} className="relative">
             <label className={labelCls}>
               Item Name *
               {loadingFormulary && <span className="ml-2 text-gray-500 font-normal normal-case">Loading...</span>}
             </label>
             {formulary.length > 0 ? (
-              <select
-                className={inputCls}
-                value={form.item_name}
-                onChange={e => handleItemSelect(e.target.value)}
-              >
-                <option value="">Select item</option>
-                {formulary.map(item => (
-                  <option key={item.id} value={item.item_name}>
-                    {item.item_name}{item.category ? ` (${item.category})` : ''}
-                  </option>
-                ))}
-              </select>
+              <>
+                <div className="relative">
+                  <input
+                    value={form.item_name ? form.item_name : itemSearch}
+                    onChange={e => {
+                      setItemSearch(e.target.value)
+                      setShowItemDropdown(true)
+                      if (form.item_name) {
+                        setForm(prev => ({ ...prev, item_name: '', category: '', catalog_item_id: null }))
+                      }
+                    }}
+                    onFocus={() => setShowItemDropdown(true)}
+                    placeholder="Search items..."
+                    className={inputCls}
+                  />
+                  {form.item_name && (
+                    <button
+                      onClick={() => { setForm(prev => ({ ...prev, item_name: '', category: '', catalog_item_id: null })); setItemSearch('') }}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white text-sm"
+                    >✕</button>
+                  )}
+                </div>
+                {showItemDropdown && !form.item_name && (
+                  <div className="absolute z-20 mt-1 w-full max-h-60 overflow-y-auto bg-gray-800 border border-gray-700 rounded-lg shadow-xl">
+                    {(() => {
+                      const filtered = formulary.filter(f =>
+                        !itemSearch || f.item_name.toLowerCase().includes(itemSearch.toLowerCase()) || (f.category || '').toLowerCase().includes(itemSearch.toLowerCase())
+                      ).slice(0, 50)
+                      if (filtered.length === 0) return (
+                        <p className="px-3 py-2 text-xs text-gray-500">{itemSearch ? 'No matching items' : 'Type to search...'}</p>
+                      )
+                      return filtered.map(item => (
+                        <button
+                          key={item.id}
+                          onClick={() => {
+                            handleItemSelect(item.item_name)
+                            setItemSearch('')
+                            setShowItemDropdown(false)
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-700 flex items-center gap-2"
+                        >
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full shrink-0 ${
+                            item.category === 'CS' ? 'bg-orange-900 text-orange-300' :
+                            item.category === 'Rx' ? 'bg-blue-900 text-blue-300' :
+                            item.category === 'DE' ? 'bg-amber-900 text-amber-300' :
+                            item.category === 'RE' ? 'bg-green-900 text-green-300' :
+                            'bg-gray-700 text-gray-300'
+                          }`}>{item.category || 'OTC'}</span>
+                          <span className="text-white truncate">{item.item_name}</span>
+                        </button>
+                      ))
+                    })()}
+                  </div>
+                )}
+              </>
             ) : (
               <p className="text-gray-500 text-sm px-3 py-2 bg-gray-800 rounded-lg">Select a unit above to load available items</p>
             )}

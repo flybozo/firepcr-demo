@@ -25,6 +25,7 @@ import { ProceduresSection } from '@/components/encounters/sections/ProceduresSe
 import { PhotosSection } from '@/components/encounters/sections/PhotosSection'
 import { FormsSection } from '@/components/encounters/sections/FormsSection'
 import { ProgressNotesSection } from '@/components/encounters/sections/ProgressNotesSection'
+import { SupplyRunsSection } from '@/components/encounters/sections/SupplyRunsSection'
 import { EncounterActionsBar } from '@/components/encounters/sections/EncounterActionsBar'
 import { NarrativeSection } from '@/components/encounters/sections/NarrativeSection'
 import { ResponseSection } from '@/components/encounters/sections/ResponseSection'
@@ -297,6 +298,8 @@ export default function EncounterDetailPage({ encounterId, embedded }: { encount
                     return <DraggableSection key="forms" id="forms" colSpan={span} onCycleSpan={cycleFn}><FormsSection enc={enc} isLocked={isLocked} consentForms={consentForms} compClaims={compClaims} formPdfUrls={formPdfUrls} /></DraggableSection>
                   case 'notes':
                     return <DraggableSection key="notes" id="notes" colSpan={span} onCycleSpan={cycleFn}><ProgressNotesSection enc={enc} currentUser={currentUser} isAdmin={canEdit} isSigned={isSigned} progressNotes={progressNotes} setProgressNotes={setProgressNotes} /></DraggableSection>
+                  case 'supply_runs':
+                    return <DraggableSection key="supply_runs" id="supply_runs" colSpan={span} onCycleSpan={cycleFn}><SupplyRunsSection enc={enc} /></DraggableSection>
                   default: return null
                 }
               })}

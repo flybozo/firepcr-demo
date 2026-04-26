@@ -16,7 +16,6 @@ type ReorderItem = {
   par_qty: number
   reorder_qty: number | null
   unit_name: string
-  incident_unit_id: string
   catalog_item_id: string | null
 }
 
@@ -36,41 +35,26 @@ function ReorderPageInner() {
 
   useEffect(() => {
     const load = async () => {
+      // Use aggregated view: sums all lot rows per (unit, item), par from formulary_templates
       const { data: allData } = await supabase
-        .from('unit_inventory')
-        .select(`
-          id,
-          item_name,
-          category,
-          quantity,
-          par_qty,
-          catalog_item_id,
-          incident_unit:incident_units(
-            id,
-            unit:units(name)
-          )
-        `)
+        .from('unit_inventory_aggregated')
+        .select('unit_id, unit_name, catalog_item_id, item_name, category, total_quantity, par_qty, formulary_template_id')
+        .gt('par_qty', 0)
+        .order('unit_name')
         .order('item_name')
-        .limit(5000)
 
       const lowItems: ReorderItem[] = ((allData as any[]) || [])
-        .filter((row: any) => row.quantity <= row.par_qty)
+        .filter((row: any) => row.total_quantity < row.par_qty)
         .map((row: any) => ({
-          id: row.id,
+          id: `${row.unit_id}-${row.catalog_item_id || row.item_name}`,
           item_name: row.item_name,
           category: row.category ?? null,
-          quantity: row.quantity,
-          par_qty: row.par_qty ?? 0,
+          quantity: row.total_quantity,
+          par_qty: row.par_qty,
           reorder_qty: null,
-          unit_name: row.incident_unit?.unit?.name ?? 'Unknown',
-          incident_unit_id: row.incident_unit?.id ?? '',
+          unit_name: row.unit_name ?? 'Unknown',
           catalog_item_id: row.catalog_item_id ?? null,
         }))
-        .sort((a: ReorderItem, b: ReorderItem) => {
-          const unitCmp = a.unit_name.localeCompare(b.unit_name)
-          if (unitCmp !== 0) return unitCmp
-          return a.item_name.localeCompare(b.item_name)
-        })
 
       setItems(lowItems)
       setLoading(false)
@@ -102,7 +86,7 @@ function ReorderPageInner() {
     ? items.find(i => i.id === selectedId)?.catalog_item_id ?? null
     : null
   const shortageItemsForSelected = selectedCatalogId
-    ? items.filter(i => i.catalog_item_id === selectedCatalogId && i.quantity <= i.par_qty)
+    ? items.filter(i => i.catalog_item_id === selectedCatalogId && i.quantity < i.par_qty)
     : []
 
   const exportCSV = () => {

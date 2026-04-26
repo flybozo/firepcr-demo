@@ -43,6 +43,7 @@ export type InventoryItem = {
   category: string
   quantity: number
   par_qty: number
+  catalog_item_id: string | null
 }
 export type VehicleForm = {
   make: string; model: string; year: string

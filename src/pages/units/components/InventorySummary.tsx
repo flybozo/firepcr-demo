@@ -40,8 +40,23 @@ export default function InventorySummary({ inventory, unitName }: Props) {
     Object.keys(grouped).filter(c => !CATEGORY_ORDER.includes(c))
   )
 
-  // Reorder items (below par)
-  const reorderItems = inventory.filter(i => i.par_qty > 0 && i.quantity <= i.par_qty)
+  // Reorder items: aggregate quantity by item_name before comparing to par
+  // This prevents multiple lot rows of the same drug from being individually flagged
+  const aggregated = new Map<string, { item_name: string; total_qty: number; par_qty: number }>()
+  for (const item of inventory) {
+    const key = item.catalog_item_id || item.item_name
+    const existing = aggregated.get(key)
+    if (existing) {
+      existing.total_qty += item.quantity
+      // Use the max par_qty across rows (should be the same, but be safe)
+      if (item.par_qty > existing.par_qty) existing.par_qty = item.par_qty
+    } else {
+      aggregated.set(key, { item_name: item.item_name, total_qty: item.quantity, par_qty: item.par_qty })
+    }
+  }
+  const reorderItems = Array.from(aggregated.values())
+    .filter(a => a.par_qty > 0 && a.total_qty < a.par_qty)
+    .map(a => ({ id: a.item_name, item_name: a.item_name, quantity: a.total_qty, par_qty: a.par_qty, category: inventory.find(i => i.item_name === a.item_name)?.category || 'Other' }))
 
   // Collapsed view: show CS + Rx + first 5 of each other category
   const COLLAPSE_LIMIT = 5
@@ -66,7 +81,7 @@ export default function InventorySummary({ inventory, unitName }: Props) {
               <div key={item.id} className="flex items-center justify-between px-4 py-2 text-sm">
                 <div className="flex-1 min-w-0">
                   <span className="text-red-300 truncate block">{item.item_name}</span>
-                  <span className="text-xs text-gray-600">{item.category}</span>
+                  <span className="text-xs text-gray-600">{item.category || ''}</span>
                 </div>
                 <div className="text-right shrink-0 ml-3">
                   <span className="text-red-400 font-mono font-semibold">{item.quantity}</span>

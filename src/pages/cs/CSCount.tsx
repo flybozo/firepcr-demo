@@ -24,7 +24,7 @@ type CSItem = {
   quantity: number
   lot_number: string | null
   expiration_date: string | null
-  incident_unit_id: string
+  unit_id: string
 }
 
 type CountEntry = {
@@ -51,6 +51,7 @@ function DailyCountInner() {
   const [csItems, setCSItems] = useState<CSItem[]>([])
   const [entries, setEntries] = useState<CountEntry[]>([])
   const [unitIdMap, setUnitIdMap] = useState<Record<string, string>>({})
+  const [availableUnits, setAvailableUnits] = useState<string[]>([])
   const [selectedUnit, setSelectedUnit] = useState(searchParams.get('unit') || '')
   const [loadingItems, setLoadingItems] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -88,10 +89,11 @@ function DailyCountInner() {
     )
     setEmployees(emps)
     try {
-      const { data: units } = await supabase.from('incident_units').select('id, name')
+      const { data: units } = await supabase.from('units').select('id, name').order('name')
       const map: Record<string, string> = {}
-      if (units) for (const u of units) map[u.name] = u.id
+      if (units) for (const u of units) { map[u.name] = u.id }
       setUnitIdMap(map)
+      setAvailableUnits(units?.map(u => u.name) || [])
     } catch {}
   }
 
@@ -103,12 +105,12 @@ function DailyCountInner() {
       () => unitId
         ? supabase
             .from('unit_inventory')
-            .select('id, item_name, quantity, lot_number, expiration_date, incident_unit_id')
-            .eq('incident_unit_id', unitId)
+            .select('id, item_name, quantity, lot_number, expiration_date, unit_id')
+            .eq('unit_id', unitId)
             .eq('category', 'CS')
         : Promise.resolve({ data: [], error: null }),
       'inventory',
-      unitId ? (all) => all.filter((i: any) => i.category === 'CS' && i.incident_unit_id === unitId) : undefined
+      unitId ? (all) => all.filter((i: any) => i.category === 'CS' && i.unit_id === unitId) : undefined
     )
 
     setCSItems(items || [])
@@ -254,7 +256,7 @@ function DailyCountInner() {
           <label className={labelCls}>Select Unit *</label>
           <select className={inputCls} value={selectedUnit} onChange={e => setSelectedUnit(e.target.value)} required>
             <option value="">Choose unit...</option>
-            {ALL_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+            {(availableUnits.length > 0 ? availableUnits : ALL_UNITS).map(u => <option key={u} value={u}>{u}</option>)}
           </select>
         </div>
 

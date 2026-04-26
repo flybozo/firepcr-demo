@@ -134,7 +134,7 @@ export function applyThemeToDom(theme: Theme) {
       link.rel = 'stylesheet'
       document.head.appendChild(link)
     }
-    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(gFont.replace(/:/g, ':'))}&display=swap`
+    link.href = `https://fonts.googleapis.com/css2?family=${gFont}&display=swap`
   } else if (link) {
     link.remove()
   }

@@ -243,7 +243,7 @@ export function useIncidentData(
       (async () => {
         const r1 = await supabaseClient
           .from('patient_encounters')
-          .select('id, date, patient_last_name, patient_first_name, unit, initial_acuity', { count: 'exact' })
+          .select('id, date, patient_last_name, patient_first_name, unit, initial_acuity, pcr_status', { count: 'exact' })
           .eq('incident_id', activeIncidentId)
           .is('deleted_at', null)
           .order('date', { ascending: false })
@@ -252,7 +252,7 @@ export function useIncidentData(
         if ((inc as any)?.name) {
           return supabaseClient
             .from('patient_encounters')
-            .select('id, date, patient_last_name, patient_first_name, unit, initial_acuity', { count: 'exact' })
+            .select('id, date, patient_last_name, patient_first_name, unit, initial_acuity, pcr_status', { count: 'exact' })
             .ilike('incident', `%${(inc as any).name}%`)
             .is('deleted_at', null)
             .order('date', { ascending: false })
@@ -303,7 +303,7 @@ export function useIncidentData(
         if (iuIds.length === 0) return { data: [] }
         return supabaseClient
           .from('supply_runs')
-          .select('id, run_date, incident_unit:incident_units(unit:units(name)), supply_run_items(id)')
+          .select('id, run_date, resource_number, incident_unit:incident_units(unit:units(name)), supply_run_items(id)')
           .eq('incident_id', activeIncidentId)
           .order('run_date', { ascending: false })
           .limit(50)
@@ -448,7 +448,7 @@ export function useIncidentData(
       try {
         const { data } = await supabaseClient
           .from('incident_expenses')
-          .select('id, expense_type, amount, description, expense_date, unit_id, employee_id, created_by, receipt_url, no_receipt_reason, employees(name)')
+          .select('id, expense_type, amount, description, expense_date, unit_id, employee_id, created_by, receipt_url, no_receipt_reason, payment_method, employees(name)')
           .eq('incident_id', activeIncidentId)
           .order('expense_date', { ascending: false })
           .limit(100)

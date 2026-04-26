@@ -24,11 +24,13 @@ type SupplyRun = {
   crew_member: string | null
   notes: string | null
   incident_unit_id: string | null
+  encounter_id: string | null
   raw_barcodes: string[] | null
   incident_unit: {
     unit: { name: string; id: string } | null
     incident: { name: string } | null
   } | null
+  encounter: { id: string; encounter_id: string; patient_first_name: string | null; patient_last_name: string | null } | null
 }
 
 type SupplyRunItem = {
@@ -119,8 +121,9 @@ export default function SupplyRunDetailPage() {
       () => supabase
         .from('supply_runs')
         .select(`
-          id, run_date, time, resource_number, dispensed_by, crew_member, notes, incident_unit_id, raw_barcodes,
-          incident_unit:incident_units(unit:units(id, name), incident:incidents(name))
+          id, run_date, time, resource_number, dispensed_by, crew_member, notes, incident_unit_id, encounter_id, raw_barcodes,
+          incident_unit:incident_units(unit:units(id, name), incident:incidents(name)),
+          encounter:patient_encounters(id, encounter_id, patient_first_name, patient_last_name)
         `)
         .eq('id', id)
         .single() as any,
@@ -449,6 +452,12 @@ export default function SupplyRunDetailPage() {
                 {incidentName && <span>🔥 {incidentName}</span>}
                 {run.resource_number && <span>🪪 {run.resource_number}</span>}
                 {run.dispensed_by && <span>👤 {run.dispensed_by}</span>}
+                {run.encounter && (
+                  <Link to={`/encounters/${run.encounter.id}`} className="text-blue-400 hover:text-blue-300">
+                    🩺 {run.encounter.encounter_id || 'Encounter'}
+                    {run.encounter.patient_last_name ? ` — ${run.encounter.patient_last_name}, ${run.encounter.patient_first_name || ''}` : ''}
+                  </Link>
+                )}
               </div>
               {run.notes && <p className="mt-2 text-sm text-gray-400">{run.notes}</p>}
             </div>
