@@ -77,10 +77,10 @@ export function queryClinicalStaff(roles = ['MD', 'DO', 'NP', 'PA', 'RN', 'Param
 export function queryPhysicians() {
   return createClient()
     .from('employees_sync')
-    .select('id, name, role')
+    .select('id, full_name, role')
     .in('role', ['MD', 'DO'])
     .eq('status', 'Active')
-    .order('name')
+    .order('full_name')
 }
 
 /** Get progress notes for an encounter */
