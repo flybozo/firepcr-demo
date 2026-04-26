@@ -1,6 +1,7 @@
 
 
 import { useEffect, useState, useRef } from 'react'
+import { LoadingSkeleton } from '@/components/ui'
 import { createClient } from '@/lib/supabase/client'
 import { useParams } from 'react-router-dom'
 import { useUserAssignment } from '@/lib/useUserAssignment'
@@ -166,7 +167,7 @@ export default function ShiftTicketPage() {
     setGenerating(false)
   }
 
-  if (loading) return <div className="p-8 text-gray-500">Loading...</div>
+  if (loading) return <LoadingSkeleton fullPage />
 
   return (
     <div className="bg-gray-950 text-white mt-8 md:mt-0 pb-8">

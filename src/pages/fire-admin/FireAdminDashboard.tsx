@@ -11,6 +11,7 @@ import { useParams } from 'react-router-dom'
 import { createClient } from '@/lib/supabase/client'
 import { ContactCards } from '@/components/ContactCards'
 import { TimelineTab } from '@/components/timeline/TimelineTab'
+import { generateOpsReportPdf } from '@/lib/generateOpsReportPdf'
 import { lazy, Suspense } from 'react'
 const LazyUnitMap = lazy(() => import('@/components/maps/UnitMap'))
 import {
@@ -125,7 +126,6 @@ function OverviewTab({ data, filteredEncounters }: {
   const handleGenerateReport = async () => {
     setGeneratingPdf(true)
     try {
-      const { generateOpsReportPdf } = await import('@/lib/generateOpsReportPdf')
       generateOpsReportPdf(data)
     } finally {
       setGeneratingPdf(false)

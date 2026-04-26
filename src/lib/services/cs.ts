@@ -28,7 +28,7 @@ export function queryAllUnits() {
 /** Get active employees */
 export function queryActiveEmployees() {
   return createClient()
-    .from('employees')
+    .from('employees_sync')
     .select('id, name')
     .eq('status', 'Active')
     .order('name')
@@ -37,7 +37,7 @@ export function queryActiveEmployees() {
 /** Get clinical staff */
 export function queryClinicalEmployees(roles: string[]) {
   return createClient()
-    .from('employees')
+    .from('employees_sync')
     .select('id, name, role')
     .eq('status', 'Active')
     .in('role', roles)

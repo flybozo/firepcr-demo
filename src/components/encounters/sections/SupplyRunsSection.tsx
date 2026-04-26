@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { createClient } from '@/lib/supabase/client'
+import { fmtDateCompact } from '@/utils/dateFormatters'
 
 type LinkedRun = {
   id: string
@@ -79,7 +80,7 @@ export function SupplyRunsSection({
               className="flex items-center px-4 py-2.5 hover:bg-gray-800/50 transition-colors text-sm"
             >
               <span className="w-24 shrink-0 text-gray-400 text-xs">
-                {run.run_date}{run.time ? ` ${run.time}` : ''}
+                {fmtDateCompact(run.run_date)}{run.time ? ` ${run.time}` : ''}
               </span>
               <span className="w-16 shrink-0 text-xs text-gray-500 truncate">
                 {run.resource_number || '—'}

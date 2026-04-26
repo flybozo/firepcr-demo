@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { PageHeader, EmptyState, LoadingSkeleton, UnitFilterPills, SortableHeader } from '@/components/ui'
 import { useSortable } from '@/hooks/useSortable'
+import { fmtDateCompact } from '@/utils/dateFormatters'
 import { useNavigate, useSearchParams, useMatch } from 'react-router-dom'
 import { UNIT_TYPE_ORDER } from '@/lib/unitColors'
 import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
@@ -382,7 +383,7 @@ function MARListInner() {
                     onClick={() => navigate(`/mar/${entry.id}`)}
                     className={`flex items-center px-4 py-2.5 cursor-pointer ${lc.rowCls(detailMatch?.params?.id === entry.id)}`}
                   >
-                    <span className="w-20 shrink-0 text-gray-400 text-xs">{entry.date || '-'}</span>
+                    <span className="w-20 shrink-0 text-gray-400 text-xs">{fmtDateCompact(entry.date)}</span>
                     <span className="w-20 shrink-0 text-white text-xs font-medium truncate pr-1">
                       {entry.patient_name
                         ? entry.patient_name.split(/[, ]+/).filter(Boolean).map((n: string) => n[0].toUpperCase() + '.').join(' ')

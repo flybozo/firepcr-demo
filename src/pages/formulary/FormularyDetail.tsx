@@ -150,7 +150,7 @@ export function FormularyDetailInner({ inventoryCtx, backPath, templateId }: { i
     return null
   }
 
-  if (loading) return <div className="p-6"><LoadingSkeleton rows={6} /></div>
+  if (loading) return <LoadingSkeleton panel />
   if (!item) return (
     <div className="p-6 text-center text-gray-500">
       <p>Item not found</p>
@@ -369,7 +369,7 @@ export function FormularyDetailInner({ inventoryCtx, backPath, templateId }: { i
 function FormularyDetailPermGuard({ children }: { children: React.ReactNode }) {
   const loading = usePermissionLoading()
   const hasAccess = useAnyPermission('inventory.manage', 'inventory.view', 'inventory.*', 'admin.settings')
-  if (loading) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><p className="text-gray-500 text-sm">Loading...</p></div>
+  if (loading) return <LoadingSkeleton fullPage />
   if (!hasAccess) return <div className="min-h-screen bg-gray-950 flex items-center justify-center"><p className="text-gray-400 text-sm">Access denied.</p></div>
   return <>{children}</>
 }

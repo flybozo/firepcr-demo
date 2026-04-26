@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client'
 /** Get all active employees */
 export function queryActiveEmployees() {
   return createClient()
-    .from('employees')
+    .from('employees_sync')
     .select('id, name, role, status, headshot_url, wf_email, app_role')
     .eq('status', 'Active')
     .order('name')

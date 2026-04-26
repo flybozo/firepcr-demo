@@ -60,7 +60,7 @@ export default function DisposeModal({ item, onClose, onSuccess }: Props) {
 
   async function loadEmployees() {
     const { data, error: err } = await supabase
-      .from('employees')
+      .from('employees_sync')
       .select('id, name, role')
       .eq('status', 'Active')
       .order('name')

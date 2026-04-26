@@ -128,7 +128,7 @@ export function CatalogItemPanel({
     setItem(prev => prev ? { ...prev, image_url: null } : prev)
   }
 
-  if (loading) return <div className="p-6"><LoadingSkeleton rows={6} /></div>
+  if (loading) return <LoadingSkeleton panel />
   if (!item) return <div className="p-6 text-gray-500">Item not found in catalog.</div>
 
   const unitCost = item.unit_cost ?? (item.case_cost && item.units_per_case ? Number(item.case_cost) / Number(item.units_per_case) : null)

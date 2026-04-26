@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { StatCard } from '@/components/shared/StatCard'
 import { acuityPillClass, patientInitials } from '@/utils/incidentFormatters'
+import { fmtDateCompact } from '@/utils/dateFormatters'
 import type { EncounterRow } from '@/types/incident'
 
 function statusPill(status: string | null | undefined) {
@@ -84,7 +85,7 @@ export function EncountersStatCard({
                 to={`/encounters/${enc.id}`}
                 className="flex items-center px-4 py-2 hover:bg-gray-800/50 transition-colors text-sm"
               >
-                <span className="w-16 shrink-0 text-gray-400 text-xs">{enc.date || '—'}</span>
+                <span className="w-16 shrink-0 text-gray-400 text-xs">{fmtDateCompact(enc.date)}</span>
                 <span className="w-10 shrink-0 text-center text-xs font-medium">
                   {patientInitials(enc.patient_first_name, enc.patient_last_name)}
                 </span>

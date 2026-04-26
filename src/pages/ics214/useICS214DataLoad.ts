@@ -50,7 +50,7 @@ export function useICS214DataLoad(params: {
       ])
       setUnits((unitsData as unknown as Unit[]) || [])
       setIncidents((incData as Incident[]) || [])
-      const { data: empData } = await supabase.from('employees').select('id, name, role').eq('status', 'Active').order('name')
+      const { data: empData } = await supabase.from('employees_sync').select('id, name, role').eq('status', 'Active').order('name')
       setAllEmployees((empData as any) || [])
 
       const preFill: PreFill = {}

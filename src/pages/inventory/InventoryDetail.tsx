@@ -73,7 +73,7 @@ export default function InventoryDetailPage() {
     load()
   }, [id])
 
-  if (loading) return <div className="p-6"><LoadingSkeleton rows={6} /></div>
+  if (loading) return <LoadingSkeleton panel />
 
   if (notFound) return (
     <div className="p-6 text-center text-gray-500">

@@ -33,7 +33,7 @@ import { SupplyRunsStatCard } from '@/components/incidents/cards/SupplyRunsStatC
 import { BillingSummaryStatCard } from '@/components/incidents/cards/BillingSummaryStatCard'
 import { ReorderStatCard } from '@/components/incidents/cards/ReorderStatCard'
 import { ICS214StatCard } from '@/components/incidents/cards/ICS214StatCard'
-import { UnitFilterPills } from '@/components/ui'
+import { UnitFilterPills, LoadingSkeleton } from '@/components/ui'
 
 const LazyUnitMap = lazy(() => import('@/components/maps/UnitMap'))
 
@@ -386,14 +386,7 @@ export default function IncidentDetailPage() {
     }
   }
 
-  if (loading) return (
-    <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-      <div className="text-center space-y-2">
-        <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="text-gray-400 text-sm">Loading incident...</p>
-      </div>
-    </div>
-  )
+  if (loading) return <LoadingSkeleton fullPage message="Loading incident..." />
 
   if (!incident) return (
     <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">

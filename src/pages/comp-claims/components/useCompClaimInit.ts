@@ -79,7 +79,7 @@ export function useCompClaimInit(
       return incId
     }
     const load = async () => {
-      const { data: emps } = await supabase.from('employees').select('id, name, role')
+      const { data: emps } = await supabase.from('employees_sync').select('id, name, role')
         .in('role', ['MD', 'DO']).eq('status', 'Active').order('name')
       setPhysicians(emps || [])
       if (encounterId) {

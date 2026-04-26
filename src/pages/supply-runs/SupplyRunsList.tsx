@@ -6,6 +6,7 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import { useEffect, useState, useMemo } from 'react'
 import { PageHeader, EmptyState, LoadingSkeleton, UnitFilterPills, SortableHeader } from '@/components/ui'
 import { useSortable } from '@/hooks/useSortable'
+import { fmtDateCompact } from '@/utils/dateFormatters'
 import { getUnitTypeName } from '@/lib/unitColors'
 import { createClient } from '@/lib/supabase/client'
 import { loadList } from '@/lib/offlineFirst'
@@ -296,7 +297,7 @@ function SupplyRunsPageInner() {
                 <div key={run.id}
                   onClick={() => navigate(`/supply-runs/${run.id}`)}
                   className={`flex items-center px-4 py-2 cursor-pointer text-sm min-w-[540px] ${lc.rowCls(detailMatch?.params?.id === run.id)}`}>
-                  <span className="w-24 shrink-0 text-xs text-gray-300 font-mono">{run.run_date}</span>
+                  <span className="w-24 shrink-0 text-xs text-gray-300 font-mono">{fmtDateCompact(run.run_date)}</span>
                   <span className="w-28 shrink-0 text-xs text-gray-400 truncate pr-2">{unitName || '—'}</span>
                   <span className="flex-1 min-w-[100px] text-xs text-white truncate pr-2">{incName || '—'}</span>
                   <span className="w-28 shrink-0 text-xs text-gray-500 truncate pr-2">{run.resource_number || '—'}</span>

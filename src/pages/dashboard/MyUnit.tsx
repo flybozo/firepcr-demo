@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
-import { ConfirmDialog } from '@/components/ui'
+import { ConfirmDialog, LoadingSkeleton } from '@/components/ui'
 import { useLocationPing } from '@/hooks/useLocationPing'
 import { getCachedData } from '@/lib/offlineStore'
 import { useListStyle } from '@/hooks/useListStyle'
 import { getListClasses } from '@/lib/listStyles'
+import { fmtDateCompact } from '@/utils/dateFormatters'
 
 type CrewMember = {
   id: string
@@ -301,16 +302,7 @@ export default function MyUnitDashboard() {
     })
   }
 
-  if (assignment.loading || dataLoading) {
-    return (
-      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-        <div className="text-center space-y-2">
-          <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-gray-400 text-sm">Loading your dashboard...</p>
-        </div>
-      </div>
-    )
-  }
+  if (assignment.loading || dataLoading) return <LoadingSkeleton fullPage message="Loading your dashboard..." />
 
   if (!assignment.incidentUnit || !assignment.unit) {
     return (
@@ -499,7 +491,7 @@ export default function MyUnitDashboard() {
                       <p className="text-sm text-white truncate">
                         {[enc.patient_last_name, enc.patient_first_name].filter(Boolean).join(', ') || 'Unknown'}
                       </p>
-                      <p className="text-xs text-gray-500 truncate">{enc.date} · {enc.primary_symptom_text || '—'}</p>
+                      <p className="text-xs text-gray-500 truncate">{fmtDateCompact(enc.date)} · {enc.primary_symptom_text || '—'}</p>
                     </div>
                     {enc.initial_acuity && (
                       <span className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${
@@ -570,7 +562,7 @@ export default function MyUnitDashboard() {
                 {supplyRuns.map((sr: any) => (
                   <div key={sr.id} className="flex items-center gap-2 px-4 py-2.5 text-sm">
                     <div className="flex-1 min-w-0">
-                      <p className="text-white truncate">{sr.run_date || '—'}</p>
+                      <p className="text-white truncate">{fmtDateCompact(sr.run_date)}</p>
                       <p className="text-xs text-gray-500">{sr.dispensed_by || '—'}</p>
                     </div>
                   </div>

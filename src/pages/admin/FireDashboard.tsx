@@ -17,7 +17,7 @@ import {
   OverviewTab, PatientLogTab, ICS214Tab, SupplyTab, STATUS_COLOR, C,
 } from '@/pages/fire-admin/FireAdminDashboard'
 import { ContactCards } from '@/components/ContactCards'
-import { ConfirmDialog } from '@/components/ui'
+import { ConfirmDialog, LoadingSkeleton } from '@/components/ui'
 import { TimelineTab } from '@/components/timeline/TimelineTab'
 import OfflineGate from '@/components/OfflineGate'
 
@@ -296,11 +296,7 @@ function IncidentDashboard({ incidentId }: { incidentId: string }) {
     { id: 'access-log', label: 'Access Log', icon: '👀' },
   ]
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-60">
-      <div className="w-8 h-8 rounded-full border-2 border-red-600 border-t-transparent animate-spin" />
-    </div>
-  )
+  if (loading) return <LoadingSkeleton panel />
   if (error || !data) return <div className="text-red-500 text-sm py-8 text-center">{error || 'No data'}</div>
 
   // No-op logger for internal view (no access code tracking)

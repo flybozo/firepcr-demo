@@ -248,7 +248,7 @@ export function useMARForm() {
         .filter((i: any) => ['Rx', 'CS'].includes(i.category))
       const [empResult, formularyResult] = await Promise.all([
         loadList(
-          () => supabase.from('employees').select('id, name, role').eq('status', 'Active').order('name'),
+          () => supabase.from('employees_sync').select('id, name, role').eq('status', 'Active').order('name'),
           'employees'
         ),
         loadList(

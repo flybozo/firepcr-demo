@@ -13,6 +13,7 @@ import { useBarcodeScan } from '@/hooks/useBarcodeScan'
 import { getIsOnline } from '@/lib/syncManager'
 import { queueOfflineWrite, getCachedData } from '@/lib/offlineStore'
 import { useListStyle } from '@/hooks/useListStyle'
+import { fmtDateCompact } from '@/utils/dateFormatters'
 import { getListClasses } from '@/lib/listStyles'
 
 type SupplyRun = {
@@ -447,7 +448,7 @@ export default function SupplyRunDetailPage() {
             <div>
               <h1 className="text-xl font-bold">Supply Run</h1>
               <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-gray-400">
-                <span>📅 {run.run_date}{run.time ? ` · ${run.time}` : ''}</span>
+                <span>📅 {fmtDateCompact(run.run_date)}{run.time ? ` · ${run.time}` : ''}</span>
                 {unitName && <span>🚑 {unitName}</span>}
                 {incidentName && <span>🔥 {incidentName}</span>}
                 {run.resource_number && <span>🪪 {run.resource_number}</span>}

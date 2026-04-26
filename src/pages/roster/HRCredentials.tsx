@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
+import AdminRequired from '@/components/AdminRequired'
+import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import OfflineGate from '@/components/OfflineGate'
 import { useListStyle } from '@/hooks/useListStyle'
@@ -164,7 +166,8 @@ export default function HRCredentialsPage() {
   const [savingExp, setSavingExp] = useState<string | null>(null)
   const [expDropdownId, setExpDropdownId] = useState<string | null>(null)
 
-  const isAdmin = ['MD', 'DO', 'Admin'].includes(assignment.employee?.role || '')
+  const canManageRoster = usePermission('roster.manage')
+  const permLoading = usePermissionLoading()
 
   useEffect(() => {
     const load = async () => {
@@ -187,18 +190,8 @@ export default function HRCredentialsPage() {
     load()
   }, [])
 
-  if (!assignment.loading && !isAdmin) {
-    return (
-      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-8">
-        <div className="text-center">
-          <p className="text-4xl mb-4">🔒</p>
-          <h2 className="text-xl font-bold mb-2">Admin Access Required</h2>
-          <p className="text-gray-400 text-sm">HR Credentials view is restricted to admin users.</p>
-          <Link to="/roster" className="mt-4 inline-block text-red-400 hover:text-red-300 text-sm">← Back to Roster</Link>
-        </div>
-      </div>
-    )
-  }
+  if (assignment.loading || permLoading || loading) return <div className="min-h-screen bg-gray-950" />
+  if (!canManageRoster) return <AdminRequired backTo="/roster" backLabel="← Back to Roster" description="HR Credentials view is restricted to admin users." />
 
   const compliance = employees.map(emp => calcCompliance(emp, credsByEmployee[emp.id] || []))
 
@@ -320,7 +313,7 @@ export default function HRCredentialsPage() {
 
                   {/* Experience Level — click stars to change */}
                   <div className="w-20 shrink-0 hidden md:block" onClick={e => e.stopPropagation()}>
-                    {isAdmin ? (
+                    {canManageRoster ? (
                       <div className="relative inline-block">
                         <button
                           onClick={() => setExpDropdownId(expDropdownId === emp.id ? null : emp.id)}

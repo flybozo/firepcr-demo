@@ -61,7 +61,7 @@ export default function ReceiveCSPage() {
     } catch {}
     const { data, offline } = await loadList<Employee>(
       () => supabase
-        .from('employees')
+        .from('employees_sync')
         .select('id, name, role')
         .eq('status', 'Active')
         .in('role', CLINICAL_ROLES)

@@ -182,7 +182,7 @@ function PCRFormInner() {
       } catch {}
       const { data } = await loadList<Employee>(
         () => supabase
-          .from('employees')
+          .from('employees_sync')
           .select('id, name, role')
           .in('role', ['MD', 'DO', 'NP', 'PA'])
           .eq('status', 'Active')

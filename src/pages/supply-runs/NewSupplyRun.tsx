@@ -443,7 +443,7 @@ function SupplyRunNewInner() {
             'incidents'
           ),
           loadList<Employee>(
-            () => supabase.from('employees').select('id, name, role').eq('status', 'Active').order('name'),
+            () => supabase.from('employees_sync').select('id, name, role').eq('status', 'Active').order('name'),
             'employees'
           ),
         ])

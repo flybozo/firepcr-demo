@@ -81,7 +81,7 @@ export function useUnitDetail(id: string) {
     let depHistory: any[] | null = null
     try {
       const [{ data: _emps }, { data: _children }, { data: _deps }] = await Promise.all([
-        supabase.from('employees').select('id, name, role').eq('status', 'Active').order('name'),
+        supabase.from('employees_sync').select('id, name, role').eq('status', 'Active').order('name'),
         supabase.from('units').select('id, name, vin, license_plate, plate_state, vehicle_subtype').eq('parent_unit_id', id),
         supabase.from('incident_units')
           .select('id, assigned_at, released_at, daily_contract_rate, incident:incidents(id, name, status)')

@@ -66,7 +66,7 @@ export function queryUnitsWithIncidents() {
 /** Get clinical staff for encounter forms */
 export function queryClinicalStaff(roles = ['MD', 'DO', 'NP', 'PA', 'RN', 'Paramedic', 'EMT']) {
   return createClient()
-    .from('employees')
+    .from('employees_sync')
     .select('id, name, role')
     .in('role', roles)
     .eq('status', 'Active')
@@ -76,11 +76,11 @@ export function queryClinicalStaff(roles = ['MD', 'DO', 'NP', 'PA', 'RN', 'Param
 /** Get MDs/DOs for encounter assignment */
 export function queryPhysicians() {
   return createClient()
-    .from('employees')
-    .select('id, full_name, role')
+    .from('employees_sync')
+    .select('id, name, role')
     .in('role', ['MD', 'DO'])
     .eq('status', 'Active')
-    .order('full_name')
+    .order('name')
 }
 
 /** Get progress notes for an encounter */

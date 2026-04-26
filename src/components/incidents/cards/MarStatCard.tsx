@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { StatCard } from '@/components/shared/StatCard'
 import type { MARRow } from '@/types/incident'
+import { fmtDateCompact } from '@/utils/dateFormatters'
 
 export function MarStatCard({
   activeIncidentId,
@@ -52,7 +53,7 @@ export function MarStatCard({
               to={`/mar/${entry.id}`}
               className="flex items-center px-4 py-2 hover:bg-gray-800/50 transition-colors text-sm"
             >
-              <span className="w-20 shrink-0 text-gray-400 text-xs">{entry.date || '—'}</span>
+              <span className="w-20 shrink-0 text-gray-400 text-xs">{fmtDateCompact(entry.date)}</span>
               <span className="flex-1 min-w-0 truncate pr-1">{entry.item_name || '—'}</span>
               <span className="w-24 shrink-0 text-right text-xs text-gray-400 truncate">{entry.med_unit || '—'}</span>
             </Link>

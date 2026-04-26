@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/client'
 import { usePermission } from '@/hooks/usePermission'
 import { authFetch } from '@/lib/authFetch'
 import { LoadingSkeleton } from '@/components/ui'
+import AdminRequired from '@/components/AdminRequired'
 
 const ROLES = ['EMT', 'Paramedic', 'RN', 'NP', 'PA', 'MD', 'DO', 'Tech']
 const UNITS = ['RAMBO 1', 'RAMBO 2', 'RAMBO 3', 'RAMBO 4', 'MSU 1', 'MSU 2', 'The Beast', 'REMS 1', 'REMS 2']
@@ -95,7 +96,7 @@ function PushNotificationsInner() {
     }
   }
 
-  if (!canPush) return <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center"><p className="text-gray-500">Admin access required</p></div>
+  if (!canPush) return <AdminRequired description="Push notifications are restricted to admin users." />
 
   return (
     <div className="bg-gray-950 text-white pb-8">

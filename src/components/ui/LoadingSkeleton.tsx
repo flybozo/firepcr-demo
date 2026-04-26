@@ -10,16 +10,27 @@ type Props = {
   header?: boolean
   /** Full-page centered spinner variant */
   fullPage?: boolean
+  /** Panel-level centered spinner (no min-h-screen) */
+  panel?: boolean
   /** Custom message text */
   message?: string
 }
 
-export default function LoadingSkeleton({ rows = 3, header = false, fullPage = false, message }: Props) {
+export default function LoadingSkeleton({ rows = 3, header = false, fullPage = false, panel = false, message }: Props) {
+  if (panel) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 gap-3">
+        <div className="w-7 h-7 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-primary, #dc2626)', borderTopColor: 'transparent' }} />
+        {message && <p className="text-xs" style={{ color: 'var(--color-text-muted, #6b7280)' }}>{message}</p>}
+      </div>
+    )
+  }
+
   if (fullPage) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-gray-500">
-        <div className="w-8 h-8 border-2 border-gray-600 border-t-red-500 rounded-full animate-spin mb-4" />
-        {message && <p className="text-sm">{message}</p>}
+      <div className="min-h-screen flex flex-col items-center justify-center gap-3" style={{ backgroundColor: 'var(--color-page-bg, #030712)' }}>
+        <div className="w-8 h-8 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: 'var(--color-primary, #dc2626)', borderTopColor: 'transparent' }} />
+        {message && <p className="text-sm" style={{ color: 'var(--color-text-muted, #6b7280)' }}>{message}</p>}
       </div>
     )
   }
@@ -28,15 +39,15 @@ export default function LoadingSkeleton({ rows = 3, header = false, fullPage = f
     <div className="animate-pulse space-y-3 p-4">
       {header && (
         <div className="flex items-center justify-between mb-4">
-          <div className="h-6 bg-gray-800 rounded w-48" />
-          <div className="h-8 bg-gray-800 rounded w-20" />
+          <div className="h-6 rounded w-48" style={{ backgroundColor: 'var(--color-card-bg, #111827)' }} />
+          <div className="h-8 rounded w-20" style={{ backgroundColor: 'var(--color-card-bg, #111827)' }} />
         </div>
       )}
       {Array.from({ length: rows }).map((_, i) => (
         <div key={i} className="flex items-center gap-3">
-          <div className="h-4 bg-gray-800 rounded flex-1" />
-          <div className="h-4 bg-gray-800 rounded w-24" />
-          <div className="h-4 bg-gray-800 rounded w-16" />
+          <div className="h-4 rounded flex-1" style={{ backgroundColor: 'var(--color-card-bg, #111827)' }} />
+          <div className="h-4 rounded w-24" style={{ backgroundColor: 'var(--color-card-bg, #111827)' }} />
+          <div className="h-4 rounded w-16" style={{ backgroundColor: 'var(--color-card-bg, #111827)' }} />
         </div>
       ))}
     </div>

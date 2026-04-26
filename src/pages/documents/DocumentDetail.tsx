@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { createClient } from '@/lib/supabase/client'
 import { resolveStorageUrl } from '@/lib/storage'
+import { LoadingSkeleton } from '@/components/ui'
 
 type Doc = {
   id: string
@@ -49,9 +50,7 @@ export default function DocumentDetail() {
       })
   }, [id])
 
-  if (loading) return (
-    <div className="flex items-center justify-center h-64 text-gray-500 text-sm">Loading…</div>
-  )
+  if (loading) return <LoadingSkeleton fullPage />
   if (!doc) return (
     <div className="flex items-center justify-center h-64 text-gray-500 text-sm">Document not found.</div>
   )

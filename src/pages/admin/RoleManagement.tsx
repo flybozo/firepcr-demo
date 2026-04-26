@@ -282,7 +282,7 @@ function RoleManagementInner() {
     return <div className="p-6 text-center" style={{ color: 'var(--color-text-muted)' }}>You don't have permission to manage roles.</div>
   }
 
-  if (loading) return <LoadingSkeleton />
+  if (loading) return <LoadingSkeleton fullPage />
 
   // ── Render ──────────────────────────────────────────────────────────
   return (

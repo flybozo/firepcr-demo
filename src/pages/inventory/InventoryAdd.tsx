@@ -95,7 +95,7 @@ function AddInventoryInner() {
       // Load employees (try network, fall back to cache)
       try {
         const { data: emps } = await supabase
-          .from('employees')
+          .from('employees_sync')
           .select('id, name, role')
           .eq('status', 'Active')
           .order('name')

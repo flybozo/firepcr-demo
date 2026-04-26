@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, Suspense } from 'react'
+import { LoadingSkeleton } from '@/components/ui'
 import { brand } from '@/lib/branding.config'
 import { useSearchParams, Link } from 'react-router-dom'
 import SignatureCanvas from 'react-signature-canvas'
@@ -492,7 +493,7 @@ function ConsentToTreatInner() {
 
 export default function ConsentToTreatPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-950 flex items-center justify-center"><p className="text-gray-400">Loading...</p></div>}>
+    <Suspense fallback={<LoadingSkeleton fullPage />}>
       <ConsentToTreatInner />
     </Suspense>
   )

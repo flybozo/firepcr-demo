@@ -24,7 +24,7 @@ export function NewDMModal({
 
     const supabase = createClient()
     supabase
-      .from('employees')
+      .from('employees_sync')
       .select('id, name, headshot_url, role')
       .eq('status', 'Active')
       .order('name')

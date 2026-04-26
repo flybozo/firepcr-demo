@@ -217,7 +217,7 @@ function ProcedureNewInner() {
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase
-        .from('employees')
+        .from('employees_sync')
         .select('id, name, role')
         .eq('status', 'Active')
         .order('name')

@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import { LoadingSkeleton } from '@/components/ui'
 import { brand } from '@/lib/branding.config'
 import { useAMAForm } from './components/useAMAForm'
 import { AMAEncounterPicker } from './components/AMAEncounterPicker'
@@ -113,7 +114,7 @@ function AMAFormInner() {
 
 export default function AMAForm() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-950 flex items-center justify-center"><p className="text-gray-400">Loading...</p></div>}>
+    <Suspense fallback={<LoadingSkeleton fullPage />}>
       <AMAFormInner />
     </Suspense>
   )

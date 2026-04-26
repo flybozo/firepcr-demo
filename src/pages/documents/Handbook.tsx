@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { brand } from '@/lib/branding.config'
 import { useUserAssignment } from '@/lib/useUserAssignment'
+import { LoadingSkeleton } from '@/components/ui'
 import PinSignature, { type SignatureRecord } from '@/components/PinSignature'
 import { Link } from 'react-router-dom'
 
@@ -61,7 +62,7 @@ export default function HandbookAcknowledgmentPage() {
   }
 
   if (loading || assignment.loading) {
-    return <div className="p-8 text-gray-500">Loading...</div>
+    return <LoadingSkeleton fullPage />
   }
 
   return (

@@ -138,7 +138,7 @@ function ICS214EmbeddedDetail({ ics214Id }: { ics214Id: string }) {
     setGeneratingPDF(false)
   }
 
-  if (loading) return <div className="p-6"><LoadingSkeleton rows={6} /></div>
+  if (loading) return <LoadingSkeleton panel />
 
   if (!header) {
     return (
@@ -357,7 +357,7 @@ export default function ICS214ListPage() {
         {/* Left: compact list (40%) */}
         <div className="w-full md:w-[40%] md:border-r border-gray-800 overflow-y-auto">
           {loading ? (
-            <div className="p-4"><LoadingSkeleton rows={6} /></div>
+            <LoadingSkeleton panel />
           ) : sortedRows.length === 0 ? (
             <div className="p-6">
               <EmptyState

@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom'
 import { useNavigate } from 'react-router-dom'
 import { authFetch } from '@/lib/authFetch'
 import OfflineGate from '@/components/OfflineGate'
+import AdminRequired from '@/components/AdminRequired'
 
 type ScheduleEntry = {
   unit_id: string
@@ -92,18 +93,7 @@ export default function GenerateSchedulePage() {
     load()
   }, [])
 
-  if (!roleLoading && !isAdmin) {
-    return (
-      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center p-8">
-        <div className="text-center">
-          <p className="text-4xl mb-4">🔒</p>
-          <h2 className="text-xl font-bold mb-2">Admin Access Required</h2>
-          <p className="text-gray-400 text-sm">Schedule generation is restricted to admins.</p>
-          <Link to="/schedule" className="mt-4 inline-block text-red-400 hover:text-red-300 text-sm">← Back to Schedule</Link>
-        </div>
-      </div>
-    )
-  }
+  if (!roleLoading && !isAdmin) return <AdminRequired backTo="/schedule" backLabel="← Back to Schedule" description="Schedule generation is restricted to admin users." />
 
   const toggleUnit = (id: string) => {
     setSelectedUnits(prev => {

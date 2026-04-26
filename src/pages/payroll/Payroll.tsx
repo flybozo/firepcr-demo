@@ -3,9 +3,11 @@ import { useEffect, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
-import { PageHeader } from '@/components/ui'
+import { PageHeader, LoadingSkeleton } from '@/components/ui'
 import OfflineGate from '@/components/OfflineGate'
 import { useListStyle } from '@/hooks/useListStyle'
+import AdminRequired from '@/components/AdminRequired'
+import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
 import { getListClasses } from '@/lib/listStyles'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -80,13 +82,6 @@ export default function AdminPayrollPage() {
   const [dateRange, setDateRange] = useState('30d')
   const [sortKey, setSortKey] = useState<SortKey>('employee')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
-
-  // Redirect non-admins
-  useEffect(() => {
-    if (assignment.loading) return
-    const isAdmin = ['MD', 'DO', 'Admin'].includes(assignment?.employee?.role || '')
-    if (!isAdmin && assignment.employee) navigate('/payroll/my')
-  }, [assignment.loading, assignment.employee?.role])
 
   const load = useCallback(async () => {
     try {
@@ -169,18 +164,10 @@ export default function AdminPayrollPage() {
 
   useEffect(() => { load() }, [load])
 
-  const isAdmin = ['MD', 'DO', 'Admin'].includes(assignment?.employee?.role || '')
-  if (assignment.loading || loading) {
-    return (
-      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-        <div className="text-center space-y-2">
-          <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-gray-400 text-sm">Loading payroll...</p>
-        </div>
-      </div>
-    )
-  }
-  if (!isAdmin) return null
+  const canViewPayroll = usePermission('payroll.view_all')
+  const permLoading = usePermissionLoading()
+  if (assignment.loading || loading) return <LoadingSkeleton fullPage message="Loading payroll..." />
+  if (!assignment.loading && !permLoading && !canViewPayroll) return <AdminRequired description="Payroll is restricted to admin users." />
 
   // ─── Filters ─────────────────────────────────────────────────────────────
 

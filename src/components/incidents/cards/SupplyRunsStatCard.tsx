@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { StatCard } from '@/components/shared/StatCard'
 import type { SupplyRunRow } from '@/types/incident'
+import { fmtDateCompact } from '@/utils/dateFormatters'
 
 export function SupplyRunsStatCard({
   activeIncidentId,
@@ -50,7 +51,7 @@ export function SupplyRunsStatCard({
               to={`/supply-runs/${sr.id}`}
               className="flex items-center px-4 py-2 hover:bg-gray-800/50 transition-colors text-sm"
             >
-              <span className="w-20 shrink-0 text-gray-400 text-xs">{sr.run_date || '—'}</span>
+              <span className="w-20 shrink-0 text-gray-400 text-xs">{fmtDateCompact(sr.run_date)}</span>
               <span className="w-16 shrink-0 text-xs text-gray-500 truncate">{(sr as any).resource_number || '—'}</span>
               <span className="flex-1 min-w-0 truncate pr-1 text-xs">
                 {(sr.incident_unit as unknown as { unit?: { name?: string } } | null)?.unit?.name || '—'}

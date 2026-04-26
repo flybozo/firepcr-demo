@@ -7,6 +7,7 @@ import * as incidentService from '@/lib/services/incidents'
 import { fmtCurrency } from '@/utils/incidentFormatters'
 import type { ExpenseRow, IncidentUnit } from '@/types/incident'
 import { ConfirmDialog } from '@/components/ui'
+import { fmtDateCompact } from '@/utils/dateFormatters'
 
 const EXPENSE_TYPES = ['Gas', 'Repairs', 'Supplies', 'Hotel', 'Food', 'Other']
 
@@ -150,7 +151,7 @@ export function ExpensesCard({
               {expenses.map(exp => (
                 <tr key={exp.id} className="hover:bg-gray-800/30 transition-colors cursor-pointer"
                   onClick={() => exp.employee_id && navigate(`/roster/${exp.employee_id}`)}>
-                  <td className="px-3 py-2 text-gray-400">{exp.expense_date}</td>
+                  <td className="px-3 py-2 text-gray-400">{fmtDateCompact(exp.expense_date)}</td>
                   <td className="px-3 py-2 text-white">
                     <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${
                       exp.expense_type === 'Gas' ? 'bg-yellow-900/60 text-yellow-300' :

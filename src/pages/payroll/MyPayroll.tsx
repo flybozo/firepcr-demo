@@ -5,6 +5,7 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import OfflineGate from '@/components/OfflineGate'
 import { useListStyle } from '@/hooks/useListStyle'
 import { getListClasses } from '@/lib/listStyles'
+import { LoadingSkeleton } from '@/components/ui'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -150,16 +151,7 @@ export default function MyPayrollPage() {
     load()
   }, [assignment.loading, assignment.employee?.id])
 
-  if (assignment.loading || loading) {
-    return (
-      <div className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
-        <div className="text-center space-y-2">
-          <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-gray-400 text-sm">Loading payroll...</p>
-        </div>
-      </div>
-    )
-  }
+  if (assignment.loading || loading) return <LoadingSkeleton fullPage message="Loading payroll..." />
 
   if (!assignment.employee) {
     return (

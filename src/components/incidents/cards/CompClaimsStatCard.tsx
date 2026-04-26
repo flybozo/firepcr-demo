@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { StatCard } from '@/components/shared/StatCard'
+import { fmtDateCompact } from '@/utils/dateFormatters'
 import type { CompClaimRow } from '@/types/incident'
 
 export function CompClaimsStatCard({
@@ -44,7 +45,7 @@ export function CompClaimsStatCard({
             {filteredComps.map(c => (
               <Link key={c.id} to={`/comp-claims?activeIncidentId=${activeIncidentId}`}
                 className="flex items-center px-4 py-2 hover:bg-gray-800/50 transition-colors text-sm">
-                <span className="w-24 shrink-0 text-gray-400 text-xs">{c.date_of_injury || '—'}</span>
+                <span className="w-24 shrink-0 text-gray-400 text-xs">{fmtDateCompact(c.date_of_injury)}</span>
                 <span className="flex-1 min-w-0 truncate pr-1 text-xs text-white">{c.patient_name || '—'}</span>
                 <span className="w-20 shrink-0 text-xs text-gray-400">{c.unit || '—'}</span>
                 <span className="w-20 shrink-0 text-xs text-gray-400 truncate">{c.injury_type || '—'}</span>
@@ -65,7 +66,7 @@ export function CompClaimsStatCard({
           {filteredComps.slice(0, 5).map(c => (
             <Link key={c.id} to={`/comp-claims?activeIncidentId=${activeIncidentId}`}
               className="flex items-center px-4 py-2 hover:bg-gray-800/50 transition-colors text-sm">
-              <span className="w-24 shrink-0 text-gray-400 text-xs">{c.date_of_injury || '—'}</span>
+              <span className="w-24 shrink-0 text-gray-400 text-xs">{fmtDateCompact(c.date_of_injury)}</span>
               <span className="flex-1 min-w-0 truncate pr-1 text-xs text-white">{c.patient_name || '—'}</span>
               <span className="w-10 shrink-0 text-right text-xs">{c.pdf_url ? '📄' : '⚠️'}</span>
             </Link>

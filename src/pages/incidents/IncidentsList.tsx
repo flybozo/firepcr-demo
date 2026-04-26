@@ -6,7 +6,7 @@ import { loadList } from '@/lib/offlineFirst'
 import { useNavigate, useSearchParams, useMatch } from 'react-router-dom'
 import { Suspense } from 'react'
 import { queryIncidentsList } from '@/lib/services/incidents'
-import { PageHeader, EmptyState, SortableHeader } from '@/components/ui'
+import { PageHeader, EmptyState, SortableHeader, LoadingSkeleton } from '@/components/ui'
 import { useSortable } from '@/hooks/useSortable'
 import { useListStyle } from '@/hooks/useListStyle'
 import { getListClasses } from '@/lib/listStyles'
@@ -173,7 +173,7 @@ function IncidentsPageInner() {
 
 export default function IncidentsPageWrapped() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-gray-950 flex items-center justify-center"><p className="text-gray-500">Loading...</p></div>}>
+    <Suspense fallback={<LoadingSkeleton fullPage />}>
       <FieldGuard redirectFn={(a) => a.incidentUnit?.incident_id ? `/incidents/${a.incidentUnit.incident_id}` : null}>
         <IncidentsPageInner />
       </FieldGuard>

@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { usePermission } from '@/hooks/usePermission'
 import { Link } from 'react-router-dom'
 import { LoadingSkeleton, ConfirmDialog } from '@/components/ui'
+import AdminRequired from '@/components/AdminRequired'
 import { useListStyle } from '@/hooks/useListStyle'
 import { getListClasses } from '@/lib/listStyles'
 
@@ -99,9 +100,7 @@ export default function PayRatesPage() {
     })
   }
 
-  if (!isAdmin) {
-    return <div className="p-8 text-red-400">Admin access required.</div>
-  }
+  if (!isAdmin) return <AdminRequired backTo="/roster" backLabel="← Back to Roster" description="Pay rates are restricted to admin users." />
 
   if (loading) return <LoadingSkeleton fullPage />
 

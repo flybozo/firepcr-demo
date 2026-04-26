@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom'
 import { queryActiveIncidentsForEncounters } from '@/lib/services/encounters'
 import { PageHeader, EmptyState, LoadingSkeleton, UnitFilterPills, SortableHeader } from '@/components/ui'
 import { useSortable } from '@/hooks/useSortable'
+import { fmtDateCompact } from '@/utils/dateFormatters'
 import { useNavigate, useSearchParams, useMatch, useLocation } from 'react-router-dom'
 import { UNIT_TYPE_ORDER } from '@/lib/unitColors'
 import { getIsOnline, onConnectionChange } from '@/lib/syncManager'
@@ -373,7 +374,7 @@ function EncountersInner() {
                   className={`flex items-center px-4 py-2.5 cursor-pointer text-sm ${lc.rowCls(detailMatch?.params?.id === enc.id)}`}
                 >
                   <span className="w-24 shrink-0 text-gray-400 text-xs">
-                    {enc.date || '—'}
+                    {fmtDateCompact(enc.date)}
                     {(enc as any).created_at && <span className="text-gray-600 ml-1">{new Date((enc as any).created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
                   </span>
                   <span className="w-20 shrink-0 font-medium truncate pr-2">

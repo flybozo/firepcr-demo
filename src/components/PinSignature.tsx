@@ -87,7 +87,7 @@ export default function PinSignature({
     setWitnessToken(null)
     if (q.length < 2) { setSearchResults([]); return }
     const { data } = await supabase
-      .from('employees')
+      .from('employees_sync')
       .select('id, name, role')
       .ilike('name', `%${q}%`)
       .eq('status', 'Active')

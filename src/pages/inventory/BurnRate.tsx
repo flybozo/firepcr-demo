@@ -238,9 +238,7 @@ export default function BurnRatePage() {
         {/* Left: list (40%) */}
         <div className="w-full md:w-[40%] md:border-r border-gray-800 overflow-y-auto">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="w-8 h-8 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-            </div>
+            <LoadingSkeleton panel />
           ) : filtered.length === 0 ? (
             <div className="p-8">
               <EmptyState icon="📊" message="No items with active burn rate found." subtitle="Burn rate requires MAR or supply run activity in the last 7 days." />
