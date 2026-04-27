@@ -2,8 +2,8 @@
 
 **App:** https://ram-field-ops.vercel.app (staging)  
 **Repo:** https://github.com/flybozo/ram-field-ops  
-**Last updated:** 2026-04-25 23:25 PDT  
-**Current version:** v1.34.0  
+**Last updated:** 2026-04-26 20:20 PDT  
+**Current version:** v1.35.0  
 **App version:** v1.10.0
 
 ---
@@ -2071,3 +2071,35 @@ Planning doc at `docs/MULTI-BASE-ARCHITECTURE.md`. When RAM expands to new state
 - Phased: data model → base context UI → multi-state compliance
 - Base = contract/geographic operation, not legal entity
 - See planning doc for full details
+
+## 71. Employees RLS Hardening (v1.35.0)
+
+### Problem
+Two open-access policies (`employees_select` USING(true), `auth_all_employees` USING(true)) exposed all employee rows and columns (PII, daily_rate, signing_pin_hash, admin_notes) to any authenticated user.
+
+### Fix
+- **Dropped** both open-access policies
+- **Admin policy:** `employees_select_admin` — full read via `is_admin()` function
+- **Self policy:** `employees_select_self` — read own row via `auth_user_id = auth.uid()`
+- **employees_sync view** — safe subset excluding PII; 15+ queries migrated from `employees` → `employees_sync`
+- **security_invoker = false** on view (MUST stay false — the view is designed as the safe read path for all authenticated users; setting it to true breaks all employee dropdowns for field users)
+
+### Columns in employees_sync (safe subset)
+id, name, role, app_role, email, wf_email, phone, status, rems, rems_capable, experience_level, auth_user_id, headshot_url, drive_folder_id, qr_code_url, red_card, red_card_year, dea_license, ssv_lemsa, bls, acls, itls, pals, paramedic_license, ssv_accreditation, ambulance_driver_cert, s130, s190, l180, ics100, ics200, ics700, ics800, medical_license, npi, additional_certs, chat_authority, personal_theme, created_at, updated_at
+
+### Columns NOT in employees_sync (PII/sensitive)
+daily_rate, signing_pin_hash, admin_notes, personal_email, date_of_birth, home_address, emergency_contact, ssn
+
+## 72. AdminRequired Component & RBAC Gates (v1.35.0)
+
+- New `AdminRequired` component — renders 🔒 lock screen with back link for non-admin users
+- Replaces inline role string checks (`['MD', 'DO', 'Admin'].includes(role)`) with `usePermission()` hooks
+- Applied to: Payroll, HRCredentials, PayRates, GenerateSchedule
+- `LoadingSkeleton` enhanced with `fullPage` and `message` props, unified across ~20 pages
+
+## 73. Compact Date Format (v1.35.0)
+
+- New `fmtDateCompact()` utility in `dateFormatters.ts`
+- Converts YYYY-MM-DD → MM/DD/YY (saves ~4 chars per date on mobile)
+- Parses DB date strings directly to avoid timezone shift
+- Applied to 12 files: all list views, dashboard cards, detail headers
