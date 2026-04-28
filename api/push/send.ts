@@ -34,36 +34,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (target_employee_ids?.length) {
       employeeIds = target_employee_ids
     } else {
-      // Query employees matching role and/or unit filters
-      let query = supabase.from('employees').select('id, role').eq('status', 'Active')
-
-      const { data: allEmployees } = await query
+      // Query employees matching role and/or unit filters.
+      // Roles use case-insensitive EXACT match — prior code used .includes() which would have
+      // matched (and almost did, depending on inputs) substrings like 'md' inside other roles.
+      const { data: allEmployees } = await supabase
+        .from('employees')
+        .select('id, role')
+        .eq('status', 'Active')
       let filtered = allEmployees || []
 
       if (target_roles?.length) {
-        filtered = filtered.filter((e: any) => target_roles.some(r => e.role?.toLowerCase().includes(r.toLowerCase())))
+        const wanted = new Set(target_roles.map((r: string) => r.toLowerCase().trim()))
+        filtered = filtered.filter((e: any) => e.role && wanted.has(String(e.role).toLowerCase().trim()))
       }
 
       if (target_units?.length) {
-        // Get employees assigned to these units
+        // Get employees currently assigned (released_at IS NULL) to any of these units.
         const { data: assignments } = await supabase
           .from('unit_assignments')
-          .select('employee_id, unit:units(name)')
+          .select('employee_id, released_at, incident_unit:incident_units(unit:units(name))')
+          .is('released_at', null)
         const unitEmployeeIds = new Set(
           (assignments || [])
-            .filter((a: any) => target_units.includes(a.unit?.name))
+            .filter((a: any) => target_units.includes(a.incident_unit?.unit?.name))
             .map((a: any) => a.employee_id)
         )
-        if (target_units.length > 0) {
-          filtered = filtered.filter((e: any) => unitEmployeeIds.has(e.id))
-        }
+        filtered = filtered.filter((e: any) => unitEmployeeIds.has(e.id))
       }
 
       employeeIds = filtered.map((e: any) => e.id)
     }
 
     if (employeeIds.length === 0) {
-      return res.status(200).json({ delivered: 0, failed: 0, message: 'No matching employees' })
+      return res.status(200).json({
+        delivered: 0, failed: 0, recipients: 0, devices: 0,
+        message: 'No matching employees',
+      })
     }
 
     // Get push subscriptions for these employees
@@ -72,8 +78,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .select('endpoint, p256dh, auth, employee_id')
       .in('employee_id', employeeIds)
 
+    const recipientsWithSubs = new Set((subscriptions || []).map((s: any) => s.employee_id)).size
+    const recipientsTargeted = employeeIds.length
+    const recipientsWithoutSubs = recipientsTargeted - recipientsWithSubs
+
     if (!subscriptions?.length) {
-      return res.status(200).json({ delivered: 0, failed: 0, message: 'No push subscriptions found' })
+      return res.status(200).json({
+        delivered: 0, failed: 0, recipients: 0, devices: 0,
+        targeted: recipientsTargeted,
+        without_subs: recipientsWithoutSubs,
+        message: `${recipientsTargeted} employee(s) targeted but none have push notifications enabled.`,
+      })
     }
 
     const payload = JSON.stringify({ title, body, url: url || '/' })
@@ -145,7 +160,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    return res.json({ delivered, failed, emails_sent: emailsSent, total_subscriptions: subscriptions.length })
+    return res.json({
+      delivered,
+      failed,
+      emails_sent: emailsSent,
+      total_subscriptions: subscriptions.length,
+      recipients: recipientsWithSubs,
+      devices: subscriptions.length,
+      targeted: recipientsTargeted,
+      without_subs: recipientsWithoutSubs,
+    })
   } catch (err: any) {
     console.error('Push send error:', err)
     return res.status(err.status || 500).json({ error: err.message || 'Internal error' })

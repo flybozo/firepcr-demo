@@ -27,7 +27,16 @@ function PushNotificationsInner() {
   const supabase = createClient()
   const canPush = usePermission('admin.push')
   const [sending, setSending] = useState(false)
-  const [result, setResult] = useState<{ delivered: number; failed: number } | null>(null)
+  const [result, setResult] = useState<{
+    delivered: number
+    failed: number
+    recipients?: number
+    devices?: number
+    targeted?: number
+    without_subs?: number
+    emails_sent?: number
+    message?: string
+  } | null>(null)
   const [error, setError] = useState('')
   const [history, setHistory] = useState<NotifLog[]>([])
   const [csSettings, setCsSettings] = useState({ enabled: true, frequency_hours: 12, reminder_threshold_hours: 24 })
@@ -87,7 +96,16 @@ function PushNotificationsInner() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Send failed')
-      setResult({ delivered: data.delivered, failed: data.failed })
+      setResult({
+        delivered: data.delivered,
+        failed: data.failed,
+        recipients: data.recipients,
+        devices: data.devices,
+        targeted: data.targeted,
+        without_subs: data.without_subs,
+        emails_sent: data.emails_sent,
+        message: data.message,
+      })
       setForm({ title: '', body: '', url: '', roles: [], units: [], sendEmail: false })
     } catch (err: any) {
       setError(err.message)
@@ -221,8 +239,22 @@ function PushNotificationsInner() {
 
           {error && <div className="bg-red-900/40 border border-red-700 rounded-lg px-3 py-2 text-red-300 text-sm">{error}</div>}
           {result && (
-            <div className="bg-green-900/40 border border-green-700 rounded-lg px-3 py-2 text-green-300 text-sm">
-              ✅ Sent — {result.delivered} delivered, {result.failed} failed
+            <div className="bg-green-900/40 border border-green-700 rounded-lg px-3 py-2 text-green-300 text-sm space-y-0.5">
+              <div>
+                ✅ Sent — {result.delivered} delivered to {result.recipients ?? 0} {result.recipients === 1 ? 'person' : 'people'}
+                {typeof result.devices === 'number' && result.devices !== result.recipients
+                  ? ` (${result.devices} ${result.devices === 1 ? 'device' : 'devices'})` : ''}
+                {result.failed > 0 ? `, ${result.failed} failed` : ''}
+              </div>
+              {typeof result.targeted === 'number' && (
+                <div className="text-xs text-green-200/80">
+                  {result.targeted} employee{result.targeted === 1 ? '' : 's'} targeted
+                  {typeof result.without_subs === 'number' && result.without_subs > 0
+                    ? ` — ${result.without_subs} without push enabled` : ''}
+                  {result.emails_sent ? ` · ${result.emails_sent} email${result.emails_sent === 1 ? '' : 's'} sent` : ''}
+                </div>
+              )}
+              {result.message && <div className="text-xs text-yellow-200/80">{result.message}</div>}
             </div>
           )}
 

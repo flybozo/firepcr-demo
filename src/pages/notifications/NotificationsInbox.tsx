@@ -28,6 +28,21 @@ function relativeTime(dateStr: string): string {
   return `${Math.floor(hrs / 24)}d ago`
 }
 
+/** Returns true for absolute http(s) URLs (i.e. links to another site, not in-app routes). */
+function isExternalUrl(url: string): boolean {
+  return /^https?:\/\//i.test(url)
+}
+
+/** Short host hint to show next to the Open button so users see where they're going. */
+function hostHint(url: string): string {
+  try {
+    const u = new URL(url)
+    return u.hostname.replace(/^www\./, '') + (u.pathname && u.pathname !== '/' ? u.pathname : '')
+  } catch {
+    return url
+  }
+}
+
 export default function NotificationsInbox() {
   const { employee, unit } = useUser()
   const [notifications, setNotifications] = useState<PushNotification[]>([])
@@ -203,12 +218,25 @@ export default function NotificationsInbox() {
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     {n.url && n.url !== '/' && (
-                      <Link
-                        to={n.url}
-                        className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors whitespace-nowrap"
-                      >
-                        → Open
-                      </Link>
+                      isExternalUrl(n.url) ? (
+                        <a
+                          href={n.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex flex-col items-end text-xs font-medium transition-colors whitespace-nowrap max-w-[140px]"
+                          title={n.url}
+                        >
+                          <span className="text-blue-400 hover:text-blue-300">→ Open ↗</span>
+                          <span className="text-gray-500 text-[10px] truncate w-full text-right">{hostHint(n.url)}</span>
+                        </a>
+                      ) : (
+                        <Link
+                          to={n.url}
+                          className="text-xs text-blue-400 hover:text-blue-300 font-medium transition-colors whitespace-nowrap"
+                        >
+                          → Open
+                        </Link>
+                      )
                     )}
                     <button
                       onClick={() => dismiss(n.id)}

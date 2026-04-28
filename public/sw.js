@@ -1,7 +1,7 @@
 // FirePCR Service Worker v11 — Vite SPA
 // Caches index.html + all JS/CSS assets for true offline
 
-const CACHE_NAME = 'firepcr-v15';
+const CACHE_NAME = 'firepcr-v16';
 
 // Install: cache the app shell + all JS/CSS asset chunks
 self.addEventListener('install', (event) => {
@@ -91,35 +91,58 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// Notification click — open the app to the specified URL
+// Notification click — open the app to the specified URL.
+// Internal paths (e.g. /chat) focus the running PWA and route in-app.
+// External http(s) URLs open in a new window/tab so the user can reach the linked site.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = new URL(event.notification.data?.url || '/', self.location.origin).href;
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
-      // Broadcast NAVIGATE to ALL existing clients first (handles iOS suspended PWA)
-      clients.forEach(client => {
-        client.postMessage({ type: 'NAVIGATE', url: targetUrl });
-      });
+  const rawUrl = event.notification.data?.url || '/';
 
-      // Find a client on our origin to focus
-      const appClient = clients.find(client => client.url.startsWith(self.location.origin));
+  // Classify the URL once. Reject any non-http(s) scheme to avoid javascript:/data: tricks.
+  let isExternal = false;
+  let targetUrl = '/';
+  try {
+    if (/^https?:\/\//i.test(rawUrl)) {
+      const u = new URL(rawUrl);
+      isExternal = u.origin !== self.location.origin;
+      targetUrl = u.href;
+    } else if (rawUrl.startsWith('/')) {
+      targetUrl = new URL(rawUrl, self.location.origin).href;
+    } else {
+      targetUrl = self.location.origin + '/';
+    }
+  } catch (_) {
+    targetUrl = self.location.origin + '/';
+  }
 
-      if (appClient) {
-        // Focus the existing window; NAVIGATE postMessage above handles routing
-        return appClient.focus().then(focused => {
-          // Also try navigate() directly (supported in some browsers)
-          if ('navigate' in focused) {
-            try { return focused.navigate(targetUrl); } catch (_) {}
-          }
-          return focused;
-        });
+  event.waitUntil((async () => {
+    if (isExternal) {
+      // External link: open in a new browser window/tab. Don't try to navigate the PWA there
+      // — standalone PWAs can't navigate to a different origin, and iOS will silently fail.
+      try {
+        await self.clients.openWindow(targetUrl);
+      } catch (e) {
+        console.error('[SW] openWindow failed for external URL', targetUrl, e);
       }
+      return;
+    }
 
-      // No open window — open a new one directly at the target URL
-      return self.clients.openWindow(targetUrl);
-    })
-  );
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    // Broadcast NAVIGATE to ALL existing clients first (handles iOS suspended PWA)
+    clients.forEach(client => {
+      client.postMessage({ type: 'NAVIGATE', url: targetUrl });
+    });
+    const appClient = clients.find(client => client.url.startsWith(self.location.origin));
+    if (appClient) {
+      return appClient.focus().then(focused => {
+        if ('navigate' in focused) {
+          try { return focused.navigate(targetUrl); } catch (_) {}
+        }
+        return focused;
+      });
+    }
+    return self.clients.openWindow(targetUrl);
+  })());
 });
 
 // Fetch handler
