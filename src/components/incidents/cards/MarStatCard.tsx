@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { StatCard } from '@/components/shared/StatCard'
 import type { MARRow } from '@/types/incident'
-import { fmtDateCompact } from '@/utils/dateFormatters'
+import { fmtDateCompact, fmtTimeCompact24 } from '@/utils/dateFormatters'
 
 export function MarStatCard({
   activeIncidentId,
@@ -42,20 +42,22 @@ export function MarStatCard({
     >
       {filtered.length > 0 ? (
         <>
-          <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 theme-card-footer">
-            <span className="w-20 shrink-0">Date</span>
+          <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 theme-card-footer gap-2">
+            <span className="w-14 shrink-0">Date</span>
+            <span className="w-12 shrink-0">Time</span>
             <span className="flex-1 min-w-0">Med</span>
-            <span className="w-24 shrink-0 text-right">Unit</span>
+            <span className="w-20 shrink-0 text-right">Unit</span>
           </div>
           {(expanded ? filtered : filtered.slice(0, 5)).map(entry => (
             <Link
               key={entry.id}
               to={`/mar/${entry.id}`}
-              className="flex items-center px-4 py-2 hover:bg-gray-800/50 transition-colors text-sm"
+              className="flex items-center px-4 py-2 hover:bg-gray-800/50 transition-colors text-sm gap-2"
             >
-              <span className="w-20 shrink-0 text-gray-400 text-xs">{fmtDateCompact(entry.date)}</span>
+              <span className="w-14 shrink-0 text-gray-400 text-xs">{fmtDateCompact(entry.date)}</span>
+              <span className="w-12 shrink-0 text-gray-400 text-xs">{fmtTimeCompact24((entry as any).time)}</span>
               <span className="flex-1 min-w-0 truncate pr-1">{entry.item_name || '—'}</span>
-              <span className="w-24 shrink-0 text-right text-xs text-gray-400 truncate">{entry.med_unit || '—'}</span>
+              <span className="w-20 shrink-0 text-right text-xs text-gray-400 truncate">{entry.med_unit || '—'}</span>
             </Link>
           ))}
           {!expanded && filtered.length > 5 && (

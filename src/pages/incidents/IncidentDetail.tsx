@@ -186,7 +186,7 @@ export default function IncidentDetailPage() {
     }, 0)
     const reportText = [
       `FINAL PAYROLL REPORT — ${incident?.name}`,
-      `Closed: ${new Date(closedAt).toLocaleString()}`,
+      `Closed: ${new Date(closedAt).toLocaleString([], { hour12: false })}`,
       `Closed by: ${assignment.employee?.name || 'Admin'}`,
       ``,
       `PERSONNEL SUMMARY (${rows.length} deployment records)`,
@@ -195,7 +195,7 @@ export default function IncidentDetailPage() {
       `Total Hours: ${totalHours.toFixed(1)}`,
       `Total Est. Pay: $${totalPay.toFixed(2)}`,
       ``,
-      `Report generated: ${new Date().toLocaleString()}`,
+      `Report generated: ${new Date().toLocaleString([], { hour12: false })}`,
       `For: Amanda Bragg (Bookkeeper)`,
     ].join('\n')
     await incidentService.updateIncident(activeIncidentId, { notes: reportText })
@@ -461,7 +461,7 @@ export default function IncidentDetailPage() {
         {incident.status === 'Closed' && (incident as any).closed_at && (
           <div className="bg-gray-800/60 border border-gray-700 rounded-xl px-4 py-2.5 mb-4 flex items-center gap-3">
             <span className="text-gray-400 text-sm">📁 Closed</span>
-            <span className="text-gray-300 text-sm font-medium">{new Date((incident as any).closed_at).toLocaleString()}</span>
+            <span className="text-gray-300 text-sm font-medium">{new Date((incident as any).closed_at).toLocaleString([], { hour12: false })}</span>
             {(incident as any).closed_by && <span className="text-gray-500 text-xs">by {(incident as any).closed_by}</span>}
           </div>
         )}

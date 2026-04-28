@@ -304,7 +304,7 @@ export default function AdminPayrollPage() {
 
         {/* Table */}
         <div className="theme-card rounded-xl border overflow-x-auto">
-          <div className="hidden lg:flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 theme-card-header border-b min-w-[800px]">
+          <div className="hidden xl:flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-500 theme-card-header border-b min-w-[900px] gap-2">
             <button className="flex-1 min-w-0 text-left flex items-center hover:text-gray-300 transition-colors" onClick={() => toggleSort('employee')}>
               Employee <SortIcon k="employee" sortKey={sortKey} sortDir={sortDir} />
             </button>
@@ -382,10 +382,10 @@ function PayrollTableRow({ row: r, showIncident, navigate }: { row: PayrollRow; 
   const isActive = !r.released_at
 
   return (
-    <div className={`px-4 py-2 cursor-pointer min-w-[800px] ${lc.row}`}
+    <div className={`px-4 py-2 cursor-pointer xl:min-w-[900px] ${lc.row}`}
       onClick={() => navigate(`/roster/${r.employee_id}`)}>
       {/* Mobile */}
-      <div className="lg:hidden space-y-1">
+      <div className="xl:hidden space-y-1">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 bg-gray-700 flex items-center justify-center">
@@ -411,7 +411,7 @@ function PayrollTableRow({ row: r, showIncident, navigate }: { row: PayrollRow; 
         </div>
       </div>
       {/* Desktop */}
-      <div className="hidden lg:flex items-center text-sm">
+      <div className="hidden xl:flex items-center text-sm gap-2">
         <span className="flex-1 min-w-0 font-medium text-white truncate pr-2 flex items-center gap-2">
           <div className="w-6 h-6 rounded-full overflow-hidden shrink-0 bg-gray-700 flex items-center justify-center">
             {r.employee_headshot_url ? (

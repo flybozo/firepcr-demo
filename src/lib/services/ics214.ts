@@ -94,13 +94,14 @@ export async function createICS214(params: {
   leaderPosition: string
   notes: string
   initialActivity: string
+  initialActivityTime?: string
   crew: Array<{ id: string; name: string; role?: string }>
   createdBy: string
   isAdmin: boolean
 }): Promise<string> {
   const supabase = createClient()
   const { unitId, unitName, incidentId, incidentName, opDate, opStart, opEnd,
-    leaderName, leaderPosition, notes, initialActivity, crew, createdBy, isAdmin } = params
+    leaderName, leaderPosition, notes, initialActivity, initialActivityTime, crew, createdBy, isAdmin } = params
 
   const dateStr = opDate.replace(/-/g, '')
   const unitClean = unitName.replace(/[^a-zA-Z0-9]/g, '').toUpperCase()
@@ -151,7 +152,7 @@ export async function createICS214(params: {
 
   await supabase.from('ics214_activities').insert({
     ics214_id: ics214Id,
-    log_datetime: new Date().toISOString(),
+    log_datetime: initialActivityTime ? new Date(initialActivityTime).toISOString() : new Date().toISOString(),
     description: initialActivity.trim(),
     logged_by: createdBy,
     activity_type: 'activity',

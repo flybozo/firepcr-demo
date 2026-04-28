@@ -31,7 +31,7 @@ type SupplyRun = {
 function SupplyRunsPageInner() {
   const supabase = createClient()
   const roleLoading = usePermissionLoading()
-  const isField = !usePermission('supply_runs.view')
+  const isField = !usePermission('supply_runs.manage')
   const [incidentFilter, setIncidentFilter] = useState('All')
   const [activeIncidents, setActiveIncidents] = useState<{id:string;name:string}[]>([])
   const assignment = useUserAssignment()

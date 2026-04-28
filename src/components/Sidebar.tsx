@@ -210,7 +210,7 @@ function SortableNavItem({
   const visibleSub = item.sub.filter(s => {
     if (isField) {
       const adminSubs = [
-        '/incidents/new', '/units/new', '/roster/new', '/roster/hr',
+        '/incidents/new', '/units/new', '/roster/new', '/roster/hr', '/roster/pay-rates',
         '/admin', '/cs/audit', '/cs/receive',
         '/billing', '/schedule/generate',
       ]

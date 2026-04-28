@@ -414,7 +414,7 @@ export default function MARDetailPage() {
               <p className="text-xs text-gray-400">
                 Signed by <strong className="text-white">{entry.provider_signed_by || '—'}</strong>
                 {entry.provider_signed_at
-                  ? ` on ${new Date(entry.provider_signed_at).toLocaleString()}`
+                  ? ` on ${new Date(entry.provider_signed_at).toLocaleString([], { hour12: false })}`
                   : ''}
               </p>
             </div>
@@ -471,7 +471,7 @@ export default function MARDetailPage() {
         {isVoided && (
           <div className="bg-red-950 border border-red-800 rounded-xl px-4 py-3 space-y-1">
             <p className="text-sm font-bold text-red-300">⛔ VOIDED</p>
-            <p className="text-xs text-red-400">Voided by {entry.voided_by} on {new Date(entry.voided_at!).toLocaleString()}</p>
+            <p className="text-xs text-red-400">Voided by {entry.voided_by} on {new Date(entry.voided_at!).toLocaleString([], { hour12: false })}</p>
             {entry.void_reason && <p className="text-xs text-red-400/80">Reason: {entry.void_reason}</p>}
           </div>
         )}

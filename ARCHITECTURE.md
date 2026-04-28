@@ -2,9 +2,9 @@
 
 **App:** https://ram-field-ops.vercel.app (staging)  
 **Repo:** https://github.com/flybozo/ram-field-ops  
-**Last updated:** 2026-04-26 20:20 PDT  
-**Current version:** v1.35.0  
-**App version:** v1.10.0
+**Last updated:** 2026-04-28 06:30 PDT  
+**Current version:** v1.36.0  
+**App version:** v1.10.1
 
 ---
 
@@ -1383,6 +1383,24 @@ All MAR inventory paths now use `unit_id` (not `incident_unit_id` joins):
 - Offline submit decrement: tries `unitInventory` state first, falls back to IndexedDB cache search
 - `MARDetail.tsx` void/return and qty edit: `unit_id` direct query (removed `incident_units` join)
 
+### Lot-Aware Decrement (v1.36.0 — fixed)
+Previously the online submit matched only `(item_name, unit_id)` and took `.limit(1)`,
+which silently picked the wrong lot when a unit carried multiple lots of the same drug.
+Now:
+- Prefer the `unit_inventory.id` we already loaded client-side (pinned to a specific lot).
+- Fall back to a `(item_name, unit_id, lot_number)` lookup with `.eq('lot_number', form.lot_number)` when a lot is selected.
+- Toast a warning if no matching row is found, so the user knows to verify count manually.
+- Same lot match logic applied to the offline-cache fallback path.
+
+### CS Audit Insert (v1.36.0 — fixed)
+`cs_transactions` insert was silently failing because the payload included an `incident:`
+field that doesn't exist on the table. Supabase returned an error but the code wasn't
+awaiting/checking it, so every CS administration since this code shipped saved a MAR
+row with no controlled-substance audit trail row. Fixed by removing the bad field
+from both online and offline (`queueOfflineWrite`) paths and adding explicit error
+visibility (toast warning) so a future schema mismatch can't fail silently. Incident
+context is preserved via `dispense_admin_log.incident` and `encounter_id`.
+
 ### Formulary Filtering
 Formulary `loadList()` now passes `rxCsFilter` so offline cache is properly filtered to Rx + CS categories. Previously showed OTC/supplies offline.
 
@@ -1420,6 +1438,58 @@ The inventory detail page (`/inventory/:id`) is NOT a separate page. It resolves
 - `templateId` prop (when called from inventory, URL param isn't the template ID)
 - `inventoryCtx` prop (inventory overlay data)
 - `backPath` prop (← Inventory vs ← Formulary)
+
+---
+
+## 36b. Par Levels — Single Source of Truth (v1.36.0)
+
+**Problem (boss-reported 2026-04-28):** Reorder/low-stock alerts treated each
+`unit_inventory` lot row independently. A unit carrying three lots of fentanyl @ 1
+each (total 3) against a par of 3 fired "below par" on every row, and editing par
+required touching every lot row.
+
+**Resolution:** Make `formulary_templates.default_par_qty` (per `unit_type` + item)
+the single source of truth. Aggregate `unit_inventory.quantity` across all lots per
+`(unit_id, item_name)` and compare to the formulary par.
+
+**Canonical view (already existed, now exclusively used):** `unit_inventory_aggregated`
+```sql
+SELECT u.id AS unit_id, u.name AS unit_name, u.unit_type_id,
+       COALESCE(ui.catalog_item_id, ft.catalog_item_id) AS catalog_item_id,
+       COALESCE(ui.item_name, ft.item_name) AS item_name,
+       COALESCE(ui.category, ic.category) AS category,
+       COALESCE(SUM(ui.quantity), 0)::int AS total_quantity,
+       COALESCE(ft.default_par_qty, 0)::int AS par_qty,
+       ft.id AS formulary_template_id
+FROM units u
+LEFT JOIN formulary_templates ft ON ft.unit_type_id = u.unit_type_id
+LEFT JOIN item_catalog ic ON ic.id = ft.catalog_item_id
+LEFT JOIN unit_inventory ui
+  ON ui.unit_id = u.id
+ AND ((ui.catalog_item_id IS NOT NULL AND ft.catalog_item_id IS NOT NULL
+       AND ui.catalog_item_id = ft.catalog_item_id)
+   OR (ui.catalog_item_id IS NULL AND ui.item_name = ft.item_name))
+WHERE u.unit_status <> 'archived'
+GROUP BY u.id, u.name, u.unit_type_id, ...;
+```
+
+**Consumers switched to the view:**
+- `useIncidentData.ts` — reorder count + reorder rows
+- `pages/cs/CSList.tsx` — "low" badge per lot row reflects unit-level aggregate
+- `pages/cs/CSItemDetail.tsx` — panel now shows "On Hand (this lot)" + "Unit Total / Par"
+- `pages/units/components/InventorySummary.tsx` — per-row low flag uses aggregated state
+- `pages/inventory/Reorder.tsx` — already used the view (unchanged)
+- `pages/dashboard/MyUnit.tsx` — already used the view (unchanged)
+
+**DB migration applied 2026-04-28:**
+1. Lifted any `unit_inventory.par_qty` not yet in `formulary_templates.default_par_qty` (133 rows).
+2. Cleared `unit_inventory.par_qty` on all 1748 rows (now NULL).
+3. Added deprecation comment on `unit_inventory.par_qty`:
+   > DEPRECATED 2026-04-28: Par levels live on formulary_templates.default_par_qty per (unit_type, item). Use unit_inventory_aggregated view for low-stock checks. This column is kept for back-compat but should remain NULL.
+
+**Editing par going forward:** edit `formulary_templates.default_par_qty` for the
+unit_type — propagates to every unit of that type immediately via the view. No need
+to touch individual lot rows.
 
 ---
 

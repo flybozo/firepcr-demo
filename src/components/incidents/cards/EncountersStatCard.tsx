@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { StatCard } from '@/components/shared/StatCard'
 import { acuityPillClass, patientInitials } from '@/utils/incidentFormatters'
-import { fmtDateCompact } from '@/utils/dateFormatters'
+import { fmtDateCompact, fmtTimeCompact24 } from '@/utils/dateFormatters'
 import type { EncounterRow } from '@/types/incident'
 
 function statusPill(status: string | null | undefined) {
@@ -69,12 +69,13 @@ export function EncountersStatCard({
       )}
       {filteredEncs.length > 0 ? (
         <>
-          <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 theme-card-footer">
-            <span className="w-16 shrink-0">Date</span>
-            <span className="w-10 shrink-0 text-center">Pt</span>
+          <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 theme-card-footer gap-2">
+            <span className="w-14 shrink-0">Date</span>
+            <span className="w-12 shrink-0">Time</span>
+            <span className="w-9 shrink-0 text-center">Pt</span>
             <span className="flex-1 min-w-0 hidden sm:block">Unit</span>
-            <span className="w-16 shrink-0 text-center">Status</span>
-            <span className="w-20 shrink-0 text-right">Acuity</span>
+            <span className="w-14 shrink-0 text-center">Status</span>
+            <span className="w-16 shrink-0 text-right">Acuity</span>
           </div>
           {(expanded ? filteredEncs : filteredEncs.slice(0, 5)).map(enc => {
             const acuityRaw = (enc as any).initial_acuity || ''
@@ -83,17 +84,18 @@ export function EncountersStatCard({
               <Link
                 key={enc.id}
                 to={`/encounters/${enc.id}`}
-                className="flex items-center px-4 py-2 hover:bg-gray-800/50 transition-colors text-sm"
+                className="flex items-center px-4 py-2 hover:bg-gray-800/50 transition-colors text-sm gap-2"
               >
-                <span className="w-16 shrink-0 text-gray-400 text-xs">{fmtDateCompact(enc.date)}</span>
-                <span className="w-10 shrink-0 text-center text-xs font-medium">
+                <span className="w-14 shrink-0 text-gray-400 text-xs">{fmtDateCompact(enc.date)}</span>
+                <span className="w-12 shrink-0 text-gray-400 text-xs">{fmtTimeCompact24((enc as any).time)}</span>
+                <span className="w-9 shrink-0 text-center text-xs font-medium">
                   {patientInitials(enc.patient_first_name, enc.patient_last_name)}
                 </span>
                 <span className="flex-1 min-w-0 text-gray-400 text-xs truncate hidden sm:block">{enc.unit || '—'}</span>
-                <span className="w-16 shrink-0 text-center">
+                <span className="w-14 shrink-0 text-center">
                   {(() => { const s = statusPill((enc as any).pcr_status); return <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${s.cls}`}>{s.label}</span> })()}
                 </span>
-                <span className="w-20 shrink-0 text-right">
+                <span className="w-16 shrink-0 text-right">
                   <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${acuityPillClass(acuityRaw)}`}>
                     {acuityLabel}
                   </span>

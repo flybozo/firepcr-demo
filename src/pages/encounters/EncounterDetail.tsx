@@ -246,7 +246,7 @@ export default function EncounterDetailPage({ encounterId, embedded }: { encount
                 {enc.patient_age ? <span className="text-gray-500 text-xs self-end pb-1">{enc.patient_age}y</span> : null}
               </div>
               <p className="text-gray-500 text-xs mt-1">
-                {enc.encounter_id} · {enc.date}{enc.created_at && <span className="text-gray-600"> {new Date(enc.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>} · {enc.unit}
+                {enc.encounter_id} · {enc.date}{enc.created_at && <span className="text-gray-600"> {new Date(enc.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>} · {enc.unit}
                 {enc.crew_resource_number && <span className="text-blue-400"> · CRN: {enc.crew_resource_number}</span>}
                 {incidentName && <span className="text-orange-400"> · 🔥 {incidentName}</span>}
               </p>

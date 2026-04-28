@@ -146,7 +146,7 @@ export function generate214PDF(
 
   // Footer
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(150, 150, 150)
-  doc.text(`ICS 214  •  ${header.ics214_id}  •  Generated ${new Date().toLocaleString()}`, W / 2, y + 12, { align: 'center' })
+  doc.text(`ICS 214  •  ${header.ics214_id}  •  Generated ${new Date().toLocaleString([], { hour12: false })}`, W / 2, y + 12, { align: 'center' })
 
   return doc
 }

@@ -101,7 +101,7 @@ function EditableCell({
 
   return (
     <span
-      className={`${width} hidden lg:block`}
+      className={`${width} hidden xl:block`}
       onClick={e => e.stopPropagation()}
     >
       {isEditing ? (
@@ -446,10 +446,10 @@ export default function CatalogList() {
             <SortableHeader label="Item Name" sortKey="item_name" currentKey={catSortKey} currentDir={catSortDir} onToggle={catToggleSort} className="flex-1 min-w-0" />
             <SortableHeader label="Cat" sortKey="category" currentKey={catSortKey} currentDir={catSortDir} onToggle={catToggleSort} className="w-10 justify-center hidden sm:flex" />
             <span className="w-8 text-center hidden sm:block text-gray-500">ALS</span>
-            <SortableHeader label="Supplier" sortKey="supplier" currentKey={catSortKey} currentDir={catSortDir} onToggle={catToggleSort} className="w-28 hidden lg:flex" />
-            <SortableHeader label="$/Case" sortKey="case_cost" currentKey={catSortKey} currentDir={catSortDir} onToggle={catToggleSort} className="w-20 justify-end hidden lg:flex" />
-            <span className="w-20 text-right hidden lg:block text-gray-500">Units/Case</span>
-            <span className="w-20 text-right hidden lg:block text-gray-500">$/Unit</span>
+            <SortableHeader label="Supplier" sortKey="supplier" currentKey={catSortKey} currentDir={catSortDir} onToggle={catToggleSort} className="w-28 hidden xl:flex" />
+            <SortableHeader label="$/Case" sortKey="case_cost" currentKey={catSortKey} currentDir={catSortDir} onToggle={catToggleSort} className="w-20 justify-end hidden xl:flex" />
+            <span className="w-20 text-right hidden xl:block text-gray-500">Units/Case</span>
+            <span className="w-20 text-right hidden xl:block text-gray-500">$/Unit</span>
           </div>
 
           {/* Rows */}

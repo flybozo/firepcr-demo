@@ -143,7 +143,7 @@ export default function BottomTabBar() {
       {/* Bottom sheet overlay */}
       {(sheetTab || showAdminSheet) && (
         <div
-          className="fixed inset-0 z-[55] bg-black/50 md:hidden"
+          className="fixed inset-0 z-[55] bg-black/50 md:landscape:hidden"
           onClick={closeAll}
         />
       )}
@@ -151,7 +151,7 @@ export default function BottomTabBar() {
       {/* Admin second-level sheet */}
       {showAdminSheet && (
         <div
-          className="fixed bottom-[calc(56px+env(safe-area-inset-bottom,0px))] left-0 right-0 z-[65] md:hidden rounded-t-2xl border-t border-gray-700 shadow-2xl"
+          className="fixed bottom-[calc(56px+env(safe-area-inset-bottom,0px))] left-0 right-0 z-[65] md:landscape:hidden rounded-t-2xl border-t border-gray-700 shadow-2xl"
           style={{ backgroundColor: 'var(--color-sidebar-bg, #111827)' }}
         >
           <div className="flex justify-center pt-2 pb-1">
@@ -193,7 +193,7 @@ export default function BottomTabBar() {
       {/* Bottom sheet */}
       {activeSheet && activeSheet.subItems && (
         <div
-          className="fixed bottom-[calc(56px+env(safe-area-inset-bottom,0px))] left-0 right-0 z-[60] md:hidden rounded-t-2xl border-t border-gray-700 shadow-2xl"
+          className="fixed bottom-[calc(56px+env(safe-area-inset-bottom,0px))] left-0 right-0 z-[60] md:landscape:hidden rounded-t-2xl border-t border-gray-700 shadow-2xl"
           style={{ backgroundColor: 'var(--color-sidebar-bg, #111827)' }}
         >
           <div className="flex justify-center pt-2 pb-1">
@@ -274,7 +274,7 @@ export default function BottomTabBar() {
 
       {/* Bottom tab bar */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-[50] border-t md:hidden"
+        className="fixed bottom-0 left-0 right-0 z-[50] border-t md:landscape:hidden"
         style={{
           backgroundColor: 'var(--color-sidebar-bg, #111827)',
           borderColor: 'var(--color-border, #1f2937)',

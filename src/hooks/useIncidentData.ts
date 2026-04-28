@@ -243,17 +243,20 @@ export function useIncidentData(
       (async () => {
         const r1 = await supabaseClient
           .from('patient_encounters')
-          .select('id, date, patient_last_name, patient_first_name, unit, initial_acuity, pcr_status', { count: 'exact' })
+          .select('id, date, time, patient_last_name, patient_first_name, unit, initial_acuity, pcr_status', { count: 'exact' })
           .eq('incident_id', activeIncidentId)
           .is('deleted_at', null)
           .order('date', { ascending: false })
           .limit(5)
         if (r1.count && r1.count > 0) return r1
         if ((inc as any)?.name) {
+          // Legacy fallback for rows without incident_id: exact-match the
+          // free-text 'incident' column (case-insensitive, no wildcards) so
+          // we never pull data from a different incident with a similar name.
           return supabaseClient
             .from('patient_encounters')
-            .select('id, date, patient_last_name, patient_first_name, unit, initial_acuity, pcr_status', { count: 'exact' })
-            .ilike('incident', `%${(inc as any).name}%`)
+            .select('id, date, time, patient_last_name, patient_first_name, unit, initial_acuity, pcr_status', { count: 'exact' })
+            .ilike('incident', (inc as any).name)
             .is('deleted_at', null)
             .order('date', { ascending: false })
             .limit(5)
@@ -268,14 +271,15 @@ export function useIncidentData(
           .eq('incident_id', activeIncidentId)
           .is('deleted_at', null)
         if (!encIds?.length && (inc as any)?.name) {
-          const r2 = await supabaseClient.from('patient_encounters').select('encounter_id').ilike('incident', `%${(inc as any).name}%`).is('deleted_at', null)
+          // Legacy fallback: exact-match (case-insensitive, no wildcards).
+          const r2 = await supabaseClient.from('patient_encounters').select('encounter_id').ilike('incident', (inc as any).name).is('deleted_at', null)
           encIds = r2.data
         }
         const ids = (encIds || []).map((e: { encounter_id: string }) => e.encounter_id)
         if (ids.length === 0) return { count: 0, data: [] }
         return supabaseClient
           .from('dispense_admin_log')
-          .select('id, date, item_name, med_unit', { count: 'exact' })
+          .select('id, date, time, item_name, med_unit', { count: 'exact' })
           .in('encounter_id', ids)
           .order('date', { ascending: false })
           .limit(3)
@@ -292,7 +296,8 @@ export function useIncidentData(
           if (directCount && directCount > 0) return { count: directCount }
           const incName = (inc as any)?.name
           if (incName) {
-            return supabaseClient.from('comp_claims').select('id', { count: 'exact', head: true }).ilike('incident', `%${incName}%`)
+            // Legacy fallback: exact-match (case-insensitive, no wildcards).
+            return supabaseClient.from('comp_claims').select('id', { count: 'exact', head: true }).ilike('incident', incName)
           }
           return { count: 0 }
         } catch { return { count: 0 } }
@@ -303,7 +308,7 @@ export function useIncidentData(
         if (iuIds.length === 0) return { data: [] }
         return supabaseClient
           .from('supply_runs')
-          .select('id, run_date, resource_number, incident_unit:incident_units(unit:units(name)), supply_run_items(id)')
+          .select('id, run_date, time, resource_number, incident_unit:incident_units(unit:units(name)), supply_run_items(id)')
           .eq('incident_id', activeIncidentId)
           .order('run_date', { ascending: false })
           .limit(50)
@@ -399,45 +404,26 @@ export function useIncidentData(
           .in('unit_id', scopedUnitIds)
         const allIuIds = ((allIuData as any[]) || []).map((r: any) => r.id)
         if (allIuIds.length === 0) { setReorderCount(0); return }
-        const { data: invData } = await supabaseClient
-          .from('unit_inventory')
-          .select('id, quantity, par_qty')
-          .in('incident_unit_id', allIuIds)
-        const low = ((invData as any[]) || []).filter((row: any) =>
-          row.par_qty != null && row.quantity <= row.par_qty
-        )
-        setReorderCount(low.length)
+        // Use unit_inventory_aggregated view: par_qty comes from formulary_templates,
+        // total_quantity is summed across lots per (unit, item).
+        const { data: aggData } = await supabaseClient
+          .from('unit_inventory_aggregated')
+          .select('unit_id, unit_name, item_name, total_quantity, par_qty, catalog_item_id')
+          .in('unit_id', scopedUnitIds)
+          .gt('par_qty', 0)
+        const lowAgg = ((aggData as any[]) || []).filter((row: any) => row.total_quantity < row.par_qty)
+        setReorderCount(lowAgg.length)
 
-        if (allIuIds.length > 0) {
-          const { data: reorderData } = await supabaseClient
-            .from('unit_inventory')
-            .select('id, item_name, quantity, par_qty, incident_unit_id, catalog_item_id')
-            .in('incident_unit_id', allIuIds)
-            .lte('quantity', supabaseClient.rpc ? 0 : 999999)
-          const iuToUnit = new Map<string, string>()
-          for (const iu of mappedUnits) {
-            if (iu.unit) iuToUnit.set(iu.id, (iu.unit as any)?.name || '?')
-          }
-          if (allIuData) {
-            for (const iu of (allIuData as any[])) {
-              if (!iuToUnit.has(iu.id)) {
-                const matchedUnit = allUnitsData?.find((u: any) => mappedUnits.some(mu => mu.id === iu.id))
-                if (matchedUnit) iuToUnit.set(iu.id, (matchedUnit as any).name || '?')
-              }
-            }
-          }
-          const rows = ((reorderData as any[]) || [])
-            .filter((r: any) => r.par_qty != null && r.quantity <= r.par_qty)
-            .map((r: any) => ({
-              id: r.id,
-              item_name: r.item_name || '?',
-              quantity: r.quantity ?? 0,
-              par_qty: r.par_qty ?? 0,
-              unit_name: iuToUnit.get(r.incident_unit_id) || '?',
-            }))
-            .sort((a: any, b: any) => a.quantity - b.quantity)
-          setReorderRows(rows.slice(0, 100))
-        }
+        const rows = lowAgg
+          .map((r: any) => ({
+            id: `${r.unit_id}::${r.catalog_item_id || r.item_name}`,
+            item_name: r.item_name || '?',
+            quantity: r.total_quantity ?? 0,
+            par_qty: r.par_qty ?? 0,
+            unit_name: r.unit_name || '?',
+          }))
+          .sort((a: any, b: any) => a.quantity - b.quantity)
+        setReorderRows(rows.slice(0, 100))
       } catch {
         setReorderCount(0)
         setReorderRows([])

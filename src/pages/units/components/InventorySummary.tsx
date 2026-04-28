@@ -40,8 +40,10 @@ export default function InventorySummary({ inventory, unitName }: Props) {
     Object.keys(grouped).filter(c => !CATEGORY_ORDER.includes(c))
   )
 
-  // Reorder items: aggregate quantity by item_name before comparing to par
-  // This prevents multiple lot rows of the same drug from being individually flagged
+  // Reorder items: aggregate quantity by (catalog_item_id || item_name) before comparing
+  // to par. This prevents multiple lot rows of the same drug from being individually
+  // flagged. Par lives on formulary_templates per unit_type — the unit_inventory.par_qty
+  // value is treated here as a per-row hint only.
   const aggregated = new Map<string, { item_name: string; total_qty: number; par_qty: number }>()
   for (const item of inventory) {
     const key = item.catalog_item_id || item.item_name
@@ -53,6 +55,11 @@ export default function InventorySummary({ inventory, unitName }: Props) {
     } else {
       aggregated.set(key, { item_name: item.item_name, total_qty: item.quantity, par_qty: item.par_qty })
     }
+  }
+  // Map per-lot row → aggregated low state so individual lot rows can show the unit-level low flag.
+  const aggLowByKey = new Map<string, boolean>()
+  for (const a of aggregated.values()) {
+    aggLowByKey.set(a.item_name, a.par_qty > 0 && a.total_qty < a.par_qty)
   }
   const reorderItems = Array.from(aggregated.values())
     .filter(a => a.par_qty > 0 && a.total_qty < a.par_qty)
@@ -121,7 +128,8 @@ export default function InventorySummary({ inventory, unitName }: Props) {
               </div>
               <div className="divide-y divide-gray-800/50">
                 {displayItems.map(item => {
-                  const low = item.par_qty > 0 && item.quantity <= item.par_qty
+                  // Use aggregated low: a unit with three lots @ 1 each meets a par of 3.
+                  const low = aggLowByKey.get(item.item_name) ?? false
                   return (
                     <div key={item.id} className="flex items-center justify-between px-4 py-2 text-sm">
                       <span className={`flex-1 truncate ${low ? 'text-red-300' : 'text-white'}`}>{item.item_name}</span>

@@ -25,7 +25,7 @@ export function AssessmentSection({ enc, isLocked, saveField, badge }: {
   return (
     <SectionCard title="Assessment & Situation" badge={badge}>
       <InlineField label="Chief Complaint" value={enc.primary_symptom_text} fieldKey="primary_symptom_text" isLocked={isLocked} onSave={saveField} type="select" options={CHIEF_COMPLAINT_OPTIONS} />
-      <Field label="Symptom Onset" value={enc.symptom_onset_datetime ? new Date(enc.symptom_onset_datetime).toLocaleString() : null} />
+      <Field label="Symptom Onset" value={enc.symptom_onset_datetime ? new Date(enc.symptom_onset_datetime).toLocaleString([], { hour12: false }) : null} />
       <InlineField label="Possible Injury" value={enc.possible_injury === true ? 'Yes' : enc.possible_injury === false ? 'No' : ''} fieldKey="possible_injury" isLocked={isLocked} onSave={handlePossibleInjury} type="select" options={['Yes','No','Unknown']} />
       {enc.possible_injury === true && (
         <>

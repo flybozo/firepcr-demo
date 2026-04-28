@@ -92,10 +92,17 @@ export function DraggableSection({ id, children, colSpan = 2, onCycleSpan }: {
         </div>
         <button
           onClick={openExpanded}
-          className="absolute top-2 right-2 text-gray-600 hover:text-white transition-colors text-lg w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-800 opacity-0 group-hover:opacity-100 z-10"
+          className="absolute top-2 right-2 text-gray-500 hover:text-white transition-colors w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-800 z-10"
           title="Expand"
+          aria-label="Expand section"
         >
-          ⤢
+          {/* Expand icon: 4 corner brackets, looks like [ ] */}
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 6 V3 H6" />
+            <path d="M13 6 V3 H10" />
+            <path d="M3 10 V13 H6" />
+            <path d="M13 10 V13 H10" />
+          </svg>
         </button>
         {children}
       </div>

@@ -51,7 +51,7 @@ export function FormsSection({
               {consentForms.map(cf => (
                 <div key={cf.id} className="flex flex-wrap items-center gap-2 text-xs border-b border-gray-800 pb-2 last:border-0 last:pb-0">
                   <span className="text-gray-500 whitespace-nowrap">
-                    {cf.date_time ? new Date(cf.date_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + new Date(cf.date_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                    {cf.date_time ? new Date(cf.date_time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + new Date(cf.date_time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—'}
                   </span>
                   <span className={`px-2 py-0.5 rounded-full ${cf.consent_type === 'Consent to Treat' ? 'bg-blue-900 text-blue-300' : 'bg-red-900 text-red-300'}`}>
                     {cf.consent_type === 'Consent to Treat' ? 'Consent' : 'AMA'}
@@ -72,7 +72,7 @@ export function FormsSection({
               {compClaims.map((cc: any) => (
                 <div key={cc.id} className="flex flex-wrap items-center gap-2 text-xs border-b border-gray-800 pb-2 last:border-0 last:pb-0">
                   <span className="text-gray-500 whitespace-nowrap">
-                    {cc.created_at ? new Date(cc.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + new Date(cc.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                    {cc.created_at ? new Date(cc.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' ' + new Date(cc.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—'}
                   </span>
                   <span className="px-2 py-0.5 rounded-full bg-orange-900 text-orange-300">CC</span>
                   <span className={`px-2 py-0.5 rounded-full ${cc.status === 'Complete' ? 'bg-green-900 text-green-300' : cc.status === 'Filed' ? 'bg-blue-900 text-blue-300' : 'bg-gray-700 text-gray-300'}`}>

@@ -116,7 +116,7 @@ export default function UnsignedOrdersPage() {
                 <Link key={n.id} to={`/encounters/${n.encounter_id}#notes`}
                   className="flex items-start gap-3 px-4 py-3 hover:bg-gray-800 transition-colors">
                   <div className="flex-1 min-w-0">
-                    <p className="text-gray-400 text-xs">{new Date(n.note_datetime).toLocaleString()} · {n.encounter_id}</p>
+                    <p className="text-gray-400 text-xs">{new Date(n.note_datetime).toLocaleString([], { hour12: false })} · {n.encounter_id}</p>
                     <p className="text-white text-sm mt-0.5 line-clamp-2">{n.note_text}</p>
                   </div>
                   <span className="text-xs px-2 py-0.5 rounded-full bg-orange-900 text-orange-300 shrink-0 mt-0.5">Unsigned</span>

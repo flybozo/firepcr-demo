@@ -38,13 +38,13 @@ export default function MobileNav() {
       {/* Overlay — closes the drawer */}
       {open && (
         <div
-          className="fixed inset-0 z-[70] bg-black/60 md:hidden"
+          className="fixed inset-0 z-[70] bg-black/60 md:landscape:hidden"
           onClick={() => setOpen(false)}
         />
       )}
 
       {/* Drawer */}
-      <div className={`fixed top-0 left-0 h-full w-64 z-[80] transform transition-transform duration-200 md:hidden ${
+      <div className={`fixed top-0 left-0 h-full w-64 z-[80] transform transition-transform duration-200 md:landscape:hidden ${
         open ? 'translate-x-0' : '-translate-x-full'
       }`}>
         <SidebarErrorBoundary>

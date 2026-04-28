@@ -14,7 +14,7 @@ export function generateOpsReportPdf(data: DashboardData) {
   const fmt = (d: Date) =>
     d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) +
     ' ' +
-    d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+    d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
 
   const pageW = 215.9
   const margin = 18

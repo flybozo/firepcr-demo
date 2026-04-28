@@ -57,7 +57,7 @@ const TYPE_COLORS: Record<string, string> = {
 }
 
 function formatDate(str: string) {
-  return new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
 function isExpiringSoon(dateStr: string | null) {

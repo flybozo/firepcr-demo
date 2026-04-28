@@ -32,7 +32,7 @@ export function ProceduresSection({
               <span className="text-xs text-gray-500 w-28 shrink-0">
                 {p.performed_at
                   ? new Date(p.performed_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                    + ' ' + new Date(p.performed_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                    + ' ' + new Date(p.performed_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
                   : '—'}
               </span>
               <span className="flex-1 text-white truncate">{p.procedure_name}</span>

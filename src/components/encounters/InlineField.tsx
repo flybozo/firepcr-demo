@@ -26,11 +26,11 @@ export function InlineField({ label, value, fieldKey, isLocked, onSave, type = '
         className={`${fullWidth ? 'col-span-full' : ''} ${!isLocked ? 'cursor-pointer hover:bg-gray-800/50 rounded px-1 -mx-1 transition-colors group' : ''}`}
       >
         <dt className="text-xs text-gray-500 uppercase tracking-wide">{label}</dt>
-        <dd className="text-sm text-white mt-0.5 flex items-center gap-1">
+        <dd className={`text-sm text-white mt-0.5 flex items-start gap-1 ${type === 'textarea' ? 'whitespace-pre-wrap' : ''}`}>
           {value !== null && value !== undefined && value !== ''
             ? String(value)
             : <span className="text-gray-600">—</span>}
-          {!isLocked && <span className="text-gray-700 text-xs opacity-0 group-hover:opacity-100">✏️</span>}
+          {!isLocked && <span className="text-gray-700 text-xs opacity-0 group-hover:opacity-100 shrink-0">✏️</span>}
         </dd>
       </div>
     )

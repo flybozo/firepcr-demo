@@ -237,7 +237,7 @@ export function generateCompClaimsPDF(d: CompClaimsData, logoDataUrl?: string | 
   const footerY = Math.max(y + 10, 760)
   doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(150, 150, 150)
   doc.text(
-    `OSHA Form 301  |  Claim ID: ${f(d.claim_id)}  |  Generated ${new Date().toLocaleString()}  |  Retain for 5 years per 29 CFR 1904.29`,
+    `OSHA Form 301  |  Claim ID: ${f(d.claim_id)}  |  Generated ${new Date().toLocaleString([], { hour12: false })}  |  Retain for 5 years per 29 CFR 1904.29`,
     W / 2, footerY, { align: 'center' }
   )
 

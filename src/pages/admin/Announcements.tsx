@@ -470,7 +470,7 @@ export default function AnnouncementsPage() {
                   <div key={n.id} className="px-4 py-3 space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-white">{n.title}</span>
-                      <span className="text-xs text-gray-500">{new Date(n.created_at).toLocaleString()}</span>
+                      <span className="text-xs text-gray-500">{new Date(n.created_at).toLocaleString([], { hour12: false })}</span>
                     </div>
                     <p className="text-xs text-gray-400 line-clamp-2">{n.body}</p>
                     <div className="flex items-center gap-3 text-xs text-gray-500">

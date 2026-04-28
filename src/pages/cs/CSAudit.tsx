@@ -45,7 +45,8 @@ const inputCls = 'bg-gray-800 rounded-lg px-3 py-2 text-white text-sm focus:outl
 function formatDate(str: string) {
   return new Date(str).toLocaleString('en-US', {
     month: 'short', day: 'numeric', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
+    hour: '2-digit', minute: '2-digit',
+    hour12: false,
   })
 }
 

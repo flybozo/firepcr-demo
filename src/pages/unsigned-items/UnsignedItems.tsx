@@ -205,7 +205,7 @@ function OrphanNotesList({
           {notes.map(n => (
             <div key={n.id} className="flex items-start gap-2 px-3 py-2.5 border-b border-gray-800/50 last:border-b-0">
             <Link to={`/encounters/${n.encounter_uuid || n.encounter_id}#notes`} className="flex-1 min-w-0">
-              <p className="text-xs text-gray-400">{new Date(n.note_datetime).toLocaleString()} · {n.encounter_id}</p>
+              <p className="text-xs text-gray-400">{new Date(n.note_datetime).toLocaleString([], { hour12: false })} · {n.encounter_id}</p>
               <p className="text-sm text-white mt-0.5 line-clamp-2">{n.note_text}</p>
             </Link>
             <div className="flex items-center gap-1 shrink-0 mt-0.5">

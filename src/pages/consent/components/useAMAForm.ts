@@ -138,7 +138,7 @@ export function useAMAForm() {
 
   const now = new Date()
   const formDate = now.toLocaleDateString('en-US')
-  const formTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+  const formTime = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
   const patientName = `${form.patient_first_name} ${form.patient_last_name}`.trim() || '______________________'
 
   const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {

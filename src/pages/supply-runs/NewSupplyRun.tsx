@@ -235,7 +235,10 @@ function SupplyRunNewInner() {
   }
 
   const updateQty = (id: string, qty: number) => {
-    setItems(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(1, qty) } : it))
+    // Allow any non-negative number; minimum-of-1 enforcement happens on
+    // blur (see QtyInput) and at submit time so users can backspace the
+    // current value freely while typing.
+    setItems(prev => prev.map(it => it.id === id ? { ...it, quantity: Math.max(0, qty) } : it))
   }
 
   const removeItem = (id: string) => {
@@ -474,6 +477,12 @@ function SupplyRunNewInner() {
   const handleSubmit = async () => {
     if (!form.incident_unit_id) {
       toast.warning('Please select an incident and unit.')
+      return
+    }
+    // Guard against any item left at 0 (transient state during qty editing).
+    const badItem = items.find(it => !Number.isFinite(it.quantity) || it.quantity < 1)
+    if (badItem) {
+      toast.warning(`Please enter a quantity (≥1) for: ${badItem.item_name}`)
       return
     }
     setSubmitting(true)
@@ -889,12 +898,9 @@ function SupplyRunNewInner() {
                       <span className="ml-1.5 text-xs bg-yellow-700/60 text-yellow-200 px-1.5 py-0.5 rounded">unknown</span>
                     )}
                   </span>
-                  <input
-                    type="number"
-                    min={1}
+                  <QtyInput
                     value={it.quantity}
-                    onChange={e => updateQty(it.id, parseInt(e.target.value) || 1)}
-                    className="w-14 text-center bg-gray-700 border border-gray-600 rounded px-1 py-1 text-sm"
+                    onChange={qty => updateQty(it.id, qty)}
                   />
                   <button
                     type="button"
@@ -920,6 +926,49 @@ function SupplyRunNewInner() {
         </button>
       </div>
     </div>
+  )
+}
+
+/**
+ * Quantity input that lets the user backspace freely while typing.
+ * Tracks raw text locally; commits a number to the parent only when
+ * the text parses to a valid integer. On blur, snaps back to >= 1.
+ */
+function QtyInput({ value, onChange }: { value: number; onChange: (qty: number) => void }) {
+  const [text, setText] = useState<string>(String(value))
+
+  // Keep local text in sync if parent value changes from outside
+  // (e.g. duplicate-item bumps quantity), but only when not actively edited.
+  useEffect(() => {
+    const parsed = parseInt(text, 10)
+    if (isNaN(parsed) || parsed !== value) {
+      setText(String(value))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value])
+
+  return (
+    <input
+      type="number"
+      inputMode="numeric"
+      min={1}
+      value={text}
+      onChange={e => {
+        const next = e.target.value
+        setText(next)
+        const parsed = parseInt(next, 10)
+        if (!isNaN(parsed) && parsed >= 0) onChange(parsed)
+      }}
+      onBlur={() => {
+        const parsed = parseInt(text, 10)
+        if (isNaN(parsed) || parsed < 1) {
+          setText('1')
+          onChange(1)
+        }
+      }}
+      onFocus={e => e.currentTarget.select()}
+      className="w-14 text-center bg-gray-700 border border-gray-600 rounded px-1 py-1 text-sm"
+    />
   )
 }
 

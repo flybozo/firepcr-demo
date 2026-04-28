@@ -513,27 +513,29 @@ export default function RosterDetailPage() {
                 <p className="text-xs text-gray-500">Annual RAM wildfire qualification (S-130/190/L-180 + 4hr class + fire shelter)</p>
               </div>
               <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="2020"
-                  max="2030"
-                  placeholder="Year"
-                  defaultValue={emp.red_card_year || ''}
-                  className="w-20 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white text-center focus:outline-none focus:ring-1 focus:ring-red-500"
-                  onBlur={async e => {
-                    const yr = e.target.value ? parseInt(e.target.value) : null
-                    await updateEmployee(emp.id, {
-                      red_card_year: yr,
-                      red_card: yr ? `${yr} RAM Red Card` : null
-                    })
-                    setEmp((prev: any) => prev ? { ...prev, red_card_year: yr, red_card: yr ? `${yr} RAM Red Card` : null } : prev)
-                  }}
-                />
-                {emp.red_card_year && (
+                {isAdmin ? (
+                  <input
+                    type="number"
+                    min="2020"
+                    max="2030"
+                    placeholder="Year"
+                    defaultValue={emp.red_card_year || ''}
+                    className="w-20 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white text-center focus:outline-none focus:ring-1 focus:ring-red-500"
+                    onBlur={async e => {
+                      const yr = e.target.value ? parseInt(e.target.value) : null
+                      await updateEmployee(emp.id, {
+                        red_card_year: yr,
+                        red_card: yr ? `${yr} RAM Red Card` : null
+                      })
+                      setEmp((prev: any) => prev ? { ...prev, red_card_year: yr, red_card: yr ? `${yr} RAM Red Card` : null } : prev)
+                    }}
+                  />
+                ) : null}
+                {emp.red_card_year ? (
                   <span className="text-xs px-2 py-0.5 rounded bg-red-900/70 text-red-300 font-bold">
                     🔴 {emp.red_card_year}
                   </span>
-                )}
+                ) : !isAdmin ? <span className="text-xs text-gray-600">—</span> : null}
               </div>
             </div>
 
@@ -544,17 +546,21 @@ export default function RosterDetailPage() {
                   <p className="text-sm font-medium text-white">DEA License</p>
                   <p className="text-xs text-gray-500">Drug Enforcement Administration registration number</p>
                 </div>
-                <input
-                  type="text"
-                  placeholder="DEA number or expiry"
-                  defaultValue={emp.dea_license || ''}
-                  className="w-40 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  onBlur={async e => {
-                    const val = e.target.value.trim() || null
-                    await updateEmployee(emp.id, { dea_license: val })
-                    setEmp((prev: any) => prev ? { ...prev, dea_license: val } : prev)
-                  }}
-                />
+                {isAdmin ? (
+                  <input
+                    type="text"
+                    placeholder="DEA number or expiry"
+                    defaultValue={emp.dea_license || ''}
+                    className="w-40 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    onBlur={async e => {
+                      const val = e.target.value.trim() || null
+                      await updateEmployee(emp.id, { dea_license: val })
+                      setEmp((prev: any) => prev ? { ...prev, dea_license: val } : prev)
+                    }}
+                  />
+                ) : (
+                  <span className="text-sm text-white">{emp.dea_license || <span className="text-gray-600">—</span>}</span>
+                )}
               </div>
             )}
 
@@ -565,17 +571,21 @@ export default function RosterDetailPage() {
                   <p className="text-sm font-medium text-white">NPI Number</p>
                   <p className="text-xs text-gray-500">National Provider Identifier</p>
                 </div>
-                <input
-                  type="text"
-                  placeholder="NPI number"
-                  defaultValue={emp.npi_number || ''}
-                  className="w-40 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  onBlur={async e => {
-                    const val = e.target.value.trim() || null
-                    await updateEmployee(emp.id, { npi_number: val })
-                    setEmp((prev: any) => prev ? { ...prev, npi_number: val } : prev)
-                  }}
-                />
+                {isAdmin ? (
+                  <input
+                    type="text"
+                    placeholder="NPI number"
+                    defaultValue={emp.npi_number || ''}
+                    className="w-40 bg-gray-700 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    onBlur={async e => {
+                      const val = e.target.value.trim() || null
+                      await updateEmployee(emp.id, { npi_number: val })
+                      setEmp((prev: any) => prev ? { ...prev, npi_number: val } : prev)
+                    }}
+                  />
+                ) : (
+                  <span className="text-sm text-white">{emp.npi_number || <span className="text-gray-600">—</span>}</span>
+                )}
               </div>
             )}
           </div>

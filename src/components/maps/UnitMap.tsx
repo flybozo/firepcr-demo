@@ -3,6 +3,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { MapContainer, TileLayer, Marker, Tooltip, Popup, GeoJSON, useMap } from 'react-leaflet'
 import { createClient } from '@/lib/supabase/client'
+import { fmtDateTime24 } from '@/utils/dateFormatters'
 
 // Fix Leaflet default marker icon (not used directly but prevents console errors)
 delete (L.Icon.Default.prototype as any)._getIconUrl
@@ -216,7 +217,7 @@ export default function UnitMap({ incidentId, prefetchedLocations, accessCode, h
                   <div style={{fontSize:'13px',lineHeight:'1.5'}}>
                     <strong>{loc.unit_name}</strong><br/>
                     <span style={{color:'#888',fontSize:'11px'}}>Last ping: {formatLastSeen(loc.last_seen)}</span><br/>
-                    <span style={{color:'#aaa',fontSize:'11px'}}>{new Date(loc.last_seen).toLocaleString()}</span>
+                    <span style={{color:'#aaa',fontSize:'11px'}}>{fmtDateTime24(loc.last_seen)}</span>
                   </div>
                 </Tooltip>
                 <Popup>
@@ -242,7 +243,7 @@ export default function UnitMap({ incidentId, prefetchedLocations, accessCode, h
                     <strong>{loc.unit_name}</strong><br/>
                     <span style={{color:'#666',fontSize:'11px'}}>{loc.incident_name}</span><br/>
                     <span style={{color:'#888',fontSize:'11px'}}>Last ping: {formatLastSeen(loc.last_seen)}</span><br/>
-                    <span style={{color:'#aaa',fontSize:'11px'}}>{new Date(loc.last_seen).toLocaleString()}</span>
+                    <span style={{color:'#aaa',fontSize:'11px'}}>{fmtDateTime24(loc.last_seen)}</span>
                   </div>
                 </Tooltip>
                 <Popup>

@@ -21,11 +21,13 @@ export default function AppLayout() {
         <Ticker />
         <UpdateBanner />
         <div className="flex flex-1 overflow-hidden">
-          <div className="hidden md:flex md:w-56 md:flex-shrink-0 h-full">
+          {/* Desktop sidebar: only show on md+ AND when in landscape orientation.
+              In portrait (tablets held vertically), force the mobile bottom nav. */}
+          <div className="hidden md:landscape:flex md:landscape:w-56 md:landscape:flex-shrink-0 h-full">
             <Sidebar />
           </div>
           <MobileNav />
-          <main className="flex-1 overflow-y-auto overscroll-none flex flex-col pb-[calc(56px+env(safe-area-inset-bottom,0px))] md:pb-0">
+          <main className="flex-1 overflow-y-auto overscroll-none flex flex-col pb-[calc(56px+env(safe-area-inset-bottom,0px))] md:landscape:pb-0">
             <Outlet />
           </main>
         </div>

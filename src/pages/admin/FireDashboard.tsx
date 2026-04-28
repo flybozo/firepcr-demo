@@ -438,7 +438,7 @@ function AccessLogTab({ incidentId }: { incidentId: string }) {
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-xs text-gray-500">Last access</p>
-                    <p className="text-xs text-gray-300">{new Date(info.lastAccess).toLocaleString()}</p>
+                    <p className="text-xs text-gray-300">{new Date(info.lastAccess).toLocaleString([], { hour12: false })}</p>
                     <p className="text-xs text-gray-600 mt-0.5">{[...info.devices].join(' · ')}</p>
                   </div>
                 </div>
@@ -484,7 +484,7 @@ function AccessLogTab({ incidentId }: { incidentId: string }) {
                       <span className="font-medium text-white">{l.label || l.access_code}</span>
                       <span className="text-gray-500 ml-1.5">{detail}</span>
                     </span>
-                    <span className="text-gray-600 shrink-0 whitespace-nowrap">{new Date(l.accessed_at).toLocaleString()}</span>
+                    <span className="text-gray-600 shrink-0 whitespace-nowrap">{new Date(l.accessed_at).toLocaleString([], { hour12: false })}</span>
                   </div>
                 )
               })}

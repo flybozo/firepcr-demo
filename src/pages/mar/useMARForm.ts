@@ -439,8 +439,12 @@ export function useMARForm() {
       if (logResult.offline) {
         const totalUsed = isCS ? qtyUsed + qtyWasted : qtyUsed
         if (form.med_unit && totalUsed > 0) {
-          // Try local state first, then fall back to IndexedDB cache
-          let invItem = unitInventory.find(i => i.item_name === form.item_name)
+          // Match by lot when present so we decrement the *exact* lot that was administered.
+          // Falls back to item_name match when no lot was selected (Rx items often have no lot).
+          const matchByLot = (i: { item_name: string; lot_number?: string | null }) =>
+            i.item_name === form.item_name &&
+            (form.lot_number ? (i.lot_number || '') === form.lot_number : true)
+          let invItem = unitInventory.find(matchByLot)
           if (!invItem) {
             // unitInventory may be empty if load failed — search the cache directly
             try {
@@ -449,7 +453,10 @@ export function useMARForm() {
               if (unitId) {
                 const cachedInv = await getCachedData('inventory') as any[]
                 const match = cachedInv.find((r: any) =>
-                  r.item_name === form.item_name && r.unit_id === unitId && r.quantity > 0
+                  r.item_name === form.item_name &&
+                  r.unit_id === unitId &&
+                  r.quantity > 0 &&
+                  (form.lot_number ? (r.lot_number || '') === form.lot_number : true)
                 )
                 if (match) {
                   invItem = {
@@ -458,6 +465,8 @@ export function useMARForm() {
                     category: match.category,
                     quantity: match.quantity,
                     unit_id: match.unit_id,
+                    lot_number: match.lot_number ?? null,
+                    expiration_date: match.expiration_date ?? null,
                   }
                 }
               }
@@ -481,6 +490,9 @@ export function useMARForm() {
           }
         }
         if (isCS) {
+          // NOTE: cs_transactions has no `incident` column — incident is tracked via
+          // dispense_admin_log.incident and the encounter_id link. Don't include it here
+          // or the entire insert silently fails (column-not-found error).
           await queueOfflineWrite('cs_transactions', 'insert', {
             id: crypto.randomUUID(),
             transaction_type: 'Administration',
@@ -493,7 +505,6 @@ export function useMARForm() {
             performed_by: form.dispensed_by,
             witness: form.waste_witness || null,
             encounter_id: form.encounter_id || null,
-            incident: deriveIncident(),
           })
         }
         navigate('/mar?success=1')
@@ -502,30 +513,63 @@ export function useMARForm() {
 
       const totalUsed = isCS ? qtyUsed + qtyWasted : qtyUsed
       if (form.med_unit && totalUsed > 0) {
-        // Use unit_id directly — inventory belongs to the truck, not the fire deployment
+        // Decrement the exact lot the user selected. Prefer the row id we already loaded
+        // client-side (from unitInventory) — it's pinned to a specific lot. Fall back to
+        // a lookup by (unit_id, item_name, lot_number) for safety.
         try {
-          const unitId = await resolveUnitId(form.med_unit)
-          if (unitId) {
-            const { data: invSearch } = await supabase
-              .from('unit_inventory')
-              .select('id, quantity')
-              .eq('item_name', form.item_name)
-              .eq('unit_id', unitId)
-              .gt('quantity', 0)
-              .limit(1)
-            const matched = invSearch?.[0]
-            if (matched) {
-              const newQty = Math.max(0, (matched.quantity || 0) - totalUsed)
-              await supabase.from('unit_inventory').update({ quantity: newQty }).eq('id', matched.id)
+          const matchByLot = (i: { item_name: string; lot_number?: string | null }) =>
+            i.item_name === form.item_name &&
+            (form.lot_number ? (i.lot_number || '') === form.lot_number : true)
+          const localMatch = unitInventory.find(matchByLot)
+          let targetId: string | null = localMatch?.id ?? null
+          let currentQty: number = localMatch?.quantity ?? 0
+
+          if (!targetId) {
+            const unitId = await resolveUnitId(form.med_unit)
+            if (unitId) {
+              let q = supabase
+                .from('unit_inventory')
+                .select('id, quantity')
+                .eq('item_name', form.item_name)
+                .eq('unit_id', unitId)
+                .gt('quantity', 0)
+              q = form.lot_number ? q.eq('lot_number', form.lot_number) : q
+              const { data: invSearch, error: invErr } = await q.limit(1)
+              if (invErr) throw invErr
+              const matched = invSearch?.[0]
+              if (matched) {
+                targetId = matched.id
+                currentQty = matched.quantity || 0
+              }
             }
+          }
+
+          if (targetId) {
+            const newQty = Math.max(0, currentQty - totalUsed)
+            const { error: updErr } = await supabase
+              .from('unit_inventory')
+              .update({ quantity: newQty })
+              .eq('id', targetId)
+            if (updErr) throw updErr
+            // Reflect in local state so UI updates without a refetch
+            setUnitInventory(prev => prev.map(i => i.id === targetId ? { ...i, quantity: newQty } : i))
+          } else {
+            console.warn('[MAR] No matching inventory row to decrement', {
+              item: form.item_name, lot: form.lot_number, unit: form.med_unit,
+            })
+            toast.warning(`MAR saved, but no matching inventory row found for ${form.item_name}${form.lot_number ? ` (lot ${form.lot_number})` : ''}. Verify count.`)
           }
         } catch (e) {
           console.error('[MAR] Online inventory decrement failed (MAR still saved):', e)
+          toast.warning('MAR saved, but inventory decrement failed. Verify on-hand count.')
         }
       }
 
       if (isCS) {
-        await supabase.from('cs_transactions').insert({
+        // NOTE: cs_transactions has no `incident` column — incident is tracked via
+        // dispense_admin_log.incident and encounter_id. Including `incident` here
+        // causes a silent column-not-found error and skips the audit row entirely.
+        const { error: csErr } = await supabase.from('cs_transactions').insert({
           transaction_type: 'Administration',
           transfer_type: 'Administration',
           drug_name: form.item_name,
@@ -536,8 +580,11 @@ export function useMARForm() {
           performed_by: form.dispensed_by,
           witness: form.waste_witness || null,
           encounter_id: form.encounter_id || null,
-          incident: deriveIncident(),
         })
+        if (csErr) {
+          console.error('[MAR] cs_transactions insert failed:', csErr)
+          toast.warning(`CS audit log insert failed: ${csErr.message}. MAR was saved — please notify admin.`)
+        }
       }
 
       navigate('/mar?success=1')

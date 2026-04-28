@@ -1,5 +1,5 @@
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from '@/lib/toast'
@@ -8,9 +8,12 @@ import PageHeader from '@/components/ui/PageHeader'
 
 const CLINICAL_ROLES = ['EMT', 'Paramedic', 'RN', 'NP', 'PA', 'MD', 'DO', 'Tech'] as const
 
-function rbacRoleName(role: string): string {
-  if (role === 'MD' || role === 'DO') return 'medical_director'
-  return 'field_medic'
+type RBACRole = {
+  id: string
+  name: string
+  display_name: string
+  description: string | null
+  is_system: boolean
 }
 
 function generatePassword(name: string): string {
@@ -61,6 +64,15 @@ export default function NewEmployeePage() {
   const [submitting, setSubmitting] = useState(false)
   const [createdId, setCreatedId] = useState<string | null>(null)
 
+  const [rbacRoles, setRbacRoles] = useState<RBACRole[]>([])
+  const [selectedRbacRoles, setSelectedRbacRoles] = useState<string[]>([])
+
+  useEffect(() => {
+    supabase.from('roles').select('id, name, display_name, description, is_system')
+      .order('is_system', { ascending: false }).order('display_name')
+      .then(({ data }) => setRbacRoles(data || []))
+  }, [])
+
   const [form, setForm] = useState({
     name: '',
     role: '',
@@ -69,7 +81,6 @@ export default function NewEmployeePage() {
     emergency_contact_name: '',
     emergency_contact_phone: '',
     emergency_contact_relationship: '',
-    app_role: 'field',
     daily_rate: '',
     experience_level: '2',
     rems_capable: false,
@@ -78,7 +89,16 @@ export default function NewEmployeePage() {
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  const set = (k: string, v: string | boolean) => setForm(p => ({ ...p, [k]: v }))
+  const set = (k: string, v: string | boolean) => {
+    setForm(p => ({ ...p, [k]: v }))
+    // Auto-suggest RBAC role when clinical role changes
+    if (k === 'role' && typeof v === 'string' && rbacRoles.length > 0 && selectedRbacRoles.length === 0) {
+      const suggested = v === 'MD' || v === 'DO'
+        ? rbacRoles.find(r => r.name === 'medical_director')
+        : rbacRoles.find(r => r.name === 'field_medic')
+      if (suggested) setSelectedRbacRoles([suggested.id])
+    }
+  }
   const tempPassword = form.name.trim() ? generatePassword(form.name) : ''
 
   function validateStep1(): boolean {
@@ -105,7 +125,7 @@ export default function NewEmployeePage() {
           emergency_contact_name: form.emergency_contact_name.trim() || null,
           emergency_contact_phone: form.emergency_contact_phone.trim() || null,
           emergency_contact_relationship: form.emergency_contact_relationship || null,
-          app_role: form.app_role === 'admin' ? 'admin' : 'field',
+          app_role: 'field',
           daily_rate: form.daily_rate ? parseFloat(form.daily_rate) : null,
           experience_level: parseInt(form.experience_level) || 2,
           rems_capable: form.rems_capable,
@@ -138,18 +158,17 @@ export default function NewEmployeePage() {
         throw new Error(body.error || 'Failed to provision auth account')
       }
 
-      const rbacNames = [rbacRoleName(form.role)]
-      if (form.app_role === 'admin') rbacNames.push('super_admin')
-
-      const { data: roleRows } = await supabase
-        .from('roles')
-        .select('id, name')
-        .in('name', rbacNames)
-
-      if (roleRows && roleRows.length > 0) {
+      // Assign selected RBAC roles
+      if (selectedRbacRoles.length > 0) {
         await supabase.from('employee_roles').insert(
-          roleRows.map((r: { id: string }) => ({ employee_id: employeeId, role_id: r.id }))
+          selectedRbacRoles.map(roleId => ({ employee_id: employeeId, role_id: roleId }))
         )
+      }
+
+      // Derive app_role from selected RBAC roles
+      const hasAdminRole = rbacRoles.some(r => selectedRbacRoles.includes(r.id) && (r.name === 'super_admin' || r.name === 'ops_manager'))
+      if (hasAdminRole) {
+        await supabase.from('employees').update({ app_role: 'admin' }).eq('id', employeeId)
       }
 
       setCreatedId(employeeId)
@@ -172,7 +191,7 @@ export default function NewEmployeePage() {
             </div>
             <div>
               <div className="font-semibold text-white">{form.name}</div>
-              <div className="text-xs text-gray-400">{form.role} · {form.app_role === 'admin' ? 'Admin' : 'Field'}</div>
+              <div className="text-xs text-gray-400">{form.role} · {selectedRbacRoles.length > 0 ? rbacRoles.filter(r => selectedRbacRoles.includes(r.id)).map(r => r.display_name).join(', ') : 'No roles'}</div>
             </div>
           </div>
           <div className="border-t border-gray-700 pt-4 space-y-2">
@@ -288,12 +307,32 @@ export default function NewEmployeePage() {
         {step === 2 && (
           <div className="bg-gray-800 rounded-xl p-5 border border-gray-700 space-y-4">
             <p className="text-xs font-bold uppercase tracking-wide text-gray-400">Employment Settings</p>
-            <FormField label="App Role" hint="Admin users can access management features">
-              <select className={selectCls} value={form.app_role} onChange={e => set('app_role', e.target.value)}>
-                <option value="field">Field</option>
-                <option value="admin">Admin</option>
-              </select>
-            </FormField>
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-1">Permissions Roles</label>
+              <p className="text-xs text-gray-500 mb-2">Select one or more roles that define what this employee can do in the app</p>
+              <div className="bg-gray-900 rounded-lg border border-gray-700 divide-y divide-gray-800 max-h-64 overflow-y-auto">
+                {rbacRoles.map(r => (
+                  <label key={r.id} className="flex items-start gap-3 px-3 py-2.5 cursor-pointer hover:bg-gray-800/50 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={selectedRbacRoles.includes(r.id)}
+                      onChange={e => {
+                        if (e.target.checked) setSelectedRbacRoles(prev => [...prev, r.id])
+                        else setSelectedRbacRoles(prev => prev.filter(id => id !== r.id))
+                      }}
+                      className="mt-0.5 accent-red-500"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-white font-medium">{r.display_name}</span>
+                      {r.description && <p className="text-xs text-gray-500 mt-0.5">{r.description}</p>}
+                    </div>
+                  </label>
+                ))}
+              </div>
+              {selectedRbacRoles.length === 0 && (
+                <p className="text-xs text-amber-500 mt-1">⚠️ No roles selected — employee won’t have any app permissions</p>
+              )}
+            </div>
             <FormField label="Daily Rate" hint="Used for payroll calculations (optional)">
               <input
                 type="number"
@@ -357,7 +396,7 @@ export default function NewEmployeePage() {
               <div><span className="text-gray-500">Name: </span><span className="text-white">{form.name}</span></div>
               <div><span className="text-gray-500">Role: </span><span className="text-white">{form.role}</span></div>
               <div><span className="text-gray-500">Email: </span><span className="text-white">{form.email}</span></div>
-              <div><span className="text-gray-500">App Role: </span><span className="text-white capitalize">{form.app_role}</span></div>
+              <div><span className="text-gray-500">Roles: </span><span className="text-white">{selectedRbacRoles.length > 0 ? rbacRoles.filter(r => selectedRbacRoles.includes(r.id)).map(r => r.display_name).join(', ') : 'None'}</span></div>
               <div><span className="text-gray-500">Experience: </span><span className="text-white">{form.experience_level === '1' ? '⭐ Junior' : form.experience_level === '3' ? '⭐⭐⭐ Senior' : '⭐⭐ Mid'}</span></div>
               {form.daily_rate && <div><span className="text-gray-500">Daily Rate: </span><span className="text-white">${form.daily_rate}</span></div>}
               {form.emergency_contact_name && <div><span className="text-gray-500">Emergency: </span><span className="text-white">{form.emergency_contact_name}{form.emergency_contact_relationship ? ` (${form.emergency_contact_relationship})` : ''}{form.emergency_contact_phone ? ` — ${form.emergency_contact_phone}` : ''}</span></div>}

@@ -11,6 +11,7 @@ export default function NewICS214Page() {
     opDate, setOpDate, shift, setShift, opStart, setOpStart, opEnd, setOpEnd,
     leaderName, setLeaderName, leaderPosition, setLeaderPosition,
     notes, setNotes, initialActivity, setInitialActivity,
+    initialActivityTime, setInitialActivityTime,
     submitting, error, isAdminOverride, isAdmin,
     handleUnitChange, handleIncidentChange, handleSubmit, roleToICSPosition,
   } = useICS214Form()
@@ -269,6 +270,15 @@ export default function NewICS214Page() {
             <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
               Initial Activity <span className="text-red-500">*</span>
             </label>
+            <div className="mb-3">
+              <label className="block text-xs text-gray-500 mb-1">Activity Time</label>
+              <input
+                type="datetime-local"
+                value={initialActivityTime}
+                onChange={e => setInitialActivityTime(e.target.value)}
+                className="w-full bg-gray-800 text-white rounded-lg px-3 py-2 text-sm border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+              />
+            </div>
             <textarea
               value={initialActivity}
               onChange={e => setInitialActivity(e.target.value)}

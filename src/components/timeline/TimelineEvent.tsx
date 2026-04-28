@@ -27,18 +27,20 @@ function unitColor(name: string): string {
   return colors[Math.abs(h) % colors.length]
 }
 
-function relativeTime(ts: string): string {
-  const diff = Date.now() - new Date(ts).getTime()
-  const mins = Math.floor(diff / 60_000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 3600)
-  if (hrs < 24) return `${hrs}h ago`
-  return new Date(ts).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+function shortTime(ts: string): string {
+  return new Date(ts).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
-function shortTime(ts: string): string {
-  return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+function shortDateTime(ts: string): string {
+  const d = new Date(ts)
+  const today = new Date()
+  const sameDay =
+    d.getFullYear() === today.getFullYear() &&
+    d.getMonth() === today.getMonth() &&
+    d.getDate() === today.getDate()
+  if (sameDay) return shortTime(ts)
+  // Different day: include the date so admins know which op-period it belongs to.
+  return `${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} ${shortTime(ts)}`
 }
 
 type Props = { event: TimelineEvent }
@@ -75,9 +77,9 @@ export function TimelineEventRow({ event }: Props) {
           {event.actor && (
             <span className="text-xs text-gray-500 truncate max-w-[160px]">{event.actor}</span>
           )}
-          {/* Timestamp */}
-          <span className="text-xs text-gray-600 ml-auto shrink-0" title={new Date(ts).toLocaleString()}>
-            {relativeTime(ts)} · {shortTime(ts)}
+          {/* Timestamp — 24h, includes date when not today */}
+          <span className="text-xs text-gray-600 ml-auto shrink-0" title={new Date(ts).toLocaleString([], { hour12: false })}>
+            {shortDateTime(ts)}
           </span>
         </div>
       </div>

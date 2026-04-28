@@ -154,7 +154,7 @@ function BillingPageInner() {
 
     setSupplyItems(mappedSupply.sort((a, b) => a.date.localeCompare(b.date)))
     setMarItems(mappedMAR.sort((a, b) => a.date.localeCompare(b.date)))
-    setGeneratedAt(new Date().toLocaleString())
+    setGeneratedAt(new Date().toLocaleString([], { hour12: false }))
     setGenerated(true)
     setLoading(false)
   }

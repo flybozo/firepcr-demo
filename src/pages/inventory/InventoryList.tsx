@@ -44,7 +44,7 @@ const CAT_COLORS: Record<string, string> = {
 function InventoryPageInner() {
   const supabase = createClient()
   const roleLoading = usePermissionLoading()
-  const isField = !usePermission('inventory.view')
+  const isField = !usePermission('inventory.manage')
   const assignment = useUserAssignment()
   const detailMatch = useMatch('/inventory/:id')
   const listStyle = useListStyle()

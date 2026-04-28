@@ -179,7 +179,7 @@ function ChatRequestsPageInner() {
                     </span>
                     <span className="text-xs text-gray-600">
                       {new Date(req.created_at).toLocaleDateString('en-US', {
-                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
                       })}
                     </span>
                   </div>

@@ -785,7 +785,7 @@ function ChatTab({ code, channelId, codeLabel, codeAvatarUrl }: { code: string; 
         )}
         {messages.map((msg) => {
           const isExternal = msg.sender.id === null
-          const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          const time = new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
           // For external messages, use their uploaded avatar or the API-returned one
           const extAvatar = isExternal ? (msg.sender.headshot_url || avatarUrl) : null
           return (

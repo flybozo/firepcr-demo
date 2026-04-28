@@ -45,6 +45,9 @@ export function useICS214Form() {
   const [leaderPosition, setLeaderPosition] = useState('')
   const [notes, setNotes] = useState('')
   const [initialActivity, setInitialActivity] = useState('')
+  const [initialActivityTime, setInitialActivityTime] = useState(() => {
+    const now = new Date(); now.setSeconds(0, 0); return now.toISOString().slice(0, 16)
+  })
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [isAdminOverride, setIsAdminOverride] = useState(false)
@@ -132,7 +135,7 @@ export function useICS214Form() {
       const ics214Id = await createICS214({
         unitId, unitName, incidentId, incidentName,
         opDate, opStart, opEnd, leaderName, leaderPosition,
-        notes, initialActivity, crew, createdBy, isAdmin,
+        notes, initialActivity, initialActivityTime, crew, createdBy, isAdmin,
       })
       navigate(`/ics214/${ics214Id}`)
     } catch (err: any) {
@@ -155,6 +158,7 @@ export function useICS214Form() {
     leaderPosition, setLeaderPosition,
     notes, setNotes,
     initialActivity, setInitialActivity,
+    initialActivityTime, setInitialActivityTime,
     submitting, error,
     isAdminOverride, isAdmin,
     handleUnitChange, handleIncidentChange, handleSubmit,

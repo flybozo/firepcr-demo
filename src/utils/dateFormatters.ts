@@ -3,6 +3,31 @@ export function formatDate(iso: string | null | undefined): string {
   return new Date(iso).toLocaleDateString()
 }
 
+/**
+ * Compact 24-hour clock formatter for HH:MM[:SS] strings stored in DB time columns.
+ * e.g. '09:05' -> '09:05', '14:30:00' -> '14:30', '9:5' -> '09:05'.
+ */
+export function fmtTimeCompact24(t: string | null | undefined): string {
+  if (!t) return '—'
+  const m = t.match(/^(\d{1,2}):(\d{1,2})/)
+  if (!m) return '—'
+  const h = parseInt(m[1], 10)
+  const min = parseInt(m[2], 10)
+  if (isNaN(h) || isNaN(min) || h < 0 || h > 23 || min < 0 || min > 59) return '—'
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`
+}
+
+/**
+ * Locale date + 24-hour time, used as a drop-in replacement for `toLocaleString()`.
+ * Example: '4/27/2026, 18:04'.
+ */
+export function fmtDateTime24(input: Date | string | number | null | undefined): string {
+  if (input == null) return ''
+  const d = input instanceof Date ? input : new Date(input)
+  if (isNaN(d.getTime())) return ''
+  return `${d.toLocaleDateString()}, ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`
+}
+
 /** Compact date for list/card views: MM/DD/YY */
 export function fmtDateCompact(dateStr: string | null | undefined): string {
   if (!dateStr) return '—'
@@ -23,11 +48,13 @@ export function fmtDateCompact(dateStr: string | null | undefined): string {
 
 export function formatDateTime(iso: string | null): string | null {
   if (!iso) return null
-  return new Date(iso).toLocaleString()
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return null
+  return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`
 }
 
 export function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
 }
 
 export function relativeTime(isoString: string): string {
@@ -61,8 +88,8 @@ export function formatMessageTime(isoString: string): string {
   const now = new Date()
   const diff = now.getTime() - date.getTime()
   const days = Math.floor(diff / 86400000)
-  if (days === 0) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-  if (days === 1) return `Yesterday ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-  if (days < 7) return `${date.toLocaleDateString([], { weekday: 'short' })} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-  return date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  if (days === 0) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+  if (days === 1) return `Yesterday ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`
+  if (days < 7) return `${date.toLocaleDateString([], { weekday: 'short' })} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`
+  return date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
 }

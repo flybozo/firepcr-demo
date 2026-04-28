@@ -141,7 +141,7 @@ export function ProgressNotesSection({
                     <span className="text-xs text-gray-400 font-medium">{note.author_name}</span>
                     {note.author_role && <span className="text-xs text-gray-600">({note.author_role})</span>}
                     <span className="text-xs text-gray-600">·</span>
-                    <span className="text-xs text-gray-500">{new Date(note.note_datetime).toLocaleString()}</span>
+                    <span className="text-xs text-gray-500">{new Date(note.note_datetime).toLocaleString([], { hour12: false })}</span>
                     {note.signed_at ? (
                       <span className="text-xs px-1.5 py-0.5 bg-green-900 text-green-400 rounded">✓ Signed</span>
                     ) : (

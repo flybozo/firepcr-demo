@@ -59,6 +59,8 @@ export default function CSItemDetail() {
   const [item, setItem] = useState<CSItem | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
+  // Aggregated par/qty for (unit, item) — par lives on formulary_templates per unit_type.
+  const [agg, setAgg] = useState<{ total: number; par: number } | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -69,6 +71,19 @@ export default function CSItemDetail() {
         .eq('id', id)
         .single()
       setItem(itemData as CSItem)
+
+      // Pull aggregated par from the canonical view (formulary_templates source of truth)
+      if (itemData?.unit_id && itemData.item_name) {
+        const aggQ = supabase
+          .from('unit_inventory_aggregated')
+          .select('total_quantity, par_qty')
+          .eq('unit_id', itemData.unit_id)
+        const { data: aggRows } = itemData.catalog_item_id
+          ? await aggQ.eq('catalog_item_id', itemData.catalog_item_id).limit(1)
+          : await aggQ.eq('item_name', itemData.item_name).limit(1)
+        const a = (aggRows as any[])?.[0]
+        if (a) setAgg({ total: a.total_quantity ?? 0, par: a.par_qty ?? 0 })
+      }
 
       // Fetch transactions matching this item name + lot
       if (itemData) {
@@ -95,7 +110,10 @@ export default function CSItemDetail() {
   const exp = item.expiration_date
   const expired = isExpired(exp)
   const expiring = !expired && isExpiringSoon(exp)
-  const low = item.quantity <= item.par_qty
+  // "Below par" is per (unit, item), not per lot row. A unit with three lots @ 1 each meets a par of 3.
+  const totalOnUnit = agg?.total ?? item.quantity
+  const parOnUnit = agg?.par ?? 0
+  const low = parOnUnit > 0 && totalOnUnit < parOnUnit
 
   // CS-specific context card — rendered above the catalog detail inside CatalogItemPanel
   const csContextCard = (_catalogItem: CatalogItem) => (
@@ -103,14 +121,20 @@ export default function CSItemDetail() {
       {/* Quantity */}
       <div className="grid grid-cols-2 gap-3">
         <div className="theme-card rounded-xl p-4 border">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">On Hand</p>
-          <p className={`text-3xl font-bold ${low ? 'text-red-400' : 'text-white'}`}>{item.quantity}</p>
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">On Hand (this lot)</p>
+          <p className={`text-3xl font-bold text-white`}>{item.quantity}</p>
           {item.unit_of_measure && <p className="text-xs text-gray-600 mt-0.5">{item.unit_of_measure}</p>}
         </div>
         <div className="theme-card rounded-xl p-4 border">
-          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Par Level</p>
-          <p className="text-3xl font-bold text-gray-400">{item.par_qty}</p>
-          {low && <p className="text-xs text-red-400 mt-0.5">↓ Below par</p>}
+          <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Unit Total / Par</p>
+          <p className={`text-3xl font-bold ${low ? 'text-red-400' : 'text-white'}`}>
+            {totalOnUnit}<span className="text-gray-500 text-xl">/{parOnUnit}</span>
+          </p>
+          {low ? (
+            <p className="text-xs text-red-400 mt-0.5">↓ Below par</p>
+          ) : parOnUnit > 0 ? (
+            <p className="text-xs text-gray-600 mt-0.5">across all lots on this unit</p>
+          ) : null}
         </div>
       </div>
 
@@ -208,14 +232,20 @@ export default function CSItemDetail() {
         {/* Quantity */}
         <div className="grid grid-cols-2 gap-3">
           <div className="theme-card rounded-xl p-4 border">
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">On Hand</p>
-            <p className={`text-3xl font-bold ${low ? 'text-red-400' : 'text-white'}`}>{item.quantity}</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">On Hand (this lot)</p>
+            <p className="text-3xl font-bold text-white">{item.quantity}</p>
             {item.unit_of_measure && <p className="text-xs text-gray-600 mt-0.5">{item.unit_of_measure}</p>}
           </div>
           <div className="theme-card rounded-xl p-4 border">
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Par Level</p>
-            <p className="text-3xl font-bold text-gray-400">{item.par_qty}</p>
-            {low && <p className="text-xs text-red-400 mt-0.5">↓ Below par</p>}
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Unit Total / Par</p>
+            <p className={`text-3xl font-bold ${low ? 'text-red-400' : 'text-white'}`}>
+              {totalOnUnit}<span className="text-gray-500 text-xl">/{parOnUnit}</span>
+            </p>
+            {low ? (
+              <p className="text-xs text-red-400 mt-0.5">↓ Below par</p>
+            ) : parOnUnit > 0 ? (
+              <p className="text-xs text-gray-600 mt-0.5">across all lots on this unit</p>
+            ) : null}
           </div>
         </div>
 

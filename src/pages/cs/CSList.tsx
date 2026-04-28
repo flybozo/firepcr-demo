@@ -20,10 +20,16 @@ type CSItem = {
   id: string
   item_name: string
   quantity: number
+  /** @deprecated lot-row par from unit_inventory; kept for type compat. Use parAggregate map for low-stock. */
   par_qty: number
+  /** Aggregated par for (unit, item) from formulary_templates via unit_inventory_aggregated */
+  agg_par_qty: number
+  /** Aggregated total quantity across all lots of this item on this unit */
+  agg_total_qty: number
   lot_number: string | null
   expiration_date: string | null
   unit_id: string | null
+  catalog_item_id: string | null
   unitName: string
 }
 
@@ -53,7 +59,7 @@ export default function CSList() {
   const supabase = createClient()
   const navigate = useNavigate()
   const detailMatch = useMatch('/cs/item/:id')
-  const isField = !usePermission('cs.view')
+  const isField = !usePermission('cs.manage')
   const assignment = useUserAssignment()
 
   const [items, setItems] = useState<CSItem[]>([])
@@ -95,15 +101,31 @@ export default function CSList() {
 
       // Try network refresh
       try {
-        const { data } = await supabase
-          .from('unit_inventory')
-          .select('id, item_name, quantity, par_qty, lot_number, expiration_date, unit_id, catalog_item_id, unit:units(name)')
-          .eq('category', 'CS')
-          .order('item_name')
-        const mapped: CSItem[] = (data || []).map((r: any) => ({
-          ...r,
-          unitName: r.unit?.name || 'Unknown',
-        }))
+        const [invRes, aggRes] = await Promise.all([
+          supabase
+            .from('unit_inventory')
+            .select('id, item_name, quantity, par_qty, lot_number, expiration_date, unit_id, catalog_item_id, unit:units(name)')
+            .eq('category', 'CS')
+            .order('item_name'),
+          supabase
+            .from('unit_inventory_aggregated')
+            .select('unit_id, item_name, catalog_item_id, total_quantity, par_qty'),
+        ])
+        const aggMap = new Map<string, { agg_total_qty: number; agg_par_qty: number }>()
+        for (const a of (aggRes.data as any[]) || []) {
+          const key = `${a.unit_id}::${a.catalog_item_id || a.item_name}`
+          aggMap.set(key, { agg_total_qty: a.total_quantity ?? 0, agg_par_qty: a.par_qty ?? 0 })
+        }
+        const mapped: CSItem[] = ((invRes.data as any[]) || []).map((r: any) => {
+          const key = `${r.unit_id}::${r.catalog_item_id || r.item_name}`
+          const agg = aggMap.get(key)
+          return {
+            ...r,
+            unitName: r.unit?.name || 'Unknown',
+            agg_total_qty: agg?.agg_total_qty ?? r.quantity,
+            agg_par_qty: agg?.agg_par_qty ?? 0,
+          }
+        })
         setItems(mapped)
         setIsOfflineData(false)
       } catch {
@@ -201,7 +223,9 @@ export default function CSList() {
           {filtered.map(item => {
             const expired = isExpired(item.expiration_date)
             const expiring = isExpiringSoon(item.expiration_date)
-            const low = item.quantity <= item.par_qty
+            // "Below par" is now per (unit, item) aggregated — not per lot row.
+            // A unit with three lots of fentanyl @ 1 each meets a par of 3.
+            const low = item.agg_par_qty > 0 && item.agg_total_qty < item.agg_par_qty
             const selected = detailMatch?.params?.id === item.id
             return (
               <div

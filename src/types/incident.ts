@@ -46,6 +46,7 @@ export type Unit = {
 export type EncounterRow = {
   id: string
   date: string | null
+  time?: string | null
   patient_last_name: string | null
   patient_first_name: string | null
   unit: string | null
@@ -57,6 +58,7 @@ export type EncounterRow = {
 export type MARRow = {
   id: string
   date: string | null
+  time?: string | null
   item_name: string | null
   med_unit: string | null
   [key: string]: unknown
@@ -65,6 +67,7 @@ export type MARRow = {
 export type SupplyRunRow = {
   id: string
   run_date: string
+  time?: string | null
   incident_unit: { unit: { name: string } | null } | null
   item_count?: number
   [key: string]: unknown

@@ -1,8 +1,9 @@
 
 import { FieldGuard } from '@/components/FieldGuard'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { usePermission } from '@/hooks/usePermission'
+import { useUserAssignment } from '@/lib/useUserAssignment'
 import { createClient } from '@/lib/supabase/client'
 import { Link } from 'react-router-dom'
 import { useNavigate, useMatch } from 'react-router-dom'
@@ -39,8 +40,10 @@ type Unit = {
   unit_type: { name: string } | null
   incident_units: {
     id: string
+    incident_id: string
+    released_at: string | null
     incident: { name: string; status: string }
-    unit_assignments: { id: string; employee: { id: string; name: string; role: string } | null }[]
+    unit_assignments: { id: string; released_at: string | null; employee: { id: string; name: string; role: string } | null }[]
   }[]
 }
 
@@ -72,6 +75,7 @@ function UnitsPageInner() {
   const navigate = useNavigate()
   const detailMatch = useMatch('/units/:id')
   const isAdmin = usePermission('units.view')
+  const assignment = useUserAssignment()
   const [units, setUnits] = useState<Unit[]>([])
   const [loading, setLoading] = useState(true)
   const [isOffline, setIsOffline] = useState(false)
@@ -111,7 +115,7 @@ function UnitsPageInner() {
           id, name, active, unit_status, vin, license_plate, plate_state, make, model, year, photo_url,
           unit_type:unit_types(name),
           incident_units(
-            id, released_at,
+            id, incident_id, released_at,
             incident:incidents(name, status),
             unit_assignments(id, released_at, employee:employees(id, name, role))
           )
@@ -187,8 +191,19 @@ function UnitsPageInner() {
     await load()
   }
 
+  // Field users: only show units assigned to their incident
+  const incidentFilteredUnits = useMemo(() => {
+    if (isAdmin || !assignment.incidentUnit?.incident_id) return units
+    const myIncidentId = assignment.incidentUnit.incident_id
+    return units.filter(u =>
+      (u.incident_units || []).some(iu =>
+        !iu.released_at && iu.incident_id === myIncidentId
+      )
+    )
+  }, [units, isAdmin, assignment.incidentUnit?.incident_id])
+
   const filteredUnits = unitSortFn(
-    statusFilter === 'all' ? units : units.filter(u => (u.unit_status || 'in_service') === statusFilter),
+    statusFilter === 'all' ? incidentFilteredUnits : incidentFilteredUnits.filter(u => (u.unit_status || 'in_service') === statusFilter),
     (u, key) => {
       if (key === 'name') return u.name
       if (key === 'type') return (u.unit_type as any)?.name ?? ''

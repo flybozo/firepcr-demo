@@ -405,7 +405,7 @@ export default function ICS214ListPage() {
                       <span className="flex-1 text-xs text-gray-400 truncate min-w-0">
                         {row.incident_name || '—'}
                       </span>
-                      <span className={`w-16 text-right text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0 ${
                         row.status === 'Open' ? 'bg-green-900 text-green-300' : 'bg-gray-700 text-gray-400'
                       }`}>
                         {row.status}

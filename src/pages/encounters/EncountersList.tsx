@@ -359,7 +359,7 @@ function EncountersInner() {
               {/* Header */}
               <div className={`flex items-center px-4 py-2 text-xs font-semibold uppercase tracking-wide ${lc.header}`}>
                 <SortableHeader label="Date" sortKey="date" currentKey={encSortKey} currentDir={encSortDir} onToggle={encToggleSort} className="w-24 shrink-0" />
-                <SortableHeader label="Patient" sortKey="patient" currentKey={encSortKey} currentDir={encSortDir} onToggle={encToggleSort} className="w-20 shrink-0" />
+                <SortableHeader label="Patient" sortKey="patient" currentKey={encSortKey} currentDir={encSortDir} onToggle={encToggleSort} className="w-20 shrink-0 justify-center" />
                 <span className="w-20 hidden sm:block shrink-0 text-gray-500">DOB</span>
                 <SortableHeader label="Incident" sortKey="incident" currentKey={encSortKey} currentDir={encSortDir} onToggle={encToggleSort} className="w-32 hidden sm:flex shrink-0" />
                 <SortableHeader label="Unit" sortKey="unit" currentKey={encSortKey} currentDir={encSortDir} onToggle={encToggleSort} className="w-28 hidden md:flex shrink-0" />
@@ -375,9 +375,9 @@ function EncountersInner() {
                 >
                   <span className="w-24 shrink-0 text-gray-400 text-xs">
                     {fmtDateCompact(enc.date)}
-                    {(enc as any).created_at && <span className="text-gray-600 ml-1">{new Date((enc as any).created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>}
+                    {(enc as any).created_at && <span className="text-gray-600 ml-1">{new Date((enc as any).created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}</span>}
                   </span>
-                  <span className="w-20 shrink-0 font-medium truncate pr-2">
+                  <span className="w-20 shrink-0 font-medium truncate pr-2 text-center">
                     {enc.patient_last_name
                       ? `${(enc.patient_last_name || '')[0] || '?'}${(enc.patient_first_name || '')[0] || '?'}`.toUpperCase()
                       : '—'}

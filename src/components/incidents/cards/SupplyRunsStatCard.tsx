@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { StatCard } from '@/components/shared/StatCard'
 import type { SupplyRunRow } from '@/types/incident'
-import { fmtDateCompact } from '@/utils/dateFormatters'
+import { fmtDateCompact, fmtTimeCompact24 } from '@/utils/dateFormatters'
 
 export function SupplyRunsStatCard({
   activeIncidentId,
@@ -39,24 +39,26 @@ export function SupplyRunsStatCard({
     >
       {filtered.length > 0 ? (
         <>
-          <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 theme-card-footer">
-            <span className="w-20 shrink-0">Date</span>
-            <span className="w-16 shrink-0">Resource</span>
-            <span className="flex-1 min-w-0">Unit</span>
-            <span className="w-16 shrink-0 text-right">Items</span>
+          <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 theme-card-footer gap-2">
+            <span className="w-14 shrink-0">Date</span>
+            <span className="w-12 shrink-0">Time</span>
+            <span className="w-20 shrink-0">Resource</span>
+            <span className="flex-1 min-w-0 pl-2">Unit</span>
+            <span className="w-12 shrink-0 text-right">Items</span>
           </div>
           {(expanded ? filtered : filtered.slice(0, 5)).map(sr => (
             <Link
               key={sr.id}
               to={`/supply-runs/${sr.id}`}
-              className="flex items-center px-4 py-2 hover:bg-gray-800/50 transition-colors text-sm"
+              className="flex items-center px-4 py-2 hover:bg-gray-800/50 transition-colors text-sm gap-2"
             >
-              <span className="w-20 shrink-0 text-gray-400 text-xs">{fmtDateCompact(sr.run_date)}</span>
-              <span className="w-16 shrink-0 text-xs text-gray-500 truncate">{(sr as any).resource_number || '—'}</span>
-              <span className="flex-1 min-w-0 truncate pr-1 text-xs">
+              <span className="w-14 shrink-0 text-gray-400 text-xs">{fmtDateCompact(sr.run_date)}</span>
+              <span className="w-12 shrink-0 text-gray-400 text-xs">{fmtTimeCompact24((sr as any).time)}</span>
+              <span className="w-20 shrink-0 text-xs text-gray-500 truncate">{(sr as any).resource_number || '—'}</span>
+              <span className="flex-1 min-w-0 truncate pl-2 pr-1 text-xs">
                 {(sr.incident_unit as unknown as { unit?: { name?: string } } | null)?.unit?.name || '—'}
               </span>
-              <span className="w-16 shrink-0 text-right text-xs text-gray-400">{sr.item_count ?? 0}</span>
+              <span className="w-12 shrink-0 text-right text-xs text-gray-400">{sr.item_count ?? 0}</span>
             </Link>
           ))}
           {!expanded && filtered.length > 5 && (

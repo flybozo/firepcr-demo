@@ -52,16 +52,18 @@ export function ReorderStatCard({
     >
       {filteredReorder.length > 0 ? (
         <>
-          <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 theme-card-footer">
+          <div className="flex items-center px-4 py-1.5 text-xs font-semibold uppercase tracking-wide text-gray-600 theme-card-footer gap-2">
             <span className="flex-1 min-w-0">Item</span>
-            <span className="w-14 shrink-0 text-right">Qty</span>
-            <span className="w-14 shrink-0 text-right">Par</span>
+            <span className="w-20 shrink-0">Unit</span>
+            <span className="w-12 shrink-0 text-right">Qty</span>
+            <span className="w-12 shrink-0 text-right">Par</span>
           </div>
           {filteredReorder.slice(0, 5).map(r => (
-            <Link key={r.id} to={`/inventory/${r.id}`} className="flex items-center px-4 py-1.5 text-xs hover:bg-gray-800/50 transition-colors cursor-pointer">
+            <Link key={r.id} to={`/inventory/${r.id}`} className="flex items-center px-4 py-1.5 text-xs hover:bg-gray-800/50 transition-colors cursor-pointer gap-2">
               <span className="flex-1 min-w-0 truncate pr-1 text-white hover:text-blue-400 transition-colors">{r.item_name}</span>
-              <span className={`w-14 shrink-0 text-right font-medium ${r.quantity === 0 ? 'text-red-400' : 'text-yellow-400'}`}>{r.quantity}</span>
-              <span className="w-14 shrink-0 text-right text-gray-500">{r.par_qty}</span>
+              <span className="w-20 shrink-0 text-gray-400 truncate">{r.unit_name}</span>
+              <span className={`w-12 shrink-0 text-right font-medium ${r.quantity === 0 ? 'text-red-400' : 'text-yellow-400'}`}>{r.quantity}</span>
+              <span className="w-12 shrink-0 text-right text-gray-500">{r.par_qty}</span>
             </Link>
           ))}
         </>

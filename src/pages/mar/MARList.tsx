@@ -100,7 +100,7 @@ function getRouteAbbr(route: string | null): string | null {
 function MARListInner() {
   const supabase = createClient()
   const roleLoading = usePermissionLoading()
-  const isField = !usePermission('mar.view')
+  const isField = !usePermission('mar.manage')
   const assignment = useUserAssignment()
   const navigate = useNavigate()
   const detailMatch = useMatch('/mar/:id')
