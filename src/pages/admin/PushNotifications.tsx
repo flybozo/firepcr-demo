@@ -39,6 +39,8 @@ function PushNotificationsInner() {
   } | null>(null)
   const [error, setError] = useState('')
   const [history, setHistory] = useState<NotifLog[]>([])
+  const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState<number | null>(null)
   const [csSettings, setCsSettings] = useState({ enabled: true, frequency_hours: 12, reminder_threshold_hours: 24 })
   const [savingCs, setSavingCs] = useState(false)
   const [csSuccess, setCsSuccess] = useState(false)
@@ -52,16 +54,60 @@ function PushNotificationsInner() {
     sendEmail: false,
   })
 
-  useEffect(() => {
+  const reloadHistory = () => {
     supabase.from('push_notifications')
       .select('*')
       .order('created_at', { ascending: false })
       .limit(20)
       .then(({ data }) => setHistory(data || []))
+  }
+
+  useEffect(() => {
+    reloadHistory()
     // Load CS reminder settings
     supabase.from('app_settings').select('value').eq('key', 'cs_count_reminder').single()
       .then(({ data }) => { if (data?.value) setCsSettings(data.value as any) })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result])
+
+  const deleteNotification = async (id: string, title: string) => {
+    if (!window.confirm(`Delete notification "${title}"? This removes it from everyone\u2019s inbox.`)) return
+    setDeletingIds(prev => new Set(prev).add(id))
+    try {
+      const res = await authFetch('/api/push/delete', {
+        method: 'POST',
+        body: JSON.stringify({ id }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Delete failed')
+      // Optimistic local remove
+      setHistory(prev => prev.filter(n => n.id !== id))
+    } catch (err: any) {
+      setError(`Delete failed: ${err.message}`)
+    } finally {
+      setDeletingIds(prev => { const next = new Set(prev); next.delete(id); return next })
+    }
+  }
+
+  const deleteOlderThan = async (days: number) => {
+    if (!window.confirm(`Delete every notification older than ${days} day${days === 1 ? '' : 's'}? This removes them from everyone\u2019s inbox.`)) return
+    setBulkDeleting(days)
+    setError('')
+    try {
+      const res = await authFetch('/api/push/delete', {
+        method: 'POST',
+        body: JSON.stringify({ older_than_days: days }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Bulk delete failed')
+      reloadHistory()
+      setResult({ delivered: 0, failed: 0, message: `Deleted ${data.deleted} notification${data.deleted === 1 ? '' : 's'}.` })
+    } catch (err: any) {
+      setError(`Bulk delete failed: ${err.message}`)
+    } finally {
+      setBulkDeleting(null)
+    }
+  }
 
   const toggleRole = (role: string) => {
     setForm(prev => ({
@@ -266,29 +312,73 @@ function PushNotificationsInner() {
 
         {/* History */}
         <div className="theme-card rounded-xl border">
-          <div className="px-4 py-3 border-b border-gray-800">
+          <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between gap-3">
             <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">Recent Notifications</h2>
+            {history.length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] uppercase tracking-wide text-gray-600">Clear:</span>
+                <button
+                  type="button"
+                  onClick={() => deleteOlderThan(7)}
+                  disabled={bulkDeleting !== null}
+                  className="px-2 py-0.5 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-[10px] text-gray-300 font-medium"
+                >{bulkDeleting === 7 ? '...' : '> 7d'}</button>
+                <button
+                  type="button"
+                  onClick={() => deleteOlderThan(30)}
+                  disabled={bulkDeleting !== null}
+                  className="px-2 py-0.5 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-[10px] text-gray-300 font-medium"
+                >{bulkDeleting === 30 ? '...' : '> 30d'}</button>
+                <button
+                  type="button"
+                  onClick={() => deleteOlderThan(90)}
+                  disabled={bulkDeleting !== null}
+                  className="px-2 py-0.5 rounded bg-gray-800 hover:bg-gray-700 disabled:opacity-50 text-[10px] text-gray-300 font-medium"
+                >{bulkDeleting === 90 ? '...' : '> 90d'}</button>
+              </div>
+            )}
           </div>
           {history.length === 0 ? (
             <p className="px-4 py-8 text-gray-600 text-sm text-center">No notifications sent yet</p>
           ) : (
             <div className="divide-y divide-gray-800/50">
-              {history.map(n => (
-                <div key={n.id} className="px-4 py-3 space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-white">{n.title}</span>
-                    <span className="text-xs text-gray-500">{new Date(n.created_at).toLocaleString([], { hour12: false })}</span>
+              {history.map(n => {
+                const isDeleting = deletingIds.has(n.id)
+                return (
+                  <div key={n.id} className={`px-4 py-3 space-y-1 transition-opacity ${isDeleting ? 'opacity-50' : ''}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <span className="text-sm font-medium text-white truncate">{n.title}</span>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-xs text-gray-500">{new Date(n.created_at).toLocaleString([], { hour12: false })}</span>
+                        <button
+                          type="button"
+                          onClick={() => deleteNotification(n.id, n.title)}
+                          disabled={isDeleting}
+                          title="Delete from inbox"
+                          className="text-gray-600 hover:text-red-400 disabled:opacity-50 transition-colors p-0.5"
+                          aria-label={`Delete notification ${n.title}`}
+                        >
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6" />
+                            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                            <path d="M10 11v6" />
+                            <path d="M14 11v6" />
+                            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-gray-400 line-clamp-2">{n.body}</p>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-gray-500">
+                      <span>By: {n.sent_by}</span>
+                      <span className="text-green-400">{n.delivered_count} delivered</span>
+                      {n.failed_count > 0 && <span className="text-red-400">{n.failed_count} failed</span>}
+                      {n.target_roles?.length ? <span>Roles: {n.target_roles.join(', ')}</span> : null}
+                      {n.target_units?.length ? <span>Units: {n.target_units.join(', ')}</span> : null}
+                    </div>
                   </div>
-                  <p className="text-xs text-gray-400 line-clamp-2">{n.body}</p>
-                  <div className="flex items-center gap-3 text-xs text-gray-500">
-                    <span>By: {n.sent_by}</span>
-                    <span className="text-green-400">{n.delivered_count} delivered</span>
-                    {n.failed_count > 0 && <span className="text-red-400">{n.failed_count} failed</span>}
-                    {n.target_roles?.length ? <span>Roles: {n.target_roles.join(', ')}</span> : null}
-                    {n.target_units?.length ? <span>Units: {n.target_units.join(', ')}</span> : null}
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

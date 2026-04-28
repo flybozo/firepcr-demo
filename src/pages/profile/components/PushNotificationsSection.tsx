@@ -34,7 +34,7 @@ export function PushNotificationsSection({ employeeId, onError }: Props) {
                 const { subscribeToPushDetailed } = await import('@/lib/pushNotifications')
                 const result = await subscribeToPushDetailed(employeeId!)
                 setPushEnabled(result.ok)
-                if (!result.ok) onError(result.message)
+                if (result.ok === false) onError(result.message)
               }
             } catch { onError('Failed to update push settings') }
             setPushLoading(false)
