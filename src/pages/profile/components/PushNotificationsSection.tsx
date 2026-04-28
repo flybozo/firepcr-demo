@@ -31,10 +31,10 @@ export function PushNotificationsSection({ employeeId, onError }: Props) {
                 await unsubscribeFromPush()
                 setPushEnabled(false)
               } else {
-                const { subscribeToPush } = await import('@/lib/pushNotifications')
-                const ok = await subscribeToPush(employeeId)
-                setPushEnabled(ok)
-                if (!ok) onError('Push notifications blocked. Check browser permissions.')
+                const { subscribeToPushDetailed } = await import('@/lib/pushNotifications')
+                const result = await subscribeToPushDetailed(employeeId!)
+                setPushEnabled(result.ok)
+                if (!result.ok) onError(result.message)
               }
             } catch { onError('Failed to update push settings') }
             setPushLoading(false)
