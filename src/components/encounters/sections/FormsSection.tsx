@@ -19,7 +19,7 @@ export function FormsSection({
 
   return (
     <div className="theme-card rounded-xl border overflow-hidden h-full">
-      <div className="flex items-center justify-between px-4 pr-10 py-3">
+      <div className="flex items-center px-4 pr-10 py-3">
         <button onClick={() => setShowForms(v => !v)} className="flex items-center gap-2 text-left flex-1">
           <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
             📋 Forms & Documents
@@ -27,22 +27,6 @@ export function FormsSection({
           </span>
           <span className="text-gray-500 text-xs">{showForms ? '▲' : '▼'}</span>
         </button>
-        {!isLocked && (
-          <div className="flex gap-1.5">
-            <Link to={`/consent/treat?encounterId=${enc.encounter_id}&unit=${encodeURIComponent(enc.unit||'')}&dob=${encodeURIComponent(enc.patient_dob||'')}&firstName=${encodeURIComponent(enc.patient_first_name||'')}&lastName=${encodeURIComponent(enc.patient_last_name||'')}`}
-              className="text-xs px-2.5 py-1 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-semibold transition-colors flex items-center gap-1">
-              <span>+</span> Consent
-            </Link>
-            <Link to={`/consent/ama?encounterId=${enc.encounter_id}&unit=${encodeURIComponent(enc.unit||'')}&dob=${encodeURIComponent(enc.patient_dob||'')}`}
-              className="text-xs px-2.5 py-1 bg-red-600 hover:bg-red-700 rounded-lg text-white font-semibold transition-colors flex items-center gap-1">
-              <span>+</span> AMA
-            </Link>
-            <Link to={`/comp-claims/new?encounterId=${enc.encounter_id}&unit=${encodeURIComponent(enc.unit||'')}&dob=${encodeURIComponent(enc.patient_dob||'')}&tebw=${encodeURIComponent(enc.time_employee_began_work || (enc.date ? enc.date + "T06:00" : ""))}${enc.incident_id ? '&incidentId=' + enc.incident_id : ''}`}
-              className="text-xs px-2.5 py-1 bg-orange-600 hover:bg-orange-700 rounded-lg text-white font-semibold transition-colors flex items-center gap-1">
-              <span>+</span> Comp Claim
-            </Link>
-          </div>
-        )}
       </div>
       {showForms && (
         <div className="px-4 pb-4">
@@ -90,8 +74,24 @@ export function FormsSection({
               ))}
             </div>
           ) : (
-            <p className="text-gray-600 text-sm">No forms yet. Use the buttons above or Chart Actions to add one.</p>
+            <p className="text-gray-600 text-sm">No forms yet.</p>
           )}
+        </div>
+      )}
+      {!isLocked && (
+        <div className="flex gap-1.5 px-4 py-2.5 border-t border-gray-800">
+          <Link to={`/consent/treat?encounterId=${enc.encounter_id}&unit=${encodeURIComponent(enc.unit||'')}&dob=${encodeURIComponent(enc.patient_dob||'')}&firstName=${encodeURIComponent(enc.patient_first_name||'')}&lastName=${encodeURIComponent(enc.patient_last_name||'')}`}
+            className="text-[11px] leading-tight px-2 py-1 bg-blue-600 hover:bg-blue-700 rounded text-white font-semibold transition-colors">
+            + Consent
+          </Link>
+          <Link to={`/consent/ama?encounterId=${enc.encounter_id}&unit=${encodeURIComponent(enc.unit||'')}&dob=${encodeURIComponent(enc.patient_dob||'')}`}
+            className="text-[11px] leading-tight px-2 py-1 bg-red-600 hover:bg-red-700 rounded text-white font-semibold transition-colors">
+            + AMA
+          </Link>
+          <Link to={`/comp-claims/new?encounterId=${enc.encounter_id}&unit=${encodeURIComponent(enc.unit||'')}&dob=${encodeURIComponent(enc.patient_dob||'')}&tebw=${encodeURIComponent(enc.time_employee_began_work || (enc.date ? enc.date + "T06:00" : ""))}${enc.incident_id ? '&incidentId=' + enc.incident_id : ''}`}
+            className="text-[11px] leading-tight px-2 py-1 bg-orange-600 hover:bg-orange-700 rounded text-white font-semibold transition-colors">
+            + CC
+          </Link>
         </div>
       )}
     </div>

@@ -102,7 +102,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const displayText = `${emp.name} — digitally signed ${new Date(signedAt).toLocaleString('en-US', {
       month: 'numeric', day: 'numeric', year: 'numeric',
-      hour: 'numeric', minute: '2-digit', hour12: true,
+      hour: '2-digit', minute: '2-digit', hour12: false,
     })}`
 
     return res.json({

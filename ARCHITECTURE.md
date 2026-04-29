@@ -2173,3 +2173,59 @@ daily_rate, signing_pin_hash, admin_notes, personal_email, date_of_birth, home_a
 - Converts YYYY-MM-DD → MM/DD/YY (saves ~4 chars per date on mobile)
 - Parses DB date strings directly to avoid timezone shift
 - Applied to 12 files: all list views, dashboard cards, detail headers
+
+## 74. Field User Permission Scoping (v1.36.0)
+
+### employees RLS Fix
+- Added `employees_select_authenticated` policy (USING true) so PostgREST FK joins (`employee:employees(id, name, role)`) return data for all authenticated users
+- Without this, Benjamin's v1.35.0 RLS hardening caused all employee dropdowns to show "unknown" for non-admin users
+- `employees_sync` view stays `security_invoker=false` — it's the safe read path
+
+### Unit List Filtering
+- Field users only see units assigned to their active incident (matched by `incident_id`)
+- Query now includes `incident_id` in the `incident_units` join
+- Admins still see all units
+
+### isField Permission Checks
+- Changed from `.view` → `.manage` across Inventory, CS, MAR, Supply Runs
+- `field_medic` role has `.view` permissions (can see the page) but not `.manage` (locked to own unit)
+- `inventory.manage`, `cs.manage`, `mar.manage`, `supply_runs.manage` gate the all-units filter view
+
+### Admin-Only Fields
+- DEA license, NPI number, Red Card year: read-only for non-admin users viewing other employees
+- Pay Rates sub-menu hidden from field users in sidebar
+
+## 75. RBAC Role Picker (v1.36.0)
+
+- Add Employee form (NewEmployee.tsx) loads roles from `roles` table
+- Checkbox multi-select with display names and descriptions
+- Auto-suggests `field_medic` or `medical_director` based on clinical role
+- Derives `app_role` from selected roles (admin if super_admin/ops_manager)
+- Replaces the old Field/Admin binary toggle
+
+## 76. MAR/CS Lot-Aware Decrement (v1.36.0)
+
+- MAR medication admin now subtracts from the correct lot row in `unit_inventory`
+- CS audit log silent failure fixed
+- Par levels use `formulary_templates.default_par_qty` as single source of truth
+- Architecture doc updated to v1.36.0
+
+## 77. Push Notification Fixes (v1.36.0)
+
+- iOS actionable diagnostics (permission state detection)
+- External links work from push notifications
+- Host hint shown in push UI
+- Accurate recipient counts
+- Admin delete for sent notifications
+- Vercel build unblocked (import fix)
+
+## 78. Dashboard UX Polish (v1.36.0)
+
+- Time columns added to Patient Encounters, Supply Runs, MAR cards
+- 24-hour clock format app-wide (all `toLocaleTimeString` calls use `hour12: false`)
+- ICS 214 card shows op_date instead of ics214_id
+- Reorder Needed card shows Unit column in collapsed view
+- Forms & Supply Run buttons moved to card footers (avoid expand button collision)
+- Tablet portrait forces mobile bottom-tab nav
+- Payroll uses card layout on tablets
+- Encounter detail: always-visible expand indicators on section cards

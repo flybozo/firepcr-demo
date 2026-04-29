@@ -114,7 +114,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             <p style="margin-top:16px;color:#6b7280;font-size:13px">
               <strong>Counted by:</strong> ${counter}<br>
               <strong>Witnessed by:</strong> ${witness}<br>
-              <strong>Time:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' })}
+              <strong>Time:</strong> ${new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles', hour12: false })}
             </p>
             <p style="margin-top:16px;color:#991b1b;font-weight:600">This requires immediate review.</p>
           `,

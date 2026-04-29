@@ -48,14 +48,8 @@ export function SupplyRunsSection({
 
   return (
     <div className="theme-card rounded-xl border overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 theme-card-footer border-b border-gray-800">
+      <div className="px-4 py-3 border-b border-gray-800">
         <h3 className="text-sm font-bold text-white">📦 Supply Runs</h3>
-        <Link
-          to={`/supply-runs/new?${newRunParams.toString()}`}
-          className="text-xs px-2.5 py-1 bg-blue-700 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
-        >
-          + New Supply Run
-        </Link>
       </div>
 
       {loading ? (
@@ -95,6 +89,14 @@ export function SupplyRunsSection({
           ))}
         </div>
       )}
+      <div className="px-4 py-2.5 border-t border-gray-800">
+        <Link
+          to={`/supply-runs/new?${newRunParams.toString()}`}
+          className="text-[11px] leading-tight px-2 py-1 bg-blue-700 hover:bg-blue-600 text-white rounded font-medium transition-colors"
+        >
+          + Supply Run
+        </Link>
+      </div>
     </div>
   )
 }
