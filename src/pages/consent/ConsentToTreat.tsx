@@ -8,9 +8,9 @@ import { useUserAssignment } from '@/lib/useUserAssignment'
 import { generateConsentToTreatPDF } from '@/lib/generateConsentPdf'
 
 const PROVIDERS = [
-  'Aaron Stutz, MD',
-  'Rodney Look, MD',
-  'Robert K. Evans, MD',
+  'Dr. A. Mitchell, MD',
+  'Dr. R. Chen, MD',
+  'Dr. R. Evans, MD',
   'Paul Bailey, NP',
   'Matt Butler, PA',
   'Stephanie Casteele, NP',
@@ -109,7 +109,7 @@ function ConsentToTreatInner() {
 
   // Preload logo
   useEffect(() => {
-    fetch('https://kfkpvazkikpuwatthtow.supabase.co/storage/v1/object/public/headshots/ram-logo.png')
+    fetch('/firepcr-logo.png')
       .then(r => r.blob())
       .then(blob => { const reader = new FileReader(); reader.onload = () => setLogoDataUrl(reader.result as string); reader.readAsDataURL(blob) })
       .catch(() => {})

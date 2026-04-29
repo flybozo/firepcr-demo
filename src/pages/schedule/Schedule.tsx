@@ -26,7 +26,7 @@ type DeploymentRecord = {
 const UNIT_TYPE_COLORS: Record<string, string> = {
   'Ambulance': 'bg-red-800 text-red-200 border-red-700',
   'Med Unit':  'bg-blue-800 text-blue-200 border-blue-700',
-  'REMS':      'bg-green-800 text-green-200 border-green-700',
+  'Rescue':      'bg-green-800 text-green-200 border-green-700',
   'Warehouse': 'bg-purple-800 text-purple-200 border-purple-700',
 }
 
@@ -412,7 +412,7 @@ export default function SchedulePage() {
               value={notes}
               onChange={e => setNotes(e.target.value)}
               className={`${inputCls} h-16 resize-none`}
-              placeholder={type === 'time_off' ? 'Reason, travel plans, etc.' : 'Available for any assignment, prefer RAMBO 1, etc.'}
+              placeholder={type === 'time_off' ? 'Reason, travel plans, etc.' : 'Available for any assignment, prefer Medic 1, etc.'}
             />
           </div>
 

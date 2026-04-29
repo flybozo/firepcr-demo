@@ -84,7 +84,7 @@ function ChatRequestsPageInner() {
       })
       .eq('id', reviewModal.request.id)
 
-    // If approving a bug report, notify Codsworth via API
+    // If approving a bug report, notify AI Assistant via API
     if (reviewModal.action === 'approved' && reviewModal.request.request_type === 'bug_report') {
       try {
         await authFetch('/api/notify-bug', {

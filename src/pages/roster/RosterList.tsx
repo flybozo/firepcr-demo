@@ -96,7 +96,7 @@ export default function RosterPage() {
       const { data, offline } = await loadList<Employee>(
         () => supabase
           .from('employees')
-          .select('id, name, role, roles, email, wf_email, phone, status, rems, bls, acls, paramedic_license, medical_license, ambulance_driver_cert, s130, s190, l180, ics100, ics200, ics700, ics800, headshot_url, rems_capable, red_card, red_card_year, dea_license, ssv_lemsa')
+          .select('id, name, role, roles, email, wf_email, phone, status, rems, bls, acls, paramedic_license, medical_license, ambulance_driver_cert, s130, s190, l180, ics100, ics200, ics700, ics800, headshot_url, rescue_capable, red_card, red_card_year, dea_license, ssv_lemsa')
           .order('name'),
         'employees'
       )

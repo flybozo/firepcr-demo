@@ -21,7 +21,7 @@ import { ConfirmDialog, LoadingSkeleton } from '@/components/ui'
 import { TimelineTab } from '@/components/timeline/TimelineTab'
 import OfflineGate from '@/components/OfflineGate'
 
-const BASE_URL = import.meta.env.VITE_SITE_URL || 'https://ram-field-ops.vercel.app'
+const BASE_URL = import.meta.env.VITE_SITE_URL || 'https://firepcr-demo.vercel.app'
 
 type Incident = { id: string; name: string; status: string; start_date: string | null; incident_number: string | null }
 type AccessCode = { id: string; access_code: string; incident_id: string; label: string | null; active: boolean; expires_at: string | null; created_at: string; created_by: string | null }

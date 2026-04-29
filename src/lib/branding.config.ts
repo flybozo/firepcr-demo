@@ -1,54 +1,55 @@
 /**
- * branding.demo.ts — Ridgeline EMS demo deployment config.
- * Copy to branding.config.ts (replacing RAM config) when building the demo.
+ * branding.config.ts — RAM / Ridgeline EMS deployment config.
+ * Swap this file (and logo assets) to white-label for another tenant.
  */
 import type { BrandConfig } from './branding.js'
 
 export const brand: BrandConfig = {
   // ── Company Identity ────────────────────────────────────────────────────
   companyName: 'Ridgeline EMS',
-  companyLegal: 'Ridgeline Emergency Medical Services LLC',
-  appName: 'Ridgeline Field Ops',
+  companyLegal: 'Ridgeline Medical Group',
+  appName: 'FirePCR',
   appBrand: 'FirePCR',
-  domain: 'firepcr.com',
-  supportEmail: 'support@firepcr.com',
-  notificationsEmail: 'FirePCR <notifications@firepcr.com>',
-  appUrl: 'https://demo.firepcr.com',
+  domain: 'ridgelineems.com',
+  supportEmail: 'assistant@ridgelineems.com',
+  notificationsEmail: 'FirePCR <notifications@ridgelineems.com>',
+  appUrl: 'https://app.ridgelineems.com',
 
   // ── Logo & Assets ───────────────────────────────────────────────────────
-  logoUrl: '/logo-flame.svg',
+  logoUrl: '/ram-company-logo.png',
   faviconUrl: '/favicon.ico',
 
   // ── NEMSIS / EMS Identifiers ────────────────────────────────────────────
-  nemsisAgencyId: 'DEMO-00001',
-  nemsisStateAgencyId: 'DEMO-00001',
+  nemsisAgencyId: 'S00-00000',
+  nemsisStateAgencyId: 'S00-00000',
   nemsisStateCode: '06',
   nemsisLemsa: 'Sierra Sacramento Valley',
   nemsisSoftware: 'FirePCR Field Operations v1.0',
-  nemsisSoftwareCreator: 'Ridgeline Emergency Medical Services LLC',
+  nemsisSoftwareCreator: 'Ridgeline Medical Group',
 
   // ── Unit Naming Conventions ─────────────────────────────────────────────
   unitPrefixes: {
-    ambulance: 'Unit',
-    medUnit: 'Med',
-    rems: 'REMS',
-    warehouse: 'Cache',
+    ambulance: 'Medic',
+    medUnit: 'Aid',
+    rems: 'Rescue',
+    warehouse: 'Command 1',
+    truck: 'Truck',
   },
 
   // ── AI Assistant ────────────────────────────────────────────────────────
-  assistantName: 'Scout',
-  assistantEmoji: '🔥',
+  assistantName: 'AI Assistant',
+  assistantEmoji: '🏴‍☠️',
   assistantContext:
-    'You are Scout, an AI assistant for Ridgeline EMS, a wildfire medical services company.',
+    'You are the AI assistant for Ridgeline EMS (RAM), a wildfire medical services company.',
 
   // ── Legal / Consent Forms ───────────────────────────────────────────────
   consentEntity: 'Ridgeline EMS',
-  hipaaEntity: 'Ridgeline Emergency Medical Services LLC',
+  hipaaEntity: 'Ridgeline Medical Group',
 
   // ── Scheduling / Ops ────────────────────────────────────────────────────
   schedulerContext:
-    'You are a medical team scheduler for Ridgeline EMS, a company providing wildfire medical services.',
+    'You are a medical team scheduler for Ridgeline EMS (RAM), a company providing wildfire medical services.',
 
   // ── Push Notifications ──────────────────────────────────────────────────
-  vapidContact: 'mailto:support@firepcr.com',
+  vapidContact: 'mailto:notifications@ridgelineems.com',
 }

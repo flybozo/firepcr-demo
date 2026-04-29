@@ -43,7 +43,7 @@ const CAT_COLORS: Record<string, string> = {
   RE: 'bg-green-900 text-green-300',
 }
 
-const TABS = ['Ambulance', 'Med Unit', 'REMS', 'Truck', 'Warehouse']
+const TABS = ['Ambulance', 'Med Unit', 'Rescue', 'Truck', 'Warehouse']
 
 const SELECT_FIELDS = 'id, item_name, default_par_qty, notes, catalog_item_id, catalog_item:item_catalog(category, unit_of_measure, image_url, concentration, route, is_als, reimbursable)'
 

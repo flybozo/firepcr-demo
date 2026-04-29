@@ -1,9 +1,9 @@
-# RAM Field Ops — Handoff 2026-04-19
+# FirePCR — Handoff 2026-04-19
 
 ## Repos
-- **Prod:** `/tmp/ram-field-ops` → https://ram-field-ops.vercel.app (main branch)
+- **Prod:** `/tmp/firepcr-demo` → https://firepcr-demo.vercel.app (main branch)
 - **Demo:** `/tmp/firepcr-demo` → https://demo.firepcr.com (main branch)
-- **GitHub:** `flybozo/ram-field-ops` + `flybozo/firepcr-demo`
+- **GitHub:** `flybozo/firepcr-demo` + `flybozo/firepcr-demo`
 - **Both repos synced** as of this handoff
 - **WARNING:** Always `git pull` before working — stale clones cause dangerous commits.
 
@@ -23,7 +23,7 @@
 
 #### Phase 1: Branding Layer ✅ COMPLETE
 - `src/lib/branding.ts` — `BrandConfig` type (25+ fields)
-- `src/lib/branding.config.ts` — RAM / wildfiremedical.com values
+- `src/lib/branding.config.ts` — RAM / ridgelineems.com values
 - `src/lib/branding.demo.ts` — Ridgeline EMS demo values
 - 27 files migrated — zero hardcoded brand references in source
 - Commit: 8279a02
@@ -272,8 +272,8 @@ When updating brand values in `src/lib/branding.config.ts`, you MUST also update
 ---
 
 ## Key Files
-- **Refactoring plan:** `/tmp/ram-field-ops/REFACTORING-PLAN.md`
-- **Architecture doc:** `/tmp/ram-field-ops/ARCHITECTURE.md`
+- **Refactoring plan:** `/tmp/firepcr-demo/REFACTORING-PLAN.md`
+- **Architecture doc:** `/tmp/firepcr-demo/ARCHITECTURE.md`
 - **Branding type:** `src/lib/branding.ts`
 - **Branding config (RAM):** `src/lib/branding.config.ts`
 - **Branding config (Demo):** `src/lib/branding.demo.ts`
@@ -290,7 +290,7 @@ cd /tmp/firepcr-demo && git pull
 rsync -av --delete \
   --exclude='.git' --exclude='node_modules' --exclude='dist' --exclude='.vercel' \
   --exclude='src/lib/branding.config.ts' \
-  /tmp/ram-field-ops/ /tmp/firepcr-demo/
+  /tmp/firepcr-demo/ /tmp/firepcr-demo/
 npm run build && git add -A && git commit -m "sync: <description>" && git push origin main
 ```
 Demo uses `branding.demo.ts` copied to `branding.config.ts` — never overwrite it during sync.

@@ -18,7 +18,7 @@ const MT_SHASTA: [number, number] = [41.3098, -122.3108]
 const UNIT_TYPE_COLORS: Record<string, string> = {
   'Ambulance': '#ef4444',
   'Med Unit': '#3b82f6',
-  'REMS': '#22c55e',
+  'Rescue': '#22c55e',
   'Truck': '#78716c',
   // Warehouse excluded — never deployed near a fire
 }
@@ -26,7 +26,7 @@ const UNIT_TYPE_COLORS: Record<string, string> = {
 const UNIT_TYPE_EMOJI: Record<string, string> = {
   'Ambulance': '🚑',
   'Med Unit': '🚐',
-  'REMS': '👷',
+  'Rescue': '👷',
   'Truck': '🚚',
   // Warehouse excluded — never deployed near a fire
 }

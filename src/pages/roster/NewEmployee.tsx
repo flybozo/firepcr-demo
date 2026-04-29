@@ -83,7 +83,7 @@ export default function NewEmployeePage() {
     emergency_contact_relationship: '',
     daily_rate: '',
     experience_level: '2',
-    rems_capable: false,
+    rescue_capable: false,
     is_medical_director: false,
     admin_notes: '',
   })
@@ -128,7 +128,7 @@ export default function NewEmployeePage() {
           app_role: 'field',
           daily_rate: form.daily_rate ? parseFloat(form.daily_rate) : null,
           experience_level: parseInt(form.experience_level) || 2,
-          rems_capable: form.rems_capable,
+          rescue_capable: form.rescue_capable,
           is_medical_director: form.is_medical_director,
           admin_notes: form.admin_notes.trim() || null,
           status: 'Active',
@@ -232,7 +232,7 @@ export default function NewEmployeePage() {
                 className={inputCls}
                 value={form.name}
                 onChange={e => set('name', e.target.value)}
-                placeholder="e.g. Aaron Stutz"
+                placeholder="e.g. Dr. A. Mitchell"
                 autoFocus
               />
             </FormField>
@@ -346,10 +346,10 @@ export default function NewEmployeePage() {
             </FormField>
             <div className="flex items-center justify-between py-1">
               <div>
-                <span className="text-sm text-white">REMS Capable</span>
+                <span className="text-sm text-white">Rescue Capable</span>
                 <p className="text-xs text-gray-500">Qualified to operate REMS</p>
               </div>
-              <Toggle value={form.rems_capable} onChange={v => set('rems_capable', v)} />
+              <Toggle value={form.rescue_capable} onChange={v => set('rescue_capable', v)} />
             </div>
             <FormField label="Experience Level" hint="Used for crew scheduling and team composition">
               <select className={selectCls} value={form.experience_level} onChange={e => set('experience_level', e.target.value)}>

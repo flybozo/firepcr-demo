@@ -2,7 +2,7 @@
 
 **Created:** 2026-04-25
 **Status:** Planning — implement when expansion is imminent
-**Author:** Codsworth / Aaron Stutz
+**Author:** AI Assistant / Dr. A. Mitchell
 
 ---
 
@@ -41,12 +41,12 @@ ALTER TABLE incidents ADD COLUMN base_id uuid REFERENCES bases(id);
 ### Key Concepts
 
 - **Base = contract/geographic operation**, NOT a legal entity
-  - Mossbrae Medical Group / RAM is the single employer regardless of base
+  - Ridgeline Medical Group / RAM is the single employer regardless of base
   - A base is: "We have N trucks, M people, and a warehouse at this location working this contract"
   - Bases can be seasonal — spin up for fire season, demobilize after
 - **Employee home base** — where they're normally assigned (nullable for floaters)
   - Temporary incident assignments can cross bases (incident's base wins for billing)
-- **Units belong to a base** — RAMBO 1 might be NorCal, RAMBO 5 might be Oregon
+- **Units belong to a base** — Medic 1 might be NorCal, Medic 5 might be Oregon
 - **Incidents scoped to a base** — a fire in Oregon goes under the Oregon base
 - **Inventory inherits base through unit** — already per-unit, so natural scoping
 - **CS inventory** — already per-unit, works across bases without changes
@@ -128,7 +128,7 @@ When Phase 1 begins:
 ## Example: Expanding to Oregon
 
 1. Admin creates base: "Oregon Coast EMS" (OR, state contract)
-2. Purchases/transfers vehicles → creates new units (RAMBO 5, MSU 3) assigned to Oregon base
+2. Purchases/transfers vehicles → creates new units (Medic 5, Aid 3) assigned to Oregon base
 3. Hires/transfers employees → assigns to Oregon base
 4. Sets up Oregon-specific formulary (different state drug protocols)
 5. New incidents in Oregon auto-scope to Oregon base

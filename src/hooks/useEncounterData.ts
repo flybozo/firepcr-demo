@@ -201,7 +201,7 @@ export function useEncounterData(id: string, currentUser: any, navigate?: Naviga
   }, [id, enc, currentUser]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const markComplete = useCallback(async (nemsisErrorCount: number, nemsisErrors: any[]) => {
-    if (enc?.unit?.toUpperCase().startsWith('RAMBO') && nemsisErrorCount > 0) {
+    if (enc?.unit?.toUpperCase().startsWith('Medic') && nemsisErrorCount > 0) {
       const errorList = nemsisErrors.slice(0, 3).map((e: any) => e.message).join('; ')
       const moreMsg = nemsisErrorCount > 3 ? ' (and ' + (nemsisErrorCount - 3) + ' more)' : ''
       toast.error('Cannot complete: ' + nemsisErrorCount + ' NEMSIS error' + (nemsisErrorCount > 1 ? 's' : '') + ' must be fixed first. ' + errorList + moreMsg, 8000)
@@ -213,7 +213,7 @@ export function useEncounterData(id: string, currentUser: any, navigate?: Naviga
       await queueOfflineWrite('patient_encounters', 'update', { id, pcr_status: 'Complete' })
     }
     setEnc(prev => prev ? { ...prev, pcr_status: 'Complete' } : prev)
-    if (getIsOnline() && enc?.unit?.startsWith('RAMBO')) {
+    if (getIsOnline() && enc?.unit?.startsWith('Medic')) {
       try {
         const { data: { session } } = await supabase.auth.getSession()
         const xmlResp = await fetch(`/api/encounters/${id}/nemsis-export`, {

@@ -1,4 +1,4 @@
-# RAM Field Ops — Refactoring Plan
+# FirePCR — Refactoring Plan
 
 **Created:** 2026-04-18  
 **Target:** Week of 2026-04-19 through 2026-04-25  
@@ -39,32 +39,32 @@
 ```typescript
 export type BrandConfig = {
   // Company
-  companyName: string          // "Remote Area Medicine"
-  companyLegal: string         // "Mossbrae Medical Group P.C."
-  appName: string              // "RAM Field Ops"
-  domain: string               // "wildfiremedical.com"
-  supportEmail: string         // "codsworth@wildfiremedical.com"
+  companyName: string          // "Ridgeline EMS"
+  companyLegal: string         // "Ridgeline Medical Group"
+  appName: string              // "FirePCR"
+  domain: string               // "ridgelineems.com"
+  supportEmail: string         // "assistant@ridgelineems.com"
   
   // Logo
   logoUrl: string              // Supabase storage URL or local path
   faviconUrl: string
   
   // NEMSIS
-  nemsisAgencyId: string       // "S65-52014"
+  nemsisAgencyId: string       // "S00-00000"
   nemsisStateId: string        // "06" (California)
   nemsisLemsa: string          // "Sierra Sacramento Valley"
-  nemsisSoftware: string       // "RAM Field Operations v1.0"
+  nemsisSoftware: string       // "FirePCR Field Operations v1.0"
   
   // Unit naming conventions
   unitPrefixes: {
-    ambulance: string          // "RAMBO"
-    medUnit: string            // "MSU"
-    rems: string               // "REMS"
-    warehouse: string          // "The Beast"
+    ambulance: string          // "Medic"
+    medUnit: string            // "Aid"
+    rems: string               // "Rescue"
+    warehouse: string          // "Command 1"
   }
   
   // AI assistant
-  assistantName: string        // "Codsworth"
+  assistantName: string        // "AI Assistant"
   assistantEmoji: string       // "🏴‍☠️"
   
   // Legal
@@ -79,9 +79,9 @@ export type BrandConfig = {
 import type { BrandConfig } from './branding'
 
 export const brand: BrandConfig = {
-  companyName: 'Remote Area Medicine',
-  companyLegal: 'Mossbrae Medical Group P.C.',
-  appName: 'RAM Field Ops',
+  companyName: 'Ridgeline EMS',
+  companyLegal: 'Ridgeline Medical Group',
+  appName: 'FirePCR',
   // ... etc
 }
 ```

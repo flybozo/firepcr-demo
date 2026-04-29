@@ -1,8 +1,8 @@
 # FirePCR — Current Status
-**App:** https://ram-field-ops.vercel.app  
+**App:** https://firepcr-demo.vercel.app  
 **Demo:** https://demo.firepcr.com  
-**Repo:** github.com/flybozo/ram-field-ops  
-**Local:** `/tmp/ram-field-ops` (prod) | `/tmp/firepcr-demo` (demo)  
+**Repo:** github.com/flybozo/firepcr-demo  
+**Local:** `/tmp/firepcr-demo` (prod) | `/tmp/firepcr-demo` (demo)  
 **DB (prod):** kfkpvazkikpuwatthtow | `postgresql://postgres:93RV8nx4J^VGR!6V@db.kfkpvazkikpuwatthtow.supabase.co:5432/postgres`  
 **DB (demo):** jlqpycxguovxnqtkjhzs | `postgresql://postgres:EplVimePP35Zi9MY@db.jlqpycxguovxnqtkjhzs.supabase.co:5432/postgres`  
 **Last updated:** 2026-04-21 3:16 PM PT  
@@ -80,10 +80,10 @@
 
 ## How to Start a FirePCR Session
 1. Read this file (`data/firepcr-status.md`)
-2. Read `/tmp/ram-field-ops/ARCHITECTURE.md` for deep technical detail
+2. Read `/tmp/firepcr-demo/ARCHITECTURE.md` for deep technical detail
 3. That's it — don't hunt for dated handoff files
 
 ## How to End a FirePCR Session
 1. Overwrite this file with updated status
-2. Update `/tmp/ram-field-ops/ARCHITECTURE.md` version + new sections, commit + push
+2. Update `/tmp/firepcr-demo/ARCHITECTURE.md` version + new sections, commit + push
 3. Dated handoff files are optional for history only

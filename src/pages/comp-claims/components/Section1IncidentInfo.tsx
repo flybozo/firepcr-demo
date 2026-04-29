@@ -27,7 +27,7 @@ export function Section1IncidentInfo({ form, set }: Props) {
       </div>
       <div>
         <label className={labelCls}>Unit</label>
-        <input type="text" className={inputCls} value={form.unit} onChange={e => set('unit', e.target.value)} placeholder="e.g. RAMBO 2" />
+        <input type="text" className={inputCls} value={form.unit} onChange={e => set('unit', e.target.value)} placeholder="e.g. Medic 2" />
       </div>
       <div>
         <label className={labelCls}>Time Employee Began Work</label>

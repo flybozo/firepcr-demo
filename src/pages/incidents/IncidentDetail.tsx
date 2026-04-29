@@ -495,7 +495,7 @@ export default function IncidentDetailPage() {
         <div>
           {/* Filters */}
           {(() => {
-            const unitTypeOrderMap: Record<string, number> = { 'Warehouse': 0, 'Med Unit': 1, 'Ambulance': 2, 'REMS': 3, 'Truck': 4 }
+            const unitTypeOrderMap: Record<string, number> = { 'Warehouse': 0, 'Med Unit': 1, 'Ambulance': 2, 'Rescue': 3, 'Truck': 4 }
             const unitsFromData = new Set<string>()
             encounters.forEach(enc => { if (enc.unit) unitsFromData.add(enc.unit) })
             marEntries.forEach(mar => { if ((mar as any).med_unit) unitsFromData.add((mar as any).med_unit) })

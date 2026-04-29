@@ -75,7 +75,7 @@ function AMAFormInner() {
         <div className="text-center pt-4">
           <h1 className="text-xl font-bold text-red-500">REMOTE AREA MEDICINE</h1>
           <p className="text-sm text-gray-400">{brand.companyLegal} | DBA {brand.companyName}</p>
-          <p className="text-xs text-gray-500">Medical Director: Aaron Stutz, MD</p>
+          <p className="text-xs text-gray-500">Medical Director: Dr. A. Mitchell, MD</p>
           <p className="text-sm font-semibold mt-2">REFUSAL OF EMERGENCY MEDICAL CARE / AMA</p>
           <p className="text-xs text-gray-400 mt-1">{formDate} — {formTime}</p>
         </div>

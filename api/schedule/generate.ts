@@ -2,6 +2,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { HttpError, requireEmployee } from '../_auth.js'
 import { brand } from '../_brand.js'
+import { callLLM } from '../../src/lib/llm/index.js'
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
@@ -22,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ] = await Promise.all([
       supabase
         .from('employees')
-        .select('id, name, role, experience_level, rems_capable')
+        .select('id, name, role, experience_level, rescue_capable')
         .eq('status', 'Active')
         .order('name'),
       supabase
@@ -61,7 +62,7 @@ ${JSON.stringify(availableEmployees.map((e: any) => ({
   name: e.name,
   role: e.role,
   experience_level: e.experience_level || 1,
-  rems_capable: (e as any).rems_capable || false,
+  rescue_capable: (e as any).rescue_capable || false,
   wants_to_work: wantToWorkIds.has(e.id),
 })), null, 2)}
 
@@ -81,7 +82,7 @@ Staffing rules (STRICTLY follow these):
 - PREFER employees who want_to_work = true
 - Do NOT assign employees with wants_to_work = false unless necessary
 - Each employee should only appear in one unit at a time
-- Only assign rems_capable=true employees to REMS units
+- Only assign rescue_capable=true employees to REMS units
 
 Return ONLY a valid JSON array (no explanation, no markdown) in this exact format:
 [
@@ -97,27 +98,16 @@ Return ONLY a valid JSON array (no explanation, no markdown) in this exact forma
   }
 ]`
 
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY!,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-3-5-haiku-20241022',
-        max_tokens: 4096,
-        messages: [{ role: 'user', content: prompt }],
-      }),
+    const llmResult = await callLLM({
+      task:          'schedule-generation',
+      phiClass:      'none',
+      messages:      [{ role: 'user', content: prompt }],
+      maxTokens:     4096,
+      routeEndpoint: '/api/schedule/generate',
+      supabase,
     })
 
-    if (!anthropicRes.ok) {
-      const err = await anthropicRes.text()
-      return res.status(500).json({ error: `Anthropic API error: ${err}` })
-    }
-
-    const aiData = await anthropicRes.json()
-    const content = aiData.content?.[0]?.text || ''
+    const content = llmResult.content
 
     // ── Parse and validate AI response ──
     const trimmed = content.trim()

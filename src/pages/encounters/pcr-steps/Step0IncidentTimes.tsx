@@ -42,7 +42,7 @@ export function Step0IncidentTimes({ form, set, nemsisWarnings, unitLocked, inci
           ) : (
             <select className={inputCls} value={form.unit} onChange={e => set('unit', e.target.value)}>
               <option value="">Select unit</option>
-              {['RAMBO 1','RAMBO 2','RAMBO 3','RAMBO 4','The Beast','MSU 1','MSU 2','REMS 1','REMS 2'].map(u => (
+              {['Medic 1','Medic 2','Medic 3','Medic 4','Command 1','Aid 1','Aid 2','Rescue 1','Rescue 2'].map(u => (
                 <option key={u} value={u}>{u}</option>
               ))}
             </select>

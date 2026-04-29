@@ -64,7 +64,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
           </table>
         `,
         ctaText: 'Open FirePCR',
-        ctaUrl: 'https://ram-field-ops.vercel.app/admin/financial',
+        ctaUrl: 'https://firepcr-demo.vercel.app/admin/financial',
       }),
     })
 

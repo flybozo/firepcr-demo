@@ -2,11 +2,12 @@ import type { VercelRequest, VercelResponse } from '@vercel/node'
 import { HttpError, requireEmployee } from './_auth.js'
 import { rateLimit } from './_rateLimit.js'
 import { brand } from './_brand.js'
+import { callLLM } from '../src/lib/llm/index.js'
 
 // Vercel Pro: max 60s, Enterprise: 900s. Needed for executive tool calls.
 // Vercel serverless
 
-// iMac Codsworth relay — admin users get full context via Tailscale
+// iMac AI Assistant relay — admin users get full context via Tailscale
 const IMAC_GATEWAY_URL = process.env.IMAC_GATEWAY_URL || 'https://aarons-imac-2.tailebc17f.ts.net'
 const REQUEST_KEYWORDS = [
   'request', 'can i', 'could i', 'i would like', 'i need approval',
@@ -25,24 +26,39 @@ function detectRequestType(message: string): 'request' | 'bug_report' | null {
   return null
 }
 
-// ── Admin relay: send message to iMac Codsworth via OpenAI-compatible endpoint ─
+// ── Load company context ─────────────────────────────────────────────────────
+function loadCompanyContext(): string {
+  try {
+    const fs = require('fs')
+    const path = require('path')
+    const contextPath = path.join(process.cwd(), 'api', '_employee-chat-context.md')
+    return fs.readFileSync(contextPath, 'utf-8')
+  } catch (e) {
+    console.warn('Could not load company context:', e)
+    return ''
+  }
+}
+
+// ── Admin relay: send message to iMac AI Assistant via OpenClaw gateway ─────────
 async function relayToImac(
   message: string,
   employee: { name: string; role: string; chat_authority?: string },
   unitName: string,
   incidentName: string,
-  history: { role: string; content: string }[]
+  history: { role: string; content: string }[],
+  supabase: any,
+  employeeId: string,
 ): Promise<string | null> {
   try {
     const authority = employee.chat_authority || 'field'
 
     const executiveBlock = authority === 'executive' ? `
 
-EXECUTIVE AUTHORITY GRANTED — This is Aaron Stutz, MD — owner and medical director.
+EXECUTIVE AUTHORITY GRANTED — This is Dr. A. Mitchell, MD — owner and medical director.
 You have FULL executive authority for this session. Treat this exactly like a direct conversation with your boss.
 You MAY:
 - Execute shell commands (git, deploy, database operations)
-- Modify the app codebase at /tmp/ram-field-ops and push to production via git
+- Modify the app codebase at /tmp/firepcr-demo and push to production via git
 - Make direct database changes (incidents, units, employees, assignments) via psycopg2 or Supabase API
 - Send emails via gog gmail
 - Check calendars, manage files, search the web
@@ -67,7 +83,7 @@ Do NOT reveal: patient PHI, company financials, contracts, other employees' sala
 For anything requiring management approval, acknowledge warmly and say it's been forwarded to Aaron.` : ''
 
     const systemPrompt = `[${brand.appName} Employee Chat — relayed from app]
-You are ${brand.assistantName}, assistant to Aaron Stutz MD and the ${brand.companyName} team. You have full company context.
+You are ${brand.assistantName}, assistant to Dr. A. Mitchell MD and the ${brand.companyName} team. You have full company context.
 
 Employee chatting with you: ${employee.name} (${employee.role})
 Authority level: ${authority.toUpperCase()}
@@ -76,7 +92,6 @@ Current incident: ${incidentName}
 
 Be concise and practical — this person is in the field. You can draw on everything you know about RAM, the team, policies, clinical protocols, and the Field Ops app.${executiveBlock}${adminBlock}${fieldBlock}`
 
-    // Build messages: inject history + new message
     const messages = [
       ...history.map((m: any) => ({
         role: m.role as 'user' | 'assistant',
@@ -85,55 +100,21 @@ Be concise and practical — this person is in the field. You can draw on everyt
       { role: 'user' as const, content: message },
     ]
 
-    // Rotate session daily to prevent context bloat
-    const today = new Date().toISOString().slice(0, 10)
-    const sessionKey = `employee-chat:${employee.name.toLowerCase().replace(/\s+/g, '-')}:${today}`
-
-    const fullMessages = [
-      { role: 'system' as const, content: systemPrompt },
-      ...messages,
-    ]
-
-    const gatewayToken = process.env.IMAC_GATEWAY_TOKEN
-
-    const res = await fetch(`${IMAC_GATEWAY_URL}/v1/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${gatewayToken}`,
-      },
-      body: JSON.stringify({
-        model: 'openclaw/default',
-        max_tokens: 1024,
-        messages: fullMessages,
-      }),
-      signal: AbortSignal.timeout(115000), // 115s — background can run up to ~2min
+    const result = await callLLM({
+      task:          'operational',
+      phiClass:      'none',
+      system:        systemPrompt,
+      messages,
+      maxTokens:     1024,
+      userId:        employeeId,
+      routeEndpoint: '/api/employee-chat',
+      supabase,
     })
 
-    if (!res.ok) {
-      const errText = await res.text()
-      console.error(`[relay] iMac relay error: status=${res.status} body=${errText}`)
-      return null
-    }
-
-    const data = await res.json()
-    return data.choices?.[0]?.message?.content || null
+    return result.content || null
   } catch (err) {
     console.error('iMac relay failed (will fall back to Haiku):', err)
     return null
-  }
-}
-
-// ── Load company context ─────────────────────────────────────────────────────
-function loadCompanyContext(): string {
-  try {
-    const fs = require('fs')
-    const path = require('path')
-    const contextPath = path.join(process.cwd(), 'api', '_employee-chat-context.md')
-    return fs.readFileSync(contextPath, 'utf-8')
-  } catch (e) {
-    console.warn('Could not load company context:', e)
-    return ''
   }
 }
 
@@ -144,7 +125,9 @@ async function callHaiku(
   unitName: string,
   incidentName: string,
   unsignedOrders: number,
-  history: { role: string; content: string }[]
+  history: { role: string; content: string }[],
+  supabase: any,
+  employeeId: string,
 ): Promise<string> {
   const companyContext = loadCompanyContext()
   const systemPrompt = `${brand.assistantContext} You are helping ${employee.name}, a ${employee.role} on the ${brand.companyName} team.
@@ -191,29 +174,18 @@ Keep responses concise and practical. You know this team works in demanding fiel
     { role: 'user' as const, content: message },
   ]
 
-  const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY!,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: 'claude-haiku-4-5',
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages,
-    }),
+  const result = await callLLM({
+    task:          'documentation-help',
+    phiClass:      'none',
+    system:        systemPrompt,
+    messages,
+    maxTokens:     1024,
+    userId:        employeeId,
+    routeEndpoint: '/api/employee-chat',
+    supabase,
   })
 
-  if (!anthropicRes.ok) {
-    const err = await anthropicRes.text()
-    console.error('Anthropic API error:', err)
-    throw new Error('AI service unavailable')
-  }
-
-  const aiData = await anthropicRes.json()
-  return aiData.content?.[0]?.text || 'Sorry, I could not generate a response.'
+  return result.content || 'Sorry, I could not generate a response.'
 }
 
 // ── Main route ────────────────────────────────────────────────────────────────
@@ -315,7 +287,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // ── Route: all users → sync Haiku (iMac relay disabled — Vercel kills background functions on free plan) ──
-    const authority = employee.chat_authority || 'field'
     const isAdmin = false
 
     if (isAdmin) {
@@ -349,13 +320,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const pendingMessageId: string = placeholderResult.data.id as string
 
       // 3. Fire relay in background — runs AFTER response is sent to client
-      // Run relay in background (Vercel keeps the function alive)
-      (async () => {
+      ;(async () => {
         try {
-          const relayReply = await relayToImac(message, employee, unitName, incidentName, relayHistory)
+          const relayReply = await relayToImac(message, employee, unitName, incidentName, relayHistory, supabase, employeeId)
 
           if (relayReply) {
-            // Success: update placeholder with real reply
             await supabase
               .from('employee_chats')
               .update({ content: relayReply, status: 'complete' })
@@ -365,7 +334,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             // iMac unreachable — fall back to Haiku
             console.warn('[async relay] iMac unavailable, falling back to Haiku')
             try {
-              const haikuReply = await callHaiku(message, employee, unitName, incidentName, unsignedOrders || 0, priorMessages)
+              const haikuReply = await callHaiku(message, employee, unitName, incidentName, unsignedOrders || 0, priorMessages, supabase, employeeId)
               await supabase
                 .from('employee_chats')
                 .update({ content: haikuReply, status: 'complete' })
@@ -405,7 +374,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     } else {
       // ── SYNC PATH: field users — Haiku is fast (2-5s) ──
-      const reply = await callHaiku(message, employee, unitName, incidentName, unsignedOrders || 0, priorMessages)
+      const reply = await callHaiku(message, employee, unitName, incidentName, unsignedOrders || 0, priorMessages, supabase, employeeId)
 
       // Save user message + assistant response
       await supabase.from('employee_chats').insert([

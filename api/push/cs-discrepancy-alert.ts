@@ -119,7 +119,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             <p style="margin-top:16px;color:#991b1b;font-weight:600">This requires immediate review.</p>
           `,
           ctaText: 'Review CS Audit Log',
-          ctaUrl: 'https://ram-field-ops.vercel.app/cs/audit',
+          ctaUrl: 'https://firepcr-demo.vercel.app/cs/audit',
         }),
       })
       if (sent) emailsSent = emailTargets.length

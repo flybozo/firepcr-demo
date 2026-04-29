@@ -2,7 +2,7 @@
 
 **Date:** 2026-04-19
 **Status:** DRAFT — Awaiting bookkeeper input on pay schedule
-**Author:** Codsworth
+**Author:** AI Assistant
 
 ---
 
@@ -227,7 +227,7 @@ Sum all days in the period for each employee. Each day is calculated independent
 
 ```csv
 Employee Name,Role,Incident,Period Start,Period End,Days Worked,Regular Hours,OT Hours,DT Hours,Base Hourly Rate,Regular Pay,OT Pay,DT Pay,Gross Pay
-Aaron Stutz,MD,Lava Fire,2026-04-01,2026-04-15,14,112.00,56.00,56.00,$81.82,$9163.64,$6872.73,$9163.64,$25200.00
+Dr. A. Mitchell,MD,Lava Fire,2026-04-01,2026-04-15,14,112.00,56.00,56.00,$81.82,$9163.64,$6872.73,$9163.64,$25200.00
 ```
 
 ---

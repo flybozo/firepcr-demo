@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
 import { usePermission, usePermissionLoading } from '@/hooks/usePermission'
 
-const UNIT_TYPES = ['Ambulance', 'Med Unit', 'REMS', 'Truck', 'Warehouse']
+const UNIT_TYPES = ['Ambulance', 'Med Unit', 'Rescue', 'Truck', 'Warehouse']
 const US_STATES = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY']
 
 export default function NewUnitPage() {
@@ -67,7 +67,7 @@ export default function NewUnitPage() {
       if (err) throw err
 
       // If REMS cluster, create child units
-      if (form.unitType === 'REMS' && form.isRemsCluster) {
+      if (form.unitType === 'Rescue' && form.isRemsCluster) {
         const children = [
           { name: form.truck_name || `${form.name} Truck`, subtype: 'Truck' },
           { name: form.trailer_name || `${form.name} Trailer`, subtype: 'Trailer' },
@@ -115,7 +115,7 @@ export default function NewUnitPage() {
           <div>
             <label className={labelClass}>Unit Name *</label>
             <input value={form.name} onChange={e => set('name', e.target.value)}
-              placeholder="e.g. RAMBO 5, MSU 3, REMS 3" className={inputClass} />
+              placeholder="e.g. Medic 5, Aid 3, Rescue 3" className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Unit Type *</label>
@@ -171,7 +171,7 @@ export default function NewUnitPage() {
         </div>
 
         {/* REMS cluster */}
-        {form.unitType === 'REMS' && (
+        {form.unitType === 'Rescue' && (
           <div className="theme-card rounded-xl p-4 space-y-4 border">
             <div className="flex items-center justify-between">
               <h2 className="text-xs font-bold uppercase tracking-wide text-gray-400">REMS Cluster</h2>

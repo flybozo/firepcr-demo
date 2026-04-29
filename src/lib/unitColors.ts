@@ -5,7 +5,7 @@ export const UNIT_TYPE_COLORS: Record<string, string> = {
   'Warehouse': 'bg-purple-900 text-purple-300',
   'Med Unit':  'bg-blue-900 text-blue-300',
   'Ambulance': 'bg-red-900 text-red-300',
-  'REMS':      'bg-green-900 text-green-300',
+  'Rescue':      'bg-green-900 text-green-300',
   'Truck':     'bg-stone-800 text-stone-300',
 }
 
@@ -13,7 +13,7 @@ export const UNIT_TYPE_EMOJI: Record<string, string> = {
   'Warehouse': '🏭',
   'Med Unit':  '🏥',
   'Ambulance': '🚑',
-  'REMS':      '🧗',
+  'Rescue':      '🧗',
   'Truck':     '🚚',
 }
 
@@ -23,7 +23,7 @@ export const UNIT_FILTER_ACTIVE: Record<string, string> = {
   'Warehouse': 'bg-purple-700 text-white',
   'Med Unit':  'bg-blue-700 text-white',
   'Ambulance': 'bg-red-700 text-white',
-  'REMS':      'bg-green-700 text-white',
+  'Rescue':      'bg-green-700 text-white',
   'Truck':     'bg-stone-700 text-white',
 }
 
@@ -32,7 +32,7 @@ export const UNIT_TYPE_ORDER: Record<string, number> = {
   'Warehouse': 0,
   'Med Unit':  1,
   'Ambulance': 2,
-  'REMS':      3,
+  'Rescue':      3,
   'Truck':     4,
 }
 
@@ -52,9 +52,9 @@ export function unitFilterButtonClass(typeName: string, isActive: boolean): stri
 // Map a unit display name to its canonical type string using naming conventions
 export function getUnitTypeName(name: string): string {
   if (!name) return ''
-  if (name.startsWith('RAMBO')) return 'Ambulance'
-  if (name.startsWith('MSU') || name === 'The Beast') return 'Med Unit'
-  if (name.startsWith('REMS')) return 'REMS'
+  if (name.startsWith('Medic')) return 'Ambulance'
+  if (name.startsWith('Aid') || name === 'Command 1') return 'Med Unit'
+  if (name.startsWith('Rescue')) return 'Rescue'
   if (name === 'Warehouse') return 'Warehouse'
   return ''
 }

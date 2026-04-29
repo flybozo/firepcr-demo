@@ -35,7 +35,7 @@ type Employee = {
   default_hours_per_day: number | null
   status: string
   rems: boolean
-  rems_capable: boolean | null
+  rescue_capable: boolean | null
   dea_license: string | null
   npi_number: string | null
   red_card: string | null
@@ -483,26 +483,26 @@ export default function RosterDetailPage() {
         <div className="theme-card rounded-xl p-4 border space-y-3">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Deployment Qualifications</h2>
           <div className="space-y-2">
-            {/* REMS Capable toggle */}
+            {/* Rescue Capable toggle */}
             <div className="flex items-center justify-between py-1.5 border-b border-gray-800">
               <div>
-                <p className="text-sm font-medium text-white">REMS Capable</p>
-                <p className="text-xs text-gray-500">Qualified for Technical Rope Rescue / REMS operations</p>
+                <p className="text-sm font-medium text-white">Rescue Capable</p>
+                <p className="text-xs text-gray-500">Qualified for Technical Rope Rescue / Rescue operations</p>
               </div>
               {canEdit ? (
                 <button
                   onClick={async () => {
-                    const newVal = !emp.rems_capable
+                    const newVal = !emp.rescue_capable
                     const supabase = (await import('@/lib/supabase/client')).createClient()
-                    await updateEmployee(emp.id, { rems_capable: newVal, rems: newVal })
-                    setEmp((prev: any) => prev ? { ...prev, rems_capable: newVal, rems: newVal } : prev)
+                    await updateEmployee(emp.id, { rescue_capable: newVal, rems: newVal })
+                    setEmp((prev: any) => prev ? { ...prev, rescue_capable: newVal, rems: newVal } : prev)
                   }}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${emp.rems_capable ? 'bg-purple-600' : 'bg-gray-600'}`}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${emp.rescue_capable ? 'bg-purple-600' : 'bg-gray-600'}`}
                 >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${emp.rems_capable ? 'translate-x-6' : 'translate-x-1'}`} />
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${emp.rescue_capable ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               ) : (
-                <span className={`text-xs px-2 py-0.5 rounded-full ${emp.rems_capable ? 'bg-purple-900 text-purple-300' : 'bg-gray-800 text-gray-500'}`}>{emp.rems_capable ? 'Yes' : 'No'}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${emp.rescue_capable ? 'bg-purple-900 text-purple-300' : 'bg-gray-800 text-gray-500'}`}>{emp.rescue_capable ? 'Yes' : 'No'}</span>
               )}
             </div>
 
