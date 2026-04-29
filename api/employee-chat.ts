@@ -6,7 +6,7 @@ import { brand } from './_brand.js'
 // Vercel Pro: max 60s, Enterprise: 900s. Needed for executive tool calls.
 // Vercel serverless
 
-// iMac Codsworth relay — admin users get full context via Tailscale
+// iMac Assistant relay — admin users get full context via Tailscale
 const IMAC_GATEWAY_URL = process.env.IMAC_GATEWAY_URL || 'https://aarons-imac-2.tailebc17f.ts.net'
 const REQUEST_KEYWORDS = [
   'request', 'can i', 'could i', 'i would like', 'i need approval',
@@ -25,7 +25,7 @@ function detectRequestType(message: string): 'request' | 'bug_report' | null {
   return null
 }
 
-// ── Admin relay: send message to iMac Codsworth via OpenAI-compatible endpoint ─
+// ── Admin relay: send message to iMac Assistant via OpenAI-compatible endpoint ─
 async function relayToImac(
   message: string,
   employee: { name: string; role: string; chat_authority?: string },

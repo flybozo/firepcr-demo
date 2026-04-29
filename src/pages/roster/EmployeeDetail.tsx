@@ -510,7 +510,7 @@ export default function RosterDetailPage() {
             <div className="flex items-center justify-between py-1.5 border-b border-gray-800">
               <div>
                 <p className="text-sm font-medium text-white">🔴 Red Card</p>
-                <p className="text-xs text-gray-500">Annual RAM wildfire qualification (S-130/190/L-180 + 4hr class + fire shelter)</p>
+                <p className="text-xs text-gray-500">Annual wildfire qualification (S-130/190/L-180 + 4hr class + fire shelter)</p>
               </div>
               <div className="flex items-center gap-2">
                 {isAdmin ? (
@@ -525,9 +525,9 @@ export default function RosterDetailPage() {
                       const yr = e.target.value ? parseInt(e.target.value) : null
                       await updateEmployee(emp.id, {
                         red_card_year: yr,
-                        red_card: yr ? `${yr} RAM Red Card` : null
+                        red_card: yr ? `${yr} Red Card` : null
                       })
-                      setEmp((prev: any) => prev ? { ...prev, red_card_year: yr, red_card: yr ? `${yr} RAM Red Card` : null } : prev)
+                      setEmp((prev: any) => prev ? { ...prev, red_card_year: yr, red_card: yr ? `${yr} Red Card` : null } : prev)
                     }}
                   />
                 ) : null}
