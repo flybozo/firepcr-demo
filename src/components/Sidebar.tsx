@@ -503,7 +503,7 @@ export default function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           />
         ) : (
           <img
-            src="/logo-flame.svg"
+            src={brand.logoUrl}
             alt={brand.companyName}
             className="w-10 h-10 rounded-full object-contain bg-white p-0.5 shrink-0"
           />

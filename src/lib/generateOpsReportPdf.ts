@@ -5,6 +5,7 @@
  */
 import jsPDF from 'jspdf'
 import type { DashboardData } from '@/pages/fire-admin/FireAdminDashboard'
+import { brand } from '@/lib/branding.config'
 
 export function generateOpsReportPdf(data: DashboardData) {
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' })
@@ -202,7 +203,7 @@ export function generateOpsReportPdf(data: DashboardData) {
   doc.setFontSize(7.5)
   doc.setTextColor('#9ca3af')
   doc.text(
-    `Ridgeline EMS  ·  Confidential Medical Operations Report  ·  ${fmt(now)}`,
+    `${brand.companyName}  ·  Confidential Medical Operations Report  ·  ${fmt(now)}`,
     pageW / 2, pageH - 5.5, { align: 'center' }
   )
 

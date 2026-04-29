@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
+import { brand } from '@/lib/branding.config'
 import { authFetch } from '@/lib/authFetch'
 import { useDraggablePosition } from '@/hooks/useDraggablePosition'
 import { useSpeechRecognition } from '@/hooks/useSpeechRecognition'
@@ -95,7 +96,7 @@ export default function ChatBubble() {
           m.id === pendingMessageId && m.status === 'pending'
             ? {
                 ...m,
-                content: '⏱️ Request timed out, but Assistant may still be working on it. Check back in a moment.',
+                content: `⏱️ Request timed out, but ${brand.assistantName} may still be working on it. Check back in a moment.`,
                 status: 'error' as MessageStatus,
               }
             : m
@@ -289,7 +290,7 @@ export default function ChatBubble() {
 
           {/* Pending sub-label */}
           {isPending && (
-            <p className="text-xs text-gray-500 pl-1">Assistant is working on this…</p>
+            <p className="text-xs text-gray-500 pl-1">{brand.assistantName} is working on this…</p>
           )}
 
           {/* Error retry button */}
@@ -314,7 +315,7 @@ export default function ChatBubble() {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        aria-label="Open Assistant chat"
+        aria-label={`Open ${brand.assistantName} chat`}
         style={{
           position: 'fixed',
           right: bubblePos.right,
@@ -360,8 +361,8 @@ export default function ChatBubble() {
                 🏴‍☠️
               </div>
               <div>
-                <h1 className="text-sm font-semibold text-white">Assistant</h1>
-                <p className="text-xs text-gray-500">AI Assistant · always on</p>
+                <h1 className="text-sm font-semibold text-white">{brand.assistantName}</h1>
+                <p className="text-xs text-gray-500">{brand.companyName} AI Assistant · always on</p>
               </div>
             </div>
             <button
@@ -413,7 +414,7 @@ export default function ChatBubble() {
                 Hey {assignment.employee.name?.split(' ')[0]}!
               </p>
               <p className="text-gray-400 text-sm mt-1 max-w-xs">
-                I&apos;m Assistant, your field assistant. Ask me about protocols, credentials, the app, or anything else I can help with.
+                I&apos;m {brand.assistantName}, your {brand.companyName} assistant. Ask me about protocols, credentials, the app, or anything else I can help with.
               </p>
             </div>
           )}
@@ -469,7 +470,7 @@ export default function ChatBubble() {
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Message Assistant…"
+              placeholder={`Message ${brand.assistantName}…`}
               rows={1}
               disabled={loading || !assignment.employee}
               className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-2.5 text-sm text-white placeholder-gray-500 resize-none focus:outline-none focus:border-gray-500 disabled:opacity-50 max-h-32 overflow-y-auto"

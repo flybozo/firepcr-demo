@@ -525,9 +525,9 @@ export default function RosterDetailPage() {
                       const yr = e.target.value ? parseInt(e.target.value) : null
                       await updateEmployee(emp.id, {
                         red_card_year: yr,
-                        red_card: yr ? `${yr} Red Card` : null
+                        red_card: yr ? `${yr} ${brand.companyName} Red Card` : null
                       })
-                      setEmp((prev: any) => prev ? { ...prev, red_card_year: yr, red_card: yr ? `${yr} Red Card` : null } : prev)
+                      setEmp((prev: any) => prev ? { ...prev, red_card_year: yr, red_card: yr ? `${yr} ${brand.companyName} Red Card` : null } : prev)
                     }}
                   />
                 ) : null}

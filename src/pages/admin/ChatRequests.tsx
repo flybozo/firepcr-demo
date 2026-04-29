@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useUserAssignment } from '@/lib/useUserAssignment'
 import { authFetch } from '@/lib/authFetch'
+import { brand } from '@/lib/branding.config'
 import OfflineGate from '@/components/OfflineGate'
 
 type ChatRequest = {
@@ -83,7 +84,7 @@ function ChatRequestsPageInner() {
       })
       .eq('id', reviewModal.request.id)
 
-    // If approving a bug report, notify Assistant via API
+    // If approving a bug report, notify Codsworth via API
     if (reviewModal.action === 'approved' && reviewModal.request.request_type === 'bug_report') {
       try {
         await authFetch('/api/notify-bug', {
@@ -118,7 +119,7 @@ function ChatRequestsPageInner() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold">AI Requests & Bug Reports</h1>
         <p className="text-gray-400 text-sm mt-1">
-          Requests and bug reports submitted by employees via the Assistant chat
+          {`Requests and bug reports submitted by employees via the ${brand.assistantName} chat`}
         </p>
       </div>
 

@@ -45,7 +45,7 @@ export default function ChangePasswordPage() {
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
           <img
-            src="/logo-flame.svg"
+            src={brand.logoUrl}
             alt={brand.companyName}
             className="w-24 h-24 mx-auto mb-4 rounded-full object-contain bg-white p-2"
           />
